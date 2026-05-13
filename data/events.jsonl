@@ -1,0 +1,15 @@
+{"seq": 1, "ts": 1778662429.8723252, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 2, "ts": 1778662429.8778946, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 3, "ts": 1778662429.8824654, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 4, "ts": 1778662442.237869, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 5, "ts": 1778662442.2425525, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 6, "ts": 1778662442.2480807, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 7, "ts": 1778665542.254784, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 8, "ts": 1778665542.2588677, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 9, "ts": 1778665542.2649672, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 10, "ts": 1778666765.9317377, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 11, "ts": 1778666765.938277, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 12, "ts": 1778666765.9432507, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 13, "ts": 1778667671.2592082, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 14, "ts": 1778667671.2648902, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
+{"seq": 15, "ts": 1778667671.269498, "type": "engine.init", "payload": {"initial_capital": 10000000.0, "optimizer": "equal_weight", "rebalance": "monthly"}, "source": "engine"}
