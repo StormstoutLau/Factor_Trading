@@ -1,0 +1,3567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factor Trading v3.0 - Quant Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style id="theme-style">
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-panel: #1a1f2e;
+            --bg-card: #1e2538;
+            --bg-hover: #252d42;
+            --border: #2a3447;
+            --border-active: #3b4a63;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-cyan: #00d4ff;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --accent-yellow: #eab308;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+            --font-sans: 'Noto Sans SC', system-ui, sans-serif;
+        }
+    </style>
+    <style>
+        [data-theme="openclaws"] {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-panel: #1a1a1a;
+            --bg-card: #1e1e1e;
+            --bg-hover: #252525;
+            --border: #2d2d2d;
+            --border-active: #3d3d3d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888888;
+            --text-muted: #555555;
+            --accent-cyan: #2196f3;
+            --accent-blue: #42a5f5;
+            --accent-purple: #ab47bc;
+            --accent-green: #00c853;
+            --accent-red: #ff1744;
+            --accent-orange: #ff9100;
+            --accent-yellow: #ffd600;
+        }
+        [data-theme="dracula"] {
+            --bg-primary: #282a36;
+            --bg-secondary: #44475a;
+            --bg-panel: #44475a;
+            --bg-card: #6272a4;
+            --bg-hover: #4a4d61;
+            --border: #6272a4;
+            --border-active: #bd93f9;
+            --text-primary: #f8f8f2;
+            --text-secondary: #bfbfbf;
+            --text-muted: #6272a4;
+            --accent-cyan: #8be9fd;
+            --accent-blue: #6272a4;
+            --accent-purple: #bd93f9;
+            --accent-green: #50fa7b;
+            --accent-red: #ff5555;
+            --accent-orange: #ffb86c;
+            --accent-yellow: #f1fa8c;
+        }
+        [data-theme="monokai"] {
+            --bg-primary: #272822;
+            --bg-secondary: #3e3d32;
+            --bg-panel: #3e3d32;
+            --bg-card: #49483e;
+            --bg-hover: #4a4a42;
+            --border: #75715e;
+            --border-active: #a6a18a;
+            --text-primary: #f8f8f2;
+            --text-secondary: #cfcfc2;
+            --text-muted: #75715e;
+            --accent-cyan: #66d9ef;
+            --accent-blue: #66d9ef;
+            --accent-purple: #ae81ff;
+            --accent-green: #a6e22e;
+            --accent-red: #f92672;
+            --accent-orange: #fd971f;
+            --accent-yellow: #e6db74;
+        }
+        [data-theme="solarized-dark"] {
+            --bg-primary: #002b36;
+            --bg-secondary: #073642;
+            --bg-panel: #073642;
+            --bg-card: #586e75;
+            --bg-hover: #0a4a5c;
+            --border: #586e75;
+            --border-active: #93a1a1;
+            --text-primary: #fdf6e3;
+            --text-secondary: #eee8d5;
+            --text-muted: #657b83;
+            --accent-cyan: #2aa198;
+            --accent-blue: #268bd2;
+            --accent-purple: #6c71c4;
+            --accent-green: #859900;
+            --accent-red: #dc322f;
+            --accent-orange: #cb4b16;
+            --accent-yellow: #b58900;
+        }
+        [data-theme="one-dark-pro"] {
+            --bg-primary: #282c34;
+            --bg-secondary: #21252b;
+            --bg-panel: #21252b;
+            --bg-card: #2c313a;
+            --bg-hover: #3a3f4b;
+            --border: #3e4451;
+            --border-active: #528bff;
+            --text-primary: #abb2bf;
+            --text-secondary: #828997;
+            --text-muted: #5c6370;
+            --accent-cyan: #56b6c2;
+            --accent-blue: #61afef;
+            --accent-purple: #c678dd;
+            --accent-green: #98c379;
+            --accent-red: #e06c75;
+            --accent-orange: #d19a66;
+            --accent-yellow: #e5c07b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .navbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-brand { display: flex; align-items: center; gap: 12px; }
+        .navbar-brand .logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: white;
+        }
+        .navbar-brand h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+        .navbar-brand .version {
+            font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+            background: var(--bg-panel); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);
+        }
+
+        .navbar-status { display: flex; align-items: center; gap: 20px; }
+        .status-item {
+            display: flex; align-items: center; gap: 6px;
+            font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.online { background: var(--accent-green); box-shadow: 0 0 8px rgba(16,185,129,0.3); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        .theme-switcher select {
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            cursor: pointer;
+            outline: none;
+        }
+        .theme-switcher select:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+        .github-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .github-link:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+        .github-link svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        .main-container { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 56px); }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px 0;
+        }
+        .sidebar-section { margin-bottom: 8px; }
+        .sidebar-label {
+            font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; padding: 8px 20px;
+        }
+        .sidebar-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 20px; font-size: 13px; color: var(--text-secondary);
+            cursor: pointer; transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .sidebar-item.active { background: var(--bg-panel); color: var(--accent-cyan); border-left-color: var(--accent-cyan); }
+        .sidebar-item .icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 12px; }
+
+        .content { padding: 20px; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .kpi-card {
+            background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+            padding: 16px; position: relative; overflow: hidden;
+        }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+        .kpi-card.positive::before { background: linear-gradient(90deg, var(--accent-green), transparent); }
+        .kpi-card.negative::before { background: linear-gradient(90deg, var(--accent-red), transparent); }
+        .kpi-card.neutral::before { background: linear-gradient(90deg, var(--accent-cyan), transparent); }
+        .kpi-card.warning::before { background: linear-gradient(90deg, var(--accent-orange), transparent); }
+        .kpi-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .kpi-value { font-family: var(--font-mono); font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+        .kpi-value.positive { color: var(--accent-green); }
+        .kpi-value.negative { color: var(--accent-red); }
+        .kpi-value.neutral { color: var(--accent-cyan); }
+        .kpi-change { font-family: var(--font-mono); font-size: 12px; display: flex; align-items: center; gap: 4px; }
+        .kpi-change.positive { color: var(--accent-green); }
+        .kpi-change.negative { color: var(--accent-red); }
+
+        .panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 20px; }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+        .panel-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .panel-title .indicator { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-cyan); animation: pulse 2s infinite; }
+        .panel-actions { display: flex; gap: 8px; }
+        .panel-btn {
+            background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);
+            padding: 4px 10px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .panel-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .panel-btn.active { background: var(--accent-cyan); color: var(--bg-primary); border-color: var(--accent-cyan); }
+        .panel-body { padding: 18px; }
+
+        .chart-container { position: relative; height: 300px; }
+        .chart-container.large { height: 400px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+        /* 街机风格横幅 */
+        .arcade-banner {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 50%, #0a0a1a 100%);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .arcade-banner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,212,255,0.03) 3px, rgba(0,212,255,0.03) 6px);
+            pointer-events: none;
+            z-index: 2;
+        }
+        .arcade-banner canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .arcade-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .arcade-title {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(0,212,255,0.5), 0 0 20px rgba(0,212,255,0.3), 0 0 40px rgba(0,212,255,0.1);
+            letter-spacing: 4px;
+            animation: arcadeGlow 2s ease-in-out infinite alternate;
+        }
+        .arcade-subtitle {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--accent-yellow);
+            margin-top: 8px;
+            letter-spacing: 3px;
+            animation: arcadeBlink 1.5s step-end infinite;
+        }
+        @keyframes arcadeGlow {
+            from { text-shadow: 0 0 10px rgba(0,212,255,0.5), 0 0 20px rgba(0,212,255,0.3); }
+            to { text-shadow: 0 0 20px rgba(0,212,255,0.8), 0 0 40px rgba(0,212,255,0.5), 0 0 60px rgba(0,212,255,0.2); }
+        }
+        @keyframes arcadeBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .arcade-features {
+            position: absolute;
+            bottom: 8px;
+            left: 0; right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .arcade-feature {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+        .arcade-feature .pixel-icon {
+            width: 12px; height: 12px;
+            image-rendering: pixelated;
+        }
+
+        /* Agent卡片 */
+        .agent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .agent-card {
+            background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+            padding: 16px; position: relative; overflow: hidden;
+        }
+        .agent-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+        .agent-card.active::before { background: linear-gradient(90deg, var(--accent-green), transparent); }
+        .agent-card.inactive::before { background: linear-gradient(90deg, var(--accent-red), transparent); }
+        .agent-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .agent-name { font-size: 14px; font-weight: 600; }
+        .agent-style {
+            font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 4px;
+            background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border);
+        }
+        .agent-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+        .agent-stat { background: var(--bg-card); padding: 8px; border-radius: 4px; }
+        .agent-stat-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+        .agent-stat-value { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+        .agent-beliefs { margin-top: 12px; }
+        .belief-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .belief-name { font-size: 11px; color: var(--text-secondary); flex: 1; }
+        .belief-bar { flex: 1; height: 4px; background: var(--bg-card); border-radius: 2px; overflow: hidden; }
+        .belief-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+        .belief-value { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); width: 30px; text-align: right; }
+
+        /* 持仓表格 */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+            text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .data-table td {
+            font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
+            padding: 10px 12px; border-bottom: 1px solid rgba(42,52,71,0.5);
+        }
+        .data-table tr:hover td { background: var(--bg-hover); color: var(--text-primary); }
+        .data-table .positive { color: var(--accent-green); }
+        .data-table .negative { color: var(--accent-red); }
+
+        /* 权重条 */
+        .weight-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .weight-label { font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); width: 100px; flex-shrink: 0; }
+        .weight-track { flex: 1; height: 24px; background: var(--bg-card); border-radius: 4px; overflow: hidden; position: relative; }
+        .weight-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; position: relative; }
+        .weight-fill::after { content: ''; position: absolute; top: 0; right: 0; width: 20px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1)); }
+        .weight-value { font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); width: 50px; text-align: right; }
+
+        /* 风险 */
+        .risk-indicator { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg-card); border-radius: 6px; margin-bottom: 8px; border-left: 3px solid transparent; }
+        .risk-indicator.green { border-left-color: var(--accent-green); }
+        .risk-indicator.yellow { border-left-color: var(--accent-yellow); }
+        .risk-indicator.red { border-left-color: var(--accent-red); }
+        .risk-name { font-size: 13px; flex: 1; }
+        .risk-score { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+        .risk-score.green { color: var(--accent-green); }
+        .risk-score.yellow { color: var(--accent-yellow); }
+        .risk-score.red { color: var(--accent-red); }
+        .risk-badge { font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
+        .risk-badge.green { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .risk-badge.yellow { background: rgba(234,179,8,0.15); color: var(--accent-yellow); }
+        .risk-badge.red { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+
+        /* 假设检验 */
+        .assumption-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg-card); border-radius: 6px; margin-bottom: 8px; }
+        .assumption-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .assumption-status.ok { background: var(--accent-green); box-shadow: 0 0 6px rgba(16,185,129,0.3); }
+        .assumption-status.warn { background: var(--accent-yellow); animation: pulse 1.5s infinite; }
+        .assumption-status.fail { background: var(--accent-red); box-shadow: 0 0 6px rgba(239,68,68,0.3); animation: pulse 1s infinite; }
+        .assumption-name { font-size: 13px; flex: 1; }
+        .assumption-stat { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+        /* 日志 */
+        .log-stream { font-family: var(--font-mono); font-size: 12px; line-height: 1.6; max-height: 200px; overflow-y: auto; }
+        .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(42,52,71,0.5); }
+        .log-time { color: var(--text-muted); }
+        .log-level { font-weight: 600; }
+        .log-level.info { color: var(--accent-cyan); }
+        .log-level.warn { color: var(--accent-orange); }
+        .log-level.error { color: var(--accent-red); }
+        .log-msg { color: var(--text-secondary); }
+
+        /* 标签页 */
+        .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+        .tab {
+            background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);
+            padding: 6px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .tab:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .tab.active { background: var(--accent-cyan); color: var(--bg-primary); border-color: var(--accent-cyan); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* 信号卡片 */
+        .signal-card { background: var(--bg-card); border-radius: 6px; padding: 12px; margin-bottom: 8px; }
+        .signal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .signal-stock { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+        .signal-direction {
+            font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 4px;
+        }
+        .signal-direction.long { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .signal-direction.short { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+        .signal-meta { display: flex; gap: 16px; }
+        .signal-meta-item { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+        .signal-meta-item span { color: var(--text-secondary); }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+        @media (max-width: 1200px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .grid-2, .grid-3, .agent-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .kpi-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo">FT</div>
+            <h1>Factor Trading v3.0</h1>
+            <span class="version">v3.0.1-beta</span>
+        </div>
+        <div class="navbar-status">
+            <a href="https://github.com/StormstoutLau/Factor_Trading" target="_blank" class="github-link" title="GitHub Repository">
+                <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                <span>GitHub</span>
+            </a>
+            <div class="status-item"><span class="status-dot online"></span><span>SYSTEM ONLINE</span></div>
+            <div class="status-item"><span id="clock">--:--:--</span></div>
+            <div class="status-item"><span>LATENCY: <span id="latency">12</span>ms</span></div>
+            <div class="theme-switcher">
+                <select id="themeSelect">
+                    <option value="">Default (Geek Quant)</option>
+                    <option value="openclaws">OpenClaws</option>
+                    <option value="dracula">Dracula</option>
+                    <option value="monokai">Monokai</option>
+                    <option value="solarized-dark">Solarized Dark</option>
+                    <option value="one-dark-pro">One Dark Pro</option>
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-label">Overview</div>
+                <div class="sidebar-item active" data-page="dashboard">
+                    <span class="icon">◈</span><span>仪表盘</span>
+                </div>
+                <div class="sidebar-item" data-page="agents">
+                    <span class="icon">◉</span><span>Agent监控</span>
+                </div>
+                <div class="sidebar-item" data-page="portfolio">
+                    <span class="icon">◆</span><span>组合持仓</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Risk</div>
+                <div class="sidebar-item" data-page="risk">
+                    <span class="icon">▲</span><span>风控面板</span>
+                </div>
+                <div class="sidebar-item" data-page="assumption">
+                    <span class="icon">▼</span><span>假设检验</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Analysis</div>
+                <div class="sidebar-item" data-page="industry">
+                    <span class="icon">◐</span><span>行业轮动</span>
+                </div>
+                <div class="sidebar-item" data-page="factor">
+                    <span class="icon">◑</span><span>因子分析</span>
+                </div>
+                <div class="sidebar-item" data-page="attribution">
+                    <span class="icon">◓</span><span>归因分析</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Team</div>
+                <div class="sidebar-item" data-page="research-team">
+                    <span class="icon">◒</span><span>投研团队</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">System</div>
+                <div class="sidebar-item" data-page="logs">
+                    <span class="icon">◊</span><span>执行追踪</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            <!-- 仪表盘页面 -->
+            <div class="page active" id="page-dashboard">
+                <!-- 街机风格功能展示 -->
+                <div class="arcade-banner" id="arcadeBanner">
+                    <canvas id="arcadeCanvas" width="900" height="180"></canvas>
+                    <div class="arcade-overlay">
+                        <div class="arcade-title">FACTOR TRADING v3.0</div>
+                        <div class="arcade-subtitle">PRESS START TO BACKTEST</div>
+                    </div>
+                    <div class="arcade-features">
+                        <div class="arcade-feature"><span style="color:var(--accent-cyan)">&#9650;</span> 引擎</div>
+                        <div class="arcade-feature"><span style="color:var(--accent-yellow)">&#9733;</span> 因子</div>
+                        <div class="arcade-feature"><span style="color:var(--accent-green)">&#9632;</span> 风控</div>
+                        <div class="arcade-feature"><span style="color:var(--accent-purple)">&#9679;</span> Agent</div>
+                    </div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card positive">
+                        <div class="kpi-label">累计收益</div>
+                        <div class="kpi-value positive" id="kpi-return">+15.42%</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+2.31% vs 上月</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">夏普比率</div>
+                        <div class="kpi-value neutral" id="kpi-sharpe">1.85</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+0.12 vs 上月</span></div>
+                    </div>
+                    <div class="kpi-card negative">
+                        <div class="kpi-label">最大回撤</div>
+                        <div class="kpi-value negative" id="kpi-drawdown">-8.23%</div>
+                        <div class="kpi-change negative"><span>▼</span><span>+1.45% vs 上月</span></div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">当前仓位</div>
+                        <div class="kpi-value neutral" id="kpi-position">78.5%</div>
+                        <div class="kpi-change"><span>现金: ¥2,150,000</span></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>累计收益曲线</div>
+                            <div class="panel-actions">
+                                <button class="panel-btn" data-period="1M">1M</button>
+                                <button class="panel-btn" data-period="3M">3M</button>
+                                <button class="panel-btn active" data-period="6M">6M</button>
+                                <button class="panel-btn" data-period="1Y">1Y</button>
+                            </div>
+                        </div>
+                        <div class="panel-body"><div class="chart-container large"><canvas id="returnsChart"></canvas></div></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>策略权重分布</div>
+                            <div class="panel-actions"><button class="panel-btn">历史</button></div>
+                        </div>
+                        <div class="panel-body"><div class="chart-container large"><canvas id="weightsChart"></canvas></div></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>当前资金分配</div>
+                            <div class="panel-actions"><button class="panel-btn">FTRL</button></div>
+                        </div>
+                        <div class="panel-body" id="weightBars"></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>五维风险监控</div>
+                            <div class="panel-actions"><button class="panel-btn">详情</button></div>
+                        </div>
+                        <div class="panel-body" id="riskPanel"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent监控页面 -->
+            <div class="page" id="page-agents">
+                <div class="tabs" style="margin-bottom:16px;">
+                    <div class="tab active" data-tab="agents-system">系统Agent</div>
+                    <div class="tab" data-tab="agents-guru">GuruAgent</div>
+                </div>
+
+                <div class="tab-content active" id="tab-agents-system">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>Agent团队状态</div>
+                            <div class="panel-actions">
+                                <button class="panel-btn" id="btn-refresh-agents">刷新</button>
+                                <button class="panel-btn" id="btn-export-agents">导出</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="agent-grid" id="agentGrid"></div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>最新信号</div>
+                            <div class="panel-actions"><button class="panel-btn" id="btn-clear-signals">清空</button></div>
+                        </div>
+                        <div class="panel-body" id="signalPanel"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-agents-guru">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>GuruAgent 投研大师</div>
+                            <div class="panel-actions">
+                                <button class="panel-btn" id="btn-refresh-guru">刷新</button>
+                                <button class="panel-btn" id="btn-export-guru">导出报告</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="agent-grid" id="guruGrid"></div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>大师分析日志</div>
+                        </div>
+                        <div class="panel-body" id="guruAnalysisPanel"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>心智模型映射</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container"><canvas id="guruModelChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 投研团队页面 -->
+            <div class="page" id="page-research-team">
+                <div class="kpi-grid">
+                    <div class="kpi-card positive">
+                        <div class="kpi-label">最终决策方向</div>
+                        <div class="kpi-value positive" id="team-decision-direction">BUY</div>
+                        <div class="kpi-change positive"><span>▲</span><span>综合得分: +1.25</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">团队共识度</div>
+                        <div class="kpi-value neutral" id="team-consensus">72%</div>
+                        <div class="kpi-change"><span>支持: 4 vs 反对: 1</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">建议仓位</div>
+                        <div class="kpi-value neutral" id="team-suggested-weight">8.5%</div>
+                        <div class="kpi-change"><span>最大仓位: 10%</span></div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">基金经理风格</div>
+                        <div class="kpi-value neutral" id="team-manager-style">稳健</div>
+                        <div class="kpi-change"><span>基础仓位: 80%</span></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>角色投票分布</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="teamVoteChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>角色准确率排行</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="teamAccuracyChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>投研团队成员状态</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" id="btn-refresh-team">刷新</button>
+                            <button class="panel-btn" id="btn-export-team">导出</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div id="researchTeamGrid"></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>三层信念体系</div>
+                        </div>
+                        <div class="panel-body">
+                            <div id="beliefTreePanel"></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>信念变化轨迹</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="beliefTrajectoryChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>元控制反思日志</div>
+                        <div class="panel-actions"><button class="panel-btn" id="btn-clear-reflection">清空</button></div>
+                    </div>
+                    <div class="panel-body">
+                        <table class="data-table" id="reflectionTable">
+                            <thead><tr><th>时间</th><th>角色</th><th>信念</th><th>层次</th><th>评估</th><th>建议</th><th>张力调整</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 组合持仓页面 -->
+            <div class="page" id="page-portfolio">
+                <div class="kpi-grid">
+                    <div class="kpi-card positive">
+                        <div class="kpi-label">总资产</div>
+                        <div class="kpi-value positive">¥12,542,000</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+1.2% 今日</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">持仓数量</div>
+                        <div class="kpi-value neutral">18</div>
+                        <div class="kpi-change"><span>目标: 20</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">可用现金</div>
+                        <div class="kpi-value neutral">¥2,150,000</div>
+                        <div class="kpi-change"><span>占比: 17.1%</span></div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">当日盈亏</div>
+                        <div class="kpi-value positive">+¥145,200</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+1.16%</span></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>持仓风险统计指标</div>
+                        <div class="panel-actions"><button class="panel-btn" id="btn-export-risk-stats">导出</button></div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="grid-3" id="portfolioRiskStatsPanel"></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>风险指标趋势</div>
+                            <div class="panel-actions">
+                                <button class="panel-btn" data-risk-metric="var">VaR</button>
+                                <button class="panel-btn active" data-risk-metric="volatility">波动率</button>
+                                <button class="panel-btn" data-risk-metric="beta">Beta</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="portfolioRiskTrendChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>持仓行业分布</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="portfolioIndustryChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>持仓明细</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" id="btn-export-positions">导出CSV</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="tabs">
+                            <div class="tab active" data-tab="current">当前持仓</div>
+                            <div class="tab" data-tab="history">历史持仓</div>
+                            <div class="tab" data-tab="trades">交易记录</div>
+                        </div>
+                        <div class="tab-content active" id="tab-current">
+                            <table class="data-table" id="positionTable">
+                                <thead><tr><th>股票</th><th>数量</th><th>成本价</th><th>现价</th><th>市值</th><th>权重</th><th>浮动盈亏</th><th>盈亏率</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-content" id="tab-history">
+                            <table class="data-table" id="historyTable">
+                                <thead><tr><th>日期</th><th>股票</th><th>操作</th><th>数量</th><th>价格</th><th>金额</th><th>已实现盈亏</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="tab-content" id="tab-trades">
+                            <table class="data-table" id="tradeTable">
+                                <thead><tr><th>时间</th><th>股票</th><th>方向</th><th>数量</th><th>价格</th><th>金额</th><th>手续费</th><th>Agent</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 风控面板页面 -->
+            <div class="page" id="page-risk">
+                <div class="kpi-grid">
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">综合风险评分</div>
+                        <div class="kpi-value neutral" id="risk-composite-score">54.2</div>
+                        <div class="kpi-change"><span id="risk-composite-level">🟡 二级预警</span></div>
+                    </div>
+                    <div class="kpi-card negative">
+                        <div class="kpi-label">最高风险维度</div>
+                        <div class="kpi-value negative">情绪风险</div>
+                        <div class="kpi-change"><span>score: 85</span></div>
+                    </div>
+                    <div class="kpi-card positive">
+                        <div class="kpi-label">安全维度</div>
+                        <div class="kpi-value positive">2 / 5</div>
+                        <div class="kpi-change"><span>基本面/资金</span></div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">风控动作</div>
+                        <div class="kpi-value neutral">减仓50%</div>
+                        <div class="kpi-change"><span>暂停新买入</span></div>
+                    </div>
+                </div>
+
+                <!-- 全球传染风险模块 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>全球市场传染风险</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" id="btn-refresh-contagion">刷新</button>
+                            <button class="panel-btn" id="btn-export-contagion">导出</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="kpi-grid" style="margin-bottom:16px;">
+                            <div class="kpi-card neutral">
+                                <div class="kpi-label">全球传染指数</div>
+                                <div class="kpi-value neutral" id="contagion-index">68.5</div>
+                                <div class="kpi-change"><span id="contagion-level">🟡 二级预警</span></div>
+                            </div>
+                            <div class="kpi-card negative">
+                                <div class="kpi-label">跨市场相关性</div>
+                                <div class="kpi-value negative" id="contagion-corr">0.82</div>
+                                <div class="kpi-change negative"><span>▼</span><span>SPX→SH</span></div>
+                            </div>
+                            <div class="kpi-card warning">
+                                <div class="kpi-label">波动率溢出</div>
+                                <div class="kpi-value neutral" id="contagion-spillover">0.45</div>
+                                <div class="kpi-change"><span>BEKK指数</span></div>
+                            </div>
+                            <div class="kpi-card neutral">
+                                <div class="kpi-label">系统重要性市场</div>
+                                <div class="kpi-value neutral" id="contagion-central">SPX</div>
+                                <div class="kpi-change"><span>中心性: 0.28</span></div>
+                            </div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="chart-container large"><canvas id="contagionNetworkChart"></canvas></div>
+                            <div class="chart-container large"><canvas id="contagionHeatmapChart"></canvas></div>
+                        </div>
+                        <div style="margin-top:16px;">
+                            <h3 style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">传染通道监控</h3>
+                            <table class="data-table" id="contagionChannelTable">
+                                <thead><tr><th>通道</th><th>状态</th><th>传染强度</th><th>时滞</th><th>趋势</th><th>CoVaR</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>五维风险雷达</div>
+                            <div class="panel-actions"><button class="panel-btn" id="btn-refresh-risk">刷新</button></div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container"><canvas id="riskRadarChart"></canvas></div>
+                            <div id="riskDetailPanel" style="margin-top:16px;"></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>风险预警与动作</div>
+                        </div>
+                        <div class="panel-body" id="riskAlertPanel"></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>风险历史趋势</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" data-risk-period="1W">1W</button>
+                            <button class="panel-btn active" data-risk-period="1M">1M</button>
+                            <button class="panel-btn" data-risk-period="3M">3M</button>
+                        </div>
+                    </div>
+                    <div class="panel-body"><div class="chart-container large" id="riskTrendContainer"><canvas id="riskTrendChart"></canvas></div></div>
+                </div>
+            </div>
+
+            <!-- 假设检验页面 -->
+            <div class="page" id="page-assumption">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>元策略假设检验层</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" id="btn-reset-assumption">重置</button>
+                            <button class="panel-btn" id="btn-export-assumption">导出</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="grid-2">
+                            <div>
+                                <h3 style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">收益分布监控</h3>
+                                <div id="assumptionReturnPanel"></div>
+                            </div>
+                            <div>
+                                <h3 style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">模型适配监控</h3>
+                                <div id="assumptionModelPanel"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 行业轮动页面 -->
+            <div class="page" id="page-industry">
+                <div class="kpi-grid">
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">当前选中行业数</div>
+                        <div class="kpi-value neutral" id="industry-kpi-count">5</div>
+                        <div class="kpi-change"><span>轮动周期: 20日</span></div>
+                    </div>
+                    <div class="kpi-card positive">
+                        <div class="kpi-label">领涨行业</div>
+                        <div class="kpi-value positive" id="industry-kpi-leader">电子</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+12.5% 动量</span></div>
+                    </div>
+                    <div class="kpi-card negative">
+                        <div class="kpi-label">领跌行业</div>
+                        <div class="kpi-value negative" id="industry-kpi-laggard">房地产</div>
+                        <div class="kpi-change negative"><span>▼</span><span>-8.3% 动量</span></div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-label">轮动强度</div>
+                        <div class="kpi-value neutral" id="industry-kpi-strength">68.5</div>
+                        <div class="kpi-change"><span>行业分化度: 高</span></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>行业动量排名</div>
+                            <div class="panel-actions">
+                                <button class="panel-btn" data-industry-period="5">5D</button>
+                                <button class="panel-btn" data-industry-period="20">20D</button>
+                                <button class="panel-btn active" data-industry-period="60">60D</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="industryMomentumChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>行业分布</div>
+                            <div class="panel-actions"><button class="panel-btn">配置</button></div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="industryPieChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>行业轮动轨迹</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" data-rotation-view="heatmap">热力图</button>
+                            <button class="panel-btn active" data-rotation-view="timeline">时间线</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-container large"><canvas id="industryRotationChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>行业配置明细</div>
+                        <div class="panel-actions"><button class="panel-btn" id="btn-export-industry">导出CSV</button></div>
+                    </div>
+                    <div class="panel-body">
+                        <table class="data-table" id="industryTable">
+                            <thead><tr><th>行业</th><th>动量得分</th><th>排名</th><th>权重</th><th>股票数</th><th>平均收益</th><th>趋势</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 因子分析页面 -->
+            <div class="page" id="page-factor">
+                <div class="kpi-grid">
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">IC (信息系数)</div>
+                        <div class="kpi-value neutral" id="factor-kpi-ic">0.052</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+0.008 vs 上月</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">IR (信息比率)</div>
+                        <div class="kpi-value neutral" id="factor-kpi-ir">0.48</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+0.05 vs 上月</span></div>
+                    </div>
+                    <div class="kpi-card neutral">
+                        <div class="kpi-label">半衰期</div>
+                        <div class="kpi-value neutral" id="factor-kpi-halflife">8.5</div>
+                        <div class="kpi-change"><span>单位: 交易日</span></div>
+                    </div>
+                    <div class="kpi-card positive">
+                        <div class="kpi-label">因子累计收益</div>
+                        <div class="kpi-value positive" id="factor-kpi-return">+23.6%</div>
+                        <div class="kpi-change positive"><span>▲</span><span>+1.2% 本月</span></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>因子累计收益曲线</div>
+                            <div class="panel-actions">
+                                <button class="panel-btn" data-factor-period="1M">1M</button>
+                                <button class="panel-btn" data-factor-period="3M">3M</button>
+                                <button class="panel-btn active" data-factor-period="6M">6M</button>
+                                <button class="panel-btn" data-factor-period="1Y">1Y</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="factorCumulativeChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>IC 时序图</div>
+                            <div class="panel-actions"><button class="panel-btn">滚动</button></div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="factorICChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>IC 月度热图</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="factorICHeatmap"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><span class="indicator"></span>因子衰减分析</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-container large"><canvas id="factorDecayChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>因子统计指标</div>
+                        <div class="panel-actions"><button class="panel-btn" id="btn-export-factor">导出报告</button></div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="grid-3" id="factorStatsPanel"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 归因分析页面 -->
+            <div class="page" id="page-attribution">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>Brinson归因分析</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" id="btn-refresh-attribution">刷新</button>
+                            <button class="panel-btn" id="btn-export-attribution">导出</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="attribution-summary" id="attributionSummary"></div>
+                        <div class="chart-row">
+                            <div class="chart-container">
+                                <div class="chart-title">归因效应分解</div>
+                                <canvas id="attributionChart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">行业配置效应</div>
+                                <canvas id="sectorAllocationChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-row">
+                            <div class="chart-container">
+                                <div class="chart-title">行业选择效应</div>
+                                <canvas id="sectorSelectionChart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">累计归因走势</div>
+                                <canvas id="cumulativeAttributionChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header">
+                                <div class="panel-title">行业归因明细</div>
+                            </div>
+                            <div class="panel-body">
+                                <table class="position-table" id="attributionTable">
+                                    <thead>
+                                        <tr>
+                                            <th>行业</th>
+                                            <th>配置效应</th>
+                                            <th>选择效应</th>
+                                            <th>交互效应</th>
+                                            <th>合计</th>
+                                            <th>贡献占比</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="attributionTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 执行追踪页面 -->
+            <div class="page" id="page-logs">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span class="indicator"></span>系统日志</div>
+                        <div class="panel-actions">
+                            <button class="panel-btn" id="btn-clear-logs">清空</button>
+                            <button class="panel-btn" id="btn-export-logs">导出</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="log-stream" id="logStream"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ===================== 街机风格Canvas动画 =====================
+        (function initArcadeBanner() {
+            const canvas = document.getElementById('arcadeCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = rect.height;
+
+            // 像素大小
+            const PX = 4;
+
+            // 星星背景
+            const stars = [];
+            for (let i = 0; i < 60; i++) {
+                stars.push({
+                    x: Math.random() * W,
+                    y: Math.random() * H,
+                    size: Math.random() > 0.7 ? 2 : 1,
+                    speed: Math.random() * 0.3 + 0.1,
+                    brightness: Math.random()
+                });
+            }
+
+            // 火箭/飞船像素图案 (代表回测引擎)
+            const rocketPixels = [
+                [0,0,0,0,0,1,1,0,0,0,0,0],
+                [0,0,0,0,1,2,2,1,0,0,0,0],
+                [0,0,0,1,2,3,3,2,1,0,0,0],
+                [0,0,1,2,3,3,3,3,2,1,0,0],
+                [0,1,2,3,3,4,4,3,3,2,1,0],
+                [1,2,3,3,4,5,5,4,3,3,2,1],
+                [1,2,3,3,4,5,5,4,3,3,2,1],
+                [0,1,2,3,3,4,4,3,3,2,1,0],
+                [0,0,1,2,3,3,3,3,2,1,0,0],
+                [0,0,0,1,2,3,3,2,1,0,0,0],
+                [0,0,0,0,1,2,2,1,0,0,0,0],
+                [0,0,0,0,0,1,1,0,0,0,0,0]
+            ];
+            const rocketColors = ['transparent', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe', '#ffffff'];
+
+            // 金币/星星像素图案 (代表收益因子)
+            const coinPixels = [
+                [0,0,1,1,1,0,0],
+                [0,1,2,2,2,1,0],
+                [1,2,3,3,3,2,1],
+                [1,2,3,4,3,2,1],
+                [1,2,3,3,3,2,1],
+                [0,1,2,2,2,1,0],
+                [0,0,1,1,1,0,0]
+            ];
+            const coinColors = ['transparent', '#eab308', '#facc15', '#fde047', '#fef08a'];
+
+            // 盾牌像素图案 (代表风险监控)
+            const shieldPixels = [
+                [0,0,1,1,1,1,1,0,0],
+                [0,1,2,2,2,2,2,1,0],
+                [1,2,3,3,3,3,3,2,1],
+                [1,2,3,4,4,4,3,2,1],
+                [1,2,3,4,5,4,3,2,1],
+                [1,2,3,4,4,4,3,2,1],
+                [0,1,2,3,3,3,2,1,0],
+                [0,0,1,2,2,2,1,0,0],
+                [0,0,0,1,1,1,0,0,0]
+            ];
+            const shieldColors = ['transparent', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5'];
+
+            // 小精灵Agent图案
+            const agentPixels = [
+                [0,1,1,1,0],
+                [1,2,2,2,1],
+                [1,2,3,2,1],
+                [1,2,2,2,1],
+                [0,1,2,1,0],
+                [1,1,0,1,1]
+            ];
+            const agentColors = ['transparent', '#8b5cf6', '#a78bfa', '#c4b5fd'];
+
+            // 游戏对象
+            let frame = 0;
+            const rocket = { x: 80, y: H/2 - 30, vy: 0, targetY: H/2 - 30 };
+            const coins = [
+                { x: 250, y: 40, collected: false, label: 'VALUE' },
+                { x: 350, y: 100, collected: false, label: 'MOM' },
+                { x: 450, y: 50, collected: false, label: 'QUALITY' },
+                { x: 550, y: 110, collected: false, label: 'VOL' },
+                { x: 650, y: 45, collected: false, label: 'LIQ' }
+            ];
+            const shields = [
+                { x: 300, y: 140, active: true, label: 'RISK' },
+                { x: 500, y: 140, active: true, label: 'MONITOR' }
+            ];
+            const agents = [
+                { x: 750, y: 50, color: '#ef4444', label: 'Buffett' },
+                { x: 800, y: 90, color: '#f59e0b', label: 'Soros' },
+                { x: 780, y: 130, color: '#3b82f6', label: 'Munger' },
+                { x: 820, y: 60, color: '#10b981', label: 'Dalio' }
+            ];
+            const particles = [];
+
+            function drawPixelPattern(ctx, pattern, colors, x, y, scale, glow) {
+                if (glow) {
+                    ctx.shadowColor = colors[colors.length - 1];
+                    ctx.shadowBlur = 10;
+                }
+                for (let row = 0; row < pattern.length; row++) {
+                    for (let col = 0; col < pattern[row].length; col++) {
+                        const colorIdx = pattern[row][col];
+                        if (colorIdx > 0) {
+                            ctx.fillStyle = colors[colorIdx] || colors[1];
+                            ctx.fillRect(x + col * scale, y + row * scale, scale, scale);
+                        }
+                    }
+                }
+                ctx.shadowBlur = 0;
+            }
+
+            function drawPixelText(ctx, text, x, y, color, scale) {
+                ctx.fillStyle = color;
+                ctx.font = `${scale * 3}px 'JetBrains Mono', monospace`;
+                ctx.fillText(text, x, y);
+            }
+
+            function addParticles(x, y, color, count) {
+                for (let i = 0; i < count; i++) {
+                    particles.push({
+                        x, y,
+                        vx: (Math.random() - 0.5) * 3,
+                        vy: (Math.random() - 0.5) * 3,
+                        life: 30,
+                        color,
+                        size: Math.random() * 3 + 1
+                    });
+                }
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, W, H);
+
+                // 绘制星空背景
+                stars.forEach(star => {
+                    star.y += star.speed;
+                    if (star.y > H) star.y = 0;
+                    const alpha = 0.3 + star.brightness * 0.7 * Math.abs(Math.sin(frame * 0.02 + star.x));
+                    ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+                    ctx.fillRect(star.x, star.y, star.size * PX/2, star.size * PX/2);
+                });
+
+                // 绘制地面网格线 (代表数据流)
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.1)';
+                ctx.lineWidth = 1;
+                const gridOffset = (frame * 2) % 40;
+                for (let x = 0; x < W; x += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(x - gridOffset, H - 20);
+                    ctx.lineTo(x - gridOffset - 20, H);
+                    ctx.stroke();
+                }
+
+                // 火箭浮动动画
+                rocket.targetY = H/2 - 30 + Math.sin(frame * 0.03) * 15;
+                rocket.y += (rocket.targetY - rocket.y) * 0.1;
+
+                // 火箭尾焰
+                const flameHeight = 8 + Math.random() * 6;
+                ctx.fillStyle = `rgba(59, 130, 246, ${0.6 + Math.random() * 0.4})`;
+                for (let i = 0; i < flameHeight; i++) {
+                    ctx.fillRect(rocket.x - 4 - i*2, rocket.y + 24 + i*3, 4 + Math.random()*4, 2);
+                    ctx.fillRect(rocket.x + 44 + i*2, rocket.y + 24 + i*3, 4 + Math.random()*4, 2);
+                }
+                ctx.fillStyle = `rgba(0, 212, 255, ${0.8 + Math.random() * 0.2})`;
+                ctx.fillRect(rocket.x + 18, rocket.y + 48, 8, flameHeight * 2);
+
+                // 绘制火箭
+                drawPixelPattern(ctx, rocketPixels, rocketColors, rocket.x, rocket.y, PX, true);
+
+                // 绘制金币/因子
+                coins.forEach((coin, idx) => {
+                    if (!coin.collected) {
+                        const floatY = coin.y + Math.sin(frame * 0.04 + idx) * 5;
+                        const scale = PX * (0.8 + Math.sin(frame * 0.05 + idx) * 0.2);
+                        drawPixelPattern(ctx, coinPixels, coinColors, coin.x, floatY, scale/2, true);
+                        drawPixelText(ctx, coin.label, coin.x, floatY - 8, '#facc15', 3);
+
+                        // 检测收集
+                        const dx = rocket.x + 24 - coin.x;
+                        const dy = rocket.y + 24 - floatY;
+                        if (Math.sqrt(dx*dx + dy*dy) < 40 && frame > 60 + idx * 30) {
+                            coin.collected = true;
+                            addParticles(coin.x, floatY, '#facc15', 15);
+                        }
+                    }
+                });
+
+                // 绘制盾牌/风险监控
+                shields.forEach((shield, idx) => {
+                    const pulse = 1 + Math.sin(frame * 0.03 + idx) * 0.1;
+                    drawPixelPattern(ctx, shieldPixels, shieldColors, shield.x, shield.y, PX * pulse, true);
+                    drawPixelText(ctx, shield.label, shield.x, shield.y - 8, '#34d399', 3);
+
+                    // 扫描线效果
+                    ctx.strokeStyle = `rgba(52, 211, 153, ${0.3 + Math.sin(frame * 0.05) * 0.2})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(shield.x + 18, shield.y + 18, 25 + Math.sin(frame * 0.03) * 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                });
+
+                // 绘制Guru Agents
+                agents.forEach((agent, idx) => {
+                    const agentY = agent.y + Math.sin(frame * 0.025 + idx * 1.5) * 8;
+                    const agentColorsCustom = ['transparent', agent.color, lightenColor(agent.color, 30), lightenColor(agent.color, 60)];
+                    drawPixelPattern(ctx, agentPixels, agentColorsCustom, agent.x, agentY, PX, true);
+                    drawPixelText(ctx, agent.label, agent.x, agentY - 8, agent.color, 3);
+                });
+
+                // 绘制粒子
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life--;
+                    const alpha = p.life / 30;
+                    ctx.fillStyle = p.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+                    if (!ctx.fillStyle.includes('rgba')) {
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = p.color;
+                    }
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                    ctx.globalAlpha = 1;
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+
+                // 绘制连接线 (数据流)
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.lineDashOffset = -frame * 0.5;
+
+                // 火箭到金币的连线
+                coins.forEach(coin => {
+                    if (!coin.collected) {
+                        ctx.beginPath();
+                        ctx.moveTo(rocket.x + 24, rocket.y + 24);
+                        ctx.lineTo(coin.x + 14, coin.y + 14);
+                        ctx.stroke();
+                    }
+                });
+
+                // 金币到盾牌的连线
+                shields.forEach(shield => {
+                    coins.forEach(coin => {
+                        if (coin.collected) {
+                            ctx.beginPath();
+                            ctx.moveTo(coin.x + 14, coin.y + 14);
+                            ctx.lineTo(shield.x + 18, shield.y + 18);
+                            ctx.stroke();
+                        }
+                    });
+                });
+
+                // 盾牌到Agents的连线
+                agents.forEach(agent => {
+                    shields.forEach(shield => {
+                        ctx.beginPath();
+                        ctx.moveTo(shield.x + 18, shield.y + 18);
+                        ctx.lineTo(agent.x + 10, agent.y + 10);
+                        ctx.stroke();
+                    });
+                });
+                ctx.setLineDash([]);
+
+                // 绘制状态栏
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(10, H - 28, 280, 22);
+                ctx.fillStyle = '#00d4ff';
+                ctx.font = "11px 'JetBrains Mono', monospace";
+                const collected = coins.filter(c => c.collected).length;
+                ctx.fillText(`FACTORS: ${collected}/5  RISK: ACTIVE  AGENTS: 4  FPS: ${Math.round(60)}`, 18, H - 14);
+
+                frame++;
+                requestAnimationFrame(animate);
+            }
+
+            function lightenColor(hex, percent) {
+                const num = parseInt(hex.replace('#', ''), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = Math.min(255, (num >> 16) + amt);
+                const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+                const B = Math.min(255, (num & 0x0000FF) + amt);
+                return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+            }
+
+            animate();
+        })();
+
+        // ===================== 导航切换 =====================
+        document.querySelectorAll('.sidebar-item[data-page]').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById('page-' + page).classList.add('active');
+            });
+        });
+
+        // ===================== 标签页切换 =====================
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                const parent = tab.closest('.panel-body') || tab.closest('.page') || tab.parentElement.parentElement;
+                if (!parent) return;
+                const tabs = parent.querySelectorAll('.tab');
+                const contents = parent.querySelectorAll('.tab-content');
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                contents.forEach(c => c.classList.remove('active'));
+                const target = parent.querySelector('#tab-' + tabName);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        // ===================== 时钟 =====================
+        function updateClock() {
+            document.getElementById('clock').textContent = new Date().toLocaleTimeString('zh-CN');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        setInterval(() => {
+            document.getElementById('latency').textContent = Math.floor(Math.random() * 20 + 5);
+        }, 3000);
+
+        // ===================== 模拟数据 =====================
+        const agents = [
+            { id: 'value_001', name: '价值型Agent', style: 'VALUE', active: true, capital: 20000000, pnl: 0.085, sharpe: 1.62, drawdown: -0.12, signals: 156, accuracy: 0.58, beliefs: [{name:'价值发现', val:0.72}, {name:'低估值偏好', val:0.65}, {name:'分散持仓', val:0.80}] },
+            { id: 'momentum_001', name: '动量型Agent', style: 'MOMENTUM', active: true, capital: 15000000, pnl: 0.123, sharpe: 1.45, drawdown: -0.18, signals: 142, accuracy: 0.52, beliefs: [{name:'趋势跟踪', val:0.78}, {name:'动量偏好', val:0.70}, {name:'高集中度', val:0.60}] },
+            { id: 'contrarian_001', name: '逆向型Agent', style: 'CONTRARIAN', active: true, capital: 15000000, pnl: 0.067, sharpe: 1.38, drawdown: -0.15, signals: 89, accuracy: 0.55, beliefs: [{name:'均值回归', val:0.68}, {name:'超跌偏好', val:0.55}, {name:'分散持仓', val:0.75}] },
+            { id: 'research_team_001', name: '投研团队Agent', style: 'MULTI_FACTOR', active: true, capital: 20000000, pnl: 0.095, sharpe: 1.72, drawdown: -0.10, signals: 203, accuracy: 0.61, beliefs: [{name:'价值发现', val:0.60}, {name:'趋势跟踪', val:0.55}, {name:'多因子融合', val:0.70}] },
+        ];
+
+        const gurus = [
+            {
+                id: 'buffett', name: '沃伦·巴菲特', english: 'Warren Buffett', era: '1950s-present',
+                philosophy: '以合理价格买入具有持久竞争优势的伟大企业，长期持有',
+                style: 'concentrated', holding: 'very_long', capital: 20000000,
+                pnl: 0.095, sharpe: 1.55, drawdown: -0.08, signals: 45, accuracy: 0.62,
+                mental_models: [
+                    { name: '护城河', type: 'MOAT', one_liner: '企业的竞争优势是否能持续抵御竞争', factor: { factor_quality: 0.4, factor_value: 0.3 } },
+                    { name: '能力圈', type: 'CIRCLE_OF_COMPETENCE', one_liner: '只投资自己能理解的业务', factor: { factor_value: 0.5 } },
+                    { name: '安全边际', type: 'MARGIN_OF_SAFETY', one_liner: '以显著低于内在价值的价格买入', factor: { factor_value: 0.6, factor_momentum: -0.2 } },
+                ],
+                heuristics: [
+                    { name: 'ROE > 15%', rule: '只考虑ROE持续高于15%的公司', weight: 1.0 },
+                    { name: '低负债', rule: '偏好负债率低、现金流充裕的公司', weight: 0.8 },
+                ],
+                values: ['长期主义', '理性', '耐心', '诚实'],
+                anti_patterns: ['频繁交易', '追逐热点', '高杠杆', '投机'],
+                blind_spots: ['科技行业', '加密货币', '新兴市场'],
+                preferred_factors: { factor_value: 0.5, factor_quality: 0.3, factor_momentum: 0.0 },
+                expression: { opening: 'direct_conclusion', certainty: 'high', humor: 'self_deprecating' },
+                analysis_log: [
+                    '[沃伦·巴菲特] 今日选股5只。\\n应用心智模型: 护城河, 安全边际\\n这些选择符合我的投资原则。\\n注意盲区: 科技行业, 加密货币',
+                    '[沃伦·巴菲特] 以合理价格买入具有持久竞争优势的伟大企业，长期持有\\n应用心智模型: 能力圈, 护城河\\n这些选择符合我的投资原则。',
+                ]
+            },
+            {
+                id: 'soros', name: '乔治·索罗斯', english: 'George Soros', era: '1960s-2011',
+                philosophy: '市场总是错的，利用反身性在趋势中获利',
+                style: 'very_concentrated', holding: 'medium', capital: 15000000,
+                pnl: 0.142, sharpe: 1.28, drawdown: -0.22, signals: 78, accuracy: 0.48,
+                mental_models: [
+                    { name: '反身性', type: 'REFLEXIVITY', one_liner: '市场参与者的偏见会影响市场，市场又反过来强化偏见', factor: { factor_momentum: 0.5, factor_value: -0.2 } },
+                    { name: '宏观交易', type: 'MACRO_TRADING', one_liner: '基于宏观经济趋势进行大额方向性押注', factor: { factor_momentum: 0.6, factor_value: 0.1 } },
+                ],
+                heuristics: [
+                    { name: '先投资后研究', rule: '建立小仓位后深入研究，确认后加仓', weight: 1.0 },
+                    { name: '敢于认错', rule: '错误时立即止损，不犹豫', weight: 0.9 },
+                ],
+                values: ['灵活', '哲学', '大胆', '自省'],
+                anti_patterns: ['固执', '教条', '小仓位试探', '忽视宏观'],
+                blind_spots: ['价值投资', '长期持有', '企业基本面'],
+                preferred_factors: { factor_momentum: 0.7, factor_value: 0.1, factor_quality: 0.0 },
+                expression: { opening: 'philosophical_premise', certainty: 'philosophical', humor: 'none' },
+                analysis_log: [
+                    '[乔治·索罗斯] 市场总是错的，利用反身性在趋势中获利\\n应用心智模型: 反身性, 宏观交易\\n基于当前信息，这是最合理的推断。\\n注意盲区: 价值投资, 长期持有',
+                    '[乔治·索罗斯] 建立小仓位后深入研究，确认后加仓\\n应用心智模型: 反身性\\n系统化分析后的最优配置。',
+                ]
+            },
+            {
+                id: 'munger', name: '查理·芒格', english: 'Charlie Munger', era: '1960s-2023',
+                philosophy: '多学科思维模型，逆向思考，寻找简单但深刻的机会',
+                style: 'concentrated', holding: 'very_long', capital: 15000000,
+                pnl: 0.088, sharpe: 1.48, drawdown: -0.10, signals: 38, accuracy: 0.65,
+                mental_models: [
+                    { name: '逆向思维', type: 'INVERSION', one_liner: '反过来想，总是反过来想', factor: { factor_value: 0.5, factor_quality: 0.3 } },
+                    { name: '多学科模型', type: 'MULTIDISCIPLINARY', one_liner: '运用多个学科的核心思维模型', factor: { factor_quality: 0.4, factor_value: 0.4 } },
+                ],
+                heuristics: [
+                    { name: '等待好球', rule: '只在最佳机会出手，大部分时间等待', weight: 1.0 },
+                    { name: '避免愚蠢', rule: '先避免做蠢事，而不是追求聪明', weight: 0.9 },
+                ],
+                values: ['智慧', '耐心', '理性', '谦逊'],
+                anti_patterns: ['过度自信', '频繁交易', '复杂化'],
+                blind_spots: ['短期交易', '技术趋势'],
+                preferred_factors: { factor_quality: 0.5, factor_value: 0.4, factor_momentum: 0.0 },
+                expression: { opening: 'philosophical_premise', certainty: 'high', humor: 'witty' },
+                analysis_log: [
+                    '[查理·芒格] 多学科思维模型，逆向思考，寻找简单但深刻的机会\\n应用心智模型: 逆向思维, 多学科模型\\n毫无疑问，这是正确的方向。',
+                ]
+            },
+            {
+                id: 'dalio', name: '雷·达里奥', english: 'Ray Dalio', era: '1970s-present',
+                philosophy: '极度透明，原则驱动，全天候策略',
+                style: 'diversified', holding: 'long', capital: 20000000,
+                pnl: 0.072, sharpe: 1.85, drawdown: -0.06, signals: 120, accuracy: 0.58,
+                mental_models: [
+                    { name: '全天候策略', type: 'ALL_WEATHER', one_liner: '在不同经济环境下平衡配置资产', factor: { factor_momentum: 0.2, factor_value: 0.2, factor_quality: 0.2 } },
+                    { name: '极度透明', type: 'RADICAL_TRANSPARENCY', one_liner: '直面现实，不回避问题', factor: { factor_quality: 0.3, factor_value: 0.3 } },
+                ],
+                heuristics: [
+                    { name: '分散化', rule: '通过分散化降低风险，不押注单一方向', weight: 1.0 },
+                    { name: '原则驱动', rule: '将决策转化为可执行的原则', weight: 0.9 },
+                ],
+                values: ['透明', '原则', '现实', '进化'],
+                anti_patterns: ['情绪化决策', '过度集中', '忽视风险'],
+                blind_spots: ['主动选股', '短期机会'],
+                preferred_factors: { factor_momentum: 0.2, factor_value: 0.3, factor_quality: 0.3 },
+                expression: { opening: 'system_definition', certainty: 'systematic', humor: 'none' },
+                analysis_log: [
+                    '[雷·达里奥] 今日配置基于全天候策略...\\n应用心智模型: 全天候策略, 极度透明\\n系统化分析后的最优配置。',
+                ]
+            },
+        ];
+
+        // Brinson归因分析模拟数据
+        const attributionData = {
+            summary: {
+                portfolioReturn: 0.1542,
+                benchmarkReturn: 0.0891,
+                excessReturn: 0.0651,
+                allocationEffect: 0.0183,
+                selectionEffect: 0.0357,
+                interactionEffect: 0.0111,
+                periods: 12
+            },
+            sectorBreakdown: [
+                { sector: '科技', allocation: 0.0082, selection: 0.0156, interaction: 0.0048, total: 0.0286, weight: 0.25 },
+                { sector: '金融', allocation: -0.0021, selection: 0.0089, interaction: -0.0012, total: 0.0056, weight: 0.18 },
+                { sector: '消费', allocation: 0.0054, selection: 0.0067, interaction: 0.0021, total: 0.0142, weight: 0.20 },
+                { sector: '医药', allocation: 0.0031, selection: 0.0034, interaction: 0.0015, total: 0.0080, weight: 0.12 },
+                { sector: '新能源', allocation: 0.0028, selection: 0.0021, interaction: 0.0018, total: 0.0067, weight: 0.10 },
+                { sector: '周期', allocation: 0.0009, selection: -0.0010, interaction: 0.0021, total: 0.0020, weight: 0.08 },
+                { sector: '制造', allocation: 0.0000, selection: -0.0010, interaction: 0.0000, total: -0.0010, weight: 0.07 },
+            ],
+            periodData: [
+                { date: '2024-01', portfolio: 0.032, benchmark: 0.025, excess: 0.007, allocation: 0.002, selection: 0.004, interaction: 0.001 },
+                { date: '2024-02', portfolio: 0.018, benchmark: 0.012, excess: 0.006, allocation: 0.001, selection: 0.003, interaction: 0.002 },
+                { date: '2024-03', portfolio: -0.008, benchmark: -0.015, excess: 0.007, allocation: 0.003, selection: 0.002, interaction: 0.002 },
+                { date: '2024-04', portfolio: 0.025, benchmark: 0.018, excess: 0.007, allocation: 0.002, selection: 0.003, interaction: 0.002 },
+                { date: '2024-05', portfolio: 0.012, benchmark: 0.008, excess: 0.004, allocation: 0.001, selection: 0.002, interaction: 0.001 },
+                { date: '2024-06', portfolio: 0.035, benchmark: 0.022, excess: 0.013, allocation: 0.004, selection: 0.006, interaction: 0.003 },
+                { date: '2024-07', portfolio: 0.008, benchmark: 0.005, excess: 0.003, allocation: 0.001, selection: 0.001, interaction: 0.001 },
+                { date: '2024-08', portfolio: -0.012, benchmark: -0.018, excess: 0.006, allocation: 0.002, selection: 0.003, interaction: 0.001 },
+                { date: '2024-09', portfolio: 0.028, benchmark: 0.020, excess: 0.008, allocation: 0.002, selection: 0.004, interaction: 0.002 },
+                { date: '2024-10', portfolio: 0.015, benchmark: 0.010, excess: 0.005, allocation: 0.001, selection: 0.003, interaction: 0.001 },
+                { date: '2024-11', portfolio: 0.022, benchmark: 0.016, excess: 0.006, allocation: 0.002, selection: 0.003, interaction: 0.001 },
+                { date: '2024-12', portfolio: -0.021, benchmark: -0.032, excess: 0.011, allocation: 0.003, selection: 0.005, interaction: 0.003 },
+            ]
+        };
+
+        // 投研团队模拟数据
+        const researchTeamData = {
+            managerStyle: '稳健',
+            basePosition: 0.80,
+            maxPosition: 0.10,
+            targetStockCount: 20,
+            consensusThreshold: 0.5,
+            finalDirection: 'BUY',
+            finalScore: 1.25,
+            consensusLevel: 0.72,
+            suggestedWeight: 0.085,
+            supportingRoles: ['主观交易员', '量化研究员', '行业分析师', '宏观经济学家'],
+            opposingRoles: ['风险分析师'],
+            neutralRoles: ['财务分析师'],
+            roles: [
+                {
+                    name: '主观交易员', weight: 0.8, reflectionType: 'AGGRESSIVE',
+                    isActive: true, latestView: 'BUY', confidence: 0.75,
+                    reasoning: '多头排列; 放量确认', horizon: 'short',
+                    accuracy: 0.52, predictionCount: 45,
+                    beliefs: [
+                        { name: '均线突破', layer: 'TACTIC', posterior: 0.72, tension: 0.40, trend: 'up' },
+                        { name: '成交量确认', layer: 'TACTIC', posterior: 0.65, tension: 0.40, trend: 'up' },
+                        { name: '形态识别', layer: 'TACTIC', posterior: 0.45, tension: 0.50, trend: 'flat' },
+                    ],
+                    reflection: { assessment: 'stable', recommendation: 'maintain', directionRatio: 0.65, avgStepChange: 0.04 }
+                },
+                {
+                    name: '财务分析师', weight: 1.2, reflectionType: 'CONSERVATIVE',
+                    isActive: true, latestView: 'HOLD', confidence: 0.60,
+                    reasoning: '估值处于历史中位(52%分位)', horizon: 'long',
+                    accuracy: 0.58, predictionCount: 38,
+                    beliefs: [
+                        { name: '低估值', layer: 'STYLE', posterior: 0.70, tension: 0.20, trend: 'flat' },
+                        { name: '高盈利质量', layer: 'STYLE', posterior: 0.65, tension: 0.20, trend: 'up' },
+                        { name: '盈利增长', layer: 'TACTIC', posterior: 0.55, tension: 0.25, trend: 'up' },
+                    ],
+                    reflection: { assessment: 'under_reacting', recommendation: 'be_more_flexible', directionRatio: 0.25, avgStepChange: 0.02 }
+                },
+                {
+                    name: '宏观经济学家', weight: 1.5, reflectionType: 'FUNDAMENTAL',
+                    isActive: true, latestView: 'BUY', confidence: 0.80,
+                    reasoning: '牛市环境，趋势向上', horizon: 'long',
+                    accuracy: 0.68, predictionCount: 32,
+                    marketRegime: 'bull',
+                    beliefs: [
+                        { name: '牛市判断', layer: 'PHILOSOPHY', posterior: 0.75, tension: 0.15, trend: 'up' },
+                        { name: '熊市判断', layer: 'PHILOSOPHY', posterior: 0.15, tension: 0.15, trend: 'down' },
+                    ],
+                    reflection: { assessment: 'genuine_adaptation', recommendation: 'continue', directionRatio: 0.78, avgStepChange: 0.06 }
+                },
+                {
+                    name: '量化研究员', weight: 1.0, reflectionType: 'TECHNICAL',
+                    isActive: true, latestView: 'BUY', confidence: 0.70,
+                    reasoning: '多因子综合得分: 0.65', horizon: 'medium',
+                    accuracy: 0.62, predictionCount: 50,
+                    beliefs: [
+                        { name: '动量因子', layer: 'TACTIC', posterior: 0.68, tension: 0.35, trend: 'up' },
+                        { name: '价值因子', layer: 'TACTIC', posterior: 0.58, tension: 0.35, trend: 'flat' },
+                    ],
+                    reflection: { assessment: 'stable', recommendation: 'maintain', directionRatio: 0.55, avgStepChange: 0.05 }
+                },
+                {
+                    name: '风险分析师', weight: 1.2, reflectionType: 'CONSERVATIVE',
+                    isActive: true, latestView: 'SELL', confidence: 0.65,
+                    reasoning: 'VaR过高(-3.2%); 近期回撤大(-12%)', horizon: 'short',
+                    accuracy: 0.55, predictionCount: 42,
+                    riskLevel: 'elevated',
+                    beliefs: [
+                        { name: 'VaR预警', layer: 'TACTIC', posterior: 0.75, tension: 0.25, trend: 'up' },
+                        { name: '回撤预警', layer: 'TACTIC', posterior: 0.70, tension: 0.25, trend: 'up' },
+                    ],
+                    reflection: { assessment: 'over_reacting', recommendation: 'slow_down', directionRatio: 0.20, avgStepChange: 0.08 }
+                },
+                {
+                    name: '行业分析师', weight: 1.0, reflectionType: 'BALANCED',
+                    isActive: true, latestView: 'BUY', confidence: 0.60,
+                    reasoning: '行业处于轮动前3名(第2位)', horizon: 'medium',
+                    accuracy: 0.55, predictionCount: 35,
+                    beliefs: [
+                        { name: '行业动量', layer: 'STYLE', posterior: 0.62, tension: 0.30, trend: 'up' },
+                        { name: '政策利好', layer: 'TACTIC', posterior: 0.45, tension: 0.40, trend: 'flat' },
+                    ],
+                    reflection: { assessment: 'stable', recommendation: 'maintain', directionRatio: 0.60, avgStepChange: 0.03 }
+                },
+            ],
+            beliefs: {
+                philosophy: [
+                    { name: '价值发现', posterior: 0.82, parent: null, tension: 0.15, stability: 0.95 },
+                    { name: '趋势跟踪', posterior: 0.18, parent: null, tension: 0.15, stability: 0.92 },
+                ],
+                style: [
+                    { name: '低估值偏好', posterior: 0.75, parent: '价值发现', tension: 0.25, stability: 0.85 },
+                    { name: '质量因子偏好', posterior: 0.60, parent: '价值发现', tension: 0.25, stability: 0.80 },
+                    { name: '动量偏好', posterior: 0.35, parent: '趋势跟踪', tension: 0.25, stability: 0.75 },
+                ],
+                tactic: [
+                    { name: '高集中度', posterior: 0.30, parent: '低估值偏好', tension: 0.40, stability: 0.65 },
+                    { name: '分散持仓', posterior: 0.70, parent: '低估值偏好', tension: 0.40, stability: 0.70 },
+                    { name: '大盘防御', posterior: 0.45, parent: '质量因子偏好', tension: 0.40, stability: 0.60 },
+                ]
+            },
+            reflections: [
+                { time: '09:45:12', role: '风险分析师', belief: 'VaR预警', layer: 'TACTIC', assessment: 'over_reacting', recommendation: 'slow_down', tensionAdjust: '0.25→0.20' },
+                { time: '09:42:33', role: '财务分析师', belief: '低估值', layer: 'STYLE', assessment: 'under_reacting', recommendation: 'be_more_flexible', tensionAdjust: '0.20→0.24' },
+                { time: '09:38:22', role: '主观交易员', belief: '均线突破', layer: 'TACTIC', assessment: 'stable', recommendation: 'maintain', tensionAdjust: '0.40→0.40' },
+                { time: '09:35:12', role: '宏观经济学家', belief: '牛市判断', layer: 'PHILOSOPHY', assessment: 'genuine_adaptation', recommendation: 'continue', tensionAdjust: '0.15→0.15' },
+                { time: '09:30:05', role: '量化研究员', belief: '动量因子', layer: 'TACTIC', assessment: 'stable', recommendation: 'maintain', tensionAdjust: '0.35→0.35' },
+                { time: '09:28:33', role: '行业分析师', belief: '行业动量', layer: 'STYLE', assessment: 'stable', recommendation: 'maintain', tensionAdjust: '0.30→0.30' },
+            ]
+        };
+
+        const positions = [
+            { stock: '000001.SZ', name: '平安银行', qty: 5000, cost: 12.50, price: 13.85, mktVal: 69250, weight: 0.055, pnl: 6750, pnlRate: 0.108 },
+            { stock: '000002.SZ', name: '万科A', qty: 3000, cost: 18.20, price: 17.50, mktVal: 52500, weight: 0.042, pnl: -2100, pnlRate: -0.038 },
+            { stock: '000858.SZ', name: '五粮液', qty: 800, cost: 165.00, price: 178.50, mktVal: 142800, weight: 0.114, pnl: 10800, pnlRate: 0.082 },
+            { stock: '002415.SZ', name: '海康威视', qty: 2000, cost: 32.80, price: 35.60, mktVal: 71200, weight: 0.057, pnl: 5600, pnlRate: 0.085 },
+            { stock: '600519.SH', name: '贵州茅台', qty: 100, cost: 1680.00, price: 1750.00, mktVal: 175000, weight: 0.140, pnl: 7000, pnlRate: 0.042 },
+            { stock: '600036.SH', name: '招商银行', qty: 4000, cost: 35.50, price: 38.20, mktVal: 152800, weight: 0.122, pnl: 10800, pnlRate: 0.076 },
+            { stock: '000333.SZ', name: '美的集团', qty: 1500, cost: 58.00, price: 62.50, mktVal: 93750, weight: 0.075, pnl: 6750, pnlRate: 0.078 },
+            { stock: '002594.SZ', name: '比亚迪', qty: 600, cost: 245.00, price: 268.00, mktVal: 160800, weight: 0.128, pnl: 13800, pnlRate: 0.094 },
+        ];
+
+        const trades = [
+            { time: '09:35:12', stock: '000001.SZ', direction: 'BUY', qty: 2000, price: 13.80, amount: 27600, fee: 27.60, agent: 'value_001' },
+            { time: '09:36:45', stock: '000858.SZ', direction: 'BUY', qty: 300, price: 178.00, amount: 53400, fee: 53.40, agent: 'momentum_001' },
+            { time: '09:38:22', stock: '002415.SZ', direction: 'SELL', qty: 1000, price: 35.50, amount: 35500, fee: 35.50, agent: 'contrarian_001' },
+            { time: '09:40:08', stock: '600519.SH', direction: 'BUY', qty: 50, price: 1748.00, amount: 87400, fee: 87.40, agent: 'research_team_001' },
+            { time: '09:42:33', stock: '002594.SZ', direction: 'BUY', qty: 200, price: 267.50, amount: 53500, fee: 53.50, agent: 'momentum_001' },
+        ];
+
+        const history = [
+            { date: '2024-01-15', stock: '000002.SZ', action: '买入', qty: 3000, price: 18.20, amount: 54600, realizedPnl: 0 },
+            { date: '2024-02-01', stock: '600036.SH', action: '买入', qty: 4000, price: 35.50, amount: 142000, realizedPnl: 0 },
+            { date: '2024-02-15', stock: '000001.SZ', action: '卖出', qty: 2000, price: 13.50, amount: 27000, realizedPnl: 1200 },
+            { date: '2024-03-01', stock: '002415.SZ', action: '买入', qty: 3000, price: 33.00, amount: 99000, realizedPnl: 0 },
+        ];
+
+        const signals = [
+            { time: '09:35:00', agent: 'value_001', stock: '000001.SZ', direction: 'LONG', score: 0.85, weight: 0.05 },
+            { time: '09:36:00', agent: 'momentum_001', stock: '000858.SZ', direction: 'LONG', score: 0.72, weight: 0.08 },
+            { time: '09:37:00', agent: 'contrarian_001', stock: '002415.SZ', direction: 'SHORT', score: -0.65, weight: 0.03 },
+            { time: '09:38:00', agent: 'research_team_001', stock: '600519.SH', direction: 'LONG', score: 0.91, weight: 0.12 },
+            { time: '09:39:00', agent: 'momentum_001', stock: '002594.SZ', direction: 'LONG', score: 0.78, weight: 0.10 },
+        ];
+
+        const logs = [
+            { time: '09:30:01', level: 'info', msg: '策略分配器初始化完成: FTRL模式' },
+            { time: '09:30:02', level: 'info', msg: '假设检验层启动: 5个监控器在线' },
+            { time: '09:30:05', level: 'warn', msg: '策略2收益波动率异常: σ=0.045' },
+            { time: '09:30:08', level: 'info', msg: '权重更新: [0.45, 0.30, 0.25]' },
+            { time: '09:31:12', level: 'info', msg: 'Agent[value_001] 生成信号: 000001.SZ LONG score=0.85' },
+            { time: '09:31:45', level: 'info', msg: 'Agent[momentum_001] 生成信号: 000858.SZ LONG score=0.72' },
+            { time: '09:32:22', level: 'warn', msg: '假设检验: 策略相关性结构变化 detected' },
+            { time: '09:32:30', level: 'info', msg: '自动退化到等权分配' },
+            { time: '09:35:12', level: 'info', msg: '执行交易: BUY 000001.SZ 2000股 @13.80' },
+            { time: '09:36:45', level: 'info', msg: '执行交易: BUY 000858.SZ 300股 @178.00' },
+            { time: '09:38:22', level: 'info', msg: '执行交易: SELL 002415.SZ 1000股 @35.50' },
+            { time: '09:40:08', level: 'error', msg: '交易失败: 600519.SH 价格超出涨跌停限制' },
+        ];
+
+        const risks = [
+            { name: '基本面风险', score: 32, level: 'green', weight: 1.0, details: '业绩miss: 无; 管理层变动: 无; 财务健康度: 正常', threshold: { low: 30, medium: 60, high: 85 } },
+            { name: '行业风险', score: 58, level: 'yellow', weight: 0.8, details: '政策变化: 限制性政策; 供需: 产能过剩; 技术颠覆: 无', threshold: { low: 35, medium: 65, high: 85 } },
+            { name: '宏观风险', score: 71, level: 'yellow', weight: 0.9, details: 'PMI: 48.5 低于荣枯线; 利率: +25bp; 地缘: 贸易政策变化', threshold: { low: 30, medium: 60, high: 80 } },
+            { name: '资金风险', score: 25, level: 'green', weight: 0.7, details: '主力净流入: +3200万; 北向资金: +85万股; 换手率: 正常', threshold: { low: 35, medium: 65, high: 85 } },
+            { name: '情绪风险', score: 85, level: 'red', weight: 0.6, details: '波动率异常: 3.2% (20日均值1.1%); 融资余额下降: -18%; 跌停: 无', threshold: { low: 30, medium: 60, high: 85 } },
+        ];
+
+        const riskAlerts = [
+            { level: 'red', time: '09:35:12', dimension: '情绪风险', message: '波动率异常: 3.2% (20日均值1.1%)', action: '减仓至50%, 暂停新买入' },
+            { level: 'yellow', time: '09:30:05', dimension: '宏观风险', message: 'PMI低于荣枯线: 48.5', action: '维持关注, 降低目标仓位10%' },
+            { level: 'yellow', time: '09:28:33', dimension: '行业风险', message: '限制性政策: 行业监管收紧', action: '维持关注, 降低目标仓位10%' },
+            { level: 'green', time: '09:25:00', dimension: '基本面风险', message: '基本面正常', action: '无' },
+            { level: 'green', time: '09:25:00', dimension: '资金风险', message: '资金流向正常', action: '无' },
+        ];
+
+        const riskHistory = Array.from({length:30},(_,i)=>({
+            date: new Date(2024,0,1+i).toISOString().split('T')[0],
+            fundamental: 20+Math.random()*30,
+            industry: 30+Math.random()*40,
+            macro: 35+Math.random()*45,
+            capital: 15+Math.random()*25,
+            sentiment: 25+Math.random()*55,
+            composite: 30+Math.random()*35
+        }));
+
+        // 全球传染风险模拟数据
+        const contagionData = {
+            index: 68.5,
+            level: 'yellow',
+            maxCorrelation: 0.82,
+            spillover: 0.45,
+            centralMarket: 'SPX',
+            centrality: 0.28,
+            markets: ['SPX', 'DAX', 'N225', 'HSI', 'SH', 'VIX', 'OIL', 'GOLD', 'DXY'],
+            correlationMatrix: [
+                [1.00, 0.75, 0.62, 0.58, 0.82, 0.45, 0.35, 0.28, 0.52],
+                [0.75, 1.00, 0.48, 0.42, 0.55, 0.38, 0.32, 0.25, 0.48],
+                [0.62, 0.48, 1.00, 0.65, 0.68, 0.42, 0.38, 0.30, 0.45],
+                [0.58, 0.42, 0.65, 1.00, 0.72, 0.35, 0.28, 0.22, 0.40],
+                [0.82, 0.55, 0.68, 0.72, 1.00, 0.48, 0.42, 0.35, 0.58],
+                [0.45, 0.38, 0.42, 0.35, 0.48, 1.00, 0.55, 0.48, 0.62],
+                [0.35, 0.32, 0.38, 0.28, 0.42, 0.55, 1.00, 0.65, 0.38],
+                [0.28, 0.25, 0.30, 0.22, 0.35, 0.48, 0.65, 1.00, 0.32],
+                [0.52, 0.48, 0.45, 0.40, 0.58, 0.62, 0.38, 0.32, 1.00]
+            ],
+            channels: [
+                { source: 'SPX', target: 'SH', status: 'red', strength: 0.82, lag: '1D', trend: 'up', covar: 0.035 },
+                { source: 'SPX', target: 'HSI', status: 'yellow', strength: 0.68, lag: '1D', trend: 'up', covar: 0.028 },
+                { source: 'VIX', target: 'SH', status: 'yellow', strength: 0.58, lag: '即时', trend: 'up', covar: 0.022 },
+                { source: 'DAX', target: 'SH', status: 'yellow', strength: 0.55, lag: '2D', trend: 'flat', covar: 0.020 },
+                { source: 'N225', target: 'SH', status: 'green', strength: 0.48, lag: '1D', trend: 'flat', covar: 0.015 },
+                { source: 'HSI', target: 'SH', status: 'green', strength: 0.42, lag: '即时', trend: 'down', covar: 0.012 },
+                { source: 'OIL', target: 'SH', status: 'yellow', strength: 0.52, lag: '即时', trend: 'up', covar: 0.018 },
+                { source: 'DXY', target: 'SH', status: 'green', strength: 0.38, lag: '即时', trend: 'flat', covar: 0.010 },
+            ],
+            networkEdges: [
+                ['SPX', 'SH', 0.82], ['SPX', 'DAX', 0.75], ['SPX', 'N225', 0.62],
+                ['SH', 'HSI', 0.72], ['SH', 'N225', 0.68], ['VIX', 'SPX', 0.45],
+                ['OIL', 'SH', 0.52], ['DXY', 'SH', 0.58], ['GOLD', 'DXY', 0.48]
+            ]
+        };
+
+        const assumptions = [
+            { name: '收益平稳性 (KPSS)', status: 'ok', stat: 'p=0.342' },
+            { name: '均值偏移 (CUSUM)', status: 'ok', stat: 'S+=0.12' },
+            { name: '策略相关性', status: 'warn', stat: 'λ_max=0.78' },
+            { name: '权重换手率', status: 'ok', stat: 'T=0.023' },
+            { name: '后验预测检验', status: 'ok', stat: 'outlier=3%' },
+            { name: '累计遗憾', status: 'ok', stat: 'R=0.015' },
+        ];
+
+        // 行业轮动模拟数据
+        const industryData = [
+            { name: '电子', momentum: 12.5, rank: 1, weight: 0.18, stocks: 45, avgReturn: 8.3, trend: 'up' },
+            { name: '计算机', momentum: 10.2, rank: 2, weight: 0.15, stocks: 38, avgReturn: 6.7, trend: 'up' },
+            { name: '通信', momentum: 8.7, rank: 3, weight: 0.12, stocks: 22, avgReturn: 5.4, trend: 'up' },
+            { name: '医药生物', momentum: 6.3, rank: 4, weight: 0.10, stocks: 52, avgReturn: 4.1, trend: 'flat' },
+            { name: '食品饮料', momentum: 4.1, rank: 5, weight: 0.08, stocks: 28, avgReturn: 3.2, trend: 'flat' },
+            { name: '电气设备', momentum: 2.5, rank: 6, weight: 0.07, stocks: 35, avgReturn: 1.8, trend: 'down' },
+            { name: '汽车', momentum: 1.2, rank: 7, weight: 0.06, stocks: 30, avgReturn: 0.9, trend: 'down' },
+            { name: '机械设备', momentum: -1.5, rank: 8, weight: 0.05, stocks: 42, avgReturn: -0.8, trend: 'down' },
+            { name: '化工', momentum: -3.2, rank: 9, weight: 0.04, stocks: 48, avgReturn: -2.1, trend: 'down' },
+            { name: '银行', momentum: -4.8, rank: 10, weight: 0.03, stocks: 25, avgReturn: -3.2, trend: 'down' },
+            { name: '非银金融', momentum: -6.1, rank: 11, weight: 0.03, stocks: 20, avgReturn: -4.1, trend: 'down' },
+            { name: '房地产', momentum: -8.3, rank: 12, weight: 0.02, stocks: 18, avgReturn: -5.7, trend: 'down' },
+        ];
+
+        // 因子分析模拟数据
+        const factorStats = {
+            ic_mean: 0.052, ic_std: 0.089, ic_ir: 0.48,
+            ic_positive_ratio: 0.58, ic_tstat: 2.34,
+            ir_annual: 0.48, half_life: 8.5,
+            cumulative_return: 0.236, annual_return: 0.18,
+            sharpe: 1.25, max_drawdown: -0.12,
+            turnover: 0.35, decay_1d: 0.82, decay_5d: 0.45, decay_10d: 0.23,
+            rank_ic: 0.048, rank_ir: 0.52,
+            ic_skew: -0.15, ic_kurt: 3.2,
+        };
+
+        const icHistory = Array.from({length: 60}, (_, i) => ({
+            date: new Date(2024, 0, 1 + i).toISOString().split('T')[0],
+            ic: 0.02 + Math.sin(i * 0.15) * 0.06 + (Math.random() - 0.5) * 0.04,
+            rank_ic: 0.018 + Math.sin(i * 0.12) * 0.055 + (Math.random() - 0.5) * 0.035,
+        }));
+
+        const factorCumulativeData = Array.from({length: 180}, (_, i) => ({
+            date: new Date(2024, 0, 1 + i).toISOString().split('T')[0],
+            long_short: (i * 0.0015 + Math.sin(i * 0.05) * 0.03 + (Math.random() - 0.5) * 0.01).toFixed(4),
+            long_only: (i * 0.001 + Math.sin(i * 0.04) * 0.02 + (Math.random() - 0.5) * 0.008).toFixed(4),
+            benchmark: (i * 0.0005).toFixed(4),
+        }));
+
+        // ===================== 渲染函数 =====================
+        function renderAgentGrid() {
+            const html = agents.map(a => {
+                const beliefHtml = a.beliefs.map(b => `
+                    <div class="belief-row">
+                        <span class="belief-name">${b.name}</span>
+                        <div class="belief-bar"><div class="belief-fill" style="width:${b.val*100}%;background:${b.val>0.6?'var(--accent-green)':b.val>0.4?'var(--accent-yellow)':'var(--accent-red)'};"></div></div>
+                        <span class="belief-value">${(b.val*100).toFixed(0)}%</span>
+                    </div>
+                `).join('');
+                return `
+                    <div class="agent-card ${a.active?'active':'inactive'}">
+                        <div class="agent-header">
+                            <span class="agent-name">${a.name}</span>
+                            <span class="agent-style">${a.style}</span>
+                        </div>
+                        <div class="agent-stats">
+                            <div class="agent-stat"><div class="agent-stat-label">累计收益</div><div class="agent-stat-value ${a.pnl>0?'positive':'negative'}">${(a.pnl*100).toFixed(1)}%</div></div>
+                            <div class="agent-stat"><div class="agent-stat-label">夏普比率</div><div class="agent-stat-value neutral">${a.sharpe.toFixed(2)}</div></div>
+                            <div class="agent-stat"><div class="agent-stat-label">最大回撤</div><div class="agent-stat-value negative">${(a.drawdown*100).toFixed(1)}%</div></div>
+                            <div class="agent-stat"><div class="agent-stat-label">信号数</div><div class="agent-stat-value neutral">${a.signals}</div></div>
+                        </div>
+                        <div class="agent-beliefs">${beliefHtml}</div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('agentGrid').innerHTML = html;
+        }
+
+        function renderSignals() {
+            const html = signals.map(s => `
+                <div class="signal-card">
+                    <div class="signal-header">
+                        <span class="signal-stock">${s.stock}</span>
+                        <span class="signal-direction ${s.direction.toLowerCase()}">${s.direction}</span>
+                    </div>
+                    <div class="signal-meta">
+                        <div class="signal-meta-item">Agent: <span>${s.agent}</span></div>
+                        <div class="signal-meta-item">Score: <span>${s.score.toFixed(2)}</span></div>
+                        <div class="signal-meta-item">Weight: <span>${(s.weight*100).toFixed(1)}%</span></div>
+                        <div class="signal-meta-item">Time: <span>${s.time}</span></div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('signalPanel').innerHTML = html;
+        }
+
+        function renderPositions() {
+            const tbody = document.querySelector('#positionTable tbody');
+            tbody.innerHTML = positions.map(p => `
+                <tr>
+                    <td><strong>${p.stock}</strong><br><span style="font-size:11px;color:var(--text-muted)">${p.name}</span></td>
+                    <td>${p.qty.toLocaleString()}</td>
+                    <td>¥${p.cost.toFixed(2)}</td>
+                    <td>¥${p.price.toFixed(2)}</td>
+                    <td>¥${p.mktVal.toLocaleString()}</td>
+                    <td>${(p.weight*100).toFixed(1)}%</td>
+                    <td class="${p.pnl>=0?'positive':'negative'}">¥${p.pnl.toLocaleString()}</td>
+                    <td class="${p.pnlRate>=0?'positive':'negative'}">${(p.pnlRate*100).toFixed(2)}%</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderHistory() {
+            const tbody = document.querySelector('#historyTable tbody');
+            tbody.innerHTML = history.map(h => `
+                <tr>
+                    <td>${h.date}</td>
+                    <td>${h.stock}</td>
+                    <td>${h.action}</td>
+                    <td>${h.qty.toLocaleString()}</td>
+                    <td>¥${h.price.toFixed(2)}</td>
+                    <td>¥${h.amount.toLocaleString()}</td>
+                    <td class="${h.realizedPnl>=0?'positive':'negative'}">¥${h.realizedPnl.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderTrades() {
+            const tbody = document.querySelector('#tradeTable tbody');
+            tbody.innerHTML = trades.map(t => `
+                <tr>
+                    <td>${t.time}</td>
+                    <td>${t.stock}</td>
+                    <td class="${t.direction==='BUY'?'positive':'negative'}">${t.direction}</td>
+                    <td>${t.qty.toLocaleString()}</td>
+                    <td>¥${t.price.toFixed(2)}</td>
+                    <td>¥${t.amount.toLocaleString()}</td>
+                    <td>¥${t.fee.toFixed(2)}</td>
+                    <td>${t.agent}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderLogs() {
+            const html = logs.map(l => `
+                <div class="log-entry">
+                    <span class="log-time">${l.time}</span>
+                    <span class="log-level ${l.level}"> [${l.level.toUpperCase()}]</span>
+                    <span class="log-msg"> ${l.msg}</span>
+                </div>
+            `).join('');
+            document.getElementById('logStream').innerHTML = html;
+        }
+
+        function renderWeightBars() {
+            const weights = [
+                { name: '动量策略', value: 0.45, color: '#00d4ff' },
+                { name: '价值策略', value: 0.30, color: '#8b5cf6' },
+                { name: '均值回归', value: 0.25, color: '#10b981' },
+            ];
+            document.getElementById('weightBars').innerHTML = weights.map(w => `
+                <div class="weight-bar">
+                    <span class="weight-label">${w.name}</span>
+                    <div class="weight-track"><div class="weight-fill" style="width:${w.value*100}%;background:${w.color};"></div></div>
+                    <span class="weight-value">${(w.value*100).toFixed(1)}%</span>
+                </div>
+            `).join('');
+        }
+
+        function renderRiskPanel() {
+            document.getElementById('riskPanel').innerHTML = risks.map(r => `
+                <div class="risk-indicator ${r.level}">
+                    <span class="risk-name">${r.name}</span>
+                    <span class="risk-score ${r.level}">${r.score}</span>
+                    <span class="risk-badge ${r.level}">${r.level==='green'?'SAFE':r.level==='yellow'?'WARN':'ALERT'}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderRiskDetailPanel() {
+            document.getElementById('riskDetailPanel').innerHTML = risks.map(r => `
+                <div style="margin-bottom:10px;padding:10px;background:var(--bg-card);border-radius:6px;border-left:3px solid ${r.level==='green'?'var(--accent-green)':r.level==='yellow'?'var(--accent-yellow)':'var(--accent-red)'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                        <span style="font-size:13px;font-weight:600;">${r.name}</span>
+                        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">权重: ${r.weight}</span>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${r.details}</div>
+                    <div style="display:flex;gap:8px;">
+                        <span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;background:var(--bg-secondary);border-radius:3px;color:var(--text-muted);">L: ${r.threshold.low}</span>
+                        <span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;background:var(--bg-secondary);border-radius:3px;color:var(--text-muted);">M: ${r.threshold.medium}</span>
+                        <span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;background:var(--bg-secondary);border-radius:3px;color:var(--text-muted);">H: ${r.threshold.high}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRiskAlertPanel() {
+            document.getElementById('riskAlertPanel').innerHTML = riskAlerts.map(a => `
+                <div style="margin-bottom:10px;padding:12px;background:var(--bg-card);border-radius:6px;border-left:3px solid ${a.level==='green'?'var(--accent-green)':a.level==='yellow'?'var(--accent-yellow)':'var(--accent-red)'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:13px;font-weight:600;">${a.dimension}</span>
+                        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">${a.time}</span>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">${a.message}</div>
+                    <div style="font-family:var(--font-mono);font-size:11px;color:${a.level==='red'?'var(--accent-red)':a.level==='yellow'?'var(--accent-yellow)':'var(--accent-green)'}">
+                        动作: ${a.action}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRiskRadarChart() {
+            const ctx = document.getElementById('riskRadarChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: risks.map(r => r.name.replace('风险','')),
+                    datasets: [{
+                        label: '当前风险',
+                        data: risks.map(r => r.score),
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0,212,255,0.2)',
+                        pointBackgroundColor: '#00d4ff',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#00d4ff'
+                    }, {
+                        label: '阈值线',
+                        data: risks.map(r => r.threshold.medium),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'transparent',
+                        borderDash: [5,5],
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0, max: 100,
+                            ticks: { stepSize: 20, color: '#64748b', backdropColor: 'transparent' },
+                            grid: { color: '#2a3447' },
+                            pointLabels: { color: '#94a3b8', font: { size: 11 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#94a3b8', usePointStyle: true } }
+                    }
+                }
+            });
+        }
+
+        function renderRiskTrendChart() {
+            const ctx = document.getElementById('riskTrendChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: riskHistory.map(h => h.date.slice(5)),
+                    datasets: [
+                        { label: '综合', data: riskHistory.map(h => h.composite.toFixed(1)), borderColor: '#e2e8f0', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0 },
+                        { label: '基本面', data: riskHistory.map(h => h.fundamental.toFixed(1)), borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0 },
+                        { label: '行业', data: riskHistory.map(h => h.industry.toFixed(1)), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0 },
+                        { label: '宏观', data: riskHistory.map(h => h.macro.toFixed(1)), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0 },
+                        { label: '资金', data: riskHistory.map(h => h.capital.toFixed(1)), borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0 },
+                        { label: '情绪', data: riskHistory.map(h => h.sentiment.toFixed(1)), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0 },
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', padding: 12 } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: '#64748b' } },
+                        y: { min: 0, max: 100, grid: { color: '#1e2538' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function renderAssumptionPanels() {
+            const returnChecks = assumptions.slice(0, 3);
+            const modelChecks = assumptions.slice(3);
+            document.getElementById('assumptionReturnPanel').innerHTML = returnChecks.map(a => `
+                <div class="assumption-row">
+                    <div class="assumption-status ${a.status}"></div>
+                    <span class="assumption-name">${a.name}</span>
+                    <span class="assumption-stat">${a.stat}</span>
+                </div>
+            `).join('');
+            document.getElementById('assumptionModelPanel').innerHTML = modelChecks.map(a => `
+                <div class="assumption-row">
+                    <div class="assumption-status ${a.status}"></div>
+                    <span class="assumption-name">${a.name}</span>
+                    <span class="assumption-stat">${a.stat}</span>
+                </div>
+            `).join('');
+        }
+
+        // ===================== 行业轮动渲染 =====================
+        function renderIndustryTable() {
+            const tbody = document.querySelector('#industryTable tbody');
+            if (!tbody) return;
+            tbody.innerHTML = industryData.map(ind => `
+                <tr>
+                    <td><strong>${ind.name}</strong></td>
+                    <td class="${ind.momentum >= 0 ? 'positive' : 'negative'}">${ind.momentum > 0 ? '+' : ''}${ind.momentum.toFixed(1)}%</td>
+                    <td>#${ind.rank}</td>
+                    <td>${(ind.weight * 100).toFixed(1)}%</td>
+                    <td>${ind.stocks}</td>
+                    <td class="${ind.avgReturn >= 0 ? 'positive' : 'negative'}">${ind.avgReturn > 0 ? '+' : ''}${ind.avgReturn.toFixed(1)}%</td>
+                    <td><span style="color: ${ind.trend === 'up' ? 'var(--accent-green)' : ind.trend === 'down' ? 'var(--accent-red)' : 'var(--accent-yellow)'};">${ind.trend === 'up' ? '▲' : ind.trend === 'down' ? '▼' : '—'}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderIndustryMomentumChart() {
+            const ctx = document.getElementById('industryMomentumChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: industryData.map(i => i.name),
+                    datasets: [{
+                        label: '动量得分',
+                        data: industryData.map(i => i.momentum),
+                        backgroundColor: industryData.map(i => i.momentum >= 0 ? 'rgba(0,212,255,0.7)' : 'rgba(239,68,68,0.7)'),
+                        borderColor: industryData.map(i => i.momentum >= 0 ? '#00d4ff' : '#ef4444'),
+                        borderWidth: 1,
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1f2e', titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+                            borderColor: '#2a3447', borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => v + '%' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        function renderIndustryPieChart() {
+            const ctx = document.getElementById('industryPieChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: industryData.slice(0, 8).map(i => i.name),
+                    datasets: [{
+                        data: industryData.slice(0, 8).map(i => i.weight),
+                        backgroundColor: ['#00d4ff', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'],
+                        borderColor: '#1a1f2e', borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#94a3b8', usePointStyle: true, padding: 12 } }
+                    }
+                }
+            });
+        }
+
+        function renderIndustryRotationChart() {
+            const ctx = document.getElementById('industryRotationChart');
+            if (!ctx) return;
+            const industries = ['电子', '计算机', '通信', '医药生物', '食品饮料', '电气设备'];
+            const dates = Array.from({length: 20}, (_, i) => `W${i + 1}`);
+            const datasets = industries.map((ind, idx) => {
+                const colors = ['#00d4ff', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+                return {
+                    label: ind,
+                    data: Array.from({length: 20}, (_, i) => {
+                        const base = [12.5, 10.2, 8.7, 6.3, 4.1, 2.5][idx];
+                        return (base + Math.sin(i * 0.3 + idx) * 5 + (Math.random() - 0.5) * 3).toFixed(1);
+                    }),
+                    borderColor: colors[idx],
+                    backgroundColor: 'transparent',
+                    tension: 0.4, pointRadius: 0, borderWidth: 2
+                };
+            });
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels: dates, datasets: datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', color: '#94a3b8' } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => v + '%' } }
+                    }
+                }
+            });
+        }
+
+        // ===================== 全球传染风险渲染 =====================
+        function renderContagionChannelTable() {
+            const tbody = document.querySelector('#contagionChannelTable tbody');
+            if (!tbody) return;
+            tbody.innerHTML = contagionData.channels.map(ch => {
+                const statusColor = ch.status === 'red' ? 'var(--accent-red)' : ch.status === 'yellow' ? 'var(--accent-yellow)' : 'var(--accent-green)';
+                const trendIcon = ch.trend === 'up' ? '▲' : ch.trend === 'down' ? '▼' : '→';
+                return `
+                    <tr>
+                        <td><strong>${ch.source} → ${ch.target}</strong></td>
+                        <td><span style="color:${statusColor};font-weight:600;">${ch.status === 'red' ? '🔴 HIGH' : ch.status === 'yellow' ? '🟡 MED' : '🟢 LOW'}</span></td>
+                        <td><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden;"><div style="width:${ch.strength * 100}%;height:100%;background:${statusColor};"></div></div><span style="font-family:var(--font-mono);font-size:11px;">${ch.strength.toFixed(2)}</span></div></td>
+                        <td>${ch.lag}</td>
+                        <td style="color:${ch.trend === 'up' ? 'var(--accent-red)' : ch.trend === 'down' ? 'var(--accent-green)' : 'var(--text-muted)'}">${trendIcon}</td>
+                        <td style="font-family:var(--font-mono);">${ch.covar.toFixed(3)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderContagionNetworkChart() {
+            const ctx = document.getElementById('contagionNetworkChart');
+            if (!ctx) return;
+            // 使用气泡图模拟网络节点
+            const marketPositions = {
+                'SPX': { x: 20, y: 30 }, 'DAX': { x: 45, y: 20 }, 'N225': { x: 80, y: 25 },
+                'HSI': { x: 75, y: 50 }, 'SH': { x: 70, y: 70 }, 'VIX': { x: 25, y: 55 },
+                'OIL': { x: 50, y: 80 }, 'GOLD': { x: 30, y: 85 }, 'DXY': { x: 15, y: 60 }
+            };
+            const bubbleData = contagionData.markets.map((m, i) => ({
+                x: marketPositions[m].x,
+                y: marketPositions[m].y,
+                r: 8 + (contagionData.centrality[i] || 0.1) * 20,
+                market: m
+            }));
+            new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: '市场节点',
+                        data: bubbleData,
+                        backgroundColor: contagionData.markets.map(m => {
+                            if (m === 'SPX') return 'rgba(239,68,68,0.8)';
+                            if (m === 'SH') return 'rgba(0,212,255,0.8)';
+                            return 'rgba(100,116,139,0.6)';
+                        }),
+                        borderColor: contagionData.markets.map(m => {
+                            if (m === 'SPX') return '#ef4444';
+                            if (m === 'SH') return '#00d4ff';
+                            return '#64748b';
+                        }),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const idx = ctx.dataIndex;
+                                    return `${contagionData.markets[idx]}: 中心性 ${(contagionData.centrality[idx] || 0.1).toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false, min: 0, max: 100 },
+                        y: { display: false, min: 0, max: 100 }
+                    }
+                }
+            });
+        }
+
+        function renderContagionHeatmapChart() {
+            const ctx = document.getElementById('contagionHeatmapChart');
+            if (!ctx) return;
+            // 使用矩阵热力图展示相关性
+            const markets = contagionData.markets;
+            const datasets = markets.map((m, i) => ({
+                label: m,
+                data: contagionData.correlationMatrix[i].map((v, j) => ({
+                    x: markets[j],
+                    y: v
+                })),
+                backgroundColor: contagionData.correlationMatrix[i].map(v => {
+                    const intensity = Math.abs(v);
+                    if (v >= 0.7) return `rgba(239,68,68,${intensity})`;
+                    if (v >= 0.4) return `rgba(245,158,11,${intensity})`;
+                    return `rgba(0,212,255,${intensity * 0.5})`;
+                }),
+                borderRadius: 2
+            }));
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: markets,
+                    datasets: datasets.slice(0, 5) // 只展示前5个市场避免过于拥挤
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label} ↔ ${ctx.label}: ${ctx.raw.y.toFixed(2)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        // ===================== 持仓风险统计渲染 =====================
+        const portfolioRiskStats = {
+            var_95: 0.023, var_99: 0.041,
+            cvar_95: 0.035, cvar_99: 0.058,
+            beta: 0.92, alpha: 0.035,
+            volatility: 0.185, tracking_error: 0.062,
+            sharpe: 1.25, sortino: 1.68,
+            max_drawdown: -0.12, calmar: 1.5,
+            information_ratio: 0.85, treynor: 0.18,
+            omega: 1.35, skewness: -0.42, kurtosis: 3.8,
+        };
+
+        function renderPortfolioRiskStats() {
+            const panel = document.getElementById('portfolioRiskStatsPanel');
+            if (!panel) return;
+            const stats = [
+                { label: 'VaR (95%)', value: (portfolioRiskStats.var_95 * 100).toFixed(2) + '%', desc: '日风险价值' },
+                { label: 'CVaR (95%)', value: (portfolioRiskStats.cvar_95 * 100).toFixed(2) + '%', desc: '条件风险价值' },
+                { label: 'Beta', value: portfolioRiskStats.beta.toFixed(2), desc: '市场敏感度' },
+                { label: 'Alpha', value: (portfolioRiskStats.alpha * 100).toFixed(2) + '%', desc: '超额收益' },
+                { label: '波动率', value: (portfolioRiskStats.volatility * 100).toFixed(1) + '%', desc: '年化波动率' },
+                { label: '跟踪误差', value: (portfolioRiskStats.tracking_error * 100).toFixed(2) + '%', desc: '相对基准偏离' },
+                { label: '夏普比率', value: portfolioRiskStats.sharpe.toFixed(2), desc: '风险调整收益' },
+                { label: '索提诺比率', value: portfolioRiskStats.sortino.toFixed(2), desc: '下行风险调整收益' },
+                { label: '最大回撤', value: (portfolioRiskStats.max_drawdown * 100).toFixed(1) + '%', desc: '历史最大回撤' },
+                { label: '卡尔玛比率', value: portfolioRiskStats.calmar.toFixed(2), desc: '收益/回撤比' },
+                { label: '信息比率', value: portfolioRiskStats.information_ratio.toFixed(2), desc: '主动管理收益' },
+                { label: 'Omega', value: portfolioRiskStats.omega.toFixed(2), desc: '收益分布优势比' },
+            ];
+            panel.innerHTML = stats.map(s => `
+                <div style="background: var(--bg-card); border-radius: 6px; padding: 14px; border: 1px solid var(--border);">
+                    <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">${s.label}</div>
+                    <div style="font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${s.value}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary);">${s.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderPortfolioRiskTrendChart() {
+            const ctx = document.getElementById('portfolioRiskTrendChart');
+            if (!ctx) return;
+            const dates = Array.from({length: 30}, (_, i) => `D${i + 1}`);
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        { label: '波动率', data: Array.from({length: 30}, () => (0.15 + Math.random() * 0.1).toFixed(3)), borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                        { label: 'VaR', data: Array.from({length: 30}, () => (0.02 + Math.random() * 0.015).toFixed(3)), borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderDash: [3, 3] },
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', color: '#94a3b8' } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => (v * 100).toFixed(1) + '%' } }
+                    }
+                }
+            });
+        }
+
+        function renderPortfolioIndustryChart() {
+            const ctx = document.getElementById('portfolioIndustryChart');
+            if (!ctx) return;
+            const industryWeights = [
+                { name: '食品饮料', weight: 0.22 }, { name: '电子', weight: 0.18 },
+                { name: '医药生物', weight: 0.15 }, { name: '电气设备', weight: 0.12 },
+                { name: '银行', weight: 0.10 }, { name: '汽车', weight: 0.08 },
+                { name: '化工', weight: 0.07 }, { name: '其他', weight: 0.08 },
+            ];
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: industryWeights.map(i => i.name),
+                    datasets: [{
+                        data: industryWeights.map(i => i.weight),
+                        backgroundColor: ['#00d4ff', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'],
+                        borderColor: '#1a1f2e', borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#94a3b8', usePointStyle: true, padding: 12 } },
+                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${(ctx.raw * 100).toFixed(1)}%` } }
+                    }
+                }
+            });
+        }
+
+        // ===================== 因子分析渲染 =====================
+        function renderFactorStatsPanel() {
+            const panel = document.getElementById('factorStatsPanel');
+            if (!panel) return;
+            const stats = [
+                { label: 'IC Mean', value: factorStats.ic_mean.toFixed(3), desc: '信息系数均值' },
+                { label: 'IC Std', value: factorStats.ic_std.toFixed(3), desc: '信息系数标准差' },
+                { label: 'IC IR', value: factorStats.ic_ir.toFixed(2), desc: '信息比率' },
+                { label: 'IC > 0 占比', value: (factorStats.ic_positive_ratio * 100).toFixed(1) + '%', desc: '正IC比例' },
+                { label: 'IC T-Stat', value: factorStats.ic_tstat.toFixed(2), desc: 'IC显著性检验' },
+                { label: 'Rank IC', value: factorStats.rank_ic.toFixed(3), desc: '秩信息系数' },
+                { label: 'Rank IR', value: factorStats.rank_ir.toFixed(2), desc: '秩信息比率' },
+                { label: '半衰期', value: factorStats.half_life.toFixed(1) + 'd', desc: '因子半衰期' },
+                { label: '年化收益', value: (factorStats.annual_return * 100).toFixed(1) + '%', desc: '因子年化收益' },
+                { label: '夏普比率', value: factorStats.sharpe.toFixed(2), desc: '风险调整收益' },
+                { label: '最大回撤', value: (factorStats.max_drawdown * 100).toFixed(1) + '%', desc: '最大回撤幅度' },
+                { label: '换手率', value: (factorStats.turnover * 100).toFixed(1) + '%', desc: '月均换手率' },
+            ];
+            panel.innerHTML = stats.map(s => `
+                <div style="background: var(--bg-card); border-radius: 6px; padding: 14px; border: 1px solid var(--border);">
+                    <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">${s.label}</div>
+                    <div style="font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">${s.value}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary);">${s.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderFactorCumulativeChart() {
+            const ctx = document.getElementById('factorCumulativeChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: factorCumulativeData.map(d => d.date.slice(5)),
+                    datasets: [
+                        { label: '多空收益', data: factorCumulativeData.map(d => d.long_short), borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                        { label: '多头收益', data: factorCumulativeData.map(d => d.long_only), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                        { label: '基准', data: factorCumulativeData.map(d => d.benchmark), borderColor: '#64748b', borderDash: [5, 5], fill: false, tension: 0.4, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', color: '#94a3b8' } },
+                        tooltip: { backgroundColor: '#1a1f2e', titleColor: '#e2e8f0', bodyColor: '#94a3b8', borderColor: '#2a3447', borderWidth: 1 }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: '#64748b' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => (v * 100).toFixed(1) + '%' } }
+                    }
+                }
+            });
+        }
+
+        function renderFactorICChart() {
+            const ctx = document.getElementById('factorICChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: icHistory.map(d => d.date.slice(5)),
+                    datasets: [
+                        { label: 'IC', data: icHistory.map(d => d.ic.toFixed(3)), borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                        { label: 'Rank IC', data: icHistory.map(d => d.rank_ic.toFixed(3)), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.4, pointRadius: 0 },
+                        { label: '零线', data: Array(icHistory.length).fill(0), borderColor: '#64748b', borderDash: [3, 3], pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', color: '#94a3b8' } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: '#64748b' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function renderFactorICHeatmap() {
+            const ctx = document.getElementById('factorICHeatmap');
+            if (!ctx) return;
+            const months = ['1月', '2月', '3月', '4月', '5月', '6月'];
+            const years = ['2023', '2024'];
+            const data = [
+                [0.03, 0.05, -0.02, 0.08, 0.04, 0.06],
+                [0.07, 0.02, 0.09, -0.01, 0.05, 0.03]
+            ];
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: years.map((year, idx) => ({
+                        label: year,
+                        data: data[idx],
+                        backgroundColor: data[idx].map(v => v >= 0 ? 'rgba(0,212,255,0.7)' : 'rgba(239,68,68,0.7)'),
+                        borderRadius: 3
+                    }))
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function renderFactorDecayChart() {
+            const ctx = document.getElementById('factorDecayChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1D', '2D', '3D', '5D', '10D', '20D', '40D', '60D'],
+                    datasets: [{
+                        label: 'IC衰减',
+                        data: [0.82, 0.68, 0.58, 0.45, 0.23, 0.12, 0.05, -0.02],
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0,212,255,0.1)',
+                        fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#00d4ff'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => `IC: ${ctx.raw}` } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        // ===================== Chart.js 配置 =====================
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#2a3447';
+        Chart.defaults.font.family = "'JetBrains Mono', monospace";
+        Chart.defaults.font.size = 11;
+
+        let returnsChartInstance = null;
+
+        const returnsData = {
+            labels: Array.from({length:180},(_,i)=>{const d=new Date(2024,0,1);d.setDate(d.getDate()+i);return d.toISOString().split('T')[0];}),
+            datasets: [
+                { label:'组合累计收益', data:Array.from({length:180},(_,i)=>(Math.sin(i*0.05)*0.05+i*0.001+Math.random()*0.02).toFixed(4)), borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.1)', fill:true, tension:0.4, pointRadius:0, pointHoverRadius:4 },
+                { label:'基准收益', data:Array.from({length:180},(_,i)=>(i*0.0005).toFixed(4)), borderColor:'#64748b', borderDash:[5,5], fill:false, tension:0.4, pointRadius:0 }
+            ]
+        };
+
+        const weightsData = {
+            labels: Array.from({length:60},(_,i)=>{const d=new Date(2024,0,1);d.setDate(d.getDate()+i*3);return d.toISOString().split('T')[0];}),
+            datasets: [
+                { label:'动量策略', data:Array.from({length:60},(_,i)=>(0.3+Math.sin(i*0.1)*0.2+0.1).toFixed(3)), borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.2)', fill:true, tension:0.4, pointRadius:0 },
+                { label:'价值策略', data:Array.from({length:60},(_,i)=>(0.35+Math.cos(i*0.08)*0.15).toFixed(3)), borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.2)', fill:true, tension:0.4, pointRadius:0 },
+                { label:'均值回归', data:Array.from({length:60},(_,i)=>(0.35-Math.sin(i*0.1)*0.15-0.05).toFixed(3)), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.2)', fill:true, tension:0.4, pointRadius:0 }
+            ]
+        };
+
+        returnsChartInstance = new Chart(document.getElementById('returnsChart'), {
+            type:'line', data:returnsData,
+            options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+                plugins:{ legend:{position:'top',align:'end',labels:{usePointStyle:true,pointStyle:'line',padding:16}},
+                    tooltip:{backgroundColor:'#1a1f2e',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'#2a3447',borderWidth:1,padding:12} },
+                scales:{ x:{grid:{display:false},ticks:{maxTicksLimit:8}}, y:{grid:{color:'#1e2538'},ticks:{callback:v=>(v*100).toFixed(1)+'%'}} }
+            }
+        });
+
+        new Chart(document.getElementById('weightsChart'), {
+            type:'line', data:weightsData,
+            options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+                plugins:{ legend:{position:'top',align:'end',labels:{usePointStyle:true,pointStyle:'line',padding:16}} },
+                scales:{ x:{grid:{display:false},ticks:{maxTicksLimit:6}}, y:{stacked:true,grid:{color:'#1e2538'},ticks:{callback:v=>(v*100).toFixed(0)+'%'}} }
+            }
+        });
+
+        // ===================== 主题切换 =====================
+        document.getElementById('themeSelect').addEventListener('change', (e) => {
+            const theme = e.target.value;
+            if (theme) {
+                document.body.setAttribute('data-theme', theme);
+            } else {
+                document.body.removeAttribute('data-theme');
+            }
+        });
+
+        // ===================== 按钮交互 =====================
+        document.querySelectorAll('.panel-btn[data-period]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.panel-actions').querySelectorAll('.panel-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const period = btn.dataset.period;
+                updateReturnsChart(period);
+            });
+        });
+
+        function generateReturnsData(days) {
+            const seed = days;
+            return Array.from({length: days}, (_, i) => {
+                const pseudoRandom = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453 % 1;
+                return (Math.sin(i * 0.05) * 0.05 + i * 0.001 + pseudoRandom * 0.02).toFixed(4);
+            });
+        }
+
+        function updateReturnsChart(period) {
+            const daysMap = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 };
+            const days = daysMap[period] || 180;
+            const labels = Array.from({length: days}, (_, i) => {
+                const d = new Date(2024, 0, 1);
+                d.setDate(d.getDate() + i);
+                return d.toISOString().split('T')[0];
+            });
+            const data = generateReturnsData(days);
+            const benchmark = Array.from({length: days}, (_, i) => (i * 0.0005).toFixed(4));
+
+            if (returnsChartInstance) {
+                returnsChartInstance.data.labels = labels;
+                returnsChartInstance.data.datasets[0].data = data;
+                returnsChartInstance.data.datasets[1].data = benchmark;
+                returnsChartInstance.update();
+            }
+        }
+
+        document.querySelectorAll('.panel-btn[data-risk-period]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.panel-actions').querySelectorAll('.panel-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        document.getElementById('btn-refresh-risk').addEventListener('click', () => {
+            renderRiskDetailPanel();
+            renderRiskAlertPanel();
+        });
+
+        document.getElementById('btn-refresh-agents').addEventListener('click', () => {
+            renderAgentGrid();
+            renderSignals();
+        });
+
+        document.getElementById('btn-refresh-guru').addEventListener('click', () => {
+            renderGuruGrid();
+            renderGuruAnalysis();
+        });
+
+        document.getElementById('btn-export-guru').addEventListener('click', () => {
+            let csv = 'Guru,哲学,持仓风格,持有期,累计收益,夏普,最大回撤,准确率,心智模型数,启发式数\\n';
+            gurus.forEach(g => {
+                csv += `${g.name},${g.philosophy.slice(0,30)},${g.style},${g.holding},${g.pnl},${g.sharpe},${g.drawdown},${g.accuracy},${g.mental_models.length},${g.heuristics.length}\\n`;
+            });
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'guru_report_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        document.getElementById('btn-export-agents').addEventListener('click', () => {
+            alert('导出Agent报告: ' + agents.length + ' 个Agent');
+        });
+
+        document.getElementById('btn-clear-signals').addEventListener('click', () => {
+            document.getElementById('signalPanel').innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">信号已清空</div>';
+        });
+
+        document.getElementById('btn-export-positions').addEventListener('click', () => {
+            let csv = '股票,数量,成本价,现价,市值,权重,浮动盈亏,盈亏率\n';
+            positions.forEach(p => {
+                csv += `${p.stock},${p.qty},${p.cost},${p.price},${p.mktVal},${p.weight},${p.pnl},${p.pnlRate}\n`;
+            });
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'positions_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        document.getElementById('btn-reset-assumption').addEventListener('click', () => {
+            document.querySelectorAll('.assumption-status').forEach(s => {
+                s.className = 'assumption-status ok';
+            });
+        });
+
+        document.getElementById('btn-export-assumption').addEventListener('click', () => {
+            alert('导出假设检验报告');
+        });
+
+        document.getElementById('btn-clear-logs').addEventListener('click', () => {
+            document.getElementById('logStream').innerHTML = '';
+        });
+
+        document.getElementById('btn-export-logs').addEventListener('click', () => {
+            const text = logs.map(l => `[${l.time}] [${l.level.toUpperCase()}] ${l.msg}`).join('\n');
+            const blob = new Blob([text], {type:'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'logs_' + new Date().toISOString().split('T')[0] + '.txt';
+            a.click();
+        });
+
+        // 行业轮动按钮交互
+        document.querySelectorAll('.panel-btn[data-industry-period]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.panel-actions').querySelectorAll('.panel-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        document.getElementById('btn-export-industry').addEventListener('click', () => {
+            let csv = '行业,动量得分,排名,权重,股票数,平均收益,趋势\n';
+            industryData.forEach(ind => {
+                csv += `${ind.name},${ind.momentum},${ind.rank},${ind.weight},${ind.stocks},${ind.avgReturn},${ind.trend}\n`;
+            });
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'industry_rotation_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        // 因子分析按钮交互
+        document.querySelectorAll('.panel-btn[data-factor-period]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.panel-actions').querySelectorAll('.panel-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const period = btn.dataset.factorPeriod;
+                updateFactorCumulativeChart(period);
+            });
+        });
+
+        function updateFactorCumulativeChart(period) {
+            const daysMap = { '1M': 30, '3M': 90, '6M': 180, '1Y': 365 };
+            const days = daysMap[period] || 180;
+            const chart = Chart.getChart('factorCumulativeChart');
+            if (!chart) return;
+            const newData = Array.from({length: days}, (_, i) => ({
+                long_short: (i * 0.0015 + Math.sin(i * 0.05) * 0.03 + (Math.random() - 0.5) * 0.01).toFixed(4),
+                long_only: (i * 0.001 + Math.sin(i * 0.04) * 0.02 + (Math.random() - 0.5) * 0.008).toFixed(4),
+                benchmark: (i * 0.0005).toFixed(4),
+            }));
+            const labels = Array.from({length: days}, (_, i) => {
+                const d = new Date(2024, 0, 1 + i);
+                return `${d.getMonth() + 1}/${d.getDate()}`;
+            });
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = newData.map(d => d.long_short);
+            chart.data.datasets[1].data = newData.map(d => d.long_only);
+            chart.data.datasets[2].data = newData.map(d => d.benchmark);
+            chart.update();
+        }
+
+        document.getElementById('btn-export-factor').addEventListener('click', () => {
+            let csv = '指标,数值,说明\n';
+            csv += `IC Mean,${factorStats.ic_mean},信息系数均值\n`;
+            csv += `IC Std,${factorStats.ic_std},信息系数标准差\n`;
+            csv += `IC IR,${factorStats.ic_ir},信息比率\n`;
+            csv += `Rank IC,${factorStats.rank_ic},秩信息系数\n`;
+            csv += `半衰期,${factorStats.half_life},因子半衰期(天)\n`;
+            csv += `年化收益,${factorStats.annual_return},因子年化收益\n`;
+            csv += `夏普比率,${factorStats.sharpe},风险调整收益\n`;
+            csv += `最大回撤,${factorStats.max_drawdown},最大回撤幅度\n`;
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'factor_analysis_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        // 持仓风险统计按钮交互
+        document.querySelectorAll('.panel-btn[data-risk-metric]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.panel-actions').querySelectorAll('.panel-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        document.getElementById('btn-export-risk-stats').addEventListener('click', () => {
+            let csv = '指标,数值\n';
+            csv += `VaR (95%),${portfolioRiskStats.var_95}\n`;
+            csv += `CVaR (95%),${portfolioRiskStats.cvar_95}\n`;
+            csv += `Beta,${portfolioRiskStats.beta}\n`;
+            csv += `Alpha,${portfolioRiskStats.alpha}\n`;
+            csv += `波动率,${portfolioRiskStats.volatility}\n`;
+            csv += `跟踪误差,${portfolioRiskStats.tracking_error}\n`;
+            csv += `夏普比率,${portfolioRiskStats.sharpe}\n`;
+            csv += `索提诺比率,${portfolioRiskStats.sortino}\n`;
+            csv += `最大回撤,${portfolioRiskStats.max_drawdown}\n`;
+            csv += `卡尔玛比率,${portfolioRiskStats.calmar}\n`;
+            csv += `信息比率,${portfolioRiskStats.information_ratio}\n`;
+            csv += `Omega,${portfolioRiskStats.omega}\n`;
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'portfolio_risk_stats_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        // 全球传染风险按钮交互
+        document.getElementById('btn-refresh-contagion').addEventListener('click', () => {
+            // 模拟刷新数据
+            contagionData.index = 65 + Math.random() * 15;
+            contagionData.maxCorrelation = 0.7 + Math.random() * 0.2;
+            contagionData.spillover = 0.3 + Math.random() * 0.3;
+            document.getElementById('contagion-index').textContent = contagionData.index.toFixed(1);
+            document.getElementById('contagion-corr').textContent = contagionData.maxCorrelation.toFixed(2);
+            document.getElementById('contagion-spillover').textContent = contagionData.spillover.toFixed(2);
+            renderContagionChannelTable();
+        });
+
+        document.getElementById('btn-export-contagion').addEventListener('click', () => {
+            let csv = '通道,状态,传染强度,时滞,趋势,CoVaR\n';
+            contagionData.channels.forEach(ch => {
+                csv += `${ch.source}→${ch.target},${ch.status},${ch.strength},${ch.lag},${ch.trend},${ch.covar}\n`;
+            });
+            csv += '\n市场,中心性\n';
+            contagionData.markets.forEach((m, i) => {
+                csv += `${m},${contagionData.centrality[i] || 0.1}\n`;
+            });
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contagion_report_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        // 投研团队按钮事件
+        document.getElementById('btn-refresh-team').addEventListener('click', () => {
+            renderResearchTeamGrid();
+            renderTeamVoteChart();
+            renderTeamAccuracyChart();
+            renderBeliefTreePanel();
+            renderBeliefTrajectoryChart();
+            renderReflectionTable();
+        });
+
+        document.getElementById('btn-export-team').addEventListener('click', () => {
+            let csv = '角色,权重,准确率,信号数,状态,信念值,反思类型\n';
+            teamRoles.forEach(r => {
+                csv += `${r.name},${r.weight},${r.accuracy},${r.signals},${r.active?'活跃':'暂停'},${r.belief.toFixed(2)},${r.reflectionType}\n`;
+            });
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'research_team_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+        });
+
+        document.getElementById('btn-clear-reflection').addEventListener('click', () => {
+            document.querySelector('#reflectionTable tbody').innerHTML = '';
+        });
+
+        // ===================== GuruAgent 渲染 =====================
+        function renderGuruGrid() {
+            const html = gurus.map(g => {
+                const modelHtml = g.mental_models.map(m => `
+                    <div class="belief-row">
+                        <span class="belief-name">${m.name}</span>
+                        <div class="belief-bar"><div class="belief-fill" style="width:75%;background:var(--accent-cyan);"></div></div>
+                        <span class="belief-value" style="width:60px;">${m.type}</span>
+                    </div>
+                    <div style="font-size:10px;color:var(--text-muted);margin:-4px 0 6px 0;padding-left:4px;">${m.one_liner}</div>
+                `).join('');
+                const factorHtml = Object.entries(g.preferred_factors).map(([k,v]) => `
+                    <span style="font-family:var(--font-mono);font-size:10px;padding:2px 6px;background:var(--bg-card);border-radius:3px;color:var(--text-secondary);margin-right:4px;">${k.replace('factor_','')}:${v}</span>
+                `).join('');
+                return `
+                    <div class="agent-card active">
+                        <div class="agent-header">
+                            <span class="agent-name">${g.name}</span>
+                            <span class="agent-style">${g.english}</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">${g.philosophy.slice(0,40)}...</div>
+                        <div class="agent-stats">
+                            <div class="agent-stat"><div class="agent-stat-label">累计收益</div><div class="agent-stat-value ${g.pnl>0?'positive':'negative'}">${(g.pnl*100).toFixed(1)}%</div></div>
+                            <div class="agent-stat"><div class="agent-stat-label">夏普比率</div><div class="agent-stat-value neutral">${g.sharpe.toFixed(2)}</div></div>
+                            <div class="agent-stat"><div class="agent-stat-label">最大回撤</div><div class="agent-stat-value negative">${(g.drawdown*100).toFixed(1)}%</div></div>
+                            <div class="agent-stat"><div class="agent-stat-label">准确率</div><div class="agent-stat-value neutral">${(g.accuracy*100).toFixed(0)}%</div></div>
+                        </div>
+                        <div style="margin:10px 0;">
+                            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">持仓风格: <span style="color:var(--text-secondary);">${g.style}</span> | 持有期: <span style="color:var(--text-secondary);">${g.holding}</span></div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">价值观: ${g.values.map(v => `<span style="color:var(--accent-cyan);">${v}</span>`).join(' / ')}</div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">盲区: ${g.blind_spots.map(v => `<span style="color:var(--accent-red);">${v}</span>`).join(', ')}</div>
+                            <div style="font-size:10px;color:var(--text-muted);">因子偏好: ${factorHtml}</div>
+                        </div>
+                        <div class="agent-beliefs">${modelHtml}</div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('guruGrid').innerHTML = html;
+        }
+
+        function renderGuruAnalysis() {
+            const html = gurus.map(g => `
+                <div style="margin-bottom:12px;padding:12px;background:var(--bg-card);border-radius:6px;border-left:3px solid var(--accent-cyan);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:13px;font-weight:600;">${g.name}</span>
+                        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">日志: ${g.analysis_log.length}条</span>
+                    </div>
+                    ${g.analysis_log.slice(-1).map(log => `
+                        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap;">${log}</div>
+                    `).join('')}
+                </div>
+            `).join('');
+            document.getElementById('guruAnalysisPanel').innerHTML = html;
+        }
+
+        function renderGuruModelChart() {
+            const ctx = document.getElementById('guruModelChart');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: gurus.map(g => g.name.split('·')[1] || g.name),
+                    datasets: [
+                        { label: '价值因子', data: gurus.map(g => g.preferred_factors.factor_value || 0), backgroundColor: '#8b5cf6', borderRadius: 3 },
+                        { label: '动量因子', data: gurus.map(g => g.preferred_factors.factor_momentum || 0), backgroundColor: '#00d4ff', borderRadius: 3 },
+                        { label: '质量因子', data: gurus.map(g => g.preferred_factors.factor_quality || 0), backgroundColor: '#10b981', borderRadius: 3 },
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, color: '#94a3b8' } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' }, stacked: false }
+                    }
+                }
+            });
+        }
+
+        // ===================== 投研团队渲染 =====================
+        function renderResearchTeamGrid() {
+            const container = document.getElementById('researchTeamGrid');
+            if (!container) return;
+            const html = researchTeamData.roles.map(role => {
+                const viewColor = role.latestView === 'BUY' ? 'var(--accent-green)' : role.latestView === 'SELL' ? 'var(--accent-red)' : 'var(--accent-yellow)';
+                const reflectionColor = role.reflection.assessment === 'over_reacting' ? 'var(--accent-red)' : role.reflection.assessment === 'under_reacting' ? 'var(--accent-yellow)' : 'var(--accent-green)';
+                const reflectionIcon = role.reflection.assessment === 'over_reacting' ? '⚠️' : role.reflection.assessment === 'under_reacting' ? '⚡' : '✓';
+                const beliefHtml = role.beliefs.map(b => `
+                    <div style="margin-bottom:6px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                            <span style="font-size:11px;color:var(--text-secondary);">${b.name}</span>
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">${b.layer}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <div style="flex:1;height:4px;background:var(--bg-card);border-radius:2px;overflow:hidden;">
+                                <div style="width:${b.posterior * 100}%;height:100%;background:${b.trend === 'up' ? 'var(--accent-green)' : b.trend === 'down' ? 'var(--accent-red)' : 'var(--accent-cyan)'};"></div>
+                            </div>
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-secondary);width:28px;">${b.posterior.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `).join('');
+                return `
+                    <div class="agent-card ${role.isActive ? 'active' : ''}" style="border-left:3px solid ${viewColor};">
+                        <div class="agent-header">
+                            <span class="agent-name">${role.name}</span>
+                            <span class="agent-style" style="font-size:10px;">权重:${role.weight} | ${role.reflectionType}</span>
+                        </div>
+                        <div style="display:flex;gap:12px;margin:8px 0;">
+                            <div style="flex:1;text-align:center;padding:8px;background:var(--bg-card);border-radius:4px;">
+                                <div style="font-size:18px;font-weight:600;color:${viewColor};">${role.latestView}</div>
+                                <div style="font-size:10px;color:var(--text-muted);">置信 ${(role.confidence*100).toFixed(0)}%</div>
+                            </div>
+                            <div style="flex:1;text-align:center;padding:8px;background:var(--bg-card);border-radius:4px;">
+                                <div style="font-size:18px;font-weight:600;color:var(--accent-cyan);">${(role.accuracy*100).toFixed(0)}%</div>
+                                <div style="font-size:10px;color:var(--text-muted);">准确率 (${role.predictionCount})</div>
+                            </div>
+                            <div style="flex:1;text-align:center;padding:8px;background:var(--bg-card);border-radius:4px;">
+                                <div style="font-size:18px;font-weight:600;color:${reflectionColor};">${reflectionIcon}</div>
+                                <div style="font-size:10px;color:var(--text-muted);">${role.reflection.assessment}</div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:6px;background:var(--bg-card);border-radius:4px;">
+                            <strong>推理:</strong> ${role.reasoning}
+                        </div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">信念状态</div>
+                        ${beliefHtml}
+                        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--text-muted);">
+                            反思: ${role.reflection.recommendation} | 方向比: ${role.reflection.directionRatio.toFixed(2)} | 步长: ${role.reflection.avgStepChange.toFixed(3)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            container.innerHTML = html;
+        }
+
+        function renderTeamVoteChart() {
+            const ctx = document.getElementById('teamVoteChart');
+            if (!ctx) return;
+            const roles = researchTeamData.roles;
+            const scores = roles.map(r => {
+                const base = r.latestView === 'BUY' ? r.confidence : r.latestView === 'SELL' ? -r.confidence : 0;
+                return base * r.weight;
+            });
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: roles.map(r => r.name),
+                    datasets: [{
+                        label: '加权投票得分',
+                        data: scores,
+                        backgroundColor: scores.map(s => s > 0 ? 'rgba(16,185,129,0.7)' : s < 0 ? 'rgba(239,68,68,0.7)' : 'rgba(245,158,11,0.7)'),
+                        borderColor: scores.map(s => s > 0 ? '#10b981' : s < 0 ? '#ef4444' : '#f59e0b'),
+                        borderWidth: 1,
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        function renderTeamAccuracyChart() {
+            const ctx = document.getElementById('teamAccuracyChart');
+            if (!ctx) return;
+            const sorted = [...researchTeamData.roles].sort((a, b) => b.accuracy - a.accuracy);
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(r => r.name),
+                    datasets: [{
+                        label: '准确率',
+                        data: sorted.map(r => r.accuracy * 100),
+                        backgroundColor: sorted.map(r => r.accuracy > 0.6 ? 'rgba(16,185,129,0.7)' : r.accuracy > 0.5 ? 'rgba(245,158,11,0.7)' : 'rgba(239,68,68,0.7)'),
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => v + '%' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        function renderBeliefTreePanel() {
+            const panel = document.getElementById('beliefTreePanel');
+            if (!panel) return;
+            const layers = [
+                { name: '理念层 (PHILOSOPHY)', key: 'philosophy', color: '#8b5cf6' },
+                { name: '风格层 (STYLE)', key: 'style', color: '#00d4ff' },
+                { name: '战术层 (TACTIC)', key: 'tactic', color: '#10b981' }
+            ];
+            panel.innerHTML = layers.map(layer => `
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:12px;font-weight:600;color:${layer.color};margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">${layer.name}</div>
+                    ${researchTeamData.beliefs[layer.key].map(b => `
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px;background:var(--bg-card);border-radius:4px;border:1px solid var(--border);">
+                            <div style="flex:1;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                    <span style="font-size:12px;color:var(--text-primary);">${b.name}</span>
+                                    <span style="font-size:10px;color:var(--text-muted);">${b.parent ? '← ' + b.parent : '顶层'}</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <div style="flex:1;height:6px;background:var(--bg-hover);border-radius:3px;overflow:hidden;">
+                                        <div style="width:${b.posterior * 100}%;height:100%;background:${layer.color};opacity:0.8;"></div>
+                                    </div>
+                                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);width:36px;">${b.posterior.toFixed(2)}</span>
+                                    <span style="font-size:10px;color:var(--text-muted);">张力:${b.tension.toFixed(2)}</span>
+                                    <span style="font-size:10px;color:var(--text-muted);">稳定:${(b.stability*100).toFixed(0)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        function renderBeliefTrajectoryChart() {
+            const ctx = document.getElementById('beliefTrajectoryChart');
+            if (!ctx) return;
+            const dates = Array.from({length:20},(_,i)=>`D${i+1}`);
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        { label: '价值发现', data: dates.map((_,i) => 0.75 + Math.sin(i*0.2)*0.05 + (Math.random()-0.5)*0.02), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+                        { label: '低估值偏好', data: dates.map((_,i) => 0.70 + Math.sin(i*0.3)*0.08 + (Math.random()-0.5)*0.03), borderColor: '#00d4ff', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+                        { label: '分散持仓', data: dates.map((_,i) => 0.65 + Math.sin(i*0.25)*0.10 + (Math.random()-0.5)*0.04), borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+                        { label: '动量偏好', data: dates.map((_,i) => 0.35 + Math.sin(i*0.35)*0.12 + (Math.random()-0.5)*0.05), borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 2 },
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', color: '#94a3b8' } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b' }, min: 0, max: 1 }
+                    }
+                }
+            });
+        }
+
+        function renderReflectionTable() {
+            const tbody = document.querySelector('#reflectionTable tbody');
+            if (!tbody) return;
+            tbody.innerHTML = researchTeamData.reflections.map(r => {
+                const assessmentColor = r.assessment === 'over_reacting' ? 'var(--accent-red)' : r.assessment === 'under_reacting' ? 'var(--accent-yellow)' : r.assessment === 'genuine_adaptation' ? 'var(--accent-green)' : 'var(--text-muted)';
+                return `
+                    <tr>
+                        <td style="font-family:var(--font-mono);font-size:11px;">${r.time}</td>
+                        <td><strong>${r.role}</strong></td>
+                        <td>${r.belief}</td>
+                        <td><span style="font-size:10px;color:var(--text-muted);">${r.layer}</span></td>
+                        <td><span style="color:${assessmentColor};font-weight:600;">${r.assessment}</span></td>
+                        <td>${r.recommendation}</td>
+                        <td style="font-family:var(--font-mono);font-size:11px;">${r.tensionAdjust}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ===================== Brinson归因分析渲染 =====================
+        function renderAttributionSummary() {
+            const container = document.getElementById('attributionSummary');
+            if (!container) return;
+            const s = attributionData.summary;
+            container.innerHTML = `
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+                    <div class="kpi-card" style="background:var(--bg-card);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">组合收益</div>
+                        <div style="font-size:24px;font-weight:700;color:var(--accent-green);">${(s.portfolioReturn*100).toFixed(2)}%</div>
+                    </div>
+                    <div class="kpi-card" style="background:var(--bg-card);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">基准收益</div>
+                        <div style="font-size:24px;font-weight:700;color:var(--accent-blue);">${(s.benchmarkReturn*100).toFixed(2)}%</div>
+                    </div>
+                    <div class="kpi-card" style="background:var(--bg-card);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">超额收益</div>
+                        <div style="font-size:24px;font-weight:700;color:var(--accent-cyan);">+${(s.excessReturn*100).toFixed(2)}%</div>
+                    </div>
+                    <div class="kpi-card" style="background:var(--bg-card);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">归因期数</div>
+                        <div style="font-size:24px;font-weight:700;color:var(--text-primary);">${s.periods}</div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+                    <div style="background:var(--bg-card);padding:16px;border-radius:8px;border-left:3px solid var(--accent-purple);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">配置效应</div>
+                        <div style="font-size:20px;font-weight:700;color:var(--accent-purple);">+${(s.allocationEffect*100).toFixed(2)}%</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${(s.allocationEffect/s.excessReturn*100).toFixed(1)}% of excess</div>
+                    </div>
+                    <div style="background:var(--bg-card);padding:16px;border-radius:8px;border-left:3px solid var(--accent-cyan);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">选择效应</div>
+                        <div style="font-size:20px;font-weight:700;color:var(--accent-cyan);">+${(s.selectionEffect*100).toFixed(2)}%</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${(s.selectionEffect/s.excessReturn*100).toFixed(1)}% of excess</div>
+                    </div>
+                    <div style="background:var(--bg-card);padding:16px;border-radius:8px;border-left:3px solid var(--accent-orange);">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">交互效应</div>
+                        <div style="font-size:20px;font-weight:700;color:var(--accent-orange);">+${(s.interactionEffect*100).toFixed(2)}%</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${(s.interactionEffect/s.excessReturn*100).toFixed(1)}% of excess</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAttributionChart() {
+            const ctx = document.getElementById('attributionChart');
+            if (!ctx) return;
+            const s = attributionData.summary;
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['配置效应', '选择效应', '交互效应'],
+                    datasets: [{
+                        data: [s.allocationEffect, s.selectionEffect, s.interactionEffect],
+                        backgroundColor: ['#8b5cf6', '#00d4ff', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#94a3b8', usePointStyle: true } }
+                    }
+                }
+            });
+        }
+
+        function renderSectorAllocationChart() {
+            const ctx = document.getElementById('sectorAllocationChart');
+            if (!ctx) return;
+            const sectors = attributionData.sectorBreakdown;
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sectors.map(s => s.sector),
+                    datasets: [{
+                        label: '配置效应',
+                        data: sectors.map(s => s.allocation * 100),
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => v.toFixed(2) + '%' } }
+                    }
+                }
+            });
+        }
+
+        function renderSectorSelectionChart() {
+            const ctx = document.getElementById('sectorSelectionChart');
+            if (!ctx) return;
+            const sectors = attributionData.sectorBreakdown;
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sectors.map(s => s.sector),
+                    datasets: [{
+                        label: '选择效应',
+                        data: sectors.map(s => s.selection * 100),
+                        backgroundColor: '#00d4ff',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => v.toFixed(2) + '%' } }
+                    }
+                }
+            });
+        }
+
+        function renderCumulativeAttributionChart() {
+            const ctx = document.getElementById('cumulativeAttributionChart');
+            if (!ctx) return;
+            const periods = attributionData.periodData;
+            let cumAlloc = 0, cumSelect = 0, cumInter = 0, cumExcess = 0;
+            const allocData = [], selectData = [], interData = [], excessData = [];
+            for (const p of periods) {
+                cumAlloc += p.allocation; allocData.push(cumAlloc * 100);
+                cumSelect += p.selection; selectData.push(cumSelect * 100);
+                cumInter += p.interaction; interData.push(cumInter * 100);
+                cumExcess += p.excess; excessData.push(cumExcess * 100);
+            }
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: periods.map(p => p.date),
+                    datasets: [
+                        { label: '累计超额', data: excessData, borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0 },
+                        { label: '累计配置', data: allocData, borderColor: '#8b5cf6', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0 },
+                        { label: '累计选择', data: selectData, borderColor: '#00d4ff', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0 },
+                        { label: '累计交互', data: interData, borderColor: '#f59e0b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0 },
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'line', color: '#94a3b8' } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+                        y: { grid: { color: '#1e2538' }, ticks: { color: '#64748b', callback: v => v.toFixed(1) + '%' } }
+                    }
+                }
+            });
+        }
+
+        function renderAttributionTable() {
+            const tbody = document.getElementById('attributionTableBody');
+            if (!tbody) return;
+            const totalExcess = attributionData.summary.excessReturn;
+            tbody.innerHTML = attributionData.sectorBreakdown.map(s => {
+                const contribPct = totalExcess > 0 ? (s.total / totalExcess * 100).toFixed(1) : '0.0';
+                const totalColor = s.total >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+                return `
+                    <tr>
+                        <td><strong>${s.sector}</strong></td>
+                        <td style="color:${s.allocation >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${s.allocation >= 0 ? '+' : ''}${(s.allocation*100).toFixed(2)}%</td>
+                        <td style="color:${s.selection >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${s.selection >= 0 ? '+' : ''}${(s.selection*100).toFixed(2)}%</td>
+                        <td style="color:${s.interaction >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${s.interaction >= 0 ? '+' : ''}${(s.interaction*100).toFixed(2)}%</td>
+                        <td style="color:${totalColor};font-weight:600;">${s.total >= 0 ? '+' : ''}${(s.total*100).toFixed(2)}%</td>
+                        <td>${contribPct}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ===================== 初始化渲染 =====================
+        renderAgentGrid();
+        renderSignals();
+        renderPositions();
+        renderHistory();
+        renderTrades();
+        renderLogs();
+        renderWeightBars();
+        renderRiskPanel();
+        renderRiskDetailPanel();
+        renderRiskAlertPanel();
+        renderRiskRadarChart();
+        renderRiskTrendChart();
+        renderAssumptionPanels();
+        renderGuruGrid();
+        renderGuruAnalysis();
+        renderGuruModelChart();
+
+        // 投研团队初始化
+        renderResearchTeamGrid();
+        renderTeamVoteChart();
+        renderTeamAccuracyChart();
+        renderBeliefTreePanel();
+        renderBeliefTrajectoryChart();
+        renderReflectionTable();
+
+        // 行业轮动初始化
+        renderIndustryTable();
+        renderIndustryMomentumChart();
+        renderIndustryPieChart();
+        renderIndustryRotationChart();
+
+        // 持仓风险统计初始化
+        renderPortfolioRiskStats();
+        renderPortfolioRiskTrendChart();
+        renderPortfolioIndustryChart();
+
+        // 全球传染风险初始化
+        renderContagionChannelTable();
+        renderContagionNetworkChart();
+        renderContagionHeatmapChart();
+
+        // 因子分析初始化
+        renderFactorStatsPanel();
+        renderFactorCumulativeChart();
+        renderFactorICChart();
+        renderFactorICHeatmap();
+        renderFactorDecayChart();
+
+        // 归因分析初始化
+        renderAttributionSummary();
+        renderAttributionChart();
+        renderSectorAllocationChart();
+        renderSectorSelectionChart();
+        renderCumulativeAttributionChart();
+        renderAttributionTable();
+
+        // 动态更新KPI
+        setInterval(() => {
+            const ret = (15.42 + Math.random() * 0.5 - 0.25).toFixed(2);
+            document.getElementById('kpi-return').textContent = (ret > 0 ? '+' : '') + ret + '%';
+        }, 5000);
+    </script>
+</body>
+</html>

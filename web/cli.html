@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factor Trading v3.0 - CLI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-titlebar: #21262d;
+            --text-primary: #3fb950;
+            --text-secondary: #8b949e;
+            --text-accent: #58a6ff;
+            --text-warning: #d29922;
+            --text-error: #f85149;
+            --text-muted: #484f58;
+            --border-color: #30363d;
+            --cursor-color: #3fb950;
+            --shadow: 0 0 20px rgba(63, 185, 80, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .terminal-window {
+            width: 95vw;
+            max-width: 1100px;
+            height: 92vh;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: var(--shadow), 0 25px 50px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .titlebar {
+            background: var(--bg-titlebar);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+            user-select: none;
+        }
+
+        .titlebar-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27c93f; }
+
+        .titlebar-text {
+            flex: 1;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .terminal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            scroll-behavior: smooth;
+        }
+
+        .terminal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .terminal-body::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .line {
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 1.7em;
+        }
+
+        .line.prompt {
+            color: var(--text-accent);
+        }
+
+        .line.output {
+            color: var(--text-primary);
+        }
+
+        .line.error {
+            color: var(--text-error);
+        }
+
+        .line.warning {
+            color: var(--text-warning);
+        }
+
+        .line.info {
+            color: var(--text-secondary);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background: var(--cursor-color);
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+            margin-left: 1px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .cursor.typing {
+            animation: none;
+            opacity: 1;
+        }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .input-line .prompt-text {
+            color: var(--text-accent);
+            white-space: nowrap;
+        }
+
+        .input-line .user-input {
+            color: var(--text-primary);
+            outline: none;
+            min-width: 10px;
+        }
+
+        .ascii-box {
+            border: 1px solid var(--border-color);
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 4px;
+            background: rgba(22, 27, 34, 0.8);
+        }
+
+        .ascii-box-title {
+            color: var(--text-accent);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .cmd-hint {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .cmd-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 4px 16px;
+            margin: 8px 0;
+        }
+
+        .cmd-item {
+            display: flex;
+            gap: 12px;
+        }
+
+        .cmd-name {
+            color: var(--text-accent);
+            min-width: 100px;
+        }
+
+        .cmd-desc {
+            color: var(--text-secondary);
+        }
+
+        .highlight-green { color: var(--text-primary); }
+        .highlight-blue { color: var(--text-accent); }
+        .highlight-yellow { color: var(--text-warning); }
+        .highlight-red { color: var(--text-error); }
+        .highlight-muted { color: var(--text-muted); }
+
+        .tree-line {
+            color: var(--text-secondary);
+        }
+
+        .tree-file {
+            color: var(--text-primary);
+        }
+
+        .tree-dir {
+            color: var(--text-accent);
+        }
+
+        /* 街机像素横幅 */
+        .cli-arcade-banner {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(180deg, #0a0a1a 0%, #1a0a2e 50%, #0a0a1a 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin: 8px 0 12px 0;
+            overflow: hidden;
+        }
+        .cli-arcade-banner canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .cli-arcade-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .cli-arcade-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-shadow: 0 0 8px rgba(63, 185, 80, 0.5), 0 0 16px rgba(63, 185, 80, 0.3);
+            letter-spacing: 3px;
+            animation: cliArcadeGlow 2s ease-in-out infinite alternate;
+        }
+        .cli-arcade-subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-warning);
+            margin-top: 4px;
+            letter-spacing: 2px;
+            animation: arcadeBlink 1.5s step-end infinite;
+        }
+        @keyframes cliArcadeGlow {
+            from { text-shadow: 0 0 8px rgba(63, 185, 80, 0.5), 0 0 16px rgba(63, 185, 80, 0.3); }
+            to { text-shadow: 0 0 16px rgba(63, 185, 80, 0.8), 0 0 32px rgba(63, 185, 80, 0.5); }
+        }
+        .cli-arcade-features {
+            position: absolute;
+            bottom: 4px;
+            left: 0; right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .cli-arcade-feature {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .terminal-window {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+            body {
+                background: var(--bg-secondary);
+            }
+            .cmd-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-window">
+        <div class="titlebar">
+            <div class="titlebar-dots">
+                <div class="dot dot-red"></div>
+                <div class="dot dot-yellow"></div>
+                <div class="dot dot-green"></div>
+            </div>
+            <div class="titlebar-text">factor-trading -- zsh -- 80x24</div>
+        </div>
+        <div class="terminal-body" id="terminal"></div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Terminal Core
+        // ============================================================
+        class Terminal {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                this.history = JSON.parse(localStorage.getItem('ft_cli_history') || '[]');
+                this.historyIndex = -1;
+                this.currentInput = '';
+                this.isTyping = false;
+                this.bootComplete = false;
+                this.commandHistory = [];
+            }
+
+            async boot() {
+                const bootLines = [
+                    { text: '', delay: 300 },
+                    { text: 'Factor Trading BIOS v3.1', delay: 100 },
+                    { text: 'Copyright (C) 2024-2026, Quant Team', delay: 50 },
+                    { text: '', delay: 100 },
+                    { text: 'CPU: QuantCore i9-14900K @ 6.00GHz ........ [OK]', delay: 150 },
+                    { text: 'Memory: 131072K RAM ....................... [OK]', delay: 150 },
+                    { text: 'Storage: NVMe SSD 2TB ..................... [OK]', delay: 150 },
+                    { text: 'Network: 10Gbps Fiber ..................... [OK]', delay: 150 },
+                    { text: '', delay: 100 },
+                    { text: 'Loading core modules...', delay: 200 },
+                    { text: '  [OK] Engine Core ........................ v3.1.0', delay: 100 },
+                    { text: '  [OK] Data Manager ....................... v3.1.0', delay: 100 },
+                    { text: '  [OK] Factor Pipeline .................... v3.1.0', delay: 100 },
+                    { text: '  [OK] Agent Framework .................... v3.1.0', delay: 100 },
+                    { text: '  [OK] Risk Monitor ....................... v3.1.0', delay: 100 },
+                    { text: '  [OK] Walk-Forward Engine ................ v3.1.0', delay: 100 },
+                    { text: '', delay: 100 },
+                    { text: 'Running self-test...', delay: 300 },
+                    { text: '  [PASS] test_adjustment .................. 11 tests', delay: 80 },
+                    { text: '  [PASS] test_factor_database ............. 5 tests', delay: 80 },
+                    { text: '  [PASS] test_walk_forward ................ 6 tests', delay: 80 },
+                    { text: '  [PASS] test_distillation_isolation ...... 19 tests', delay: 80 },
+                    { text: '  [PASS] test_execution_price ............. 8 tests', delay: 80 },
+                    { text: '  [PASS] test_decoupled_engine ............ 9 tests', delay: 80 },
+                    { text: '  [PASS] test_integration ................. 6 tests', delay: 80 },
+                    { text: '', delay: 100 },
+                    { text: 'All systems operational.', delay: 200 },
+                    { text: 'Type \'help\' to see available commands.', delay: 100 },
+                    { text: '', delay: 100 }
+                ];
+
+                for (const line of bootLines) {
+                    await this.typeLine(line.text, line.delay);
+                }
+
+                this.bootComplete = true;
+                this.showArcadeBanner();
+                this.showPrompt();
+            }
+
+            async typeLine(text, delay) {
+                const line = document.createElement('div');
+                line.className = 'line output';
+                this.container.appendChild(line);
+
+                if (text.includes('[OK]')) {
+                    line.className = 'line output highlight-green';
+                } else if (text.includes('[PASS]')) {
+                    line.className = 'line output highlight-green';
+                } else if (text.includes('BIOS') || text.includes('Copyright')) {
+                    line.className = 'line info';
+                }
+
+                for (let i = 0; i < text.length; i++) {
+                    line.textContent += text[i];
+                    await this.sleep(8);
+                }
+
+                if (delay > 0) {
+                    await this.sleep(delay);
+                }
+
+                this.scrollToBottom();
+            }
+
+            showArcadeBanner() {
+                const bannerDiv = document.createElement('div');
+                bannerDiv.className = 'cli-arcade-banner';
+                bannerDiv.innerHTML = `
+                    <canvas id="cliArcadeCanvas" width="800" height="120"></canvas>
+                    <div class="cli-arcade-overlay">
+                        <div class="cli-arcade-title">FACTOR TRADING v3.0</div>
+                        <div class="cli-arcade-subtitle">PRESS START TO BACKTEST</div>
+                    </div>
+                    <div class="cli-arcade-features">
+                        <div class="cli-arcade-feature"><span style="color:var(--text-primary)">&#9650;</span> ENGINE</div>
+                        <div class="cli-arcade-feature"><span style="color:var(--text-warning)">&#9733;</span> FACTORS</div>
+                        <div class="cli-arcade-feature"><span style="color:var(--text-accent)">&#9632;</span> RISK</div>
+                        <div class="cli-arcade-feature"><span style="color:var(--text-error)">&#9679;</span> AGENTS</div>
+                    </div>
+                `;
+                this.container.appendChild(bannerDiv);
+                this.scrollToBottom();
+                this.initCliArcadeCanvas();
+            }
+
+            initCliArcadeCanvas() {
+                const canvas = document.getElementById('cliArcadeCanvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                const W = rect.width, H = rect.height;
+                const PX = 3;
+
+                // 星星
+                const stars = [];
+                for (let i = 0; i < 40; i++) {
+                    stars.push({
+                        x: Math.random() * W, y: Math.random() * H,
+                        size: Math.random() > 0.7 ? 2 : 1,
+                        speed: Math.random() * 0.2 + 0.05,
+                        brightness: Math.random()
+                    });
+                }
+
+                // 火箭像素图案
+                const rocketPixels = [
+                    [0,0,0,0,0,1,1,0,0,0,0,0],
+                    [0,0,0,0,1,2,2,1,0,0,0,0],
+                    [0,0,0,1,2,3,3,2,1,0,0,0],
+                    [0,0,1,2,3,3,3,3,2,1,0,0],
+                    [0,1,2,3,3,4,4,3,3,2,1,0],
+                    [1,2,3,3,4,5,5,4,3,3,2,1],
+                    [1,2,3,3,4,5,5,4,3,3,2,1],
+                    [0,1,2,3,3,4,4,3,3,2,1,0],
+                    [0,0,1,2,3,3,3,3,2,1,0,0],
+                    [0,0,0,1,2,3,3,2,1,0,0,0],
+                    [0,0,0,0,1,2,2,1,0,0,0,0],
+                    [0,0,0,0,0,1,1,0,0,0,0,0]
+                ];
+                const rocketColors = ['transparent', '#238636', '#3fb950', '#56d364', '#7ee787', '#aff5b4'];
+
+                // 金币图案
+                const coinPixels = [
+                    [0,0,1,1,1,0,0],
+                    [0,1,2,2,2,1,0],
+                    [1,2,3,3,3,2,1],
+                    [1,2,3,4,3,2,1],
+                    [1,2,3,3,3,2,1],
+                    [0,1,2,2,2,1,0],
+                    [0,0,1,1,1,0,0]
+                ];
+                const coinColors = ['transparent', '#d29922', '#e3b341', '#f2cc60', '#f9eace'];
+
+                // 盾牌图案
+                const shieldPixels = [
+                    [0,0,1,1,1,1,1,0,0],
+                    [0,1,2,2,2,2,2,1,0],
+                    [1,2,3,3,3,3,3,2,1],
+                    [1,2,3,4,4,4,3,2,1],
+                    [1,2,3,4,5,4,3,2,1],
+                    [1,2,3,4,4,4,3,2,1],
+                    [0,1,2,3,3,3,2,1,0],
+                    [0,0,1,2,2,2,1,0,0],
+                    [0,0,0,1,1,1,0,0,0]
+                ];
+                const shieldColors = ['transparent', '#1f6feb', '#58a6ff', '#79c0ff', '#a5d6ff', '#cae8ff'];
+
+                // Agent图案
+                const agentPixels = [
+                    [0,1,1,1,0],
+                    [1,2,2,2,1],
+                    [1,2,3,2,1],
+                    [1,2,2,2,1],
+                    [0,1,2,1,0],
+                    [1,1,0,1,1]
+                ];
+
+                let frame = 0;
+                const rocket = { x: 60, y: H/2 - 20, targetY: H/2 - 20 };
+                const coins = [
+                    { x: 180, y: 25, label: 'V', collected: false },
+                    { x: 240, y: 70, label: 'M', collected: false },
+                    { x: 300, y: 30, label: 'Q', collected: false }
+                ];
+                const shields = [
+                    { x: 220, y: 85, label: 'R' }
+                ];
+                const agents = [
+                    { x: 380, y: 25, color: '#f85149', label: 'B' },
+                    { x: 420, y: 55, color: '#d29922', label: 'S' },
+                    { x: 400, y: 85, color: '#58a6ff', label: 'M' },
+                    { x: 440, y: 40, color: '#3fb950', label: 'D' }
+                ];
+                const particles = [];
+
+                function drawPattern(ctx, pattern, colors, x, y, scale, glow) {
+                    if (glow) {
+                        ctx.shadowColor = colors[colors.length - 1];
+                        ctx.shadowBlur = 8;
+                    }
+                    for (let row = 0; row < pattern.length; row++) {
+                        for (let col = 0; col < pattern[row].length; col++) {
+                            const ci = pattern[row][col];
+                            if (ci > 0) {
+                                ctx.fillStyle = colors[ci] || colors[1];
+                                ctx.fillRect(x + col * scale, y + row * scale, scale, scale);
+                            }
+                        }
+                    }
+                    ctx.shadowBlur = 0;
+                }
+
+                function addParticles(x, y, color, count) {
+                    for (let i = 0; i < count; i++) {
+                        particles.push({
+                            x, y,
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: (Math.random() - 0.5) * 2,
+                            life: 25,
+                            color,
+                            size: Math.random() * 2 + 1
+                        });
+                    }
+                }
+
+                function lightenColor(hex, percent) {
+                    const num = parseInt(hex.replace('#', ''), 16);
+                    const amt = Math.round(2.55 * percent);
+                    const R = Math.min(255, (num >> 16) + amt);
+                    const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+                    const B = Math.min(255, (num & 0x0000FF) + amt);
+                    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+                }
+
+                function animate() {
+                    ctx.clearRect(0, 0, W, H);
+
+                    // 星空
+                    stars.forEach(star => {
+                        star.y += star.speed;
+                        if (star.y > H) star.y = 0;
+                        const alpha = 0.3 + star.brightness * 0.7 * Math.abs(Math.sin(frame * 0.02 + star.x));
+                        ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+                        ctx.fillRect(star.x, star.y, star.size * PX/2, star.size * PX/2);
+                    });
+
+                    // 地面网格
+                    ctx.strokeStyle = 'rgba(63, 185, 80, 0.08)';
+                    ctx.lineWidth = 1;
+                    const gridOffset = (frame * 1.5) % 30;
+                    for (let x = 0; x < W; x += 30) {
+                        ctx.beginPath();
+                        ctx.moveTo(x - gridOffset, H - 15);
+                        ctx.lineTo(x - gridOffset - 15, H);
+                        ctx.stroke();
+                    }
+
+                    // 火箭浮动
+                    rocket.targetY = H/2 - 20 + Math.sin(frame * 0.03) * 10;
+                    rocket.y += (rocket.targetY - rocket.y) * 0.1;
+
+                    // 火箭尾焰
+                    const fh = 6 + Math.random() * 4;
+                    ctx.fillStyle = `rgba(35, 134, 54, ${0.5 + Math.random() * 0.4})`;
+                    for (let i = 0; i < fh; i++) {
+                        ctx.fillRect(rocket.x - 3 - i, rocket.y + 20 + i*2, 3 + Math.random()*3, 2);
+                        ctx.fillRect(rocket.x + 33 + i, rocket.y + 20 + i*2, 3 + Math.random()*3, 2);
+                    }
+                    ctx.fillStyle = `rgba(63, 185, 80, ${0.7 + Math.random() * 0.3})`;
+                    ctx.fillRect(rocket.x + 14, rocket.y + 36, 6, fh * 1.5);
+
+                    // 绘制火箭
+                    drawPattern(ctx, rocketPixels, rocketColors, rocket.x, rocket.y, PX, true);
+
+                    // 绘制金币
+                    coins.forEach((coin, idx) => {
+                        if (!coin.collected) {
+                            const fy = coin.y + Math.sin(frame * 0.04 + idx) * 4;
+                            const sc = PX * (0.8 + Math.sin(frame * 0.05 + idx) * 0.15);
+                            drawPattern(ctx, coinPixels, coinColors, coin.x, fy, sc/2, true);
+                            ctx.fillStyle = '#e3b341';
+                            ctx.font = "9px 'JetBrains Mono', monospace";
+                            ctx.fillText(coin.label, coin.x + 6, fy - 4);
+
+                            const dx = rocket.x + 18 - coin.x;
+                            const dy = rocket.y + 18 - fy;
+                            if (Math.sqrt(dx*dx + dy*dy) < 35 && frame > 60 + idx * 20) {
+                                coin.collected = true;
+                                addParticles(coin.x, fy, '#e3b341', 10);
+                            }
+                        }
+                    });
+
+                    // 绘制盾牌
+                    shields.forEach((shield, idx) => {
+                        const pulse = 1 + Math.sin(frame * 0.03 + idx) * 0.1;
+                        drawPattern(ctx, shieldPixels, shieldColors, shield.x, shield.y, PX * pulse, true);
+                        ctx.fillStyle = '#58a6ff';
+                        ctx.font = "9px 'JetBrains Mono', monospace";
+                        ctx.fillText(shield.label, shield.x + 10, shield.y - 4);
+                        ctx.strokeStyle = `rgba(88, 166, 255, ${0.2 + Math.sin(frame * 0.04) * 0.15})`;
+                        ctx.beginPath();
+                        ctx.arc(shield.x + 13, shield.y + 13, 20 + Math.sin(frame * 0.03) * 4, 0, Math.PI * 2);
+                        ctx.stroke();
+                    });
+
+                    // 绘制Agents
+                    agents.forEach((agent, idx) => {
+                        const ay = agent.y + Math.sin(frame * 0.025 + idx * 1.5) * 6;
+                        const ac = ['transparent', agent.color, lightenColor(agent.color, 30), lightenColor(agent.color, 60)];
+                        drawPattern(ctx, agentPixels, ac, agent.x, ay, PX, true);
+                        ctx.fillStyle = agent.color;
+                        ctx.font = "9px 'JetBrains Mono', monospace";
+                        ctx.fillText(agent.label, agent.x + 2, ay - 4);
+                    });
+
+                    // 粒子
+                    for (let i = particles.length - 1; i >= 0; i--) {
+                        const p = particles[i];
+                        p.x += p.vx; p.y += p.vy; p.life--;
+                        const alpha = p.life / 25;
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(p.x, p.y, p.size, p.size);
+                        ctx.globalAlpha = 1;
+                        if (p.life <= 0) particles.splice(i, 1);
+                    }
+
+                    // 连线
+                    ctx.strokeStyle = 'rgba(63, 185, 80, 0.1)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.lineDashOffset = -frame * 0.4;
+                    coins.forEach(coin => {
+                        if (!coin.collected) {
+                            ctx.beginPath();
+                            ctx.moveTo(rocket.x + 18, rocket.y + 18);
+                            ctx.lineTo(coin.x + 10, coin.y + 10);
+                            ctx.stroke();
+                        }
+                    });
+                    shields.forEach(shield => {
+                        coins.forEach(coin => {
+                            if (coin.collected) {
+                                ctx.beginPath();
+                                ctx.moveTo(coin.x + 10, coin.y + 10);
+                                ctx.lineTo(shield.x + 13, shield.y + 13);
+                                ctx.stroke();
+                            }
+                        });
+                    });
+                    agents.forEach(agent => {
+                        shields.forEach(shield => {
+                            ctx.beginPath();
+                            ctx.moveTo(shield.x + 13, shield.y + 13);
+                            ctx.lineTo(agent.x + 7, agent.y + 7);
+                            ctx.stroke();
+                        });
+                    });
+                    ctx.setLineDash([]);
+
+                    // 状态栏
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(8, H - 22, 220, 18);
+                    ctx.fillStyle = '#3fb950';
+                    ctx.font = "9px 'JetBrains Mono', monospace";
+                    const collected = coins.filter(c => c.collected).length;
+                    ctx.fillText(`FACTORS:${collected}/3 RISK:ON AGENTS:4`, 14, H - 10);
+
+                    frame++;
+                    requestAnimationFrame(animate);
+                }
+
+                animate();
+            }
+
+            showPrompt() {
+                const promptLine = document.createElement('div');
+                promptLine.className = 'input-line';
+                promptLine.innerHTML = `
+                    <span class="prompt-text">user@factor-trading:~$</span>
+                    <span class="user-input" id="user-input"></span>
+                    <span class="cursor" id="cursor"></span>
+                `;
+                this.container.appendChild(promptLine);
+                this.scrollToBottom();
+                this.setupInput();
+            }
+
+            setupInput() {
+                this.currentInput = '';
+                this.historyIndex = -1;
+
+                document.addEventListener('keydown', this.handleKeyDown.bind(this));
+            }
+
+            handleKeyDown(e) {
+                if (!this.bootComplete || this.isTyping) return;
+
+                const userInput = document.getElementById('user-input');
+                const cursor = document.getElementById('cursor');
+                if (!userInput || !cursor) return;
+
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.executeCommand(this.currentInput.trim());
+                    this.currentInput = '';
+                    userInput.textContent = '';
+                } else if (e.key === 'Backspace') {
+                    e.preventDefault();
+                    this.currentInput = this.currentInput.slice(0, -1);
+                    userInput.textContent = this.currentInput;
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.historyIndex++;
+                        this.currentInput = this.history[this.history.length - 1 - this.historyIndex] || '';
+                        userInput.textContent = this.currentInput;
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (this.historyIndex > 0) {
+                        this.historyIndex--;
+                        this.currentInput = this.history[this.history.length - 1 - this.historyIndex] || '';
+                        userInput.textContent = this.currentInput;
+                    } else {
+                        this.historyIndex = -1;
+                        this.currentInput = '';
+                        userInput.textContent = '';
+                    }
+                } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+                    this.currentInput += e.key;
+                    userInput.textContent = this.currentInput;
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    this.handleTabCompletion();
+                } else if (e.key === 'l' && e.ctrlKey) {
+                    e.preventDefault();
+                    this.clear();
+                    this.showPrompt();
+                }
+            }
+
+            handleTabCompletion() {
+                const commands = ['help', 'about', 'agents', 'factors', 'risk', 'architecture', 'distillation', 'reflection', 'clear', 'exit', 'modules', 'tests', 'github'];
+                const input = this.currentInput.toLowerCase();
+                const matches = commands.filter(cmd => cmd.startsWith(input));
+
+                if (matches.length === 1) {
+                    this.currentInput = matches[0];
+                    const userInput = document.getElementById('user-input');
+                    if (userInput) userInput.textContent = this.currentInput;
+                } else if (matches.length > 1) {
+                    this.printOutput('');
+                    this.printOutput(matches.join('  '), 'info');
+                    this.showPrompt();
+                    const userInput = document.getElementById('user-input');
+                    if (userInput) userInput.textContent = input;
+                    this.currentInput = input;
+                }
+            }
+
+            async executeCommand(command) {
+                // Remove current prompt line
+                const inputLine = document.querySelector('.input-line:last-child');
+                if (inputLine) {
+                    inputLine.remove();
+                }
+
+                // Print the command
+                this.printOutput(`user@factor-trading:~$ ${command}`, 'prompt');
+
+                if (!command) {
+                    this.showPrompt();
+                    return;
+                }
+
+                // Add to history
+                this.history.push(command);
+                if (this.history.length > 100) {
+                    this.history.shift();
+                }
+                localStorage.setItem('ft_cli_history', JSON.stringify(this.history));
+
+                this.isTyping = true;
+
+                const commands = {
+                    'help': () => this.showHelp(),
+                    'about': () => this.showAbout(),
+                    'agents': () => this.showAgents(),
+                    'factors': () => this.showFactors(),
+                    'risk': () => this.showRisk(),
+                    'architecture': () => this.showArchitecture(),
+                    'distillation': () => this.showDistillation(),
+                    'reflection': () => this.showReflection(),
+                    'modules': () => this.showModules(),
+                    'tests': () => this.showTests(),
+                    'github': () => this.showGithub(),
+                    'clear': () => { this.clear(); },
+                    'exit': () => this.showExit()
+                };
+
+                const cmd = commands[command.toLowerCase()];
+                if (cmd) {
+                    await cmd();
+                } else {
+                    this.printOutput(`Command not found: ${command}`, 'error');
+                    this.printOutput("Type 'help' to see available commands.", 'info');
+                }
+
+                this.isTyping = false;
+
+                if (command.toLowerCase() !== 'exit') {
+                    this.showPrompt();
+                }
+            }
+
+            printOutput(text, type = 'output') {
+                const line = document.createElement('div');
+                line.className = `line ${type}`;
+                line.textContent = text;
+                this.container.appendChild(line);
+                this.scrollToBottom();
+            }
+
+            printLines(lines, type = 'output') {
+                lines.forEach(line => this.printOutput(line, type));
+            }
+
+            clear() {
+                this.container.innerHTML = '';
+            }
+
+            scrollToBottom() {
+                this.container.scrollTop = this.container.scrollHeight;
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            // ============================================================
+            // Command Handlers
+            // ============================================================
+            async showHelp() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Factor Trading v3.0 - Available Commands                    ║', 'highlight-blue');
+                this.printOutput('╠══════════════════════════════════════════════════════════════╣', 'highlight-blue');
+                this.printOutput('║  help          Show this help message                        ║');
+                this.printOutput('║  about         Project overview and key features             ║');
+                this.printOutput('║  agents        Multi-Agent system design                     ║');
+                this.printOutput('║  factors       Factor pipeline and library                   ║');
+                this.printOutput('║  risk          Risk monitoring framework                     ║');
+                this.printOutput('║  architecture  Project architecture diagram                  ║');
+                this.printOutput('║  distillation  Agent distillation mechanism                  ║');
+                this.printOutput('║  reflection    Agent reflection mechanism                    ║');
+                this.printOutput('║  modules       Core modules list                             ║');
+                this.printOutput('║  tests         Test coverage summary                         ║');
+                this.printOutput('║  github        GitHub repository info                        ║');
+                this.printOutput('║  clear         Clear terminal screen                         ║');
+                this.printOutput('║  exit          Close terminal                                ║');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('Shortcuts: Ctrl+L = clear, Tab = autocomplete, Up/Down = history', 'info');
+            }
+
+            async showAbout() {
+                this.printOutput('');
+                this.printOutput('┌─────────────────────────────────────────────────────────────┐');
+                this.printOutput('│  Factor Trading v3.0                                        │');
+                this.printOutput('│  Professional Quantitative Backtesting Framework            │');
+                this.printOutput('├─────────────────────────────────────────────────────────────┤');
+                this.printOutput('│  Version:     3.1.0                                         │');
+                this.printOutput('│  License:     MIT                                           │');
+                this.printOutput('│  Python:      3.10+                                         │');
+                this.printOutput('│  Tests:       64+ test cases                                │');
+                this.printOutput('│  Coverage:    Core modules fully tested                     │');
+                this.printOutput('└─────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('> Based on Backtest_Opus_2.0 architecture, fully refactored');
+                this.printOutput('> Designed specifically for A-share market');
+                this.printOutput('> Multi-Agent collaborative decision-making system');
+                this.printOutput('> Five-dimension risk monitoring with real-time alerts');
+                this.printOutput('> Walk-Forward framework preventing data snooping');
+                this.printOutput('> Plug-and-play modular architecture');
+                this.printOutput('');
+                this.printOutput('Key Stats:', 'highlight-yellow');
+                this.printOutput('  - 15+ core modules');
+                this.printOutput('  - 4 Guru Agents (Buffett, Soros, Munger, Dalio)');
+                this.printOutput('  - 7 Research Team roles');
+                this.printOutput('  - 5 Risk dimensions');
+                this.printOutput('  - 3 Meta-strategy allocation methods');
+            }
+
+            async showAgents() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Multi-Agent System Architecture                             ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('┌─ Guru Agents (Investment Masters) ─────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  [Buffett]  Value Investing    │ ROE > 15%, Margin > 20%  │');
+                this.printOutput('│  [Soros]    Reflexivity Theory │ Trend-following, Macro     │');
+                this.printOutput('│  [Munger]   Mental Models      │ Multidisciplinary thinking │');
+                this.printOutput('│  [Dalio]    All-Weather        │ Risk-parity allocation     │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  Features:                                                 │');
+                this.printOutput('│  - Distillation isolation (prevent data snooping)          │');
+                this.printOutput('│  - Period-aware (train/test freeze mechanism)              │');
+                this.printOutput('│  - Belief trajectory tracking                              │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Research Team (7 Roles) ──────────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  [Macro Analyst]      Economic cycle & policy analysis     │');
+                this.printOutput('│  [Industry Analyst]   Sector rotation & chain analysis     │');
+                this.printOutput('│  [Quant Researcher]   Factor mining & IC/IR evaluation     │');
+                this.printOutput('│  [Risk Manager]       VaR, CVaR, drawdown monitoring       │');
+                this.printOutput('│  [Fundamentalist]     Financial statement analysis         │');
+                this.printOutput('│  [Technical Analyst]  Price pattern & momentum             │');
+                this.printOutput('│  [Sentiment Analyst]  Market emotion & news mining         │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  Consensus: Bayesian weighted voting with accuracy track   │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Meta-Strategy Layer ──────────────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  [Bayesian DLM]       Dynamic linear models for weights    │');
+                this.printOutput('│  [Online FTRL]        Follow-the-regularized-leader        │');
+                this.printOutput('│  [Thompson Sampling]  Exploration-exploitation balance     │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  Assumption Monitor: CUSUM, KPSS, t-test, eigenvalue       │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+            }
+
+            async showFactors() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Factor Pipeline & Library                                   ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('Pipeline Steps:', 'highlight-yellow');
+                this.printOutput('  1. Data Loading        -> OHLCV + fundamental data');
+                this.printOutput('  2. Universe Filter     -> ST, suspend, listing date');
+                this.printOutput('  3. Factor Calculation  -> Custom factor expressions');
+                this.printOutput('  4. MAD Winsorization   -> 3-sigma outlier clipping');
+                this.printOutput('  5. Missing Value Fill  -> Industry median / cross-section');
+                this.printOutput('  6. Neutralization      -> Market cap / industry');
+                this.printOutput('  7. Standardization     -> Z-score within group');
+                this.printOutput('  8. Factor Combination  -> Weighted sum / rank weighted');
+                this.printOutput('');
+                this.printOutput('Built-in Factors:', 'highlight-yellow');
+                this.printOutput('  - Momentum (1M, 3M, 6M, 12M)');
+                this.printOutput('  - Value (PE, PB, PS, EV/EBITDA)');
+                this.printOutput('  - Quality (ROE, ROA, earnings stability)');
+                this.printOutput('  - Volatility (std, downside deviation)');
+                this.printOutput('  - Liquidity (turnover, Amihud illiquidity)');
+                this.printOutput('');
+                this.printOutput('Factor Library:', 'highlight-yellow');
+                this.printOutput('  - CRUD operations for factor metadata');
+                this.printOutput('  - Lineage tracking (source & dependencies)');
+                this.printOutput('  - Version control with git-like semantics');
+                this.printOutput('  - Parquet storage + JSON metadata');
+                this.printOutput('');
+                this.printOutput('Statistics:', 'highlight-yellow');
+                this.printOutput('  - IC (Information Coefficient) mean/std');
+                this.printOutput('  - IR (Information Ratio)');
+                this.printOutput('  - Half-life (IC decay)');
+                this.printOutput('  - Turnover rate');
+                this.printOutput('  - t-statistic significance');
+            }
+
+            async showRisk() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Five-Dimension Risk Monitoring Framework                    ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('┌─ 1. Fundamental Risk ──────────────────────────────────────┐');
+                this.printOutput('│  - Earnings quality degradation                            │');
+                this.printOutput('│  - Cash flow anomaly detection                             │');
+                this.printOutput('│  - Debt ratio surge alerts                                 │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ 2. Industry Risk ─────────────────────────────────────────┐');
+                this.printOutput('│  - Industry concentration limits                           │');
+                this.printOutput('│  - Chain contagion analysis                                │');
+                this.printOutput('│  - Policy impact assessment                                │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ 3. Macro Risk ────────────────────────────────────────────┐');
+                this.printOutput('│  - Economic cycle positioning                              │');
+                this.printOutput('│  - Interest rate sensitivity                               │');
+                this.printOutput('│  - FX exposure monitoring                                  │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ 4. Capital Risk ──────────────────────────────────────────┐');
+                this.printOutput('│  - Liquidity crunch detection                              │');
+                this.printOutput('│  - Funding cost analysis                                   │');
+                this.printOutput('│  - Leverage ratio monitoring                               │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ 5. Sentiment Risk ────────────────────────────────────────┐');
+                this.printOutput('│  - Market emotion extremes (fear/greed)                    │');
+                this.printOutput('│  - News sentiment divergence                               │');
+                this.printOutput('│  - Options implied volatility skew                         │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('Warning Levels:', 'highlight-yellow');
+                this.printOutput('  [GREEN]   Normal      - All metrics within bounds');
+                this.printOutput('  [YELLOW]  Warning     - 1+ metrics approaching threshold');
+                this.printOutput('  [RED]     Critical    - Immediate action required');
+                this.printOutput('');
+                this.printOutput('Global Contagion:', 'highlight-yellow');
+                this.printOutput('  - Cross-market correlation matrix');
+                this.printOutput('  - Volatility spillover index');
+                this.printOutput('  - CoVaR tail dependence analysis');
+                this.printOutput('  - Network centrality (systemic risk)');
+            }
+
+            async showArchitecture() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  System Architecture                                         ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('                    ┌─────────────────┐');
+                this.printOutput('                    │   UI Dashboard  │');
+                this.printOutput('                    │  (Geek Quant)   │');
+                this.printOutput('                    └────────┬────────┘');
+                this.printOutput('                             │');
+                this.printOutput('        ┌────────────────────┼────────────────────┐');
+                this.printOutput('        │                    │                    │');
+        this.printOutput('   ┌─────▼─────┐      ┌──────▼──────┐      ┌─────▼─────┐');
+                this.printOutput('   │   Agent   │      │   Engine    │      │   Risk    │');
+                this.printOutput('   │ Framework │◄────►│   Core      │◄────►│  Monitor  │');
+                this.printOutput('   └─────┬─────┘      └──────┬──────┘      └─────┬─────┘');
+                this.printOutput('         │                   │                   │');
+                this.printOutput('   ┌─────▼─────┐      ┌──────▼──────┐      ┌─────▼─────┐');
+                this.printOutput('   │  Research │      │   Factor    │      │  Global   │');
+                this.printOutput('   │   Team    │      │   Pipeline  │      │ Contagion │');
+                this.printOutput('   └─────┬─────┘      └──────┬──────┘      └───────────┘');
+                this.printOutput('         │                   │');
+                this.printOutput('   ┌─────▼─────┐      ┌──────▼──────┐');
+                this.printOutput('   │   Guru    │      │   Batch     │');
+                this.printOutput('   │  Agents   │      │  Backtest   │');
+                this.printOutput('   └───────────┘      └─────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Core Modules ─────────────────────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  core/                                                     │');
+                this.printOutput('│    ├── engine.py          # Backtest engine (original)     │');
+                this.printOutput('│    ├── engine_v2.py       # Decoupled engine (DI)          │');
+                this.printOutput('│    ├── factory.py         # Component factory              │');
+                this.printOutput('│    ├── interfaces.py      # Abstract interfaces            │');
+                this.printOutput('│    ├── factor.py          # Factor pipeline                │');
+                this.printOutput('│    ├── execution.py       # Order execution simulator      │');
+                this.printOutput('│    ├── portfolio.py       # Portfolio optimization         │');
+                this.printOutput('│    ├── tracker.py         # Position tracking              │');
+                this.printOutput('│    ├── risk_monitor.py    # Risk monitoring                │');
+                this.printOutput('│    ├── walk_forward.py    # Walk-forward splitter          │');
+                this.printOutput('│    └── global_contagion.py# Contagion analysis             │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  agents/                                                   │');
+                this.printOutput('│    ├── agent_framework.py # Signal aggregation             │');
+                this.printOutput('│    ├── research_team_v2.py# Team consensus                 │');
+                this.printOutput('│    ├── guru_agent_v2.py   # Investment masters             │');
+                this.printOutput('│    ├── strategy_allocator.py# Dynamic allocation           │');
+                this.printOutput('│    └── assumption_monitor.py# Meta-strategy monitor        │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  factor_library/    # Factor database & CRUD               │');
+                this.printOutput('│  batch_backtest/    # Parallel factor evaluation           │');
+                this.printOutput('│  strategy_evaluation/ # IC/IR/half-life stats              │');
+                this.printOutput('│  order_strategy/    # TWAP/VWAP/Iceberg execution          │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+            }
+
+            async showDistillation() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Agent Distillation Mechanism                                ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('Problem:', 'highlight-yellow');
+                this.printOutput('  How to transfer investment wisdom from LLM/Gurus to agents');
+                this.printOutput('  without causing data snooping in backtests?');
+                this.printOutput('');
+                this.printOutput('Solution - Three-Layer Protection:', 'highlight-yellow');
+                this.printOutput('');
+                this.printOutput('┌─ Layer 1: Config Isolation ────────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  DistillationSource: MANUAL | TRAINED | HYBRID             │');
+                this.printOutput('│  LearningMode:      ONLINE | FROZEN | RESET                │');
+                this.printOutput('│  frozen_in_test:    true (default)                         │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  Example (gurus/buffett.json):                             │');
+                this.printOutput('│  {                                                         │');
+                this.printOutput('│    "distillation_config": {                                │');
+                this.printOutput('│      "source": "manual",                                   │');
+                this.printOutput('│      "learning_mode": "frozen",                            │');
+                this.printOutput('│      "frozen_in_test": true                                │');
+                this.printOutput('│    }                                                       │');
+                this.printOutput('│  }                                                         │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Layer 2: Runtime Isolation ───────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  WalkForwardEngine automatically:                          │');
+                this.printOutput('│  1. Sets agent.period = "train" during training            │');
+                this.printOutput('│  2. Sets agent.period = "test" during testing              │');
+                this.printOutput('│  3. Freezes belief updates when period == "test"           │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  HierarchicalBayesianAgent:                                │');
+                this.printOutput('│    - train_trajectory[]  # Beliefs during training         │');
+                this.printOutput('│    - test_trajectory[]   # Beliefs during testing (frozen) │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Layer 3: Audit Tool ──────────────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  tools/distillation_audit.py                               │');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  - audit_guru_json()      # Check for suspicious weights   │');
+                this.printOutput('│  - audit_belief_trajectory() # Detect overfitting patterns │');
+                this.printOutput('│  - audit_all_gurus()      # Batch audit all configs        │');
+                this.printOutput('│  - generate_report()      # Markdown audit report          │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+            }
+
+            async showReflection() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Agent Reflection Mechanism                                  ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('Core Philosophy:', 'highlight-yellow');
+                this.printOutput('  Different investment styles require different reflection');
+                this.printOutput('  frequencies and information preferences.');
+                this.printOutput('');
+                this.printOutput('┌─ Reflection Frequency by Style ────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  Macro Investor     │ Quarterly    │ Economic cycle        │');
+                this.printOutput('│  Value Investor     │ Annual       │ Earnings reports      │');
+                this.printOutput('│  Growth Investor    │ Semi-annual  │ Revenue guidance      │');
+                this.printOutput('│  Quant Strategy     │ Monthly      │ Factor performance    │');
+                this.printOutput('│  High-Frequency     │ Daily        │ Microstructure        │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Information Preference Matrix ────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  Agent Type         │ Preferred Signals                    │');
+                this.printOutput('│  ───────────────────────────────────────────────────────── │');
+                this.printOutput('│  Fundamental        │ Financial statements, guidance       │');
+                this.printOutput('│  Technical          │ Price patterns, volume               │');
+                this.printOutput('│  Macro              │ GDP, CPI, PMI, policy                │');
+                this.printOutput('│  Sentiment          │ News, social media, options          │');
+                this.printOutput('│  Quant              │ Factor IC, turnover, decay           │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+                this.printOutput('');
+                this.printOutput('┌─ Reflection Triggers ──────────────────────────────────────┐');
+                this.printOutput('│                                                            │');
+                this.printOutput('│  1. Performance Drop    │ Return < benchmark - 5%          │');
+                this.printOutput('│  2. Style Drift         │ Factor exposure deviation        │');
+                this.printOutput('│  3. Regime Change       │ Assumption monitor alert         │');
+                this.printOutput('│  4. Manual Trigger      │ User-initiated review            │');
+                this.printOutput('│                                                            │');
+                this.printOutput('└────────────────────────────────────────────────────────────┘');
+            }
+
+            async showModules() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Core Modules                                                ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('core/');
+                this.printOutput('  engine.py              Backtest engine with A-share rules');
+                this.printOutput('  engine_v2.py           Decoupled engine (dependency injection)');
+                this.printOutput('  factory.py             Component factory & registry');
+                this.printOutput('  interfaces.py          Abstract base classes');
+                this.printOutput('  factor.py              Factor pipeline (MAD -> fill -> neutral -> std)');
+                this.printOutput('  execution.py           Order simulator (limit up/down, stamp tax)');
+                this.printOutput('  portfolio.py           Optimizers (Equal, MinVar, MeanVar, RiskParity)');
+                this.printOutput('  tracker.py             Position tracking & P&L calculation');
+                this.printOutput('  risk_monitor.py        Five-dimension risk monitoring');
+                this.printOutput('  walk_forward.py        Walk-forward window splitter');
+                this.printOutput('  walk_forward_engine.py Period-aware backtest engine');
+                this.printOutput('  global_contagion.py    Cross-market contagion analysis');
+                this.printOutput('  attribution.py         Brinson performance attribution');
+                this.printOutput('  analytics.py           Return/risk metrics calculation');
+                this.printOutput('');
+                this.printOutput('agents/');
+                this.printOutput('  agent_framework.py     Signal aggregation & execution');
+                this.printOutput('  research_team_v2.py    7-role team with Bayesian consensus');
+                this.printOutput('  guru_agent_v2.py       LLM-based investment masters');
+                this.printOutput('  strategy_allocator.py  Multi-strategy dynamic allocation');
+                this.printOutput('  assumption_monitor.py  Meta-strategy assumption testing');
+                this.printOutput('  hierarchical_bayesian_agent.py  Belief updating engine');
+                this.printOutput('  auto_parameter_optimizer.py  PBT + Walk-Forward + Regularization');
+                this.printOutput('');
+                this.printOutput('New Packages:');
+                this.printOutput('  factor_library/        Factor database with CRUD & lineage');
+                this.printOutput('  batch_backtest/        Parallel factor evaluation');
+                this.printOutput('  strategy_evaluation/   IC/IR/half-life statistics');
+                this.printOutput('  order_strategy/        TWAP/VWAP/Iceberg execution');
+            }
+
+            async showTests() {
+                this.printOutput('');
+                this.printOutput('╔══════════════════════════════════════════════════════════════╗', 'highlight-blue');
+                this.printOutput('║  Test Coverage Summary                                       ║', 'highlight-blue');
+                this.printOutput('╚══════════════════════════════════════════════════════════════╝', 'highlight-blue');
+                this.printOutput('');
+                this.printOutput('Total: 64+ test cases across 20+ test files');
+                this.printOutput('');
+                this.printOutput('test_adjustment.py              11 tests  - Price adjustment');
+                this.printOutput('test_factor_database.py          5 tests  - Factor library CRUD');
+                this.printOutput('test_walk_forward.py             6 tests  - Window splitting');
+                this.printOutput('test_walk_forward_engine.py      6 tests  - Period isolation');
+                this.printOutput('test_distillation_isolation.py  19 tests  - Data snooping prevention');
+                this.printOutput('test_execution_price.py          8 tests  - Open/VWAP/Close execution');
+                this.printOutput('test_decoupled_engine.py         9 tests  - Dependency injection');
+                this.printOutput('test_integration_small.py        6 tests  - End-to-end workflow');
+                this.printOutput('');
+                this.printOutput('Integration Tests:');
+                this.printOutput('  test_integration_all.py        Full stack validation');
+                this.printOutput('  test_integration_full_stack.py Component interaction');
+                this.printOutput('  test_small_sample_validation.py Trace-based verification');
+                this.printOutput('');
+                this.printOutput('Specialized Tests:');
+                this.printOutput('  test_assumption_monitor.py     Meta-strategy monitoring');
+                this.printOutput('  test_strategy_allocator.py     Dynamic allocation');
+                this.printOutput('  test_style_reflection.py       Agent reflection');
+                this.printOutput('  test_attribution.py            Brinson attribution');
+                this.printOutput('  test_risk_monitor.py           Risk framework');
+                this.printOutput('  test_batch_backtest.py         Batch evaluation');
+                this.printOutput('  test_strategy_evaluation.py    Factor statistics');
+                this.printOutput('  test_order_strategy.py         Execution strategies');
+            }
+
+            async showGithub() {
+                this.printOutput('');
+                this.printOutput('┌─────────────────────────────────────────────────────────────┐');
+                this.printOutput('│  GitHub Repository                                          │');
+                this.printOutput('├─────────────────────────────────────────────────────────────┤');
+                this.printOutput('│                                                             │');
+                this.printOutput('│  Repository:  github.com/StormstoutLau/Factor_Trading       │');
+                this.printOutput('│  License:     MIT                                           │');
+                this.printOutput('│  Language:    Python 3.10+                                  │');
+                this.printOutput('│  Tests:       pytest                                        │');
+                this.printOutput('│                                                             │');
+                this.printOutput('│  Structure:                                                 │');
+                this.printOutput('│    ├── core/          # Engine & backtest core              │');
+                this.printOutput('│    ├── agents/        # Multi-Agent system                  │');
+                this.printOutput('│    ├── factor_library/# Factor database                     │');
+                this.printOutput('│    ├── batch_backtest/# Batch evaluation                    │');
+                this.printOutput('│    ├── strategy_evaluation/ # Factor stats                  │');
+                this.printOutput('│    ├── order_strategy/# Execution strategies                │');
+                this.printOutput('│    ├── tests/         # Test suite                          │');
+                this.printOutput('│    ├── web/           # UI dashboard                        │');
+                this.printOutput('│    ├── gurus/         # Agent configurations                │');
+                this.printOutput('│    └── examples/      # Demo scripts                        │');
+                this.printOutput('│                                                             │');
+                this.printOutput('│  Quick Start:                                               │');
+                this.printOutput('│    pip install -r requirements.txt                          │');
+                this.printOutput('│    python examples/demo.py                                  │');
+                this.printOutput('│                                                             │');
+                this.printOutput('└─────────────────────────────────────────────────────────────┘');
+            }
+
+            async showExit() {
+                this.printOutput('');
+                this.printOutput('Shutting down Factor Trading v3.0...', 'warning');
+                await this.sleep(500);
+                this.printOutput('  [OK] Saving session history');
+                this.printOutput('  [OK] Flushing event logs');
+                this.printOutput('  [OK] Releasing resources');
+                await this.sleep(300);
+                this.printOutput('');
+                this.printOutput('System halted. Goodbye!', 'highlight-green');
+                this.printOutput('');
+
+                const cursor = document.getElementById('cursor');
+                if (cursor) cursor.style.display = 'none';
+            }
+        }
+
+        // ============================================================
+        // Initialize
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const terminal = new Terminal('terminal');
+            terminal.boot();
+        });
+    </script>
+</body>
+</html>
