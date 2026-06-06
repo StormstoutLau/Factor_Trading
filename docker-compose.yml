@@ -1,0 +1,44 @@
+# Factor Trading v3.2 — Docker Compose
+#
+# Quick start:
+#   1. Place your data in ./demo_data/
+#   2. docker compose run --rm test         # run all 245 tests
+#   3. docker compose run --rm backtest     # run single backtest
+#   4. docker compose run --rm shell        # interactive shell
+#
+# Customize: copy .env.example to .env and edit
+
+services:
+  factor-trading:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: "3.11"
+    image: factor-trading:latest
+    volumes:
+      - ./demo_data:/app/demo_data:ro
+      - ./data:/app/data
+      - ./results:/app/results
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+    stdin_open: true
+    tty: true
+
+  test:
+    extends: factor-trading
+    command: python -m pytest tests/ -q --tb=short
+    profiles: ["test"]
+
+  backtest:
+    extends: factor-trading
+    command: python examples/run_single_backtest.py
+    profiles: ["run"]
+
+  shell:
+    extends: factor-trading
+    command: /bin/bash
+    profiles: ["dev"]
+    stdin_open: true
+    tty: true

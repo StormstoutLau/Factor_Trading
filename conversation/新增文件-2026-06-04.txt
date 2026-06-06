@@ -1,0 +1,21 @@
+# Factor Trading v3.2 — 2026-06-04 新增文件清单
+
+## CLI 与配置
+- cli.py
+- CHANGELOG.md
+- Dockerfile
+- docker-compose.yml
+
+## Streamlit Dashboard
+- web/streamlit_app/__init__.py
+- web/streamlit_app/main.py
+- web/streamlit_app/pages/__init__.py
+- web/streamlit_app/pages/01_Overview.py
+- web/streamlit_app/pages/02_Backtest_Runner.py
+- web/streamlit_app/pages/03_Factor_Analysis.py
+- web/streamlit_app/pages/04_Risk_Monitor.py
+- web/streamlit_app/pages/05_Performance.py
+
+## 修改文件
+- README.md
+- pyproject.toml
