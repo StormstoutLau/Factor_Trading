@@ -27,6 +27,13 @@
 - **内容**: 生成器输出 `stock_adj.pkl`，修复旧布局导入（`core.config`/`core.engine`）与硬编码 `D:/` 路径；README Quick Start 增加 demo 数据生成步骤；测试统计 245 → 503
 - **验证**: CLI 默认 forward 复权 63 个交易日跑通；`examples/demo.py` 端到端跑通，重生成数据哈希一致
 
+### TD-5 移除旧版过滤器
+- **类型**: 重构
+- **文件**: `filter/universe.py`（删除）、`tests/test_pending_order_improvements.py`、`tests/test_v3_engine_integration.py`
+- **内容**: 2 处测试导入迁移至 `filter.universe_filter_clean`；删除旧版过滤器。`filter/__init__.py` 原本已导出 clean 版，生产路径无变化
+- **验证**: 迁移后两测试 12 passed；全量 503 passed；grep 无生产引用残留
+- **关联**: TD-5
+
 ### CRITICAL 再平衡修复（T1–T8）
 - **类型**: 修复（行为变更）
 - **文件**: `core/target_positions.py`（新建）、`core/engine.py`、`core/engine_v2.py`、`tests/test_rebalance_exits.py`（新建）、`tests/test_p0_engine_integration.py`、`docs/DESIGN/IMPL/CHECKLIST_critical_rebalance_fix.md`

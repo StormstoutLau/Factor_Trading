@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CODE_WIKI**: 数据格式表复权因子文件名改为 `stock_adj.pkl`
 - **仓库卫生**: `memory/` 加入 `.gitignore` 并移出版本跟踪（本地 8 个 JSON 保留）；`conversation/` 7 个文件归档至 `docs/archive/conversation/`，`archive/` 忽略规则收窄为根级 `/archive/`
 
+### Removed
+- **旧版过滤器**: 移除 `filter/universe.py`（生产零引用，`filter/__init__.py` 早已导出 clean 版）；2 个测试的导入迁移至 `filter.universe_filter_clean`
+
 ### Docs
 - 技术债调研 Phase 0 归档（TD-1~TD-9）；H-1/H-2/H-3 修正状态回填；新增 TD-9 black 格式化基线
 

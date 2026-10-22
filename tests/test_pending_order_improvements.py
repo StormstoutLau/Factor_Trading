@@ -207,7 +207,7 @@ def test_universe_filter_masks_shape():
 
     from core.config import UniverseConfig
     from core.data import DataManager
-    from filter.universe import UniverseFilter
+    from filter.universe_filter_clean import UniverseFilter
 
     cfg = UniverseConfig(
         exclude_suspended=True,

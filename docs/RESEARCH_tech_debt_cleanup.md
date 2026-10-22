@@ -44,7 +44,7 @@ Factor Trading v3.0 经历了 V1 → V2 → V3 的快速迭代，产生了多版
 
 | 模块 | 引用数 | 引用位置性质 |
 |------|--------|--------------|
-| DataManager (V1) | **38 处（22 个文件）= 生产 12 处 + 测试 26 处** | 生产：`engine_v2.py`、`engine.py`、`factory.py`、`factor.py`、`filter/universe.py`（本身是孤儿旧过滤器）、`examples/`×4、`agents/`×3；测试：10 个测试文件 26 处 |
+| DataManager (V1) | **38 处（22 个文件）= 生产 12 处 + 测试 26 处** | 生产：`engine_v2.py`、`engine.py`、`factory.py`、`factor.py`、`filter/universe.py`（本身是孤儿旧过滤器，已随 TD-5 删除）、`examples/`×4、`agents/`×3；测试：10 个测试文件 26 处 |
 | DataLoaderV3 | **2 处生产引用** | `engine_v3_vector.py`（V3 向量化引擎）、`tools/benchmark.py`（基准测试）；`core/__init__.py` 中仅注释提及 |
 
 **关键发现**（源码级溯源补充）: DataManager 是**承重墙组件** —— engine_v2（当前主力引擎）和 factory（组件工厂）深度依赖它。DataLoaderV3 的定位需精化：其 docstring 明确声明"**向后兼容 DataManager 接口**"（data_v3.py:27），即它是按 V1 替代品设计的；ARCHITECTURE.md 第 293/302 行也写明计划"迁移到 V3，废弃 V1"。**但该迁移从未执行** —— 生产消费方仅 engine_v3_vector 与 benchmark。
@@ -116,7 +116,9 @@ def create_default_engine(config: BacktestConfig) -> 'BacktestEngineV2':
 
 **引用计数测量**（grep `from filter\.universe import`，2026-08-15）: 旧版 `universe.py` **生产代码零引用** —— 仅 2 个测试文件引用（`test_pending_order_improvements.py:210`、`test_v3_engine_integration.py:69`）。clean 版消费方：`engine_v2.py:48`、`engine.py:33`（连弃用的 V1 引擎都用 clean 版）、`factory.py:31`、`agents/`×2、`examples/`、`filter/__init__.py:125`。
 
-**债务性质**: 旧版在生产路径上是**完全孤儿**（比初判更彻底），两个类同名 `UniverseFilter`，新读者经 `from filter.universe import` 会拿到错误版本且无任何警告。移除阻力仅剩 2 个测试文件的迁移。
+**债务性质**: 旧版在生产路径上是**完全孤儿**（比初判更彻底），两个类同名 `UniverseFilter`，新读者经 `from filter.universe import` 曾会拿到错误版本且无任何警告。移除阻力仅剩 2 个测试文件的迁移。
+
+**修正状态（2026-10-23）**: 2 处测试导入已迁移至 `filter.universe_filter_clean`；`filter/universe.py` 已删除。迁移后两测试 12 passed，全量 503 passed；grep 确认无生产引用残留。
 
 ### TD-6: memory/ 目录未纳入 gitignore
 
@@ -278,7 +280,7 @@ Qlib 的数据层抽象将数据访问解耦为三类 Provider：
 ### P1 — 本迭代内（低风险代码改动）
 
 4. **TD-3 Stage 2**: cli.py 从 V1 引擎切换至 `factory.create_default_engine()`（Stage 1 弃用警告源码已存在，直接进替换），切换前后跑 R-1 基准对比
-5. **TD-5**: `filter/universe.py` 的 2 个测试文件（test_pending_order_improvements.py、test_v3_engine_integration.py）迁移至 clean 版后，直接移除旧版（源码级溯源确认生产零引用，无需观察期）
+5. ✅ **[已完成 2026-10-23] TD-5**: `filter/universe.py` 的 2 个测试文件已迁移至 clean 版，旧版已移除（源码级溯源确认生产零引用，无需观察期）
 
 ### P2 — 下一迭代
 
@@ -311,7 +313,7 @@ Qlib 的数据层抽象将数据访问解耦为三类 Provider：
 
 ### 7.2 下一步（Phase 1 - 设计）
 
-**当前进度（2026-10-23）**: P0-1（TD-6）、P0-2（TD-7）、P0-3 均已完成；Phase 1 设计尚未启动。
+**当前进度（2026-10-23）**: P0-1（TD-6）、P0-2（TD-7）、P0-3 均已完成；P1 的 TD-5 已完成；TD-3 Stage 2 待执行。
 
 依据本调研，Phase 1 需产出 `DESIGN_tech_debt_cleanup.md`，内容应包含：
 

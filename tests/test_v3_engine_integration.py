@@ -66,7 +66,7 @@ def test_v3_engine_with_universe_filter():
     from core.config import BacktestConfig, FactorConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig
     from core.data_v3 import DataLoaderV3
     from core.engine_v3_vector import VectorBacktestEngine
-    from filter.universe import UniverseFilter
+    from filter.universe_filter_clean import UniverseFilter
 
     data = build_test_data()
 
