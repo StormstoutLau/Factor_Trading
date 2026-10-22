@@ -1,6 +1,0 @@
-{
-  "id": "fab7eec446a8",
-  "content": "Numba JIT 加速完成。numba 0.65.1, 2个 @njit 内核函数 (_rebalance_kernel, _metrics_kernel)。性能：再平衡 0.10ms/5000股，指标 0.014ms/2500天。全量回归 270 passed, 0 failed。修改文件：core/engine_v3_vector.py (添加 @njit + fallback)，新增 tests/test_numba_jit_performance.py (7个测试)。",
-  "tag": "numba-jit-complete",
-  "created_at": "2026-06-04T16:55:21.559371+00:00"
-}
