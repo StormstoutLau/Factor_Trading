@@ -4,7 +4,7 @@
 
 **[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)**
 **[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)**
-**[![Tests](https://img.shields.io/badge/Tests-245%20passed-brightgreen.svg)](tests/)**
+**[![Tests](https://img.shields.io/badge/Tests-503%20passed-brightgreen.svg)](tests/)**
 **[![CI](https://github.com/StormstoutLau/Factor_Trading/actions/workflows/tests.yml/badge.svg)](https://github.com/StormstoutLau/Factor_Trading/actions)**
 
 **专业量化回测框架  ·  Multi-Agent 投研  ·  五维风控  ·  Walk-Forward 分析**
@@ -82,17 +82,20 @@ git clone https://github.com/StormstoutLau/Factor_Trading.git
 cd Factor_Trading_v3.0
 pip install -e ".[web]"
 
-# 2. CLI quick run
+# 2. Generate demo data (pkl files are git-ignored, not shipped with the repo)
+python examples/demo.py    # writes ./demo_data/*.pkl and runs a demo backtest
+
+# 3. CLI quick run
 python cli.py info
 python cli.py run --factors factor_value.pkl
 
-# 3. Launch Dashboard
+# 4. Launch Dashboard
 python cli.py dashboard
 # or: streamlit run web/streamlit_app/main.py
 
-# 4. Run all tests
+# 5. Run all tests
 python cli.py test
-# Output: 245 passed ✓
+# Output: 503 passed ✓
 ```
 
 ```python
@@ -368,7 +371,7 @@ Factor_Trading_v3.0/
 │   └── cli.html                   # CLI-style interface
 ├── assets/                        # 静态资源 (架构图等)
 ├── examples/                      # 示例脚本 (7 files)
-├── tests/                         # 测试套件 (245 tests, 32 files)
+├── tests/                         # 测试套件 (503 tests, 49 files)
 ├── docs/                          # 文档 (9 files)
 ├── tools/                         # 工具脚本 (benchmark / audit / ui)
 ├── data/                          # 事件日志存储

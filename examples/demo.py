@@ -127,7 +127,7 @@ def generate_synthetic_data(
     save_df("open.pkl", open_arr)
     save_df("high.pkl", high_arr)
     save_df("low.pkl", low_arr)
-    save_df("adj.pkl", adj)
+    save_df("stock_adj.pkl", adj)
     save_df("suspend.pkl", suspend)
     save_df("industry.pkl", industry)
     save_df("st.pkl", st)
@@ -152,27 +152,28 @@ def main():
     )
 
     # 1. 生成数据
+    repo_root = Path(__file__).resolve().parent.parent
     data_dir = generate_synthetic_data(
         n_stocks=200, 
         n_days=500, 
-        data_dir="D:/Coding/Factor_Trading_v3.0/demo_data"
+        data_dir=str(repo_root / "demo_data")
     )
 
     # 2. 配置回测
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from config import (
+    sys.path.insert(0, str(repo_root))
+    from core.config import (
         BacktestConfig, CostConfig, UniverseConfig, 
         FactorConfig, OptimizerConfig, RebalanceConfig
     )
 
     config = BacktestConfig(
-        data_dir=data_dir,
-        output_dir=Path("D:/Coding/Factor_Trading_v3.0/demo_output"),
+        data_dir=Path(data_dir),
+        output_dir=repo_root / "demo_output",
         close_file="close.pkl",
         open_file="open.pkl",
         high_file="high.pkl",
         low_file="low.pkl",
-        adj_factor_file="adj.pkl",
+        adj_factor_file="stock_adj.pkl",
         suspend_file="suspend.pkl",
         industry_file="industry.pkl",
         st_file="st.pkl",
@@ -219,7 +220,7 @@ def main():
     )
 
     # 3. 运行回测
-    from engine import BacktestEngine
+    from core.engine import BacktestEngine
 
     engine = BacktestEngine(config)
     engine.setup()

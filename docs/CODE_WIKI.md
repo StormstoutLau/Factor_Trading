@@ -1,5 +1,7 @@
 # Factor Trading v3.0 - Code Wiki
 
+> ⚠️ **需更新** — 本文件引用 V1 架构，部分内容已过时。权威架构信息请参考 [ARCHITECTURE.md](ARCHITECTURE.md)。本文件保留用于模块级代码细节参考。
+
 > 基于 Backtest_Opus_2.0 架构重构的专业量化回测框架，专为 A 股市场设计。
 > 版本: v3.0.0 | 代码规模: ~170KB (14 个核心模块)
 
@@ -901,7 +903,7 @@ python demo.py
 | `close.pkl` | DataFrame | 收盘价 |
 | `open.pkl` | DataFrame | 开盘价 |
 | `high.pkl` / `low.pkl` | DataFrame | 最高/最低价 |
-| `adj.pkl` | DataFrame | 复权因子 |
+| `stock_adj.pkl` | DataFrame | 复权因子 |
 | `suspend.pkl` | DataFrame | 停牌状态 (1=停牌, 0=正常) |
 | `industry.pkl` | DataFrame | 行业分类代码 |
 | `st.pkl` | DataFrame | ST标记 (1=ST, 0=正常) |
