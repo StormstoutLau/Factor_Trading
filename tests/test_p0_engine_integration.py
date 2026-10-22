@@ -29,7 +29,11 @@ from core.tracker import Position, PositionTracker
 
 
 class TestRebalanceOrderGeneration(unittest.TestCase):
-    """验证 SignalTranslator + T1StockPolicy 生成的订单与旧路径一致"""
+    """验证 SignalTranslator + T1StockPolicy 生成的订单与旧路径一致
+
+    注意：本类仅覆盖"无调出持仓"场景（current_positions 为空或全在目标权重中）。
+    调出标的的清仓行为由 tests/test_rebalance_exits.py 的 U1/G1/G2 覆盖。
+    """
 
     def setUp(self):
         self.date = pd.Timestamp("2024-01-15")

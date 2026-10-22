@@ -27,8 +27,14 @@
 - **内容**: 生成器输出 `stock_adj.pkl`，修复旧布局导入（`core.config`/`core.engine`）与硬编码 `D:/` 路径；README Quick Start 增加 demo 数据生成步骤；测试统计 245 → 503
 - **验证**: CLI 默认 forward 复权 63 个交易日跑通；`examples/demo.py` 端到端跑通，重生成数据哈希一致
 
-### 待归档
-- CRITICAL 再平衡修复 T1–T7 已实现并通过全量 503 测试，待 `CHECKLIST_critical_rebalance_fix.md` 后单独归档
+### CRITICAL 再平衡修复（T1–T8）
+- **类型**: 修复（行为变更）
+- **文件**: `core/target_positions.py`（新建）、`core/engine.py`、`core/engine_v2.py`、`tests/test_rebalance_exits.py`（新建）、`tests/test_p0_engine_integration.py`、`docs/DESIGN/IMPL/CHECKLIST_critical_rebalance_fix.md`
+- **根因**: 优化器只返回 top-N，`target_positions` 不含调出标的 → 永不生成卖单；pending 队列路径无资金校验；`Position.execute_trade` 不维护 `market_value`，导致开盘成交后组合价值虚高
+- **修复**: 共享纯函数构建目标持仓（权重 ∪ 持仓，含清仓项）、SELL 先于 BUY、以价格重算组合价值、新增 `unclosed_positions` 诊断
+- **验证**: 14 个新增测试；全量 503 passed；真实数据 500 日 `unclosed_positions={}`，年化 13.92%；N=5000 目标构建 16.55 ms
+- **决策**: Q1 无条件修复不设开关；Q3 CLI 切换另立 TD-3；Q4 无修复前基准，以黄金测试验收
+- **关联**: DESIGN/IMPL/CHECKLIST_critical_rebalance_fix.md, CHANGELOG.md
 
 ---
 

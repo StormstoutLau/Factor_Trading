@@ -29,6 +29,11 @@ from core.factor import FactorCombiner, FactorPipeline
 from core.pending import OrderSide, PendingOrderQueue, create_pending_order, select_fallback_stocks
 from core.portfolio import build_optimizer
 from core.rebalance import build_trigger
+from core.target_positions import (
+    TargetPosition,
+    build_target_positions,
+    compute_portfolio_value,
+)
 from core.tracker import PositionTracker
 from filter.universe_filter_clean import UniverseFilter
 
@@ -73,6 +78,11 @@ class BacktestEngine:
         # 预计算数据
         self._composite_signal: Optional[pd.DataFrame] = None
         self._returns_matrix: Optional[np.ndarray] = None
+
+        # 目标持仓诊断（一致性校验与残留上报）
+        self._last_targets: dict[str, TargetPosition] = {}
+        self._last_target_stocks: set[str] = set()
+        self._unclosed_positions: dict[str, int] = {}
         
         logger.info("回测引擎初始化完成")
     
@@ -158,6 +168,7 @@ class BacktestEngine:
                 
                 # 【修复B2】最后交易日强制平仓
                 if i == last_date_index:
+                    self._snapshot_unclosed_positions()
                     self._force_liquidation(date, i)
                     
             except Exception as e:
@@ -174,6 +185,24 @@ class BacktestEngine:
         # 生成报告
         return self._generate_results()
     
+    def _snapshot_unclosed_positions(self) -> None:
+        """记录强平前仍持有、但已不在目标组合中的标的（正常应为空）
+
+        用于暴露"调出却卖不掉"（停牌/跌停/掩码限制）的隐藏失败，
+        快照发生在最后交易日强制平仓之前。
+        """
+        if self.tracker is None:
+            return
+        self._unclosed_positions = {
+            stock: int(position.quantity)
+            for stock, position in self.tracker.get_all_positions().items()
+            if int(position.quantity) > 0 and stock not in self._last_target_stocks
+        }
+        if self._unclosed_positions:
+            logger.warning(f"调仓后仍残留未平仓标的: {self._unclosed_positions}")
+        else:
+            logger.info("调仓残留检查完成：无残留持仓")
+
     def _force_liquidation(self, date: pd.Timestamp, date_index: int):
         """最后交易日强制平仓
         
@@ -465,92 +494,81 @@ class BacktestEngine:
             logger.error(f"组合优化失败: {e}")
             return
         
-        # 5. 计算目标持仓
-        current_value = self.tracker.get_total_value()
-        target_positions = {}
-        
-        for stock, weight in target_weights.items():
-            target_value = weight * current_value
-            current_position = self.tracker.get_position(stock)
-            current_quantity = current_position.quantity if current_position else 0
-            
-            # 获取价格（使用复权价格）
-            try:
-                adj_close = self.dm.get_adj_price('close', self.cfg.adjustment_type)
-                if stock in adj_close.columns and date_index < len(adj_close):
-                    # 使用更可靠的方式获取价格
-                    close_price = adj_close.iloc[date_index, adj_close.columns.get_loc(stock)]
-                else:
-                    logger.warning(f"股票 {stock} 的价格数据不可用")
-                    continue
-            except (KeyError, IndexError) as e:
-                logger.warning(f"获取股票 {stock} 价格时出错: {e}")
-                continue
-                
-            # 【修复1】添加NaN检查，防止int()转换错误
-            if close_price is None or pd.isna(close_price) or close_price <= 0:
-                logger.debug(f"股票 {stock} 的价格无效: {close_price}")
-                continue
-            
-            # 计算目标数量（考虑整手数）
-            # 【修复2】添加NaN检查，防止除零或NaN转换错误
-            # 【修复B3-2】预留价格变动和成本缓冲（约1.5%）
-            buffered_target_value = target_value * 0.985  # 预留1.5%缓冲应对次日价格变动和成本
-            price_ratio = buffered_target_value / close_price
-            if pd.isna(price_ratio) or np.isinf(price_ratio):
-                logger.debug(f"股票 {stock} 的价格比率无效: target_value={target_value}, close_price={close_price}")
-                continue
-            
-            if self.cfg.optimizer.round_lot:
-                target_quantity = int(price_ratio / 100) * 100
-            else:
-                target_quantity = int(price_ratio)
-            
-            target_positions[stock] = {
-                'current_quantity': current_quantity,
-                'target_quantity': target_quantity,
-                'price': close_price,
-                'weight': weight
-            }
-        
+        # 5. 计算目标持仓（含调出标的的清仓项）
+        try:
+            prices = self.dm.get_adj_price('close', self.cfg.adjustment_type).loc[date]
+        except (KeyError, IndexError):
+            logger.warning(f"日期 {date} 缺少收盘价数据，跳过本次再平衡")
+            return
+
+        positions = self.tracker.get_all_positions()
+        current_positions = {
+            stock: int(position.quantity)
+            for stock, position in positions.items()
+            if int(position.quantity) > 0
+        }
+        total_value = compute_portfolio_value(
+            self.tracker.get_cash(),
+            current_positions,
+            prices,
+            {stock: position.market_value for stock, position in positions.items()},
+        )
+        targets = build_target_positions(
+            target_weights,
+            current_positions,
+            prices,
+            total_value,
+            round_lot=self.cfg.optimizer.round_lot,
+        )
+        self._last_targets = targets
+        self._last_target_stocks = {
+            stock for stock, target in targets.items() if target.target_quantity > 0
+        }
+
         # 6. 生成交易订单（延迟到次日开盘执行）
-        self._generate_rebalance_orders(date, target_positions, date_index)
+        self._generate_rebalance_orders(date, targets, date_index)
     
-    def _generate_rebalance_orders(self, date: pd.Timestamp, target_positions: dict[str, dict], date_index: int):
+    def _generate_rebalance_orders(
+        self,
+        date: pd.Timestamp,
+        targets: dict[str, TargetPosition],
+        date_index: int,
+    ):
         """生成再平衡订单（方案B：加入待执行队列，次日开盘执行）
-        
+
+        先卖出（含清仓与减仓）再买入：队列路径无资金校验，
+        卖出先成交可在同一开盘把回款计入现金，避免不必要的负现金。
+
         Args:
             date: 交易日期
-            target_positions: 目标持仓字典
+            targets: 目标持仓（含 is_exit 清仓项）
             date_index: 日期索引
         """
-        for stock, position_info in target_positions.items():
-            current_qty = position_info['current_quantity']
-            target_qty = position_info['target_quantity']
-            
-            if current_qty == target_qty:
-                continue
-            
-            trade_qty = target_qty - current_qty
-            
+        orders = []
+
+        for target in targets.values():
+            trade_qty = target.target_quantity - target.current_quantity
+            if trade_qty < 0:
+                orders.append(
+                    create_pending_order(target.stock, OrderSide.SELL, -trade_qty, date)
+                )
+
+        for target in targets.values():
+            trade_qty = target.target_quantity - target.current_quantity
             if trade_qty > 0:
-                # 买入订单
-                order = create_pending_order(stock, OrderSide.BUY, trade_qty, date)
-                if self.pending_queue:
-                    self.pending_queue.add_order(order)
-                    logger.debug(f"买入订单加入待执行队列: {stock}, 数量: {trade_qty}")
-                else:
-                    # 无待执行队列时，延迟到次日开盘执行
-                    self._execute_order_next_open(order, date, date_index)
+                orders.append(
+                    create_pending_order(target.stock, OrderSide.BUY, trade_qty, date)
+                )
+
+        for order in orders:
+            if self.pending_queue:
+                self.pending_queue.add_order(order)
+                logger.debug(
+                    f"订单加入待执行队列: {order.stock} {order.side.name} {order.quantity}"
+                )
             else:
-                # 卖出订单
-                order = create_pending_order(stock, OrderSide.SELL, -trade_qty, date)
-                if self.pending_queue:
-                    self.pending_queue.add_order(order)
-                    logger.debug(f"卖出订单加入待执行队列: {stock}, 数量: {-trade_qty}")
-                else:
-                    # 无待执行队列时，延迟到次日开盘执行
-                    self._execute_order_next_open(order, date, date_index)
+                # 无待执行队列时，延迟到次日开盘执行
+                self._execute_order_next_open(order, date, date_index)
     
     def _execute_order_next_open(self, order, date: pd.Timestamp, date_index: int):
         """延迟到次日开盘执行订单（方案B）
@@ -721,7 +739,8 @@ class BacktestEngine:
             'performance_metrics': report_data['metrics'],
             'charts': report_data['charts'],
             'reports': report_data['reports'],
-            'additional_info': additional_info
+            'additional_info': additional_info,
+            'unclosed_positions': self._unclosed_positions
         }
         
         logger.info("回测结果生成完成")
