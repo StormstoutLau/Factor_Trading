@@ -61,6 +61,7 @@ results/
 # 运行时数据
 data/
 !data/.gitkeep
+memory/
 
 # 序列化数据文件
 *.pkl
@@ -102,6 +103,6 @@ config.local.json
 # 冗余/实验性文件目录
 # ============================================
 _redundant/
-archive/
+/archive/
 temp/
 tmp/
