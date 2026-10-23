@@ -75,6 +75,19 @@ web = [
 "Repository" = "https://github.com/StormstoutLau/Factor_Trading"
 "Issues" = "https://github.com/StormstoutLau/Factor_Trading/issues"
 
+[tool.setuptools]
+# TD-1.2 (ADR-016): 最小子包化 — 只声明 factor_pipeline 实际依赖的包
+# (根 + core, data_v3 位于 core/ 下). 其他子包 (agents/filter/etc.) 可在
+# 需要时追加. Factor_Trading_v3.0 自身仍可在 cwd 下用 `from core.X import`.
+packages = [
+    "Factor_Trading_v3_0",
+    "Factor_Trading_v3_0.core",
+]
+
+[tool.setuptools.package-dir]
+"Factor_Trading_v3_0" = "."
+"Factor_Trading_v3_0.core" = "core"
+
 [tool.black]
 line-length = 100
 target-version = ["py310", "py311", "py312"]
