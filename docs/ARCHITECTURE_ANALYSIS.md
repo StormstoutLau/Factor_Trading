@@ -1,5 +1,7 @@
 # 回测引擎架构分析报告
 
+> ⚠️ **历史存档** — 本文件内容已合并到 [ARCHITECTURE.md](ARCHITECTURE.md)，请以 ARCHITECTURE.md 为权威来源。本文件保留仅供历史参考。
+
 ## 1. 当前架构概述
 
 ### 1.1 核心组件

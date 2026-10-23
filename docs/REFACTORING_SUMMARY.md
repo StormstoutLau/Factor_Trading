@@ -1,5 +1,7 @@
 # Factor Trading v3.0 重构总结
 
+> ⚠️ **历史存档** — v3.0 重构总结，内容已合并到 [ARCHITECTURE.md](ARCHITECTURE.md) 和 [DEVLOG.md](DEVLOG.md)。本文件保留仅供历史参考。
+
 ## 🎯 重构目标达成情况
 
 ### ✅ 已完成的核心任务
