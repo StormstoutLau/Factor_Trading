@@ -10,23 +10,24 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style id="theme-style">
         :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #111827;
-            --bg-panel: #1a1f2e;
-            --bg-card: #1e2538;
-            --bg-hover: #252d42;
-            --border: #2a3447;
-            --border-active: #3b4a63;
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --accent-cyan: #00d4ff;
-            --accent-blue: #3b82f6;
-            --accent-purple: #8b5cf6;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --accent-orange: #f59e0b;
-            --accent-yellow: #eab308;
+            /* ── Default · Anthropic 温控仪表 ── */
+            --bg-primary: #0f0f0e;
+            --bg-secondary: #181817;
+            --bg-panel: #1c1c1b;
+            --bg-card: #222220;
+            --bg-hover: #2a2a28;
+            --border: #2e2e2b;
+            --border-active: #4a4a44;
+            --text-primary: #e8e4dd;
+            --text-secondary: #a0988c;
+            --text-muted: #5c5852;
+            --accent-cyan: #6ab0a3;
+            --accent-blue: #7b9bab;
+            --accent-purple: #b8a0c8;
+            --accent-green: #88b57a;
+            --accent-red: #d97757;
+            --accent-orange: #d9a45e;
+            --accent-yellow: #e6a817;
             --font-mono: 'JetBrains Mono', 'Courier New', monospace;
             --font-sans: 'Noto Sans SC', system-ui, sans-serif;
         }
@@ -127,6 +128,33 @@
             --accent-orange: #d19a66;
             --accent-yellow: #e5c07b;
         }
+        [data-theme="anthropic-terminal"] {
+            /* ── Anthropic 温控仪表 · Financial Terminal Fusion ── */
+            --bg-primary: #0f0f0e;
+            --bg-secondary: #181817;
+            --bg-panel: #1c1c1b;
+            --bg-card: #222220;
+            --bg-hover: #2a2a28;
+            --border: #2e2e2b;
+            --border-active: #4a4a44;
+            --text-primary: #e8e4dd;
+            --text-secondary: #a0988c;
+            --text-muted: #5c5852;
+            --accent-cyan: #6ab0a3;
+            --accent-blue: #7b9bab;
+            --accent-purple: #b8a0c8;
+            --accent-green: #88b57a;
+            --accent-red: #d97757;
+            --accent-orange: #d9a45e;
+            --accent-yellow: #e6a817;
+            --brand-terracotta: #d97757;
+            --brand-amber: #e6a817;
+            --brand-sage: #6ab0a3;
+            --brand-cream: #f5f2ed;
+            --chart-grid: rgba(255,255,255,0.05);
+            --chart-text: #a0988c;
+            --warm-glow: 0 0 24px rgba(217, 119, 87, 0.08);
+        }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -163,10 +191,10 @@
         .navbar-brand { display: flex; align-items: center; gap: 12px; }
         .navbar-brand .logo {
             width: 32px; height: 32px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            background: linear-gradient(135deg, #d97757, #e6a817);
             border-radius: 6px;
             display: flex; align-items: center; justify-content: center;
-            font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: white;
+            font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: #1a1a18;
         }
         .navbar-brand h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
         .navbar-brand .version {
@@ -514,12 +542,13 @@
             <div class="status-item"><span>LATENCY: <span id="latency">12</span>ms</span></div>
             <div class="theme-switcher">
                 <select id="themeSelect">
-                    <option value="">Default (Geek Quant)</option>
+                    <option value="">Anthropic Terminal (默认)</option>
                     <option value="openclaws">OpenClaws</option>
                     <option value="dracula">Dracula</option>
                     <option value="monokai">Monokai</option>
                     <option value="solarized-dark">Solarized Dark</option>
                     <option value="one-dark-pro">One Dark Pro</option>
+                    <option value="anthropic-terminal">Anthropic Terminal</option>
                 </select>
             </div>
         </div>

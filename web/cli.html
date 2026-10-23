@@ -5,21 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Factor Trading v3.0 - CLI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0d1117;
-            --bg-secondary: #161b22;
-            --bg-titlebar: #21262d;
-            --text-primary: #3fb950;
-            --text-secondary: #8b949e;
-            --text-accent: #58a6ff;
-            --text-warning: #d29922;
-            --text-error: #f85149;
-            --text-muted: #484f58;
-            --border-color: #30363d;
-            --cursor-color: #3fb950;
-            --shadow: 0 0 20px rgba(63, 185, 80, 0.1);
+            /* ── Anthropic 温控仪表 · Financial Terminal Fusion ── */
+            --bg-primary: #0f0f0e;
+            --bg-secondary: #181817;
+            --bg-titlebar: #1c1c1b;
+            --text-primary: #e8e4dd;
+            --text-secondary: #a0988c;
+            --text-accent: #e6a817;
+            --text-accent2: #6ab0a3;
+            --text-warning: #d9a45e;
+            --text-error: #d97757;
+            --text-muted: #5c5852;
+            --border-color: #2e2e2b;
+            --border-active: #4a4a44;
+            --cursor-color: #e6a817;
+            --warm-glow: 0 0 24px rgba(217, 119, 87, 0.06);
+            --card-bg: #222220;
+            --prompt-color: #6ab0a3;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
         }
 
         * {
@@ -47,8 +53,8 @@
             height: 92vh;
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
-            border-radius: 10px;
-            box-shadow: var(--shadow), 0 25px 50px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            box-shadow: var(--warm-glow), 0 25px 50px rgba(0,0,0,0.6);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -75,9 +81,9 @@
             border-radius: 50%;
         }
 
-        .dot-red { background: #ff5f56; }
-        .dot-yellow { background: #ffbd2e; }
-        .dot-green { background: #27c93f; }
+        .dot-red { background: #d97757; }
+        .dot-yellow { background: #e6a817; }
+        .dot-green { background: #6ab0a3; }
 
         .titlebar-text {
             flex: 1;
@@ -113,7 +119,7 @@
         }
 
         .line.prompt {
-            color: var(--text-accent);
+            color: var(--prompt-color);
         }
 
         .line.output {
@@ -159,7 +165,7 @@
         }
 
         .input-line .prompt-text {
-            color: var(--text-accent);
+            color: var(--prompt-color);
             white-space: nowrap;
         }
 
