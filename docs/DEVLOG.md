@@ -6,6 +6,13 @@
 
 ## 2026-10-23
 
+### TD-3 Stage 2：CLI 切换至 V2 引擎
+- **类型**: 重构（行为变更）
+- **文件**: `cli.py`
+- **内容**: `cmd_run` 由 `BacktestEngine`（V1，已弃用）改为 `core.factory.create_default_engine()`（V2）；V2 执行 `FactorPipeline`，CLI 的 `--winsorize/--standardize/--fill/--neutralize` 参数自此真实生效
+- **验证**: R-1 基准 V1 +16.79%（终值 11,679,182）→ V2 +6.77%（终值 10,676,608）；关闭因子处理的受控对比下两引擎 500 日净值逐日一致（最大差异 0.000000）；全量 503 passed
+- **关联**: TD-3, `docs/RESEARCH_tech_debt_cleanup.md`
+
 ### 技术债调研归档（Phase 0）
 - **类型**: 文档
 - **文件**: `docs/RESEARCH_tech_debt_cleanup.md`（归档）、`docs/ARCHITECTURE.md`（修正）

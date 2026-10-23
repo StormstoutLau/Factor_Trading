@@ -854,8 +854,8 @@ pip install -r requirements.txt
 
 ```python
 from pathlib import Path
-from config import BacktestConfig, CostConfig, UniverseConfig, FactorConfig, OptimizerConfig, RebalanceConfig
-from engine import BacktestEngine
+from core.config import BacktestConfig, CostConfig, UniverseConfig, FactorConfig, OptimizerConfig, RebalanceConfig
+from core.factory import create_default_engine
 
 # 创建配置
 config = BacktestConfig(
@@ -871,7 +871,7 @@ config = BacktestConfig(
 )
 
 # 运行回测
-engine = BacktestEngine(config)
+engine = create_default_engine(config)
 engine.setup()
 results = engine.run()
 

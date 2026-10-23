@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo_data 复权文件缺失**: `examples/demo.py` 生成器改为输出 `stock_adj.pkl`（与配置默认一致），修复旧布局导入与硬编码路径；本地补齐 `demo_data/stock_adj.pkl`
 
 ### Changed
+- **CLI 默认引擎**: `python cli.py run` 从已弃用的 V1 `BacktestEngine` 切换至 `core.factory.create_default_engine()`（V2）。V2 会执行 `FactorPipeline`，`--winsorize/--standardize/--fill/--neutralize` 参数自此真实生效（此前在 V1 下被忽略），默认结果随之变化；R-1 受控对比确认关闭因子处理后两引擎逐日净值完全一致（最大差异 0.000000）
 - **README**: Quick Start 增加 `python examples/demo.py` 数据生成步骤；测试统计更新为 503 passed / 49 files
 - **CODE_WIKI**: 数据格式表复权因子文件名改为 `stock_adj.pkl`
 - **仓库卫生**: `memory/` 加入 `.gitignore` 并移出版本跟踪（本地 8 个 JSON 保留）；`conversation/` 7 个文件归档至 `docs/archive/conversation/`，`archive/` 忽略规则收窄为根级 `/archive/`

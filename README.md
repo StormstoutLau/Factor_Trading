@@ -100,7 +100,7 @@ python cli.py test
 
 ```python
 from core.config import BacktestConfig, FactorConfig, OptimizerConfig
-from core.engine import BacktestEngine
+from core.factory import create_default_engine
 
 config = BacktestConfig(
     data_dir="./demo_data",
@@ -111,7 +111,7 @@ config = BacktestConfig(
     initial_capital=10_000_000,
 )
 
-engine = BacktestEngine(config)
+engine = create_default_engine(config)
 engine.setup()
 results = engine.run()
 
@@ -236,17 +236,17 @@ uv sync
 
 ```python
 from core.config import BacktestConfig, FactorConfig, OptimizerConfig, RebalanceConfig
-from core.engine import BacktestEngine
+from core.factory import create_default_engine
 
 config = BacktestConfig(
     data_dir="./demo_data",
     factor_files=["factor_value.pkl"],
-    factor=FactorConfig(winsorize_method="mad", standardize="zscore"),
+    factor=FactorConfig(winsorize_method="mad", standardize_method="zscore"),
     optimizer=OptimizerConfig(method="equal_weight", target_count=30),
     rebalance=RebalanceConfig(method="fixed", frequency="monthly"),
     initial_capital=10_000_000,
 )
-engine = BacktestEngine(config)
+engine = create_default_engine(config)
 engine.setup()
 results = engine.run()
 ```

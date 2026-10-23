@@ -33,7 +33,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     try:
         from core.config import BacktestConfig, FactorConfig, OptimizerConfig, RebalanceConfig, CostConfig
-        from core.engine import BacktestEngine
+        from core.factory import create_default_engine
 
         data_dir = args.data_dir or "./demo_data"
         config = BacktestConfig(
@@ -74,7 +74,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         print(f"  Neutralize:  {not args.no_neutralize}")
         print()
 
-        engine = BacktestEngine(config)
+        engine = create_default_engine(config)
         engine.setup()
 
         print(f"  Trade dates: {len(engine.dm.trade_dates)}")

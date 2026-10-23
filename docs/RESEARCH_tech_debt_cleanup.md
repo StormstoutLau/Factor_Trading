@@ -92,6 +92,8 @@ def create_default_engine(config: BacktestConfig) -> 'BacktestEngineV2':
 
 **源码级溯源补充**: engine.py 的弃用标记是**完整的双保险** —— module docstring 第 3 行 "⚠️ DEPRECATED" + 类 docstring `.. deprecated::` + 构造函数内运行时 `warnings.warn(DeprecationWarning)`（engine.py:54-59）。即 PEP 594 的 Stage 1（Deprecate）**已在源码层面完成**，剩余工作仅为 Stage 2（cli.py 替换）与 Stage 3（移除），P1 工作量比预评估更小。
 
+**修正状态（2026-10-23，Stage 2 已完成）**: `cli.py:36` 改为 `from core.factory import create_default_engine`，`cli.py:77` 改为 `create_default_engine(config)`。R-1 基准对比：CLI 默认配置下 V1 +16.79%（终值 11,679,182）→ V2 +6.77%（终值 10,676,608）。受控对比（`winsorize/standardize/fill=none`、`neutralize=False`）显示两引擎 **500 个交易日逐日净值完全一致（最大绝对差异 0.000000）**，差异根因是 V1 `_precompute_factors` 直接使用原始因子、V2 执行 `FactorPipeline.process` —— CLI 暴露的 `--winsorize/--standardize/--fill/--neutralize` 参数此前在 V1 下被忽略，切换后开始生效，属预期的行为变更。全量测试 503 passed。
+
 ### TD-4: Factor_DB 实现与文档不符（文档幻觉 H-1）
 
 **现状**:
@@ -279,7 +281,7 @@ Qlib 的数据层抽象将数据访问解耦为三类 Provider：
 
 ### P1 — 本迭代内（低风险代码改动）
 
-4. **TD-3 Stage 2**: cli.py 从 V1 引擎切换至 `factory.create_default_engine()`（Stage 1 弃用警告源码已存在，直接进替换），切换前后跑 R-1 基准对比
+4. ✅ **[已完成 2026-10-23] TD-3 Stage 2**: cli.py 已从 V1 引擎切换至 `factory.create_default_engine()`；R-1 已跑，两引擎机制一致（受控对比逐日净值完全相同），默认结果差异仅来自因子处理管道生效
 5. ✅ **[已完成 2026-10-23] TD-5**: `filter/universe.py` 的 2 个测试文件已迁移至 clean 版，旧版已移除（源码级溯源确认生产零引用，无需观察期）
 
 ### P2 — 下一迭代
@@ -313,7 +315,7 @@ Qlib 的数据层抽象将数据访问解耦为三类 Provider：
 
 ### 7.2 下一步（Phase 1 - 设计）
 
-**当前进度（2026-10-23）**: P0-1（TD-6）、P0-2（TD-7）、P0-3 均已完成；P1 的 TD-5 已完成；TD-3 Stage 2 待执行。
+**当前进度（2026-10-23）**: P0-1（TD-6）、P0-2（TD-7）、P0-3 均已完成；P1 的 TD-5 与 TD-3 Stage 2 已完成；剩余 P2（TD-3 Stage 3 移除 engine.py、TD-2 冻结标注）。
 
 依据本调研，Phase 1 需产出 `DESIGN_tech_debt_cleanup.md`，内容应包含：
 
