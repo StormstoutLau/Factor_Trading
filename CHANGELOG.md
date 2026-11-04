@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **旧版过滤器**: 移除 `filter/universe.py`（生产零引用，`filter/__init__.py` 早已导出 clean 版）；2 个测试的导入迁移至 `filter.universe_filter_clean`
 
 ### Docs
+- **台账校正**: `docs/PROGRESS.md` 快照刷新至 `df652f9`（Agg `509 passed`、black `75/5`、默认后端 Tk 失效读数）；关闭 U-004；`CHECKLIST_spec_runner_integration.md` §8 静态读码证据升级为 E3 @`df652f9`
 - **进度台账**: 新增 `docs/PROGRESS.md` 与 `docs/dev-log/DEV-LOG-001-progress-baseline-20261104.md`，按 `Spec_Workflow` v1.7.1 登记 T1/T3 档位、证据等级与未决项；`docs/SPEC_STANDARD.md` 标注外部权威源
 - **Spec 规则增补**: `docs/SPEC_STANDARD.md` v1.1.0 新增 §十一，规定设计/实施/验收/TDD 阶段的搜索工具调用与外部案例锚点（T1-T4 分级、降级链、反模式、环境态工具映射）
 - **方案对比矩阵规则**: 同文件 §11.8 规定 Type-1 决策的 7 维矩阵（成本 / 收益 / 兼容 / 维护 / 升级潜力 / 短期 / 长期）逐格取证，每方案 ≥2 个外部 T1/T2 锚点覆盖 ≥3 维、每维度行至少一个外部锚点；前置声明时间口径与 Type-1/2 判定；接入 Phase 0 §3、Phase 0/1 Review 与 Design §2A；新增 `docs/dev-log/DEV-LOG-003-comparison-matrix-anchors-20261104.md`

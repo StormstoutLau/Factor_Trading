@@ -14,20 +14,20 @@
 
 | 项 | 值 | 证据 |
 |----|----|------|
-| HEAD | `1058cbbb283f307fe4783f885800765f2c4e8118` | `git rev-parse HEAD`（E1） |
-| 分支同步 | `master` 与本地记录的 `origin/master` 指向同一提交；未执行 `fetch` | `git branch -vv`（E1） |
-| 工作区（落档前） | 干净（无已跟踪修改、无未跟踪文件） | `git status --short` 空输出（E1） |
+| HEAD | `df652f9e3595dbbb2b1dfc1d7dccc016851c84c5` | `git rev-parse HEAD`（E1，2026-11-04 更新） |
+| 分支同步 | `master` 与 `origin/master` 指向同一提交（`df652f9`）；远端已切换 SSH | `git rev-parse HEAD origin/master`（E1） |
+| 工作区（本批开始前） | 干净（无已跟踪修改、无未跟踪文件） | `git status --short` 空输出（E1） |
 
 ### 1.2 测试状态
 
 | 场景 | 结果 | 证据 |
 |------|------|------|
-| 默认 matplotlib 后端 | `1 failed, 502 passed, 82 warnings`；失败项 `tests/test_real_ashare_backtest.py::TestRealAshareBacktest::test_09_trades_generated`，根因 `_tkinter.TclError`：本机 Tk 缺少 `ttk/xpTheme.tcl` | 日志 `C:\Users\Peng\AppData\Local\Temp\pytest_progress_check.log` 第 99、545、573 行（E1） |
-| `MPLBACKEND=Agg` | `503 passed, 82 warnings in 18.72s` | 日志 `C:\Users\Peng\AppData\Local\Temp\pytest_agg_progress_20261104.log`，SHA256 `34DC8EBD382509ED28E732A094CD4661A6048024A442B12E28BD9C61185A669B`（E1） |
+| 默认 matplotlib 后端 | `1 failed, 505 passed, 3 errors, 82 warnings in 19.19s`；失败项 `test_real_ashare_backtest.py::TestRealAshareBacktest::test_08_portfolio_value_positive`；3 个 error 为 `test_real_ashare_strict_validation.py` 的 setup（test_12/13/14）；根因均为 `_tkinter.TclError`（本机 Tk 缺 `tk.tcl`） | 日志 `%TEMP%\pytest_default_backend_p0_20261104.log` 第 59、134、206、320、766、794-887 行（E1） |
+| `MPLBACKEND=Agg` | `509 passed, 82 warnings in 20.02s` | 日志 `%TEMP%\pytest_agg_sr_integration_final_20261104.log`，SHA256 `D262199F55DC7D2E2AD85D5D1868CB1221F0FFFE96B3E8A57B8369311DC57707`（E1） |
 
-结论：默认后端失败由本机 Tk 安装不完整引起，非代码回归；无头后端下全量通过。
+结论：默认后端失败/错误由本机 Tk 安装不完整引起，非代码回归；无头后端下 509 全通过（= 503 基线 + 6 项 adapter 测试）。
 
-> **解释器口径（2026-11-04 复核）**: 上述基线使用 `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`。当前 shell 的 `python` 解析到 `C:\ProgramData\Anaconda3\python.exe`（3.13.5，缺 `cvxpy`），直接复跑会出现 `collected 483 / 2 errors`；以 Python312 复跑恢复 `503 passed`（日志 `%TEMP%\pytest_agg_devlog003_20261104.log`，SHA256 `71F014D4…`）。见 U-005。
+> **解释器口径（2026-11-04 复核）**: 上述基线使用 `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`。当前 shell 的 `python` 解析到 `C:\ProgramData\Anaconda3\python.exe`（3.13.5，缺 `cvxpy`），直接复跑会出现 `collected 483 / 2 errors`；以 Python312 复跑恢复 `509 passed`（见上表）。见 U-005。
 
 ### 1.3 已完成事项（近期提交）
 
@@ -41,6 +41,8 @@
 | demo_data `stock_adj.pkl` 与 README/CODE_WIKI 对齐 | `84e9d4c` | done |
 | 2026-10-23 差异报告 | `5b64cce` | done |
 | TD-1.2 轻量子包化；历史文档存档标注；LLM 风险文档扩充；Web 主题统一；DECISIONS/SPEC_STANDARD 入库 | `2848331`、`c14cab6`、`1321a8e`、`8607c82`、`1058cbb` | done |
+| 进度台账 + Spec 搜索锚点/方案对比矩阵规则 | `400394e` | done |
+| Spec_Runner 接入（adapter + 4 门禁 + 四文档） | `df652f9` | done |
 
 ### 1.4 未完成事项
 
@@ -48,7 +50,7 @@
 |----|------|----------------|------|--------|
 | P-001 | TD-3 Stage 3：移除 `core/engine.py` | `docs/RESEARCH_tech_debt_cleanup.md` TD-3；实测 10 个实际导入文件（6 examples + 4 tests），`core/__init__.py` 仅注释提及；**T1**（Layer-1：删除 `core/engine.py` 并迁移 `tests/`、`examples/`） | pending | P2 |
 | P-002 | TD-2：`core/config_v2.py` 冻结标注 | `docs/RESEARCH_tech_debt_cleanup.md` TD-2；当前文件无 `冻结/frozen/TD-2` 标注；**T3**（docstring-only，零运行时行为；路径不落在 scripts/tests/tools/workflows） | pending | P2 |
-| P-003 | TD-9：black 全量重排 | `docs/RESEARCH_tech_debt_cleanup.md` TD-9；实测 `75 files would be reformatted, 4 unchanged`（black 26.5.0）；**T1**（改动覆盖 `core/` 与 `tests/`，虽 style-only 但属批量重写） | pending | P3 |
+| P-003 | TD-9：black 全量重排 | `docs/RESEARCH_tech_debt_cleanup.md` TD-9；实测 `75 files would be reformatted, 5 unchanged`（black 26.5.0；2026-11-04 复核，新增测试已格式化）；**T1**（改动覆盖 `core/` 与 `tests/`，虽 style-only 但属批量重写） | pending | P3 |
 | P-004 | TD-1：数据层统一（DataManager → DataLoaderV3 / Provider） | `docs/RESEARCH_tech_debt_cleanup.md` TD-1；两套实现仍并存；**T1**（数据层接口与生产消费方变更） | pending | P3 |
 | P-005 | TD-4：Factor_DB 存储迁移 / 文档对齐（DuckDB 为规划方向） | `docs/RESEARCH_tech_debt_cleanup.md` TD-4；全仓仍无 `import duckdb`；**T1**（存储层接口变更） | pending | P3 |
 | P-006 | ADR-016 补录或引用修正 | `__init__.py:3@1058cbb`、`core/__init__.py:3@1058cbb`、`pyproject.toml:79@1058cbb` 引用 ADR-016；`docs/DECISIONS.md` 当前仅 ADR-001~013；**T3**（纯文档一致性，零代码） | pending | P3 |
@@ -56,13 +58,14 @@
 
 > 状态说明：上表仅有决策态 `pending`（未开工）。开工后执行态由工作记录派生，不在本表手写。
 
-### 1.5 本批新增（2026-11-04，未提交）
+### 1.5 本批新增（2026-11-04）
 
 | 项目 | 文件 | 档位 | 状态 |
 |------|------|------|------|
-| Spec 搜索锚点规则增补 | `docs/SPEC_STANDARD.md` §十一；`docs/dev-log/DEV-LOG-002-search-anchor-rules-20261104.md` | T3（Layer-0，纯文档） | done（自查·单视角） |
-| 方案对比 7 维矩阵规则增补 | `docs/SPEC_STANDARD.md` §11.8；`docs/dev-log/DEV-LOG-003-comparison-matrix-anchors-20261104.md` | T3（Layer-0，纯文档） | done（自查·单视角） |
-| Spec_Runner 接入 | `scripts/spec_runner_adapter.py`、`tests/test_spec_runner_adapter.py`、`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_spec_runner_integration.md` | T1（Layer-1：scripts/ + tests/） | done（四文档 + 8 道 Review） |
+| Spec 搜索锚点规则增补 | `docs/SPEC_STANDARD.md` §十一；`docs/dev-log/DEV-LOG-002-search-anchor-rules-20261104.md` | T3（Layer-0，纯文档） | done（自查·单视角；`400394e`） |
+| 方案对比 7 维矩阵规则增补 | `docs/SPEC_STANDARD.md` §11.8；`docs/dev-log/DEV-LOG-003-comparison-matrix-anchors-20261104.md` | T3（Layer-0，纯文档） | done（自查·单视角；`400394e`） |
+| Spec_Runner 接入 | `scripts/spec_runner_adapter.py`、`tests/test_spec_runner_adapter.py`、`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_spec_runner_integration.md` | T1（Layer-1：scripts/ + tests/） | done（四文档 + 8 道 Review；`df652f9`） |
+| P0 台账校正 | `docs/PROGRESS.md`、`docs/CHECKLIST_spec_runner_integration.md` | T3（Layer-0，纯文档） | done（session `factorv3-p0-ledger-fix-20261104`，5 行 replay OK） |
 
 ---
 
@@ -73,9 +76,11 @@
 | U-001 | 默认 matplotlib 后端下 `pytest tests/` 全绿 | 每次本地或 CI 测试（未设置 `MPLBACKEND` 时） | 本地与 CI 统一设置 `MPLBACKEND=Agg`；或修复 Python312 的 Tk 组件 | E1 |
 | U-002 | `docs/DECISIONS.md` 出现 ADR-016，或三处代码引用改为已登记 ADR | 下次文档一致性更新 / P-006 开工 | 补录 ADR-016（TD-1.2 轻量子包化决策），保留代码引用 | E1 |
 | U-003 | TD-3 Stage 3 的调研清单更新为实测值（6 examples + 4 tests，无 `core/__init__.py` re-export） | P-001 Step 1 调研启动 | 在新 RESEARCH 中更新清单后，再进入设计 | E1 |
-| U-004 | `docs/SPEC_STANDARD.md` 明确外部权威源，或完成同步 | 本批（2026-11-04） | 保留项目内简版为快速参考，标注 `F:\Spec_Workflow\SPEC_PROCESS.md` v1.7.1 为冲突时的权威源 | E1 |
 | U-005 | 测试命令固定解释器，或各解释器依赖一致（`cvxpy` 可导入） | 每次本地或 CI 测试 | 命令中显式使用 Python312 路径；不默许 `python` 解析到 Anaconda 3.13.5 | E1 |
 | U-006 | `mypy-check` 门禁转绿（`core` 0 errors） | mypy 清理批次启动 / 每次门禁链验收 | 先清理 P-007（168 errors），再收紧；门禁保持如实 fail | E1 |
+
+> **已关闭（2026-11-04）**: U-004 —— [SPEC_STANDARD.md](SPEC_STANDARD.md) 头部已声明 `F:\Spec_Workflow\SPEC_PROCESS.md` v1.7.1 为冲突时的权威源（@`400394e`），判据达成。
+> **映射说明**: U-002 由 P-006 关闭；U-003 作为 P-001 Step 1 的输入，不单独占工作流。
 
 ---
 
@@ -114,6 +119,16 @@
 - 回退点：删除 `scripts/spec_runner_adapter.py` 与 `tests/test_spec_runner_adapter.py`，还原本批文档
 - 外部状态：`F:\Spec_Runner` 的 `sessions/` 与自动 commit 为框架设计内行为（源码 L106-L114），不改其源码
 
+### 3.4 本批（P0 台账校正）档位
+
+判定为 **T3 轻批**（Layer-0：仅 `docs/PROGRESS.md` 与 `docs/CHECKLIST_spec_runner_integration.md`；零代码 / 零门禁 / 零真值源）：
+
+- 5 步决策流 session：`factorv3-p0-ledger-fix-20261104`（step-research → step-design → step-implement → step-verify → step-finalize）
+- 改动：刷新 HEAD / 测试数 / black 基线；关闭 U-004；CHECKLIST §8 的 E2 升级为 E3 @`df652f9`
+- 证据出口：session + `pytest`（509 passed）+ `git rev-parse`（E1）
+- 工具替代：本仓无 `Spec_Workflow` 三校验器 / `console_gen`；以 `pytest` + Spec_Runner 5 步 gate 作为等价证据出口
+- 回退点：将两文件还原至 `df652f9` 版本
+
 ---
 
 ## 4. 审查记录
@@ -141,9 +156,9 @@
 | config_v2 无冻结标注 | `git grep -n "冻结\|frozen\|TD-2" -- core/config_v2.py` | 空输出 |
 | 无 DuckDB 依赖 | `git grep -n "import duckdb" -- "*.py"` | 空输出 |
 | 测试证据 | 读回两份 pytest 日志并复核 SHA256 | 默认后端 `1 failed, 502 passed`；Agg `503 passed`，哈希一致 |
-| black 基线 | `python -m black --check core tests` | `75 files would be reformatted, 4 unchanged` |
+| black 基线 | `python -m black --check core tests` | `75 files would be reformatted, 4 unchanged`（当时读数；本批复核为 `75/5`，见 §4.4） |
 
-**结论**: 无 P1/P2 阻断项；台账可进入使用状态。残余风险见 §2 U-001~U-004。
+**结论**: 无 P1/P2 阻断项；台账可进入使用状态。残余风险见 §2 U-001~U-003、U-005~U-006（U-004 已于本批关闭）。
 
 ### 4.2 独立 pass：搜索锚点 + 方案对比矩阵（2026-11-04）
 
@@ -211,3 +226,32 @@
 | 外部执行器状态 | `git -C F:\Spec_Runner log --oneline -6` | 5 条 `factorv3` gate 自动提交（设计内行为）；工作区干净 |
 
 **结论**: 0 个 P1/P2；3 个 P3 已处理；本批 done。残余技术债见 §2 U-006 与 §1.4 P-007。
+
+### 4.4 独立 pass：P0 台账校正（T3，2026-11-04）
+
+- **执行时点**: 文档与视图完稿后单独执行（RULE-1）
+- **审查者**: 单 Agent 自查（单视角）（RULE-4）
+- **审查方式**: 重跑 E1 命令 + 读回 `PROGRESS.md` / `CHECKLIST_spec_runner_integration.md`
+
+**发现并修复（3 项，均已回写）**：
+
+| ID | 发现 | 处理 |
+|----|------|------|
+| P0-1 | 默认后端不止 1 个 fail，另有 3 个 Tk setup error（strict_validation test_12/13/14） | §1.2 如实记录 `1 failed + 3 errors`，U-001 仍按 Tk 根因 |
+| P0-2 | 解释器口径备注仍写“恢复 503 passed” | 改为 509，并指向当前测试表 |
+| P0-3 | §1.5 标题仍写“未提交”，与实际 `400394e`/`df652f9` 不符 | 改为“本批新增（2026-11-04）”，逐行补 commit |
+
+**复核结果**：
+
+| 断言 | 复核命令 | 结果 |
+|------|----------|------|
+| HEAD / origin/master | `git rev-parse HEAD origin/master` | 均为 `df652f9e3595…` |
+| Agg 全量回归 | T3 session `step-verify` | `509 passed, 82 warnings in 19.88s` |
+| 默认后端读数 | `%TEMP%\pytest_default_backend_p0_20261104.log` | `1 failed, 505 passed, 3 errors`，均 Tk |
+| black 基线 | 门禁 session `factorv3-black-check-20261104` seq 2 | `75 files would be reformatted, 5 unchanged` |
+| U-004 关闭 | 读回 §2 关闭说明 + `SPEC_STANDARD.md` 头部 | 判据达成 |
+| CHECKLIST E3 | `CHECKLIST_spec_runner_integration.md` §8 | `E3 @df652f9` 已落 |
+| 5 步 session | `replay --session factorv3-p0-ledger-fix-20261104` | `5 rows OK`，5 个 gate 全 pass |
+| 改动范围 | `git status --short` | 仅 4 个文档（PROGRESS/CHECKLIST/DEVLOG/CHANGELOG） |
+
+**结论**: 0 个 P1/P2；T3 证据链完整；本批 done。

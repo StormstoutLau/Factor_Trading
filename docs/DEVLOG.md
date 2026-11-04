@@ -6,6 +6,13 @@
 
 ## 2026-11-04
 
+### P0 台账校正（T3 轻批）
+- **类型**: 文档（Layer-0）
+- **文件**: `docs/PROGRESS.md`、`docs/CHECKLIST_spec_runner_integration.md`
+- **内容**: HEAD 刷新至 `df652f9`；测试状态更新为 Agg `509 passed` / 默认后端 `1 failed + 3 errors`（均为 Tk）；black 基线 `75/5`；关闭 U-004；CHECKLIST §8 静态读码证据由 E2 升级为 E3 @`df652f9`
+- **验证**: 5 步决策流 session `factorv3-p0-ledger-fix-20261104`（step-research/design/implement/verify/finalize）+ `replay`
+- **关联**: `docs/PROGRESS.md` §1.1/§1.2/§2/§3.4/§4.4
+
 ### Spec_Runner 接入（T1 完整管线）
 - **类型**: 工具接入（Layer-1）
 - **文件**: `scripts/spec_runner_adapter.py`（新增）、`tests/test_spec_runner_adapter.py`（新增）、`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_spec_runner_integration.md`（新增）、`docs/PROGRESS.md`

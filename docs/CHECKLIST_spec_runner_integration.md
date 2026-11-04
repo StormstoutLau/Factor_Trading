@@ -103,7 +103,7 @@
 | 4 次 gate 运行 + session jsonl（E1） | 门禁链验收 | pass / pass / fail / fail，exit 与 verdict 一致 |
 | `replay` 输出（E1） | 事件流可重放 | probe 1 行 OK；black-check 2 行 OK |
 | `git diff --no-index` 模板对照（E1） | 编排代码零改动 | 仅 `PREFIX` 与 `GATES` 配置区差异 |
-| 静态读码（E2，新增文件未提交，无法绑 commit） | 8 命令 / 6 错误路径 | 全部存在，无自造逻辑（待提交后补 E3 @commit） |
+| 静态读码（E3 @`df652f9`） | 8 命令 / 6 错误路径 | ✅ 全部存在，无自造逻辑 |
 | 盲区扫描（E4，范围：模板全部函数 + 6 条测试断言） | 无设计外行为 | **发现 2 项**（F-1、F-2，均 P3 并已处理） |
 
 ## 9. Step 8 一致性 Review
