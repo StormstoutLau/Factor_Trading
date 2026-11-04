@@ -52,6 +52,7 @@
 | P-004 | TD-1：数据层统一（DataManager → DataLoaderV3 / Provider） | `docs/RESEARCH_tech_debt_cleanup.md` TD-1；两套实现仍并存；**T1**（数据层接口与生产消费方变更） | pending | P3 |
 | P-005 | TD-4：Factor_DB 存储迁移 / 文档对齐（DuckDB 为规划方向） | `docs/RESEARCH_tech_debt_cleanup.md` TD-4；全仓仍无 `import duckdb`；**T1**（存储层接口变更） | pending | P3 |
 | P-006 | ADR-016 补录或引用修正 | `__init__.py:3@1058cbb`、`core/__init__.py:3@1058cbb`、`pyproject.toml:79@1058cbb` 引用 ADR-016；`docs/DECISIONS.md` 当前仅 ADR-001~013；**T3**（纯文档一致性，零代码） | pending | P3 |
+| P-007 | mypy 基线清理（`core` 168 errors / 20 files） | `python312 -m mypy --explicit-package-bases core`（E1，2026-11-04）；`mypy-check` 门禁当前预期 fail | pending | P3 |
 
 > 状态说明：上表仅有决策态 `pending`（未开工）。开工后执行态由工作记录派生，不在本表手写。
 
@@ -61,6 +62,7 @@
 |------|------|------|------|
 | Spec 搜索锚点规则增补 | `docs/SPEC_STANDARD.md` §十一；`docs/dev-log/DEV-LOG-002-search-anchor-rules-20261104.md` | T3（Layer-0，纯文档） | done（自查·单视角） |
 | 方案对比 7 维矩阵规则增补 | `docs/SPEC_STANDARD.md` §11.8；`docs/dev-log/DEV-LOG-003-comparison-matrix-anchors-20261104.md` | T3（Layer-0，纯文档） | done（自查·单视角） |
+| Spec_Runner 接入 | `scripts/spec_runner_adapter.py`、`tests/test_spec_runner_adapter.py`、`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_spec_runner_integration.md` | T1（Layer-1：scripts/ + tests/） | done（四文档 + 8 道 Review） |
 
 ---
 
@@ -73,6 +75,7 @@
 | U-003 | TD-3 Stage 3 的调研清单更新为实测值（6 examples + 4 tests，无 `core/__init__.py` re-export） | P-001 Step 1 调研启动 | 在新 RESEARCH 中更新清单后，再进入设计 | E1 |
 | U-004 | `docs/SPEC_STANDARD.md` 明确外部权威源，或完成同步 | 本批（2026-11-04） | 保留项目内简版为快速参考，标注 `F:\Spec_Workflow\SPEC_PROCESS.md` v1.7.1 为冲突时的权威源 | E1 |
 | U-005 | 测试命令固定解释器，或各解释器依赖一致（`cvxpy` 可导入） | 每次本地或 CI 测试 | 命令中显式使用 Python312 路径；不默许 `python` 解析到 Anaconda 3.13.5 | E1 |
+| U-006 | `mypy-check` 门禁转绿（`core` 0 errors） | mypy 清理批次启动 / 每次门禁链验收 | 先清理 P-007（168 errors），再收紧；门禁保持如实 fail | E1 |
 
 ---
 
@@ -100,6 +103,16 @@
 - 裁剪理由：Layer-0 纯文档；零代码、零门禁、零真值源变更
 - 回退点：删除新增文档并还原上述既有文档即可
 - 证据出口：本文件 + 三份开发日志 + `git diff`（E1）+ 测试日志（E1）
+
+### 3.3 本批（Spec_Runner 接入）档位
+
+判定为 **T1 完整管线**（路径含 `scripts/` 与 `tests/`，按 `SPEC_PROCESS.md` L561 属 Layer-1）：
+
+- 必需工件：RESEARCH → DESIGN → IMPL → CHECKLIST 四文档 + Step 2/4/6/8 四道文档 Review
+- 证据出口：四文档 + Step 9 TDD 红/绿 + 4 条 `factorv3-*` session + `replay` + 509 passed
+- 门禁链：`probe` pass、`unit-tests` pass、`black-check` fail（基线 75）、`mypy-check` fail（基线 168）
+- 回退点：删除 `scripts/spec_runner_adapter.py` 与 `tests/test_spec_runner_adapter.py`，还原本批文档
+- 外部状态：`F:\Spec_Runner` 的 `sessions/` 与自动 commit 为框架设计内行为（源码 L106-L114），不改其源码
 
 ---
 
@@ -157,3 +170,44 @@
 | 解释器漂移 | `Get-Command python` + pytest 收集日志 | 默认 `python` = Anaconda 3.13.5 缺 `cvxpy`（interrupted 2 errors）；已登记 U-005 |
 
 **结论**: 无 P1/P2 阻断项；本批 done。残余风险见 §2 U-001~U-005。
+
+### 4.3 独立 pass：Spec_Runner 接入（T1，2026-11-04）
+
+- **执行时点**: 四文档、实现、门禁链与回写完成后单独执行；未与实现同一次写入（RULE-1）
+- **审查者**: 单 Agent 自查（单视角）（RULE-4）
+- **审查方式**: 重跑 E1 命令 + 读回四文档 + 对照官方模板 diff
+
+**8 道 Review 证据点**：
+
+| # | 门 | 证据 |
+|---|----|------|
+| 1 | Step 2 调研 Review | RESEARCH §6 来源验证表（5 个 T1 + 8 条 E1） |
+| 2 | Step 3 设计决策表自检 | DESIGN §8 四项决策 + 被拒代价 |
+| 3 | Step 4 设计 Review | DESIGN §9 六项检查 + 2 项修复 |
+| 4 | Step 5 实施规划自检 | IMPL §1 任务分解 + §2.5 测试策略 |
+| 5 | Step 6 实施 Review | IMPL §3 六项检查 + 2 项修复 |
+| 6 | Step 7 验收清单 DoR/DoD | CHECKLIST §1-§7 全项 |
+| 7 | Step 8 一致性 Review | CHECKLIST §9 四对文档核对 |
+| 8 | Step 9 TDD + Step 10 ADD | CHECKLIST §10 红→绿 + §7 四阶段 |
+
+**发现并修复**：
+
+| ID | 级别 | 发现 | 处理 |
+|----|------|------|------|
+| F-1 | P3 | black 报告写 stderr，runner 只捕获 stdout，首轮 `stdout_tail` 为空 | 门禁命令追加 `2>&1`；重跑 seq 2 捕获基线 |
+| F-2 | P3 | 项目 black 会重排上游模板编排代码，与“配置区以外逐行一致”冲突 | adapter 保持模板原格式；仅新增测试文件 black；偏离记录于 CHECKLIST §6 |
+| F-3 | P3 | `mypy core` 在含点目录名下属无效包名 | 使用 `--explicit-package-bases`；基线 168 errors 登记 P-007/U-006 |
+
+**复核结果**：
+
+| 断言 | 复核命令 | 结果 |
+|------|----------|------|
+| 配置区以外零改动 | `git diff --no-index <模板> scripts\spec_runner_adapter.py` | 仅 `PREFIX` 与 `GATES`（含 `_PY312`）差异 |
+| 四门禁 verdict | 4 次 `adapter gate` | pass / pass / fail(1) / fail(1) |
+| 事件流可重放 | `adapter replay --session factorv3-probe-20261104`、`...black-check...` | 1 行 OK；2 行 OK |
+| 全量回归 | `MPLBACKEND=Agg` + Python312 `pytest tests` | `509 passed, 82 warnings in 20.02s`；日志 SHA256 `D262199F…` |
+| 新增文件质量 | `py_compile`、`black --check tests/...` | exit 0；`1 file would be left unchanged` |
+| 无残留标记 | `Select-String "TODO\|FIXME"` 两个新文件 | 空输出 |
+| 外部执行器状态 | `git -C F:\Spec_Runner log --oneline -6` | 5 条 `factorv3` gate 自动提交（设计内行为）；工作区干净 |
+
+**结论**: 0 个 P1/P2；3 个 P3 已处理；本批 done。残余技术债见 §2 U-006 与 §1.4 P-007。

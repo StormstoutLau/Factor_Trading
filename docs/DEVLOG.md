@@ -6,6 +6,16 @@
 
 ## 2026-11-04
 
+### Spec_Runner 接入（T1 完整管线）
+- **类型**: 工具接入（Layer-1）
+- **文件**: `scripts/spec_runner_adapter.py`（新增）、`tests/test_spec_runner_adapter.py`（新增）、`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_spec_runner_integration.md`（新增）、`docs/PROGRESS.md`
+- **内容**: 复制官方 `spec_runner_adapter.py` v1.0，仅改配置区（`PREFIX=factorv3`、4 门禁 `probe/unit-tests/black-check/mypy-check`）；门禁 verdict / exit / stdout_tail 落入 `F:\Spec_Runner\sessions\factorv3-*.jsonl`
+- **验证**: TDD RED `6 errors` → GREEN `6 passed`；全量 `509 passed`；门禁实测 pass / pass / fail(1) / fail(1)；`replay` 1 行与 2 行均 OK
+- **已知基线**: `black-check` 75 files 待重排（TD-9）；`mypy-check` 168 errors（新登记 P-007 / U-006）
+- **边界**: `F:\Spec_Runner\sessions/` 与其自动 commit 为框架设计内行为；未改其源码
+- **ADD 审查发现（Step 10）**: 0 个 P1/P2；3 个 P3——F-1 black 报告走 stderr（命令追加 `2>&1`）、F-2 模板格式与项目 black 冲突（保持模板逐行一致，仅格式化新测试）、F-3 `mypy` 需 `--explicit-package-bases`
+- **关联**: `docs/CHECKLIST_spec_runner_integration.md` §10/§11
+
 ### 进度基线落档（Spec_Workflow v1.7.1）
 - **类型**: 文档（T3 轻批，Layer-0）
 - **文件**: `docs/PROGRESS.md`（新建）、`docs/dev-log/DEV-LOG-001-progress-baseline-20261104.md`（新建）、`docs/SPEC_STANDARD.md`、`CHANGELOG.md`
