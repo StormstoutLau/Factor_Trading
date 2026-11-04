@@ -1,8 +1,30 @@
 # 开发日志 (Development Log)
 
-> 最后更新: 2026-10-23 | 维护规则: 每次重要变更后追加一条记录
+> 最后更新: 2026-11-04 | 维护规则: 每次重要变更后追加一条记录
 
 ---
+
+## 2026-11-04
+
+### 进度基线落档（Spec_Workflow v1.7.1）
+- **类型**: 文档（T3 轻批，Layer-0）
+- **文件**: `docs/PROGRESS.md`（新建）、`docs/dev-log/DEV-LOG-001-progress-baseline-20261104.md`（新建）、`docs/SPEC_STANDARD.md`、`CHANGELOG.md`
+- **内容**: 落档当前进度快照、P-001~P-006 待办与 U-001~U-004 四元未决项；按 SPEC_PROCESS v1.7.1 登记 T1/T3 档位；`SPEC_STANDARD.md` 标注外部权威源
+- **验证**: `MPLBACKEND=Agg` 下 503 passed；默认后端 1 failed 由本机 Tk 缺 `ttk/xpTheme.tcl` 引起
+- **关联**: `docs/PROGRESS.md`, `docs/dev-log/DEV-LOG-001-progress-baseline-20261104.md`, `docs/RESEARCH_tech_debt_cleanup.md`
+
+### Spec 搜索锚点规则增补
+- **类型**: 文档（T3 轻批，Layer-0）
+- **文件**: `docs/SPEC_STANDARD.md`（v1.1.0 §十一）、`docs/dev-log/DEV-LOG-002-search-anchor-rules-20261104.md`
+- **内容**: 设计/实施/验收/TDD 四阶段加入搜索工具调用与外部案例锚点硬约束；T1-T4 分级、降级链、反模式、环境态工具映射；“不懂不要乱写”硬约束；外部参考仓只读
+- **验证**: 外部 `SPEC_PROCESS.md` L116-L196 @ `bf83e48` 逐条对照；`git -C F:\Spec_Workflow status --short` 空输出；`MPLBACKEND=Agg` 下 503 passed
+
+### 方案对比 7 维矩阵与外部锚点
+- **类型**: 文档（T3 轻批，Layer-0）
+- **文件**: `docs/SPEC_STANDARD.md`（§11.8）、`docs/dev-log/DEV-LOG-003-comparison-matrix-anchors-20261104.md`
+- **内容**: Type-1 决策的 7 维矩阵（成本 / 收益 / 兼容 / 维护 / 升级潜力 / 短期 / 长期）逐格取证；每方案 ≥2 个外部 T1/T2 锚点覆盖 ≥3 维、每维度行至少一个外部锚点；前置声明时间口径与 Type-1/2 判定；收敛出口与被拒代价；接入 Phase 0 §3、Phase 0/1 Review、Design §2A
+- **验证**: 外部 `DECISION_MATRIX_TEMPLATE.md` v1.0 L34-L42 @ `bf83e48` 逐行对照；外部 `SPEC_PROCESS.md` L431-L467 @ `bf83e48`；`MPLBACKEND=Agg` + Python312 下 503 passed
+- **关联**: `docs/PROGRESS.md` U-005（解释器漂移）, `docs/SPEC_STANDARD.md` §11.8
 
 ## 2026-10-23
 
