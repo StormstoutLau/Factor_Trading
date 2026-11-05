@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
@@ -35,7 +37,7 @@ jobs:
           pip install ".[dev]"
 
       - name: Run tests
-        run: pytest tests/ --tb=short -q
+        run: python -m pytest tests/ --tb=short -q
 
       - name: Type check (mypy)
         run: mypy core/ --ignore-missing-imports --no-error-summary || true

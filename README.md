@@ -4,7 +4,7 @@
 
 **[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)**
 **[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)**
-**[![Tests](https://img.shields.io/badge/Tests-503%20passed-brightgreen.svg)](tests/)**
+**[![Tests](https://img.shields.io/badge/Tests-509%20passed-brightgreen.svg)](tests/)**
 **[![CI](https://github.com/StormstoutLau/Factor_Trading/actions/workflows/tests.yml/badge.svg)](https://github.com/StormstoutLau/Factor_Trading/actions)**
 
 **专业量化回测框架  ·  Multi-Agent 投研  ·  五维风控  ·  Walk-Forward 分析**
@@ -95,7 +95,7 @@ python cli.py dashboard
 
 # 5. Run all tests
 python cli.py test
-# Output: 503 passed ✓
+# Output: 509 passed ✓
 ```
 
 ```python
@@ -227,6 +227,43 @@ uv sync
 - Database: duckdb
 - Validation: pydantic
 - Full list: [pyproject.toml](pyproject.toml)
+
+---
+
+## 🧪 Testing
+
+Tests run headless: matplotlib uses the non-interactive `Agg` backend, which only writes
+image files and never opens a window. CI sets `MPLBACKEND: Agg` at job level — do the same
+locally.
+
+### Choose the interpreter explicitly (Windows)
+
+The project supports Python 3.10+; CI runs 3.10 / 3.11 / 3.12. If `python` on your PATH
+resolves to another install (e.g. an Anaconda environment without the project dependencies),
+pick the version explicitly:
+
+```powershell
+py -0p                        # list installed versions and their paths
+py -3.12 -m pip install -e ".[dev]"
+py -3.12 -m pytest            # run tests with that interpreter
+```
+
+### Run tests
+
+```powershell
+$env:MPLBACKEND = "Agg"; python -m pytest
+```
+
+```bash
+MPLBACKEND=Agg python -m pytest
+```
+
+`python -m pytest` reads `testpaths = ["tests"]` from `pyproject.toml`, so no path argument
+is needed. Current baseline: **509 passed** (Python 3.12.10, `MPLBACKEND=Agg`).
+
+> `python cli.py test` wraps whatever `pytest` is on PATH. If `python` is not the
+> interpreter you installed into (see above), prefix the commands accordingly,
+> e.g. `py -3.12 -m pytest`.
 
 ---
 
@@ -371,7 +408,7 @@ Factor_Trading_v3.0/
 │   └── cli.html                   # CLI-style interface
 ├── assets/                        # 静态资源 (架构图等)
 ├── examples/                      # 示例脚本 (7 files)
-├── tests/                         # 测试套件 (503 tests, 49 files)
+├── tests/                         # 测试套件 (509 tests, 50 files)
 ├── docs/                          # 文档 (9 files)
 ├── tools/                         # 工具脚本 (benchmark / audit / ui)
 ├── data/                          # 事件日志存储
