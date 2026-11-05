@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_env_normalization
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-05
-> **状态**: 已完成（Step 9 实施完成，红→绿通过）；Step 10 ADD 审计待执行
+> **状态**: 已完成（Step 10 审计通过；`06e9e11` 已推送，远端复核 2026-11-05：CI 红基线为既有环境缺失，登记 P-009）
 > **上游**: [DESIGN_env_normalization.md](DESIGN_env_normalization.md)（Step 4 通过） · [IMPL_env_normalization.md](IMPL_env_normalization.md)（Step 6 通过）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；所有 `[ ]` 由 Step 9/10 按实测读数勾选，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口，无证据只能标 `[未在远端执行]` / `[未取证]`。
 
@@ -106,10 +106,10 @@
 | `pytest` 全量输出（E1） | B4、C2、E2 | ✅ `509 passed, 82 warnings in 30.18s`（2026-11-05，Agg + Python312） |
 | `git diff` / `git status`（E1） | A8、A9、E1、E2、E5、F2、F4 | ✅ `--numstat`：tests.yml `3 1`、README `40 3`；`core/ tests/ scripts/ pyproject.toml cli.py` diff 空；临时脚本已删、无新增未跟踪脚本 |
 | `Select-String` 机械检索（E1） | D1、D3、F1、F3 | ✅ README `503`=0、`Tk`=0、行尾空白=0；四文档 TODO/FIXME 仅 F1 规则行自身 |
-| 静态读码（E3，须绑 commit hash） | C4、D5、E3 | ⚠️ C4 = `[未入仓-不可重放]`（执行前读码：仅 `copy/sys/time/pathlib/yaml`）；D5/E3 读回自工作区，**提交后补绑 hash**（RULE-6） |
+| 静态读码（E3，须绑 commit hash） | C4、D5、E3 | ⚠️ C4 = `[未入仓-不可重放]`（执行前读码：仅 `copy/sys/time/pathlib/yaml`）；D5/E3 读回 `pyproject.toml`、README `06e9e11`（E3） |
 | 门禁 session + `replay`（E1） | §7 四行 | ✅ probe **pass**（session `factorv3-probe-20261105`）；unit-tests **pass**（seq 9，`509 passed, 32.23s`）；black-check **fail**（seq 11，`75 files would be reformatted, 5 unchanged` = 基线）；mypy-check **fail**（seq 12，`Found 168 errors in 20 files` = 基线）；`replay: 12 rows OK` |
 | 盲区扫描（E4，范围：README 新节全文 + `tests.yml` 全部键） | 无设计外改动 | ✅ `git diff` 全文仅 `env` 块 +2 与命令 1 行；README 新节（L231-L268）与 IMPL §2.3.3 逐字一致；**发现 0 项设计外改动**；文件末尾 no-newline 为 `tests.yml` 既有状态（diff 上下文侧） |
-| 远端 CI（未执行） | E4 3.10/3.11 | `[未在远端执行]`（push 后由 `on: push` 触发；结果不预填） |
+| 远端 CI（已执行，2026-11-05） | E4 三版本 / U-001 远端判据 | ⚠️ run `41970636863` @ `06e9e11` = **failure**：3.10 `14 failed, 477 passed, 18 errors`（7.05s）；3.11/3.12 因 3.10 失败被 fail-fast 取消。根因**非后端配置**：① `data/test_ashare/close.pkl` 被 `.gitignore:62`（`data/`）忽略 → 10 failed + 18 errors；② `tests/test_distillation_isolation.py:255-327` 硬编码 `F:\Coding\...\gurus` → 4 failed；③ `numba` 不在 `pyproject.toml` → 1 failed。历史两次运行（`df652f9`、`116426e`）同样 `failure`（`gh run list`），即既有红基线，非本批 diff 引入 |
 
 ## 9. Step 8 一致性 Review
 
@@ -232,7 +232,7 @@
 - **P1/P2 阻断项**：0
 - **P3 项**：累计 9 项（F-D1/F-D2、F-I1/F-I2/F-I3、F-S1、F-9-1/F-9-2）+ 1 项证据注记（C4 不可重放），全部已处理或如实标注
 - **门禁链**：3 pass（probe、unit-tests、step-implement 内嵌 unit-tests）+ 2 expected-fail（black-check 基线 75、mypy-check 基线 168，均无漂移）
-- **验收组**：A1-A9 / B1-B6 / C1-C4 / D1-D6 / E1-E5 / F1-F5 共 30 项，29 项 ✅ 绑证据，1 项（C4）`[未入仓-不可重放]`；远端 CI `[未在远端执行]`
-- **U-001**：本地收敛达成（Agg 下 `509 passed`，E1 × 3）；CI 侧配置已落地，**待 push 后首次远端绿即关闭**
+- **验收组**：A1-A9 / B1-B6 / C1-C4 / D1-D6 / E1-E5 / F1-F5 共 30 项，29 项 ✅ 绑证据，1 项（C4）`[未入仓-不可重放]`；远端 CI = failure（根因非本批，见 §8）
+- **U-001**：本地达成（Agg `509 passed`，E1 × 3）；**远端未达成**——run `41970636863` 的三类失败根因均指向测试环境缺失（数据夹具被忽略 / 测试硬编码 Windows 路径 / 缺 `numba`），**本批改动仅为 `tests.yml` 的 env 与命令 + README**，不含 `tests/` 或数据；故 U-001 **不关闭**，待 P-009 修复后重跑远端再判
 - **U-005**：**已关闭**——收敛口径（RESEARCH §5.3）「README 写明测试解释器选择方式」达成（V2 断言 PASS + CI 矩阵显式版本）
-- **状态**：done（待提交推送；提交后补绑 E3 hash 于 §8 静态读码行）
+- **状态**：done（提交 `06e9e11` 已推送）；远端复核发现既有红基线，登记 P-009 / U-007（见 [PROGRESS](PROGRESS.md)）
