@@ -22,6 +22,10 @@ import numpy as np
 import pandas as pd
 
 
+# 仓库锚定路径（RESEARCH S3 / 方案 B1）：与 cwd 无关，跨平台可移植
+GURU_DIR = Path(__file__).resolve().parents[1] / "gurus"
+
+
 class TestDistillationEnums(unittest.TestCase):
     """测试蒸馏枚举类型"""
     
@@ -252,7 +256,7 @@ class TestGuruJSONDistillationConfig(unittest.TestCase):
         """测试buffett.json包含distillation_config"""
         import json
         
-        json_path = Path(r"F:\Coding\Factor_Trading_v3.0\gurus\buffett.json")
+        json_path = GURU_DIR / "buffett.json"
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
@@ -266,7 +270,7 @@ class TestGuruJSONDistillationConfig(unittest.TestCase):
         """测试soros.json包含distillation_config"""
         import json
         
-        json_path = Path(r"F:\Coding\Factor_Trading_v3.0\gurus\soros.json")
+        json_path = GURU_DIR / "soros.json"
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
@@ -277,7 +281,7 @@ class TestGuruJSONDistillationConfig(unittest.TestCase):
         """测试所有Guru都有distillation_config"""
         import json
         
-        gurus_dir = Path(r"F:\Coding\Factor_Trading_v3.0\gurus")
+        gurus_dir = GURU_DIR
         for json_file in gurus_dir.glob("*.json"):
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -295,7 +299,7 @@ class TestDistillationAuditor(unittest.TestCase):
         
         auditor = DistillationAuditor()
         result = auditor.audit_guru_json(
-            Path(r"F:\Coding\Factor_Trading_v3.0\gurus\buffett.json")
+            GURU_DIR / "buffett.json"
         )
         
         self.assertIn("risk_level", result)
@@ -324,7 +328,7 @@ class TestDistillationAuditor(unittest.TestCase):
         from tools.distillation_audit import DistillationAuditor
         
         auditor = DistillationAuditor()
-        results = auditor.audit_all_gurus(Path(r"F:\Coding\Factor_Trading_v3.0\gurus"))
+        results = auditor.audit_all_gurus(GURU_DIR)
         
         self.assertTrue(len(results) > 0)
         # 所有Guru都应该是低风险（因为我们已经修复了dalio.json）

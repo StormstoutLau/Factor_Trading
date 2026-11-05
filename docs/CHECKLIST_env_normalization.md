@@ -109,7 +109,7 @@
 | 静态读码（E3，须绑 commit hash） | C4、D5、E3 | ⚠️ C4 = `[未入仓-不可重放]`（执行前读码：仅 `copy/sys/time/pathlib/yaml`）；D5/E3 读回 `pyproject.toml`、README `06e9e11`（E3） |
 | 门禁 session + `replay`（E1） | §7 四行 | ✅ probe **pass**（session `factorv3-probe-20261105`）；unit-tests **pass**（seq 9，`509 passed, 32.23s`）；black-check **fail**（seq 11，`75 files would be reformatted, 5 unchanged` = 基线）；mypy-check **fail**（seq 12，`Found 168 errors in 20 files` = 基线）；`replay: 12 rows OK` |
 | 盲区扫描（E4，范围：README 新节全文 + `tests.yml` 全部键） | 无设计外改动 | ✅ `git diff` 全文仅 `env` 块 +2 与命令 1 行；README 新节（L231-L268）与 IMPL §2.3.3 逐字一致；**发现 0 项设计外改动**；文件末尾 no-newline 为 `tests.yml` 既有状态（diff 上下文侧） |
-| 远端 CI（已执行，2026-11-05） | E4 三版本 / U-001 远端判据 | ⚠️ run `41970636863` @ `06e9e11` = **failure**：3.10 `14 failed, 477 passed, 18 errors`（7.05s）；3.11/3.12 因 3.10 失败被 fail-fast 取消。根因**非后端配置**：① `data/test_ashare/close.pkl` 被 `.gitignore:62`（`data/`）忽略 → 10 failed + 18 errors；② `tests/test_distillation_isolation.py:255-327` 硬编码 `F:\Coding\...\gurus` → 4 failed；③ `numba` 不在 `pyproject.toml` → 1 failed。历史两次运行（`df652f9`、`116426e`）同样 `failure`（`gh run list`），即既有红基线，非本批 diff 引入 |
+| 远端 CI（已执行，2026-11-05） | E4 三版本 / U-001 远端判据 | ⚠️ run `41970636863` @ `06e9e11` = **failure**：3.10 `14 failed, 477 passed, 18 errors`（7.05s）；3.11/3.12 因 3.10 失败被 fail-fast 取消。根因**非后端配置**：① `data/test_ashare/close.pkl` 被 `.gitignore:62`（`data/`）忽略 → **9 failed + 18 errors**（27 项数据测试）；② `tests/test_distillation_isolation.py:255-327` 硬编码 `F:\Coding\...\gurus` → 4 failed；③ `numba` 不在 `pyproject.toml` → 1 failed。历史两次运行（`df652f9`、`116426e`）同样 `failure`（`gh run list`），即既有红基线，非本批 diff 引入 |
 
 ## 9. Step 8 一致性 Review
 

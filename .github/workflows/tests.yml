@@ -36,6 +36,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]"
 
+      - name: Prepare test fixture
+        run: python scripts/prepare_test_fixture.py
+
       - name: Run tests
         run: python -m pytest tests/ --tb=short -q
 

@@ -16,8 +16,12 @@ import time
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# numba 为可选依赖（RESEARCH P9/P10）；CI 未安装时整模块 skip（方案 C1，S1）
+pytest.importorskip("numba", reason="numba 为可选依赖，CI 未安装时跳过 JIT 性能测试")
 
 
 def build_large_test_data(n_dates=500, n_stocks=500):
