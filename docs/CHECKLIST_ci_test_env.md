@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_ci_test_env
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-05
-> **状态**: 已完成（Step 10 审计通过；39/39 验收项达成；待提交，提交后补绑 E3 hash 并观测远端 CI）
+> **状态**: 已完成（Step 10 审计通过；39/39 验收项达成；`33872c3` 已推送，远端 run `42030484187` 三版本全绿 `502 passed, 1 skipped`，U-007/U-001 已关闭）
 > **上游**: [DESIGN_ci_test_env.md](DESIGN_ci_test_env.md)（Step 4 通过，含 C-1/C-2 修正） · [IMPL_ci_test_env.md](IMPL_ci_test_env.md)（Step 6 通过）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律为 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在远端执行]` / `[未入仓-不可重放]` / `[未取证]`。
 
@@ -106,11 +106,11 @@
 | `pytest` 全量输出（E1） | B6、B8、C3、E3 | ✅ `509 passed, 82 warnings in 21.45s`（直接）/ `23.06s`（gate seq 7） |
 | `git diff` / `git status` / `git ls-files`（E1） | A10、B8、E1、E2、E5、F4 | ✅ numstat：tests.yml `3 0`、distillation `9 5`、numba `4 0`；保护路径 diff 空；`p009*` 残留 0 |
 | `Select-String` / `Grep` 机械检索（E1） | A7、A10、B2、D1、D3、D6、F1、F3 | ✅ 硬编码 5→0；`GURU_DIR` 6；F1 仅规则行；行尾空白 0 |
-| 静态读码（E3，须绑 commit hash） | A8 位置、F2、F6 | ⚠️ 工作树未提交（HEAD `17e6f26`）；A8 位置 / F2 black / F6 import 清单已读；**提交后补绑 hash** |
+| 静态读码（E3，须绑 commit hash） | A8 位置、F2、F6 | ✅ `33872c3`：importorskip L24（`sys.path.insert` L21 后）、black exit 0、import 仅 `argparse/sys/time/pathlib/numpy/pandas`（提交后补绑，RULE-6） |
 | 文件快照比对（E1） | A3（pkl `Length` + `LastWriteTime`） | ✅ `UNCHANGED=True`（7×42419 B / mtime 未变） |
 | 门禁 session + `replay`（E1） | §7 四行 | ✅ unit-tests **pass**（seq 7）/ black **fail**（seq 8、10）/ mypy **fail**（seq 9、11）/ probe **pass**；`replay: 11 rows OK` |
 | 盲区扫描（E4，范围：脚本全文 + 2 个测试文件 diff + `tests.yml` 全部键） | 无设计外改动 | ✅ 三文件 diff 全文 + 脚本全文读码（§11 Phase 2/3）：**0 项设计外改动**；保护路径 diff 空 |
-| 远端 CI（需 push） | U-007 / U-001 远端判据 | `[未在远端执行]` |
+| 远端 CI（已执行，复核 2026-11-08） | U-007 / U-001 远端判据 | ✅ run `42030484187` @ `33872c3` = **success**：三 job 全绿（3.10 1m21s / 3.11 1m15s / 3.12 1m20s）；每版 `Prepare test fixture` 成功（`fixture written … in 0.005s`）→ `collected 502 items / 1 skipped` → **`502 passed, 1 skipped`**（3.10 17.46s / 3.11 17.22s / 3.12 19.55s）——与 C-1 推演（477−6+27+4=502，模块级 skip 计 1）**逐字一致**；27 项数据测试计入 passed、无 skip；annotations 仅 Node.js 20 弃用与 ubuntu-latest 迁移预告（非失败）。夹具体积 3.10=296051 B、3.11/3.12=296436 B（矩阵 pandas/numpy 解析版本差异所致，job 内生成即读，S12 边界未被触碰） |
 
 ## 9. Step 8 一致性 Review
 
@@ -241,7 +241,7 @@
 - **P3 项**：累计 13 项（F-D1~F-D5、C-1/C-2、F-I1~F-I3、F-S1、F-9-1~F-9-4），全部已处理并留痕；其中 F-I1（P2 级路径错位）为最高级别发现，其余均 P3
 - **门禁链**：**7 pass**（step-research / step-review×2 / design-review / step-implement-review / step-consistency / unit-tests / probe）+ 2 expected-fail（black-check 基线 75、mypy-check 基线 168，复跑 seq 10/11 无漂移）；`replay: 11 rows OK`
 - **验收组**：A1-A10 / B1-B8 / C1-C4 / D1-D6 / E1-E5 / F1-F6 共 **39 项，39 项 ✅**（E3/D6/E4 等含 `[未在远端执行]` 限定的项均按限定口径达成）；静态读码 E3 绑 hash 待提交后补
-- **U-007（CI 三版本全绿）**：本地等价证据齐备（夹具生成 + 27 项 passed + 路径修复 + skip 语义）；**远端未达成**，待 push 后观测，预期每版 `502 passed, 1 skipped`（C-1 推演）
-- **U-008（numba CI 覆盖）**：维持「暂不新增 optional job」；CI 上 numba 降级路径不再被执行，已登记为该判据的一部分
-- **U-001（远端判据部分）**：本地 Agg `509 passed` 保持；远端全绿依赖本批
-- **状态**：实施完成，待提交；提交后需 ① 补绑 E3 hash ② push 触发远端 CI ③ 按 C-1 推演核对 `502 passed, 1 skipped` 后判定 U-007/U-001
+- **U-007（CI 三版本全绿）**：**已关闭**——run `42030484187` @ `33872c3` 三 job success，每版 `502 passed, 1 skipped`，与 C-1 推演逐字一致（复核 2026-11-08）
+- **U-008（numba CI 覆盖）**：维持 open 作哨兵——远端 `collected 502 items / 1 skipped` 证实 numba 模块整模块跳过、降级路径不再被 CI 执行；触发条件（出现 numba 相关回归无法拦截）未发生
+- **U-001（本地 + 远端判据）**：**已关闭**——本地 Agg `509 passed`（E1×3）+ 远端三版本全绿（run `42030484187`）
+- **状态**：已完成——`33872c3` 已推送，远端复核 2026-11-08 通过；U-007 / U-001 关闭，U-008 留作哨兵
