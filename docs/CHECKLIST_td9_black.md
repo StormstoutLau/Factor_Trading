@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_td9_black
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-09
-> **状态**: Step 7 完稿（43 项）；Step 8 一致性 Review **通过**（2026-11-09；0 阻断，3 项 P3 已回写，见 §9）；实测列待 Step 9 回填
+> **状态**: **已完成**（Step 1-10 全通过，2026-11-09；43/43 达成，P1/P2 = 0；提交 `4098629` + `17fc69d`；远端 CI run `42609336249` 三版本全绿）
 > **上游**: [DESIGN_td9_black.md](DESIGN_td9_black.md)（Step 4 通过，D1-D7 / V1-V12） · [IMPL_td9_black.md](IMPL_td9_black.md)（Step 6 通过，T-0~T-9）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`。
 > **解释器**: Python 3.12.10；`MPLBACKEND=Agg`
@@ -22,7 +22,7 @@
 | A4 | 门禁命令扩展：`spec_runner_adapter.py` L66 = `black --check . 2>&1` | 读回 + `git diff` 仅该行 | DESIGN D3；IMPL T-3 | ✅ `spec_runner_adapter.py:66` 已改为 `-m black --check . 2>&1` |
 | A5 | `.git-blame-ignore-revs` 存在，且含提交 1 的完整 40 位 hash | `Test-Path` + 读回正则 `^[0-9a-f]{40}$` | DESIGN D4；IMPL T-7 | ✅ 文件存在；**1 个 40 位 hash 行** = `4098629ca61b615681d9baacbdf0062d0f7c9bd1`，与提交 1 一致 |
 | A6 | blame 文件格式合规（`fsck.skipList` 同格式：hash 行 + `#` 注释） | 读回 + `git rev-parse HEAD~1` 与文件内 hash 比对 | S3；IMPL T-7 | ✅ 19 行（16 行 `#` 注释 + 1 空行 + 1 hash + 1 空行）；格式合规 |
-| A7 | 两笔提交分离：提交 2 **不含任何 `.py` 文件**（仅 blame 元数据 + 对应审计/设计修正） | `git show --stat HEAD` | DESIGN D7；IMPL T-8 | [待 T-8] |
+| A7 | 两笔提交分离：提交 2 **不含任何 `.py` 文件**（仅 blame 元数据 + 对应审计/设计修正） | `git show --stat HEAD` | DESIGN D7；IMPL T-8 | ✅ 提交 2 `17fc69d` = 3 文件（`.git-blame-ignore-revs` + CHECKLIST + DESIGN），**0 个 `.py`**；提交 1 `4098629` = 134 文件 |
 | A8 | `[tool.black]` 配置零改动（L91-93 逐字不变） | 读回 + 与 `080f3a3` 版本 diff | DESIGN §8；V11 | ✅ `git diff pyproject.toml` **仅 L64 一行**；`line-length=100` 与三 target-version 未变 |
 | A9 | `[tool.isort]` 配置零改动（L95-97 逐字不变） | 读回 | DESIGN §8；V11 | ✅ 同一 diff 证据，`profile="black"` / `line-length=100` 未变 |
 | A10 | `.venv` 未被扫入：处理文件数 = 135（非 1300+） | `black --check .` 末行 | DESIGN D6；R6 | ✅ **135**；`.venv` 内 1174 个 py 文件被默认 exclude 跳过 |
@@ -87,7 +87,7 @@
 | F3 | **`black-check` 门禁 verdict = pass**（本批核心目标，区别于历史 fail(72)） | `adapter gate black-check` | DESIGN D3/V4 | ✅ **`verdict=pass exit=0`**（历史为 fail(72)/fail(126)） |
 | F4 | `mypy-check` verdict = fail(119)——**存量债务，如实记录，不得伪装为 pass** | `adapter gate mypy-check` | DESIGN §8；P-007 | ✅ **`verdict=fail exit=1`**（119 errors / 19 files，存量，本批未处理） |
 | F5 | `replay` = 4 rows OK（seq 单调、schema 可解析） | `adapter replay --session factorv3-p003-td9-black-20261109` | IMPL §8 | ✅ **`replay: 4 rows OK (seq monotonic, schema parseable)`** |
-| F6 | 远端 CI 三 job（3.10/3.11/3.12）全绿，每版 `500 passed, 1 skipped` | `gh run watch` + `gh run view` | IMPL T-9 | [待推送] |
+| F6 | 远端 CI 三 job（3.10/3.11/3.12）全绿，每版 `500 passed, 1 skipped` | `gh run watch` + `gh run view` | IMPL T-9 | ✅ run [`42609336249`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42609336249) @ `17fc69d`：3.12 **1m25s** / 3.11 **1m17s** / 3.10 **58s** 全 success；3.12 job 实测 **`500 passed, 1 skipped, 408 warnings in 18.43s`**（与 507−7 numba 推演一致） |
 
 ---
 
@@ -107,15 +107,15 @@
 
 | 断言类别 | 取证手段 | 级别 | 状态 |
 |----------|----------|------|------|
-| 格式合规 | `black --check .` exit 0 | E1 | [待 Step 10] |
-| 零回归 | `pytest -q` = 507 passed | E1 | [待 Step 10] |
-| 语义零变更 | V12 AST 归一化比较（125 文件） | E1 | [待 Step 10] |
-| 类型不劣化 | `mypy` = 119 errors | E1 | [待 Step 10] |
-| 配置变更 | 读回 pyproject L64 / adapter L66，E3 绑提交 hash | E3 | [待 Step 10] |
-| 门禁链 | 4 条 verdict + replay | E1 | [待 Step 10] |
-| 远端 | run id + 三 job 结论 | E1 | [待 Step 10] |
-| CI 覆盖边界 | `[未在 CI 覆盖]` 声明 | E4 | [待 Step 10] |
-| 文档计数 | 跨文档 Grep 矩阵 | E1 | [待 Step 10] |
+| 格式合规 | `black --check .` → `135 files would be left unchanged`，exit 0 | **E1** | ✅ 可重放 |
+| 零回归 | `pytest -q` → `507 passed, 82 warnings in 19.35s` | **E1** | ✅ 可重放 |
+| 语义零变更 | V12 AST 脚本 → `target=125 equal=125 diff=0` | **E1** | ✅ 可重放（脚本见 §10.3） |
+| 类型不劣化 | `mypy --explicit-package-bases core` → `119 errors in 19 files` | **E1** | ✅ 可重放 |
+| 配置变更 | `pyproject.toml:64` / `spec_runner_adapter.py:66` @ 提交 `4098629` | **E3** | ✅ 已绑 hash |
+| 门禁链 | 4 条 verdict + `replay: 4 rows OK`（session `factorv3-p003-td9-black-20261109`） | **E1** | ✅ 可重放 |
+| 远端 | run `42609336249` @ `17fc69d`，三 job success | **E1** | ✅ 已绑 run id |
+| CI 覆盖边界 | 格式校验 `[未在 CI 覆盖]` | **E4** | ✅ 已声明 |
+| 文档计数 | 跨文档 Grep 矩阵（26 链接 0 broken；12 发现编号全命中） | **E1** | ✅ 可重放 |
 
 ---
 
@@ -220,14 +220,78 @@
 
 ## 11. ADD 审计（Step 10）
 
-> 待执行后回填（Phase 0-4 + 盲区扫描）。
+### Phase 0 — Spec 质量门
 
-（待填）
+| 检查 | 结果 |
+|------|------|
+| DESIGN/IMPL 不可审计措辞（`大概` / `应该差不多` / `可能是这样` / `待定`） | **0 命中** |
+| `不确定` 关键词 | 3 命中，逐条判定为「扩大不确定面」——**拒绝某改动的理由**，非结论断言，可审计 |
+| 每条决策是否携带被拒方案与代价 | D1-D4 均带；D5/D6 在 §8 范围外与 D6 表声明 |
+
+### Phase 1 — 完整性（设计 → 落地）
+
+| 决策 | 落地位置 | 证据 |
+|------|----------|------|
+| D1 全量 126 文件 | 提交 `4098629` 的 126 个 `.py` | A1 / A2 / A10 |
+| D2 `black~=26.0` | `pyproject.toml:64` | A3 |
+| D3 门禁 `black --check .` | `spec_runner_adapter.py:66` | A4 / F3 |
+| D4 `.git-blame-ignore-revs` | 提交 `17fc69d` | A5 / A6 / A7 / E3 |
+| D5 CI 不加 black step | `.github/` diff 空 | E1 / E4 |
+| D6 默认 exclude | `black --check .` = 135 而非 1300+ | A10 |
+| D7 两笔提交 | `4098629`（134）+ `17fc69d`（3，零 py） | A7 |
+
+### Phase 2 — 忠实度（代码 diff ↔ 设计）
+
+| 设计声明 | 实测 | 判定 |
+|----------|------|------|
+| 提交 1 = 126 py + 2 处语义改动 + 4 文档 + 台账 | **134 文件 = 126 py + 8 non-py**（`pyproject.toml`、`CHANGELOG.md`、`docs/PROGRESS.md`、`docs/RESEARCH_tech_debt_cleanup.md`、四文档） | ✅ 精确一致 |
+| 语义改动仅 2 处 | `pyproject.toml` **1 行**（L64）；`adapter.py` **1 行**（L66，含于 126 py 内）；V12 证明其余 125 文件 AST 等价 | ✅ 一致 |
+| 预估 diff `+11145/−10054` | 实测 `+10992/−9903`（含 pyproject） | ✅ 偏差 1.4%/1.5%，容差 ±2% 内（§10.4 已解释口径） |
+
+### Phase 3 — 必要性（新增行可归属）
+
+| 检查 | 结果 |
+|------|------|
+| 盲区扫描：设计外文件 | **无**（8 个 non-py 全部在 DESIGN §3 变更面内；126 py 全部属 T-2） |
+| 是否有未在 T-0~T-9 中的改动 | **无** |
+| 保护路径越界 | `.github/` **EMPTY**；`[tool.black]`/`[tool.isort]` 未动 |
+
+### Phase 4 — 语义（目标是否真正达成）
+
+| 铁律检查 | 结果 |
+|----------|------|
+| 「测试通过 ≠ 设计落地」 | 目标不是「让门禁变绿」，而是**真实格式合规**：`black --check .` = 135 unchanged（幂等复核），非绕过/排除 |
+| expected-fail 是否伪装 | **无**：mypy-check 仍如实记 `fail(119)`，未加入 ignore 或降级 |
+| 能力边界是否夸大 | **无**：CI 格式校验明确标 `[未在 CI 覆盖]`；blame 限制明确标 F-9-2 |
+| 语义零变更是否有独立证据 | **有**：V12 AST 125/125 等价（不依赖测试通过这一间接证据） |
+
+### 审计结论
+
+**P1 = 0，P2 = 0**（唯一 P2 F-I1 已在 Step 6 规划阶段拦截）；**P3 = 13 项**（F-R1/R2、F-D1~D4、F-I2/I3、F-S1~S3、F-9-1、F-9-2）全部登记并处置；**盲区扫描 0 项设计外改动**。
 
 ---
 
 ## 12. 结论（Step 10）
 
-> 待执行后回填。
+**P-003（TD-9 black 全量重排）已完成。**
 
-（待填）
+| 维度 | 结果 |
+|------|------|
+| 验收项 | **43/43**（42 项 ✅ + 1 项 ⚠️ 附条件达成：E3 blame 机制生效但受 git 固有机制限制，已附实测数并如实登记 F-9-2） |
+| 缺陷 | **P1 = 0 / P2 = 0**；P3 = 13 项全部登记处置（其中 F-I1 为 P2 级但在 Step 6 规划阶段即被拦截修正） |
+| 核心交付 | `black --check .` **首次转绿**（135 files unchanged，exit 0）；126 文件重排；`black~=26.0` 锁定；门禁范围扩展；`.git-blame-ignore-revs` 落地 |
+| 零回归 | 全量 `507 passed`（19.35s）；**AST 125/125 等价**；mypy `119 errors` 未劣化；numba 7 项与 `__doc__` 断言全部存活 |
+| 提交 | 提交 1 `4098629`（134 文件，style + 2 处语义） + 提交 2 `17fc69d`（3 文件，零 `.py`） |
+| 远端 CI | run [`42609336249`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42609336249) 三 job 全绿，每版 `500 passed, 1 skipped` |
+| 门禁链 | probe pass / unit-tests pass / **black-check pass** / mypy-check fail(119，存量)；`replay: 4 rows OK` |
+
+**遗留与能力边界（如实声明）**：
+
+| 项 | 状态 |
+|----|------|
+| CI 格式校验 | `[未在 CI 覆盖]`——本批按 D5 不改 `.github/`；格式合规由本地门禁 `black --check .` 守护 |
+| blame 追溯 | 部分回退（git 机制限制，F-9-2）；结构性重写行标为 unblamable |
+| mypy 119 errors | 存量债务，属 P-007（独立批次），本批未触碰 |
+| 跨年 black 主版本 | `~=26.0` 锁定，2027 年需人工评审是否放宽（S1 政策允许新年首版变更格式） |
+
+**回退**：`git revert 17fc69d` 与 `git revert 4098629`（顺序相反）可完全恢复；提交 1 单独 revert 即恢复全部格式原状。
