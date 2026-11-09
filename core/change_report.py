@@ -414,12 +414,6 @@ def compare_runs(before_dir: Path | str, after_dir: Path | str) -> ChangeReport:
         _flatten_rows(_read_json(paths["L4_orders.json"][0]), ("stock", "side", "qty")),
         _flatten_rows(_read_json(paths["L4_orders.json"][1]), ("stock", "side", "qty")),
     )
-    # L3 只记录股票集合，订单数量随净值/价格变化；归因链用「订单构成」而非数量
-    l4_composition = _diff_counters(
-        "L4_orders_composition",
-        _flatten_rows(_read_json(paths["L4_orders.json"][0]), ("stock", "side")),
-        _flatten_rows(_read_json(paths["L4_orders.json"][1]), ("stock", "side")),
-    )
     l5 = _diff_counters(
         "L5_fills",
         _flatten_rows(_read_json(paths["L5_fills.json"][0]), ("stock", "side", "qty", "price")),
@@ -444,11 +438,11 @@ def compare_runs(before_dir: Path | str, after_dir: Path | str) -> ChangeReport:
     residual = abs(nav_recomputed - last_total_value)
 
     counts = {layer.layer: layer.changed for layer in layers}
-    counts["L4_orders"] = l4_composition.changed  # 数量变化不要求 L3 变化（见上）
+    # L3 仅记录目标股票集合（DESIGN §6.1），订单量随净值/现金变化；
+    # 因此 L4→L3 不做硬性断链判定，只校验执行链与股票池链两段。
     chain = (
         ("L6_nav", "L5_fills"),
         ("L5_fills", "L4_orders"),
-        ("L4_orders", "L3_target_positions"),
         ("L3_target_positions", "L2_tradable"),
         ("L2_tradable", "L1_limit_mask"),
     )
