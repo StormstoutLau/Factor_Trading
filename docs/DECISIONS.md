@@ -1,6 +1,6 @@
 # 关键决策记录 (Architecture Decision Records)
 
-> 格式: ADR (Architecture Decision Record) | 最后更新: 2026-06-20
+> 格式: ADR (Architecture Decision Record) | 最后更新: 2026-11-10
 
 ---
 
@@ -158,6 +158,30 @@
 - **背景**: 根 `__init__.py` 与 `core/__init__.py` 此前隐式重导出核心模块，`import` 即触发 cvxpy/ta/tushare/akshare 等重依赖链；pyproject 亦未声明子包。
 - **决策**: ① 两个 `__init__.py` 改为轻量（仅注释与版本元数据），移除全部隐式重导出，改为用户显式导入（如 `from core.config import BacktestConfig`）；② pyproject 最小子包化——仅声明实际依赖的 `Factor_Trading_v3_0` 与 `Factor_Trading_v3_0.core`，其他子包按需追加。
 - **影响**: 全项目导入约定（显式导入）；实施提交 `2848331`（全量 503 passed，仓内无 `from core import ...` 隐式依赖）。编号沿用代码注释既有引用（`__init__.py:3`、`core/__init__.py:3`、`pyproject.toml:79`）；ADR-014/015 未使用（历史编号跳空），不存在对应决策。
+
+---
+
+## ADR-017: 复权口径校正与三口径分离
+
+- **日期**: 2026-11-10（登记；P-012 Step 9 已实施）
+- **状态**: ✅ 已实施
+- **背景**: `DataManager.get_adj_price` 的 `forward` 分支实现为 `price × adj_factor`、`backward` 分支实现为 `price × adj_factor / adj_factor.iloc[-1]`（`core/data.py:444-456` @`05af52f`）；按 Tushare 官方复权公式（文献 15）与 A7 定义，二者语义**恰好互换**——`forward` 实为后复权（hfq）、`backward` 实为前复权（qfq）。同时 `BacktestConfig.adjustment_type`（默认 `forward`）被引擎用于**全部成交与估值价格**（`core/engine_v2.py:346/391/438/440/529/608/669/757`）与**收益计算**（`core/data.py:403-407`），而该 `returns` 又被涨跌停掩码复用（`filter/universe_filter_clean.py:154-182`）。三个后果：①成交/费用/手数在复权价格体系下失真（P8）；②命名与语义相反，调用方无法凭名称判断（P7）；③一个开关同时改变成交、绩效与涨跌停三处语义（P21 口径耦合）。
+- **方案对比**:
+  - A 仅文档声明：零改动，但成交仍用复权价、命名仍误导 → 否决
+  - B 仅重命名：名称正确，但成交价与口径耦合未解 → 不完整
+  - C 命名校正 + 三口径分离 + 成交/估值用 raw + 兼容开关 → **采纳**
+- **决策**:
+  1. **命名校正**：`forward → hfq`（`price × adj`）、`backward → qfq`（`price × adj / adj[-1]`）、`none → raw`；旧名保留 **≥2 个 minor**，发 `DeprecationWarning`（弃用期口径对齐 PDEP-17）
+  2. **口径分离**：`trade_price_mode="raw"`（成交/估值/费用/手数）、`signal_price_mode="hfq"`（信号/因子）、`return_price_mode="hfq"`（绩效）、`limit_price_mode="hfq"`（涨跌停判定）
+  3. 涨跌停**价**用不复权价；涨跌停**判定**用复权收益（除权日已对齐除权参考价）
+     - **2026-11-10 设计补充（DESIGN_p012 D4）**：判定改为**价格法**——`limit_up_price = 除权参考价 × (1+ratio)`，与当日开盘价比较。此时「禁止 raw」只针对**不复权收益**，不针对 raw 价格本身；`adj_factor` 仅用于还原除权参考价。
+  4. `legacy_adjustment=False` 为默认新口径；`True` 恢复「复权价成交 + 旧收益口径」旧路径，且输出须与冻结基线 `rtol=0` 逐值相等
+  5. 每次行为变更单独批次 + `change_report.json` 六层归因，残差 < 1e-8
+- **明确不做**: 不将 `return_price_mode` / `limit_price_mode` 设为 `raw`——除权日会在 ST 5% 等窄阈值下产生假涨跌停（见 RESEARCH §11.3 反例测试⑤）
+- **影响**: `core/data.py`（`get_adj_price` / `_calculate_returns`）、`core/engine_v2.py`（成交与估值取价）、`core/config.py` / `core/config_v2.py`（口径字段）、`filter/universe_filter_clean.py`（涨跌停掩码口径）、回测报告字段（`adjustment_mode` / `legacy_adjustment`）、README / CODE_WIKI / CHANGELOG、基线刷新
+- **可逆性**: 高——旧名别名 + `legacy_adjustment` 开关，可整体回退
+- **实施**: P-012 Step 9（2026-11-10）——`a5ae5cc`(B1 观测网) → `4e2ab0b`(B2 规则表) → `ad40490`(B3a 命名) → `79c4dea`(B3b 口径分离) → `3717246`(B4 价格法) → `94018f2`(B5 退市) → `6e5eeba`(B6 接口治理)；全量 **550 passed**，四份行为 `change_report.json` 满足 `residual < 1e-8` 且 `attribution_complete=true`；`legacy_adjustment=True` 与改前基线 `rtol=0` 逐值相等
+- **关联**: `docs/RESEARCH_bias_interface.md` §11.3 / §12.2（P-012 U-3 / U-7）；ADR-005（T+1 执行策略，与本决策不冲突）
 
 ---
 

@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **P-012 偏差防护与接口锁定（观测网 / 规则表 / 动态池）**: 新增 `core/change_report.py`（六层归因 dump + 两次运行差分，`residual < 1e-8` 与 `attribution_complete` 双门）与 `scripts/change_report.py`；新增 `filter/limit_rules.py` A 股涨跌停规则表（`RULESET_VERSION="cn_a_2026_07"`，11 条规则，`(board,is_st,t)` 恰好 1 条 fail-fast，未知前缀一次性告警 + `unknown_board_codes`）；新增 `core/universe_data.py` 动态股票池（`list_date`/`delist`/`manifest`，缺失显式降级 `survivorship="uncorrected"`）；新增 `scripts/fetch_universe.py`（默认离线，`--refresh` 才联网）；新增 `core/data_provider.py` `DataProvider` 端口（零接线）；夹具支持 `--profile {baseline,biased}`（baseline 逐字节不变）；测试 **516 → 550 passed**、测试文件 51 → 60；`__api_version__="3.1.0"`
 - **Spec_Runner 接入**: 新增 `scripts/spec_runner_adapter.py`（官方模板 v1.0 + 本项目配置：`PREFIX=factorv3`，门禁 `probe / unit-tests / black-check / mypy-check`）与 `tests/test_spec_runner_adapter.py`（6 项）；门禁 verdict/exit/stdout_tail 以 append-only JSONL 落在 `F:\Spec_Runner\sessions\`，可用 `replay` 重放。全量测试 503 → 509 passed；`black-check`（75 files）与 `mypy-check`（168 errors）已登记为已知基线
 
 ### Fixed
+- **P-012 归因链与夹具修正（T-13 取证）**: L6 末行在末日强平后刷新为终值；L1 纳入 listing（上市状态）；删除 L4→L3 硬链（L3 仅记目标集合，订单量随净值变化）；`_cash_flow` 首日现金流去重；层 CSV 的股票代码按字符串读取（避免 `000001`→`1`）；biased 夹具除权日 OHLC 缩放到除权后尺度并新增真实涨停开盘样本（`2024-02-27:000001`）；manifest 补 `fetched_at`
 - **`IPositionTracker.get_snapshots` 契约失实（P-007 层 B）**: 协议声明 `list[dict]` 与 `PositionTracker` 实际返回 `list[PortfolioSnapshot]` 不符，改为真实类型（`TYPE_CHECKING` 导入，零运行时开销）
 - **`IExecutionSimulator` 缺失 `trade_log` 声明（P-007 层 B）**: 引擎在结果生成中访问 `executor.trade_log.get_trades_df()`，协议未声明该成员；新增 `ITradeLog` 最小协议（仅 `get_trades_df`）并以只读 `@property` 暴露（PEP 544 协议属性不变性要求）
 - **`DataManager` 辅助数据重复读盘 + 类型契约（P-010）**: `_load_auxiliary_data` 增加幂等 guard，可选文件缺失时不再每次属性访问都重读已存在文件（实测 `.industry` 3 次访问的读盘次数 **3 → 1**；100 次 `.st` 访问的读盘次数由 **206 次**降至首次加载后 0 次）；`suspend`/`st` 缺失时按配置约定 `0=正常` 提供全 0 默认帧（旧版被覆盖实现的 `True` 默认值与 `1=停牌` 语义相反，已弃用）；`industry` 注解修正为 `Optional[pd.DataFrame]`，缺失时由消费方跳过过滤/中性化；新增 4 项测试（510 → **514 passed**）
@@ -25,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo_data 复权文件缺失**: `examples/demo.py` 生成器改为输出 `stock_adj.pkl`（与配置默认一致），修复旧布局导入与硬编码路径；本地补齐 `demo_data/stock_adj.pkl`
 
 ### Changed
+- **P-012 四项行为变更（各自独立批次 + `change_report.json` 双门）**:
+  - **B3b 成交/估值切 raw（行为变更）**: 新口径 `PriceModeConfig(trade=raw, valuation=raw, signal=hfq, returns=hfq)`；`legacy_adjustment=True` 恢复旧路径并与改前基线 `rtol=0` 逐值相等；change_report `1,155,172.33 → 832,682.77`
+  - **B4 涨跌停价格法 + next-day 默认 ignored（行为变更）**: 判定改为「当日开盘价 vs 除权参考价 `×(1±ratio)`」（EPS=0.005），ST 用当日状态；旧 `check_next_day_tradable` True→`oracle` / False→`ignored` 并弃用；change_report `832,682.77 → 831,073.02`
+  - **B2 涨跌停规则表（行为变更）**: 主板 10%；主板 ST 5%（≤2026-07-05）→10%（≥2026-07-06）；创业板 10%→20%（2020-08-24）、ST 5%→20%；科创板 20%；北交所 30%；4 个旧阈值字段保留但 `DeprecationWarning`
+  - **B5 动态股票池与退市结算（行为变更）**: 上市前/退市后不可交易；退市结算 `last_close×(1+delist_return)` → `last_close` → 计入 `unclosed_positions`；报告 `survivorship`/`n_unknown_*`/`n_delisted_closed`；change_report `831,073.02 → 787,609.76`
+- **P-012 B3a 复权命名校正（零数值）**: `forward→hfq`、`backward→qfq`、`none→raw`，旧名保留并发 `DeprecationWarning`
 - **空 `factor_files` fail-fast（P-007 层 B，行为变更）**: `BacktestEngineV2.setup()` 在「未注入因子管道/合成器且 `factor_files` 为空」时抛 `ValueError`（此前静默空回测：逐日 `TypeError` 被 `except Exception` 吞掉，100 条 ERROR 后返回空结果）；注入 `factor_pipeline`/`factor_combiner` 的手工信号工作流不受影响；新增 2 项 smoke（**514 → 516 passed**）
 - **`_generate_results` 未 setup 守卫（P-007 层 B，行为变更）**: 未 `setup()` 直接调用 `_generate_results()` 由 `AttributeError` 改为 `RuntimeError("请先调用setup()方法")`，与 `run()` 守卫文案一致
 - **引擎 mypy 清零（P-007 层 B）**: `engine_v2` 54 / `engine_v3_vector` 26 / `factory` 13 共 **93 errors → 0**（局部别名窄化 + factory `cast` 白名单，无 `type: ignore`）；`mypy-check` 门禁自接入以来首次 verdict=pass；盲区口径（`--check-untyped-defs`）102 → 8（另批评估）
@@ -36,10 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **代码格式基线（TD-9 / P-003）**: `black` 全量重排 **126 个 Python 文件**（`core/`、`tests/`、`examples/`、`agents/`、`filter/`、`web/` 等 14 路径），纯格式变更——125 个文件经 AST 等价性机械验证（唯一差异为 docstring 行尾空白清理，`__doc__` 相关断言均为子串匹配不受影响），全量 `507 passed` 零回归；`black` 版本由 `>=23.0.0` 锁定为 `~=26.0`（black 官方同年度格式稳定性政策）；`black-check` 门禁命令由 `black --check core tests` 扩展为 `black --check .` 并**首次转绿**；新增 `.git-blame-ignore-revs` 保持历史 blame 可追溯（需本地 `git config blame.ignoreRevsFile .git-blame-ignore-revs` 启用）。**已知未覆盖**：CI 仍未加入格式校验步骤
 
 ### Removed
+- **P-012 协议收窄（零数值）**: 删除 `IFactorPipeline.process_single` / `IFactorCombiner.combine_single`（全仓 0 实现 0 调用）；`IExecutionSimulator.execute_order` 形参以实现为准（`open_price` + 可选 OHLC/volume），删除 `price`/`**kwargs`
 - **旧版过滤器**: 移除 `filter/universe.py`（生产零引用，`filter/__init__.py` 早已导出 clean 版）；2 个测试的导入迁移至 `filter.universe_filter_clean`
 - **TD-3 Stage 3 / P-001 — 移除 Engine V1**: 删除 `core/engine.py`（724 行，`BacktestEngine`），删除仅诊断 V1 且 0 收集的 `tests/test_visual_trace.py` 与 `tests/test_visual_trace_v2.py`，删除 `tests/test_rebalance_exits.py` 中 g2/g3 两个 V1 专用用例（等价性证据保留在本文 R-1 受控对比与 `docs/DIFF_REPORT_2026-10-23.md`）；6 个 `examples/` 脚本迁移至 `core.factory.create_default_engine()`（`full_backtest_2020_2026_simple.py` 改为手工装配 `BacktestEngineV2`，并顺带修复其 5 个不存在模块的导入）；本地测试 509 → 507 passed、测试文件 50 → 48。**行为说明**：`examples/demo.py` 改由 V2 执行 `FactorPipeline`，合成数据的数值输出随之变化（无 golden 断言，属预期）
 
 ### Docs
+- **P-012 文档与决策**: 新增 `docs/RESEARCH_bias_interface.md` / `DESIGN_p012_bias_interface.md` / `IMPL_p012_bias_interface.md` / `CHECKLIST_p012_bias_interface.md`（74 项验收 73/74，G7 待远端 CI）；ADR-017 状态 📋 → ✅ 已实施；`PROGRESS.md` §3.13 回填 Step 9 读数与 F-S9-1~F-S9-9
 - **台账校正**: `docs/PROGRESS.md` 快照刷新至 `df652f9`（Agg `509 passed`、black `75/5`、默认后端 Tk 失效读数）；关闭 U-004；`CHECKLIST_spec_runner_integration.md` §8 静态读码证据升级为 E3 @`df652f9`
 - **进度台账**: 新增 `docs/PROGRESS.md` 与 `docs/dev-log/DEV-LOG-001-progress-baseline-20261104.md`，按 `Spec_Workflow` v1.7.1 登记 T1/T3 档位、证据等级与未决项；`docs/SPEC_STANDARD.md` 标注外部权威源
 - **Spec 规则增补**: `docs/SPEC_STANDARD.md` v1.1.0 新增 §十一，规定设计/实施/验收/TDD 阶段的搜索工具调用与外部案例锚点（T1-T4 分级、降级链、反模式、环境态工具映射）

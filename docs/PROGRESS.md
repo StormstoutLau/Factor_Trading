@@ -60,6 +60,8 @@
 | P-008 | P0 环境规范化：U-001 + U-005 | 默认后端全量 `1 failed, 508 passed`，栈 `engine_v2 → analytics.generate_report → plt.figure → _backend_tk → tk.Tk`；默认 `python`=Anaconda 3.13.5 缺 `cvxpy`；CI 已存在 `.github/workflows/tests.yml`（未设 `MPLBACKEND`）；**T1**（Layer-1：`.github/workflows/` + README） | done（2026-11-05，Step 1-10 全通过；`06e9e11`；本地 U-001 达成、远端红为既有环境缺失见 P-009） | P1 |
 | P-009 | CI 测试环境依赖缺失（远端红基线根因） | run `41970636863` @ `06e9e11`：3.10 `14 failed, 477 passed, 18 errors`。① `data/test_ashare/close.pkl` 被 `.gitignore:62`（`data/`）忽略 → **9 failed + 18 errors**（27 项数据测试）；② `tests/test_distillation_isolation.py:255-327` 硬编码 `F:\Coding\Factor_Trading_v3.0\gurus`（E3 @`06e9e11`）→ 4 failed；③ `numba` 不在 `pyproject.toml`（E1 `Select-String` 0 命中）→ 1 failed。历史 `df652f9` / `116426e` 两次运行同样 failure；**T1**（Layer-1：`tests/`） | done（2026-11-08 远端复核通过：run `42030484187` @ `33872c3` 三版本 `502 passed, 1 skipped`，U-007/U-001 关闭；Step 1-10 全记录见 §3.6） | P1 |
 | P-010 | `DataManager` 辅助数据缺失时无安全默认值（行为缺口） | P-007 层 A D1 实证：`core/data.py` L184 死版本曾对停牌/行业/ST/市值数据提供安全默认值（全可交易 / 同行业 / 无 ST / 10 亿），唯一生效版本（原 L312）直接跳过加载，缺失文件时相应数据保持 `None`；**T1**（数据层行为变更，需构造缺失场景测试） | done（2026-11-09，T1 全流程：**幂等 guard**（`.industry` 3 次访问 3→1 次读盘）+ **停牌/ST 缺失按 `0=正常` 给默认值**（旧版 `True` 语义相反，已拒绝）+ 行业/市值保持 `None` 且 `industry` 注解改 `Optional`；新增 4 项测试 **510 → 514 passed**；mypy 93 / black 137 unchanged；**行为变更**：缺失停牌数据时 next-day 掩码末日为 False（已披露）；消费方零改动） | P2 |
+| P-011 | 回测准确性验证、学术规范与基准比较（调研批） | 用户四问：如何判断回测准确性 / 如何验证建模·求解·程序·数据正确且符合学术规范 / 是否具备断点排查与模型·程序·数据 bug 诊断 / 是否需要 Qlib·Backtrader·VectorBT 基准比较。本仓取证：51 测试文件 516 用例、101 处数值断言、**无 golden 回归**、**无固化跨引擎差分**（V3 当日 close 成交 vs V2 次日开盘）、**无 PIT/数据 checksum**、Sharpe 双口径、无多重检验；断点排查「事后可查、过程不可查」；**T1**（若实施将触及 `tests/`、`core/`、`scripts/`、可能 CI） | in-progress（2026-11-10，**Step 1 + Step 2 Review + §11 补充调研完稿**：[RESEARCH_backtest_validation.md](RESEARCH_backtest_validation.md)（A1-A30 共 30 外部锚点 + 18 本仓事实 + 四层判据 + 方案矩阵；**U-1~U-4 与合并判定已按 §11.8 裁决通过**）；**待 P-012 L2/L4 落地后启动 Step 3 DESIGN**） | P2 |
+| P-012 | 偏差防护与接口锁定（专项调研批） | 用户五问：幸存者偏差 / 前视偏差 / 复权 / ST·停牌 / 接口锁定。本仓取证：**无退市字段与动态股票池**（P1/P2）、**涨跌停掩码用当日收益却在次日开盘执行**（P5）、**`next_day_tradable` 用 `suspend.shift(-1)`**（P6）、**复权 forward/backward 疑似颠倒**（P7）、**成交价使用复权价**（P8）、**ST 阈值 4.8% 对 2026-07-06 主板 ST 10% 新规失效**（P11）、**14 Protocol + 7 ABC 双轨 + `UniverseConfig`/`UniverseFilterConfig` 双定义**（P14/P15）；**T1**（若实施触及 `core/data.py`、`filter/`、`core/interfaces.py`、`tests/`） | in-progress（2026-11-10，**Step 1 + §11 + §12 补充调研完稿**：[RESEARCH_bias_interface.md](RESEARCH_bias_interface.md)（A1-A41 共 41 外部锚点 + 20 本仓事实 + 五问诊断 + 方案矩阵 + **§11：U-1 默认有退市数据实现 / U-2 六层归因 / U-3 复权命名颠倒证实 / U-4 板块×ST×日期段规则表 / U-5 拆 5a 契约排查 + 5b `DataProvider`**；**§12：U-6→D-A 本地快照+manifest；U-7→C-A ≥2 minor 双轨；U-8→R-A 不可变规则表+fail-fast；U-9→B-A 端口+1 适配器，消费方迁移归 P-004**；P21-P25 补充发现）；**Step 2 Review 通过（2026-11-10，§10：P1=0；F-R1 P2 锚点 A17-A23 悬空已补 §11.0.1、F-R2/R3 P3 文献 14 补录与创业板日期段已修）**；**Step 3 DESIGN 完稿（D1-D11 / B1-B6，见 [DESIGN_p012_bias_interface.md](DESIGN_p012_bias_interface.md)）**；**Step 4 Review 通过（§9：P1×1 F-D1 补 D11 配置转换 + P2×2 + P3×4 全部回写）**；**Step 5 IMPL 完稿（T-0~T-13 / 34 新测试 / V1-V20）**；**Step 6 Review 通过（§8：P1×2 + P2×3 + P3×5 全部回写——`"none"` 口径保留、parquet→CSV、取价 8 次、CI 543、bool 转换、universe_dir 等）**；**Step 7 CHECKLIST 完稿（74 项 DoD 定义，实测列待 Step 9/10；起草期补记 F-S7-1/F-S7-2 已回写 IMPL）**；**Step 8 一致性 Review 通过（§8：P1/P2=0，P3×4 F-S8-1~F-S8-4 全部回写；11 链接 0 broken / 74 项 0 预填 / A1-A41 缺号 0）**；待 Step 9 实施 | P1 |
 
 > 状态说明：上表仅有决策态 `pending`（未开工）。开工后执行态由工作记录派生，不在本表手写。
 
@@ -299,6 +301,130 @@
 - **Step 10 ADD 审计（已完成 2026-11-10）**: 四阶段全过（Phase 0 可审计 / Phase 1 D1-D9 全实现带行号 / Phase 2 无静默偏离——2 项偏离均已登记回写 / Phase 3 盲区扫描 **47 hunk / 379 改动行 0 项设计外** / Phase 4 意图达成）；取证矩阵 10 行回填（CHECKLIST §9.2，E1-E4，无 E5）；门禁链统一 session `factorv3-p007-mypy-layerb-20261110`——probe / unit-tests / black-check / mypy-check **4 gate 全 pass**，`replay: 4 rows OK`；**2 项 P3**（F-A1 豁免路径残留盲区——注入 pipeline+combiner 后忘记注入信号仍静默空回测，与 U-3 并列下批次评估；F-A2 发现记录核查非跨批次模式，不新增 discoveries 条目）；CHECKLIST §10.1 统计与 §10.2/10.3 签字回填
 - **提交推送与远端复核（已完成 2026-11-10）**: 主提交 `05af52f`（11 files，`+2362/−130`）已推送 `762ff5f..05af52f`；run [`42666962752`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42666962752) **三 job success**，3.10/3.11/3.12 均 `509 passed, 1 skipped`；本地 516 − CI 510 = 6 项差与层 A/P-010 恒定差同构（numba 模块 `importorskip`），本批 2 项 smoke 在 CI 真实执行；docs 回填 `54/54 ✅`（CHECKLIST）+ hash/run 绑定
 - **本批收口**: P-007 层 A+B 全部完成（`core/` mypy **168 → 0**，全仓基线 119 → 93 → 0）；`mypy-check` 门禁 verdict=pass；**U-006 按 Q4=B 保持挂起**（含 U-3 盲区残差 8 与 F-A1 豁免路径盲区，下一批次一并重评）；远期候选 P-004 / P-005 待用户指令
+
+### 3.12 P-011（回测准确性验证、学术规范与基准比较）执行序与进度（2026-11-10）
+
+判定为 **T1 完整管线**（调研批；若实施将触及 `tests/`、`core/`、`scripts/`，可能含 CI）：
+
+- **立项（2026-11-10）**: 用户四问——①如何判断回测准确性；②如何验证建模/求解/程序/数据正确且符合学术规范；③是否具备断点排查与模型·程序·数据 bug 诊断；④是否需要 Qlib / Backtrader / VectorBT 作为基准比较、如何处理
+- **Step 1 调研（已完成 2026-11-10）**: [RESEARCH_backtest_validation.md](RESEARCH_backtest_validation.md)；**16 条外部锚点**（A1-A16：Qlib PIT/复权/CI、Backtrader Testing Guide、VectorBT Contributing、LEAN Regression Testing、NautilusTrader parity、Arnott-Harvey-Markowitz 22 问、PBO/CSCV、DSR、Harvey-Liu-Zhu t>3.0、Open Source Asset Pricing、蜕变测试 review、pandera、可复现三条件、确定性 replay）+ **18 条本仓事实**（P1-P18，E1/E3/E4 逐条绑定 `@05af52f`）
+- **关键发现**: ①准确性四层判据中 **L1/L2（组件级、内部对账）强、L3（跨实现差分）弱、L4（统计级）半缺**；②`test_08_no_future_info_leakage` 名不副实（只查 NaN 形状，不查时间方向）；③`test_v3_engine_integration.py` 声称「V3 与 V1/V2 可比」但 0 个跨引擎数值对比；④V2 次日开盘成交 vs V3 当日 close 成交，**两引擎默认不可比**，任何外部框架对拍必须先做口径映射；⑤断点排查「事后可查（176 处日志 + EventLog + 4 诊断出口）、过程不可查（无逐日 trace / 无 debug 开关 / 数据无 schema）」；⑥Sharpe 双口径（rf=3% vs rf=0）、无多重检验、`benchmark` 仅暂留接口
+- **产出**: 四层判据表 + 逐问诊断 + 四组方案 7 维矩阵（Q1 准确性 / Q2 学术规范 / Q3 断点排查 / Q4 基准比较）+ L0-L3 建议路线 + **U-1~U-4 四元块**（待裁决）
+- **Step 2 Review（已完成 2026-11-10，独立 pass）**: E1（`05af52f..2c34283` core/filter/tests 零 diff；`Glob tests/test_*.py`=51；`breakpoint/pdb`=0）+ E3 抽检 5 处全命中（Sharpe rf=3% `analytics.py:88-92` / V3 rf=0 `engine_v3_vector.py:170-174` / `benchmark` 暂留 `config.py:371` / `test_08` 无时间方向 / V3 当日 close 成交）+ 计数矩阵（A=16 / P=18 / 文献 14 连续）；**F-R4（P3）§5.2 幸存者偏差行补 P-012 U-1 裁决联动注**；F-R5（初判 A16 等级不一致）读回核实为**误报核销**。**P1=0，通过**
+- **Step 2 补充调研（已完成 2026-11-10，§11）**: P0 决策门剩余项外部检索——**A17-A30 共 14 新锚点 / 文献 15-28**（SciPy2020 差分 property、Barr oracle 综述、metamorphic ML、golden master、OSTI 科学软件测试、**美联储 SR 11-7 + SR 26-02（2026 取代）**、Baker 2016 Nature 复现调查、**NautilusTrader DST 确定性契约**、MLflow manifest 三件套、backtrader/vectorbt 实测对拍（默认参数差 5.5%、「一致是 manufactured」）、成交模型不一致根因、量子模拟器交叉验证、**变更分解受控实验 arXiv 1805.10978**）
+  - **U-1 → V-A**：L1/L2 先行（参考实现差分 + metamorphic 属性）；golden 直接锁现状会焊死 P-012 已证实缺陷（A20）
+  - **U-2 → S-A + S-C 首批**（SR 26-02 使独立验证+回测对照成合规基线）；S-B 挂起至对外发布需求（无 trials log 则 DSR/PBO 无数据可算）
+  - **U-3 → D-A 逐日 trace + D-B run manifest**（A25 DST 契约 / A26 MLflow 三件套）；D-C 交互式不采纳；trace 与六层归因共用 dump
+  - **U-4 → X-A 口径映射 + 内核差分**（A27/A28：默认参数对拍必败；A30① 基础任务交叉验证形态）；X-B 仅被明确要求时重审
+  - **合并判定 → 独立两个 DESIGN、P-012 先行**（A30② 受控实验支持按概念拆分；合并使六层归因与 Step 8 计数矩阵跨基线失效）
+  - **U-6~U-9**：交叉引用 P-012 §12（证据已足，不重复）；D-B manifest 与 U-6 manifest 字段兼容已确认
+- **待办（P0 决策门剩余）**: U-1~U-4 与合并判定**确认**（推荐已给出，见 §11）；确认后 P-012 先进 Step 3 DESIGN，P-011 DESIGN 待 P-012 L2/L4 落地后启动
+
+### 3.13 P-012（偏差防护与接口锁定）执行序与进度（2026-11-10）
+
+判定为 **T1 完整管线**（专项调研批；若实施将触及 `core/data.py`、`filter/`、`core/interfaces.py`、`tests/`）：
+
+- **立项（2026-11-10）**: 用户五问——①幸存者偏差；②前视偏差；③复权；④ST / 停牌；⑤接口锁定。**口径声明**：接口锁定按「契约是否唯一真源 / 实现是否可替换 / 版本兼容是否可验证」取证；若指数据供应商锁定见 P16-P18，留 U-5 裁决
+- **Step 1 调研（已完成 2026-11-10）**: [RESEARCH_bias_interface.md](RESEARCH_bias_interface.md)；**16 条外部锚点**（Qlib PIT、Shumway 退市偏差、CRSP 退市收益、PIT 成分、训练期统计量、前/后复权定义、成交价用不复权价、Qlib 首日归一、上交所 2026 交易规则、证监会 ST 5% 规则、新华网 2026-07-06 ST 10% 新规、PEP 544、ABC vs Protocol、Pact 契约测试、N/N-1 兼容）+ **20 条本仓事实**（P1-P20，E1/E3/E4 绑 `@05af52f`）
+- **关键发现**: ①**幸存者偏差不具备**——无退市/上市日期字段，股票池为 `close.pkl` 静态列集合；②**前视两处疑似**——涨跌停掩码用执行日收盘收益、`next_day_tradable` 用 `suspend.shift(-1)` 并入 `buyable`；③**复权疑似颠倒**——`forward = price*adj_factor`（按定义是后复权）、`backward = price*adj/adj[-1]`（按定义是前复权），且**成交价用复权价**；④**ST 阈值 4.8% 已过时**——沪深主板 ST 自 2026-07-06 起为 10%，且 ST 状态阈值用 `shift(1)` 与当日掩码不一致；⑤**接口未锁定**——14 Protocol + 7 ABC 双轨、`UniverseConfig`/`UniverseFilterConfig` 双定义（P-007 层 B 盲区残差来源之一）、DataManager/DataLoaderV3 双实现、config/config_v2 双版本、无契约测试
+- **产出**: 五问逐项诊断（能力/证据/缺口/风险等级）+ 5 组方案 7 维矩阵（S/L/A/U/I）+ L0-L4 路线（**先 E2 证实、再改代码**）+ **U-1~U-5 四元块**
+- **Step 1 补充调研（已完成 2026-11-10，§11）**: 用户裁决 U-1~U-5 后逐项落地
+  - **U-1 口径纠正（用户指出）**: 初稿把「无数据声明 + 预留字段」当默认路径，**错误**；已改为 **S-A 退市数据契约 + 动态池为默认实现**（`list_date.pkl` / `delist.pkl`；`stock_codes(t) = {s | list_date <= t < delist_date}`），**S-C 降级仅在数据缺失时触发**（显式 warning + `survivorship:"uncorrected"` + 敏感性分析 + 禁止静默）
+  - **U-2**: 六层归因链 L1 掩码 → L2 可交易集合 → L3 目标持仓 → L4 订单 → L5 成交 → L6 净值；产出 `change_report.json`，残差 < 1e-8
+  - **U-3**: Tushare 官方公式证实本仓 **`forward = price*adj` 实为后复权、`backward = price*adj/latest` 实为前复权（命名颠倒）**；新增 **P21：`returns` 用复权价计算却被用于涨跌停判定**（价格口径错配）；方案 A-A′ = 重命名 / 成交用 raw / 三口径分离 / `legacy_adjustment` 兼容开关
+  - **U-4**: 规则矩阵——主板 10%；主板 ST 5%（≤2026-07-05）→ 10%（≥2026-07-06）；创业板/科创板 20%（含 ST）；北交所 30%；IPO 前 5 日无限制；退市整理期首日无限制、此后 10%；板块前缀推断（300/301、688/689、8xx/4xx）
+  - **U-5a 契约稳定性 E2 排查**: DataManager 8/8 ✅、UniverseFilter 5/5 ✅、PositionTracker 8/8 ✅；**不通过 3 项**——FactorPipeline 缺 `process_single`、FactorCombiner 缺 `combine_single`、ExecutionSimulator 签名不兼容（V10）；配置双定义 21 字段全同名、**2 处默认值漂移**（`exclude_na_factors`、`exclude_stock_prefixes`）
+  - **U-5b 供应商锁定**: `DataProvider` Protocol（`load_price`/`load_aux`/`load_universe`）+ `PklDataProvider` + manifest/schema_version
+  - **补充发现 P21-P25**: P21 returns 口径错配；P22 夹具零覆盖（`adj≡1`/`suspend≡0`/`industry≡1`/全 `000`）；P23 无板块字段；P24 ST 无日期段；P25 无退市整理期
+  - **新增未决项 U-6~U-9**: 退市数据落地形式 / 复权切换兼容期 / ST 规则表维护方式 / `DataProvider` 与 P-004 边界
+  - **修订路线 L0-L5**: L0 证实（真实分红样本 + 扰动探针）→ L1 测试网（夹具扩展 + 恒等式 + 规则表 + 契约测试）→ L2 复权与掩码 → L3 ST 规则表 → L4 退市能力（默认路径）→ L5 接口治理
+- **Step 1 补充调研（U-6~U-9，已完成 2026-11-10，§12）**: 外部锚点扩至 **A24-A41**（Tushare/AKShare 退市接口、Qlib 股票池日期区间、Zipline `auto_close_date`、DVC 数据版本、pickle 安全警告、PEP 387/NEP 23/PDEP-17/SemVer、OMG DMN 1.5、SCD Type 2、Cockburn 六边形、LEAN Time Frontier）
+  - **U-6 → D-A 本地快照 + 生成脚本 + `manifest.json`（sha256/schema_version）**：Tushare 官方明确「建议保存到本地存储后使用」；运行时拉取回测不可复现，已排除
+  - **U-7 → C-A 双轨 ≥2 个 minor + 冻结基线逐值对拍**：PEP 387 / NEP 23 / PDEP-17 三份官方政策的弃用期下限一致；「保留 3 个月」类无事件锚定表述不可验证
+  - **U-8 → R-A 内置不可变规则表 + `(board, is_st, t)` 唯一命中 fail-fast**：禁止回落 10% 默认值（即 P11/P23 失效模式）；DMN 对当前 <10 条规则属过度设计
+  - **U-9 → B-A 只做 `DataProvider` 端口 + `PklDataProvider` + 契约测试**：消费方迁移与旧实现删除归 P-004；边界表已固化，避免与六层归因冲突
+  - **实施顺序**: U-8 → U-9 → U-7 → U-6（U-8/U-9 无前置依赖）
+- **ADR 登记（2026-11-10）**: [DECISIONS.md](DECISIONS.md) 新增 **ADR-017 复权口径校正与三口径分离**（状态 📋 已规划）——命名校正（`forward→hfq` / `backward→qfq`，旧名 ≥2 minor 弃用期）+ 口径分离（trade/valuation=`raw`、signal/return/limit=`hfq`）+ `legacy_adjustment` 兼容开关 + 六层归因；**明确不做**：收益/涨跌停口径改为 `raw`（除权日会产生假涨跌停）。同步修正 RESEARCH P21 的口径描述（原「复权收益漏判涨跌停」方向有误，实为**口径耦合**：复权收益判涨跌停本身正确）
+- **Step 2 Review（已完成 2026-11-10，独立 pass）**: E1（HEAD `2c34283`，`05af52f..2c34283` core/filter/tests 零 diff）+ E2 三探针重放全命中（A 复权夹具 / B 配置双定义 / C 协议符合性）+ E3 抽检 7 处 + 计数矩阵（A=41 / P=25 / 文献 41 连续）；**3 项发现全部回写**——F-R1（P2）锚点 A17-A23 悬空 → 补 §11.0.1；F-R2（P3）文献缺 14 号 + 创业板 2020-08-24 无出处 → 补录；F-R3（P3）§11.4 创业板行缺日期段 → 补 10%/5% → 20%（2020-08-24）。**P1=0，通过**
+- **P0 决策门（已完成 2026-11-10）**: 5/5 闭合——P-012 Step 2 Review 通过（§10）；P-011 Step 2 Review 通过（P-011 §10）；P-012 U-6~U-9 按 §12.5 推荐确认（D-A/C-A/R-A/B-A）；P-011 U-1~U-4 按 §11 推荐确认（V-A / S-A+S-C / D-A+D-B / X-A）；合并判定=**独立双 DESIGN、P-012 先行**
+- **Step 3 设计（已完成 2026-11-10）**: [DESIGN_p012_bias_interface.md](DESIGN_p012_bias_interface.md) 完稿——**D1-D11**（D11 为 Step 4 补录）：D1 拆 **B1-B6 六组、7 个提交**（B1 观测网 / B2 ST 规则表 / B3a 复权命名零数值 / B3b 口径分离 / B4 掩码时点 / B5 退市 / B6 接口治理含 D11）；D2 `get_adj_price` 三口径 + `PriceModeConfig` + `legacy_adjustment`；D3 `filter/limit_rules.py` 不可变规则表 + `(board,is_st,t)` 恰好 1 条 fail-fast + 板块前缀推断；D4 涨跌停改**价格法**（开盘价 vs 除权参考价×限幅）+ `next_day_tradable` 默认 `ignored`（不采纳 shift(1)，理由见 D4）；D5 `UniverseSnapshot` + 上市/退市掩码 + 显式降级；D6 六层 layer dump + `scripts/change_report.py`（残差 <1e-8 + `attribution_complete` 门）；D7 协议**收窄** + `execute_order` 以实现为准修订协议 + 契约符合性测试 + `__api_version__` + `DataProvider` 端口（不接线）；D8 夹具 `--profile {baseline,biased}`；D9 范围边界（不做 P-011 golden/统计/对拍、不做 P-004 迁移、不改 V3）；D10 配置/报告字段兼容；D11 `UniverseFilterConfig.from_universe_config()` 转换 + 21 字段级单测
+  - **不变式 9 条**（§8）：成交估值不含 adj；掩码 t 行仅用 ≤t 开盘信息；规则表唯一命中；缺失不静默；`legacy_adjustment` rtol=0 复现；行为变更单批归因；协议唯一；dump 默认关且零差异；`DataProvider` 零接线
+  - **未决项 U-D1~U-D4**（退市结算价格优先级 / 整理期首日数据表达 / 北交所 ST 标识 / 规则表维护方式）；**决策矩阵不启用**（全部 Type-2 可逆）
+  - **ADR-017 补记**：D4 改为价格法后，「禁止 raw」仅针对不复权**收益**，不针对 raw 价格本身
+- **Step 4 设计 Review（已完成 2026-11-10，独立 pass）**: E1/E3 重验 6 项全命中（`process_single/combine_single` 零消费方 / 协议 vs 实现签名 / `engine_v2.py:195` 错配 / 夹具脚本存在 / 证据 commit 零 diff / `fetch_universe` 缺失证实）+ D1-D11 可追溯性 11/11 + 不变式自洽检查；**7 项发现全部回写**——**F-D1（P1）RESEARCH §11.5 P0 配置双定义未纳入设计 → 补 D11 `from_universe_config()` 转换 + 字段级单测**；F-D2（P2）不变式 9 与行为批次矛盾 → 改「零 import data_provider」口径；F-D3（P2）模块表缺 `scripts/fetch_universe.py` + `data/` gitignore 事实 → 补 B5 交付物与约束 8；F-D4~F-D7（P3）不变式 2 的 adj(t) 论证 / D4 不采纳 shift(1) 理由 / P15 行号 191→195 / execute_order 对齐方向。**通过，可进 Step 5**
+- **Step 5 实施规划（已完成 2026-11-10）**: [IMPL_p012_bias_interface.md](IMPL_p012_bias_interface.md) 完稿——**T-0~T-13** 任务分解 + 批次映射（B1=T-0/1/2 零行为 / B2=T-3/4 行为 / B3a=T-5 零数值 / B3b=T-6 行为 / B4=T-7 行为 / B5=T-8/9/10 行为 / B6=T-11/12 零数值 / docs=T-13）；**10 项 RED 基线读数**（R1-R10，含 baseline 夹具 sha256）；**逐批 RED 测试 10 项**（先失败后实现）；**新增测试 34 项**（2+3+7+4+2+3+6+4+3），预测全量 **550 passed**、CI **543 passed, 1 skipped**（Step 6 由 544 修正：CI = 本地 − 7 numba；声明为预测，Step 9 实测回填）；**V1-V20 验证清单** + **低效/危险操作排除 8 条** + **逐批回退点** + 门禁 session `factorv3-p012-bias-20261110`
+- **Step 6 实施 Review（已完成 2026-11-10，独立 pass）**: E1 重跑 10 项读数（516 passed / black 138 / mypy 0 / 盲区 8 errors 2 files / 7 pkl / 仅 docs 变更）+ E3 读码 + D1-D11↔T 双向覆盖（11/11，无孤儿任务）+ 算术复核；**10 项发现全部回写**——**F-I1（P1）T-5 丢失 `"none"` 口径**（基线 9 处用法，已补 `none→raw`）；**F-I3（P1）parquet 引入未声明依赖 pyarrow**（CI 不保证安装，已改 CSV+JSON 并同步 DESIGN）；F-I2（P2）取价点实为 8 次（440 漏计）；F-I5（P2）D11 的 `exclude_stock_prefixes` list→bool 错配；F-I10（P2）`universe_dir` 未定义（默认改 `cfg.data_dir/"universe"`）；F-I4/F-I6/F-I7/F-I8/F-I9（P3）27 项拆分、CI 544→543、文件数口径、早退门/北交所 ST 闭合行/L4 reason、退市结算价公式与重复盯市。**通过，可进 Step 7**
+- **Step 7 验收清单（已完成 2026-11-10）**: [CHECKLIST_p012_bias_interface.md](CHECKLIST_p012_bias_interface.md) 完稿——**74 项 DoD**（A 观测网与夹具 7 / B 规则表与 ST 7 / C 复权三口径 8 / D 涨跌停与掩码 5 / E 退市与动态池 6 / F 接口治理 6 / G 测试与验证 8 / INV 不变式 9 / RL 排除红线 12 / DOC 台账 6）+ 错误处理映射 9 场景（不重复计数）；实测列一律 `[待 Step 9/8/10]`，禁预填（RULE-1）；§8 预登记 5 项 Step 8 核对；**起草期发现 2 项并回写 IMPL**——**F-S7-1（P2）**：T-6 默认 `returns=hfq` 会使 `test_adjustment.py` 3 项旧耦合断言失败（E3 证实 mock 夹具 adj 在第 4 个交易日（0-based index=3）由 1→0.5）→ 构造补 `legacy_adjustment=True` 保留旧语义覆盖；**F-S7-2（P3）**：DESIGN §4.2 `special_no_limit_mask`（IPO 前 5 日）未落入任何 T 任务 → 补 T-3 要点 6 + T-7 掩码叠加（断言并入既有测试，34 项计数不变）
+- **Step 8 一致性 Review（已完成 2026-11-10，独立 pass）**: 机械校验（`%TEMP%\p012_step8_check*.py`，`[未入仓-不可重放]`）——四文档链接 **11 条 0 broken**、CHECKLIST **74 项**（A7/B7/C8/D5/E6/F6/G8/INV9/RL12/DOC6）且 **0 预填**、RESEARCH **A1-A41 缺号 0**（16 标题 + 25 表格行）、DESIGN D1-D11=11 / I1-I9=9、IMPL T14/V20/R10 / F-I1~F-I10=10；5 项预登记核对点全通过（B7 归属 / F-S7-1 三项与 34 计数 / 三旧名 / 550-543 唯一 / ADR 映射）；断言延续链 10 条贯通、术语 7 组一致；**4 项 P3 全部回写**——**F-S8-1** DESIGN §2.1「引擎 7 处取价」→「8 次（7 位置）」；**F-S8-2** RESEARCH §12.1.4 补 CSV+JSON 落盘注记（parquet 为早期表述）；**F-S8-3** RESEARCH §11.3 补 `none→raw` 回写注记；**F-S8-4** 「t=4」改「第 4 个交易日（0-based index=3）」。**P1/P2=0，通过，可进 Step 9**
+- **Step 9 实施（已完成 2026-11-10）**: 七批次提交 `a5ae5cc`(B1) → `4e2ab0b`(B2) → `ad40490`(B3a) → `79c4dea`(B3b) → `3717246`(B4) → `94018f2`(B5) → `6e5eeba`(B6)，T-13 取证修正 `5f95b48` / `0ccc7f6` / `9be78e9` / `766c007` / `9d16a2a` / `86f7650`
+  - **GREEN 读数**: `550 passed`（516 + 34）/ `black 153 unchanged` / `mypy 0（32 files）` / 盲区 `4 errors in 2 files` / 测试文件 **60** / 门禁 4/4 pass + `replay 12 rows OK`（session `factorv3-p012-bias-20261110`）
+  - **逐批行为归因**（均 `residual < 1e-8`、`attribution_complete=true`）: B2 `1,155,172.33→1,155,172.33`（全零，夹具无阈值事件）/ B3b `→832,682.77`（L4=175/L5=217/L6=59）/ B4 `→831,073.02`（L1=1 @`2024-02-27:000001` 涨停开盘）/ B5 `→787,609.76`（L1=25/L2=25 退市与动态池）；JSON 见 `docs/dev-log/p012/`
+  - **T-13 机械验证**: V1-V20 全部执行——V6 恒等式 / V7 legacy `rtol=0`（NAV 1,155,172.3318119394，136 笔 trades 全等）/ V8 28 边界日唯一命中 / V9 无前视 / V10 退市掩码 / V11 降级字段 / V13 dump 零影响 / V14 契约 4/4 / V15 零接线 / V16 baseline sha256 全同 / V18 报告四字段（+`unknown_board_codes`）/ V19 取价仅 `_exec_price` / V20 逆序回退 9/9；V17 待 Step 10 推送
+  - **实施发现 F-S9-1~F-S9-9**（CHECKLIST §10.0-4 / IMPL §9）: 归因链修正 4 项（L6 终值刷新 / L1 含 listing / 删除 L4→L3 硬链 / 首日现金流重复）/ 夹具修正 2 项（除权日伪跳空 + 层 CSV 代码读串；manifest 补 `fetched_at`）/ DESIGN §7 未知前缀告警与报告字段补齐 / 盲区标注
+  - **验收**: CHECKLIST **73/74 通过**，唯一待办 G7（V17 远端 CI，Step 10 计划项）；条件通过
+- **待办**: Step 10 ADD 审计 + 推送 + 远端 CI（V17 回填 G7）
+
+### 3.14 未闭环事项依赖链与优先级（2026-11-10，分析落档）
+
+> 本节为跨批次规划视图，只登记依赖关系与优先级判定，不重复 §1.4 / §2 / §3.1-§3.13 的逐项细节。
+
+**① 未闭环事项归组（15 项，映射既有编号）**
+
+| 组 | 事项 | 阻塞性 |
+|----|------|--------|
+| 决策门 ×5 | P-011 Step 2 Review；P-011 U-1~U-4 裁决；P-012 Step 2 Review；P-012 U-6~U-9 确认（§12.5 已给推荐）；P-011/P-012 是否合并 DESIGN | 全部实施项的前置 |
+| 技术债挂起 ×4 | U-006（mypy 盲区残差 8，按 Q4=B 挂起）；F-A1（注入式工作流未注入信号 → 静默空回测，CHECKLIST §11 P3）；P-004；P-005 | 独立，可插空 |
+| P-012 实施包 ×6 | L0 证实 → L1 测试网 → L3 ST 规则表 → L2 复权与掩码 → L4 退市能力 → L5 接口治理 | 待决策门 |
+| P-011 实施包 ×3 | L1 golden/内部差分 → L2 统计规范 → L3 断点 trace + run manifest | 待决策门 |
+
+**② 依赖链**
+
+```text
+[决策门]
+P-011 Review → P-011 U 裁决 → P-011 DESIGN ─┐
+P-012 Review → P-012 U 确认 → P-012 DESIGN ─┴→ 合并判定 → 实施
+
+[能力层（不改生产行为）]
+L0 证实 ──→ L1 测试网 ──┬─→ L3 ST 规则表
+P-011 trace/manifest ───┘
+                        ├─→ L2 复权（ADR-017，两子批次：命名 → 口径分离）
+                        ├─→ L2 掩码时点（独立批次）
+                        └─→ L4 退市 ──→ L5 接口治理 ──→ P-004 迁移
+                                                └─→ U-006 重评
+
+[收尾]
+L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
+```
+
+**③ 五条硬约束**（违反即返工）
+
+1. 先改口径、后固 golden——L2/L4 改变回测结果，全局基线必须排其后；
+2. 每次行为变更单独批次 + `change_report.json` 六层归因（复权命名、口径分离、掩码为三个独立批次）；
+3. Protocol 先定型（P-012 L5）、P-004 后启动——否则出现第二套 Provider 定义；
+4. U-006 在 L5 之后重评——接口改造会移动 `engine_v2`/`data_v3` 的 mypy 残差；
+5. P-011 外部框架对拍（U-4）在复权与接口治理之后——当前 V2 次日开盘 vs V3 当日 close 不可比。
+
+**④ 优先级与执行顺序**
+
+| 优先级 | 事项 | 理由 |
+|--------|------|------|
+| **P0** | 决策门 ×5 | 不决策则实施项全部无法启动 |
+| **P1** | L0 探针 + L1 夹具扩展 + P-011 trace/manifest | 观测与回归能力；`data/test_ashare` 无 `st.pkl`/退市文件，ST 与退市路径当前无法写出有效测试，夹具扩展是硬前置 |
+| **P1** | L3 ST 规则表 | 独立正确性缺陷（P11/P23），无前置依赖、不新增数据需求 |
+| **P2** | L2 复权（ADR-017）+ L2 掩码 | 影响面最大（股数/现金/成本/涨跌停同时失真），必须等测试网；各为独立批次 |
+| **P2** | L4 退市 | 依赖 U-6 数据脚本；否则只能走降级 |
+| **P3** | L5 接口治理 | 纯增量，但会移动 U-006 残差 |
+| **P3** | P-011 golden + 统计规范 | 必须在口径稳定后，否则基线/统计结论作废 |
+| **P4** | F-A1、P-005 | 独立小项，可插空 |
+| **P4** | P-004 | 必须等 L5 端口定型 |
+
+执行顺序：**P0 决策 → P1 观测（L0/L1/trace）→ P2 ST（L3）→ P3 复权命名（零数值变化）→ P4 复权口径分离（破坏性）→ P5 掩码 → P6 退市（L4）→ P7 接口（L5）→ P8 基线与清尾（golden / 统计 / U-006 / P-004 / F-A1 / P-005）**。
+
+**⑤ 待用户决策 ×3**（**2026-11-10 已全部裁决**：① 合并判定=独立双 DESIGN、P-012 先行；② P-012 U-6~U-9 按 §12.5；③ P1 观测阶段随 P-012 B1 启动）。
+
+> 关联：复权实施决策已登记 **ADR-017**（✅ 已实施，见 [DECISIONS.md](DECISIONS.md)）。
+>
+> **状态更新（2026-11-10）**: P0 决策门 **5/5 已闭合**；P-012 **Step 3 / 4 / 5 / 6 / 7 / 8 / 9 均已完成**（DESIGN D1-D11、Step 4 Review 7 项发现全回写、IMPL T-0~T-13、Step 6 Review 10 项发现全回写、CHECKLIST 74 项 DoD、Step 8 一致性 Review 4 项 P3 全回写、Step 9 七批次实施 + T-13 验证 73/74）；下一步为 P-012 **Step 10 ADD 审计 + 推送 + 远端 CI（V17 回填 G7）**。
 
 ---
 
