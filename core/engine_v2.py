@@ -52,7 +52,7 @@ from core.portfolio import build_optimizer
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
 from core.tracker import PositionTracker
-from filter.limit_rules import RULESET_VERSION
+from filter.limit_rules import RULESET_VERSION, unknown_board_count
 from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
 
 logger = logging.getLogger(__name__)
@@ -1038,6 +1038,7 @@ class BacktestEngineV2:
                 },
                 "next_day_tradable_mode": getattr(self.universe, "next_day_tradable_mode", None),
                 "ruleset_version": RULESET_VERSION,
+                "unknown_board_codes": unknown_board_count(),
             },
             "data_info": self.dm.get_data_info() if self.dm else {},
             "universe": self._universe_report(),

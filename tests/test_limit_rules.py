@@ -56,6 +56,7 @@ def test_infer_board_prefixes():
         "430001": "bse",
         "000001": "main",
         "600001": "main",
+        "700001": "main",  # 无法识别前缀归 main（DESIGN §7）
     }
     for code, board in cases.items():
         assert infer_board(code) == board

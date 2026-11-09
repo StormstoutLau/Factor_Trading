@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
@@ -16,6 +17,11 @@ import numpy as np
 import pandas as pd
 
 RULESET_VERSION = "cn_a_2026_07"
+
+# 可识别的主板前缀；其余无法识别的代码归 main 并计数（DESIGN §7）
+_MAIN_PREFIXES = ("000", "001", "002", "003", "600", "601", "603", "605")
+_unknown_prefixes: set[str] = set()
+_unknown_warned = False
 
 
 class LimitRuleError(ValueError):
@@ -70,7 +76,8 @@ for _rule in RULES:
 
 
 def infer_board(code: str) -> str:
-    """按代码前缀推断板块。"""
+    """按代码前缀推断板块；无法识别的前缀归 ``main`` 并计数（DESIGN §7）。"""
+    global _unknown_warned
     prefix = str(code).split(".")[0]
     if prefix.startswith(("300", "301")):
         return "gem"
@@ -78,7 +85,19 @@ def infer_board(code: str) -> str:
         return "star"
     if prefix.startswith(("8", "4")):
         return "bse"
+    if prefix.startswith(_MAIN_PREFIXES):
+        return "main"
+    if prefix not in _unknown_prefixes:
+        _unknown_prefixes.add(prefix)
+        if not _unknown_warned:
+            warnings.warn(f"无法识别的代码前缀，归入 main: {prefix}", UserWarning, stacklevel=2)
+            _unknown_warned = True
     return "main"
+
+
+def unknown_board_count() -> int:
+    """无法识别前缀的代码数量（报告字段 ``unknown_board_codes``）。"""
+    return len(_unknown_prefixes)
 
 
 def resolve_limit(
