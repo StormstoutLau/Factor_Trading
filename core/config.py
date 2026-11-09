@@ -328,6 +328,7 @@ class BacktestConfig:
     # 数据路径配置
     data_dir: Path = field(default_factory=lambda: Path("./data"))
     output_dir: Path = field(default_factory=lambda: Path("./output"))
+    dump_layers_dir: Path | None = None  # 六层归因 dump 目录；None=关闭（零 I/O）
 
     # 数据文件配置（pkl格式）
     close_file: str = "close.pkl"

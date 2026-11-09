@@ -116,6 +116,12 @@ class IUniverseFilter(Protocol):
         """获取掩码统计信息"""
         ...
 
+    def get_layer_masks(
+        self, date: pd.Timestamp
+    ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+        """返回当日 L1（停牌+涨跌停）与 L2（最终可交易）四个掩码"""
+        ...
+
 
 # =============================================================================
 # 因子层接口

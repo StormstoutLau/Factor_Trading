@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from core.analytics import generate_report
+from core.change_report import LayerDumper
 from core.config import BacktestConfig
 from core.data import DataManager
 from core.execution import ExecutionSimulator
@@ -159,6 +160,9 @@ class BacktestEngineV2:
         self._composite_signal: Optional[pd.DataFrame] = None
         self._returns_matrix: Optional[np.ndarray] = None
 
+        # 六层归因 dump（默认关闭；setup 时按 cfg.dump_layers_dir 重建）
+        self._layer_dumper = LayerDumper(None)
+
         logger.info("回测引擎V2初始化完成")
 
     def setup(self):
@@ -253,6 +257,10 @@ class BacktestEngineV2:
         # 10. 预计算收益率矩阵
         self._returns_matrix = self.dm.returns.values
 
+        # 11. 六层归因 dump（默认关闭，零 I/O）
+        self._layer_dumper = LayerDumper(self.cfg.dump_layers_dir)
+        self._layer_dumper.setup()
+
         elapsed = time.perf_counter() - t0
         logger.info(f"回测引擎V2设置完成，耗时: {elapsed:.2f}秒")
 
@@ -307,6 +315,13 @@ class BacktestEngineV2:
         if self.pending_queue:
             self.pending_queue.mark_expired(self.dm.trade_dates[-1])
 
+        # 六层归因落盘（关闭时零 I/O）
+        if self._layer_dumper.enabled:
+            trades_df = (
+                self.executor.trade_log.get_trades_df() if self.executor is not None else None
+            )
+            self._layer_dumper.finalize(trades_df)
+
         elapsed = time.perf_counter() - t0
         logger.info(f"回测完成，总耗时: {elapsed:.2f}秒")
 
@@ -354,6 +369,46 @@ class BacktestEngineV2:
                 logger.warning(f"风险动作: {action.action.name} - {action.asset} - {action.reason}")
                 # 注意: 风险动作的自动执行在后续版本中实现
                 # 当前仅记录日志
+
+        # 六层归因 dump（默认关闭 → 直接返回）
+        self._dump_layers(date)
+
+    def _dump_layers(self, date: pd.Timestamp) -> None:
+        """记录当日 L1/L2/L4/L6 快照（默认关闭 → 零 I/O）。"""
+        dumper = self._layer_dumper
+        if not dumper.enabled:
+            return
+
+        universe = self.universe
+        tracker = self.tracker
+        if universe is not None:
+            limit_buy, limit_sell, buyable, sellable = universe.get_layer_masks(date)
+        else:
+            limit_buy = limit_sell = buyable = sellable = None
+
+        if tracker is not None:
+            cash = float(tracker.get_cash())
+            total = float(tracker.get_total_value())
+            nav = {"cash": cash, "market_value": total - cash, "total_value": total}
+        else:
+            nav = {"cash": 0.0, "market_value": 0.0, "total_value": 0.0}
+
+        dumper.dump_day(date, limit_buy, limit_sell, buyable, sellable, nav)
+
+        orders = []
+        if self.pending_queue is not None:
+            orders = [
+                order
+                for order in self.pending_queue.get_pending_orders()
+                if order.create_date == date
+            ]
+        else:
+            orders = [
+                item["order"]
+                for item in getattr(self, "_next_day_orders", [])
+                if item.get("create_date") == date
+            ]
+        dumper.record_orders(date, orders)
 
     def _snapshot_unclosed_positions(self) -> None:
         """记录强平前仍持有、但已不在目标组合中的标的（正常应为空）
@@ -633,6 +688,8 @@ class BacktestEngineV2:
         self._last_target_stocks = {
             stock for stock, target in targets.items() if target.target_quantity > 0
         }
+        if self._layer_dumper.enabled:
+            self._layer_dumper.record_targets(date, self._last_target_stocks)
 
         # 生成交易订单
         if self._execution_policy is not None:
