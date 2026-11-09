@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import pickle
+import warnings
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
@@ -412,16 +413,18 @@ class DataManager:
         logger.debug(f"收益率计算完成 (复权类型: {adj_type})")
 
     def get_adj_price(
-        self, price_type: str = "close", adjustment_type: str = "forward"
+        self, price_type: str = "close", adjustment_type: str = "hfq"
     ) -> pd.DataFrame:
-        """获取复权价格数据
+        """获取指定口径的价格。
 
-        Args:
-            price_type: 价格类型 ('close', 'open', 'high', 'low')
-            adjustment_type: 复权类型 ('forward'=前复权, 'backward'=后复权, 'none'=不复权)
+        mode:
+          - "raw" : 原始价（成交/估值/限价）
+          - "hfq" : 后复权 = price * adj_factor
+          - "qfq" : 前复权 = price * adj_factor / adj_factor.iloc[-1]
+          - "forward"/"backward"/"none"（deprecated）: 分别映射 hfq/qfq/raw
 
-        Returns:
-            复权价格数据
+        Raises:
+            ValueError: mode 不在允许集合
         """
         cache_key = f"adj_{price_type}_{adjustment_type}"
 
@@ -431,29 +434,32 @@ class DataManager:
         # 加载原始价格
         price_data = self._load_price_data(price_type)
 
-        # 不复权：直接返回原始价格
-        if adjustment_type == "none":
-            if self._cache_enabled:
-                self._cache[cache_key] = price_data
-            return price_data
+        mode = adjustment_type
+        if mode in ("forward", "backward", "none"):
+            warnings.warn(
+                f"{mode} 已弃用：forward→hfq、backward→qfq、none→raw；将于下个 major 移除",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            mode = {"forward": "hfq", "backward": "qfq", "none": "raw"}[mode]
 
-        # 加载复权因子
-        adj_factor = self.adj_factor
-
-        # 计算复权价格
-        if adjustment_type == "backward":
-            # 后复权：以最新日期为基准归一化
-            # 获取每个股票最新的复权因子
-            latest_factors = adj_factor.iloc[-1]
+        if mode == "raw":
+            adj_price = price_data
+        elif mode == "hfq":
+            adj_price = price_data * self.adj_factor
+        elif mode == "qfq":
+            # 前复权：以最新日期为基准归一化
+            latest_factors = self.adj_factor.iloc[-1]
             # 安全处理：避免除零
             safe_factors = latest_factors.replace(0, np.nan)
-            # 后复权价格 = 原始价格 * 复权因子 / 最新复权因子
-            adj_price = price_data.mul(adj_factor).div(safe_factors, axis=1)
+            adj_price = price_data.mul(self.adj_factor).div(safe_factors, axis=1)
             # 除零时用原始价格填充
             adj_price = adj_price.fillna(price_data)
         else:
-            # 前复权（默认）：价格 * 复权因子
-            adj_price = price_data * adj_factor
+            raise ValueError(
+                f"未知复权口径: {adjustment_type}；允许 raw/hfq/qfq"
+                "（forward/backward/none 已弃用）"
+            )
 
         # 缓存结果
         if self._cache_enabled:

@@ -106,7 +106,7 @@ class DataLoaderV3:
 
         # 加载价格数据
         for price_type in ["close", "open", "high", "low"]:
-            df = dm.get_adj_price(price_type, "forward")
+            df = dm.get_adj_price(price_type, "hfq")
             self.price_data[price_type] = df.values
             logger.debug(f"加载 {price_type} 数据: {self.price_data[price_type].shape}")
 
