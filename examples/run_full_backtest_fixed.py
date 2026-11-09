@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path.cwd()))
 
 from core.config import BacktestConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig, FactorConfig
 from core.data import DataManager
-from core.engine import BacktestEngine
+from core.factory import create_default_engine
 
 print("="*70)
 print("全时段回测 (2020-2026) - 修复版")
@@ -51,7 +51,7 @@ def run_strategy(name, select_top, target_count):
     config.output_dir = Path(f'E:/Ashare_data/output/full_backtest_2026_{name.replace(" ", "_")}')
     
     try:
-        engine = BacktestEngine(config)
+        engine = create_default_engine(config)
         engine.setup()
         
         print(f"交易日数: {len(engine.dm.trade_dates)}")

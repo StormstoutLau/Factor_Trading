@@ -20,7 +20,7 @@
 9. [待执行订单管理 (pending.py)](#9-待执行订单管理-pendingpy)
 10. [持仓跟踪模块 (tracker.py)](#10-持仓跟踪模块-trackerpy)
 11. [再平衡触发模块 (rebalance.py)](#11-再平衡触发模块-rebalancepy)
-12. [回测引擎 (engine.py)](#12-回测引擎-enginepy)
+12. [回测引擎 (engine_v2.py)](#12-回测引擎-enginev2py)
 13. [性能分析模块 (analytics.py)](#13-性能分析模块-analyticspy)
 14. [项目运行方式](#14-项目运行方式)
 15. [依赖关系汇总](#15-依赖关系汇总)
@@ -35,7 +35,7 @@
 Factor_Trading_v3.0/
 |
 |-- 核心引擎层
-|   ├── engine.py          # 回测引擎核心 (BacktestEngine)
+|   ├── engine_v2.py       # 回测引擎核心 (BacktestEngineV2)
 |   ├── config.py          # 全局配置管理 (BacktestConfig)
 |   └── data.py            # 数据管理器 (DataManager)
 |
@@ -94,10 +94,10 @@ Factor_Trading_v3.0/
        │              │               │
        └──────────────┼───────────────┘
                       ▼
-            ┌─────────────────┐
-            │  BacktestEngine │  ← 核心回测循环
-            │   (engine.py)   │
-            └────────┬────────┘
+            ┌──────────────────┐
+            │ BacktestEngineV2 │  ← 核心回测循环
+            │  (engine_v2.py)  │
+            └────────┬─────────┘
                      │
        ┌─────────────┼─────────────┐
        ▼             ▼             ▼
@@ -124,7 +124,7 @@ Factor_Trading_v3.0/
 | `pending.py` | 待执行订单队列、失败重试、备选替补 | `PendingOrderQueue`, `PendingOrder`, `OrderStatus`, `OrderSide` | ~13KB |
 | `tracker.py` | 持仓跟踪、市值更新、收益计算、快照记录 | `PositionTracker`, `Position`, `PortfolioSnapshot` | ~14KB |
 | `rebalance.py` | 再平衡触发：固定间隔、条件触发、混合模式 | `BaseTrigger`, `FixedIntervalTrigger`, `ConditionalTrigger`, `HybridTrigger`, `RebalanceCalendar` | ~14KB |
-| `engine.py` | 回测主循环，集成所有模块 | `BacktestEngine` | ~20KB |
+| `engine_v2.py` | 回测主循环（依赖注入 + factory 装配） | `BacktestEngineV2` | ~31KB |
 | `analytics.py` | 性能指标计算、可视化图表、报告生成 | `PerformanceAnalyzer`, `generate_report` | ~18KB |
 | `filter/universe_filter_clean.py` | 股票池过滤掩码构建 | `UniverseFilter`, `UniverseFilterConfig` | ~22KB |
 
@@ -147,10 +147,10 @@ Factor_Trading_v3.0/
          └───────────────────┼───────────────────┘
                              │
                              ▼
-                    ┌─────────────────┐
-                    │ BacktestEngine  │
-                    │  (engine.py)    │
-                    └────────┬────────┘
+                    ┌──────────────────┐
+                    │ BacktestEngineV2 │
+                    │  (engine_v2.py)  │
+                    └────────┬─────────┘
                              │
          ┌───────────────────┼───────────────────┐
          │                   │                   │
@@ -170,7 +170,7 @@ Factor_Trading_v3.0/
 | `universe_filter_clean.py` | data.py, config.py | engine, portfolio | 中 |
 | `factor.py` | data.py, config.py | engine | 中 |
 | `portfolio.py` | data.py, config.py, universe_filter | engine, rebalance | 中 |
-| `engine.py` | data, config, universe_filter, factor, portfolio, execution, rebalance, analytics | - | **高** (核心) |
+| `engine_v2.py` | data, config, universe_filter, factor, portfolio, execution, rebalance, analytics | - | **高** (核心，注入装配) |
 | `execution.py` | config | engine | 低 |
 | `rebalance.py` | config, portfolio | engine | 中 |
 | `analytics.py` | data, config | engine | 低 |
@@ -702,87 +702,21 @@ class RebalanceCalendar:
 
 ---
 
-## 12. 回测引擎 (engine.py)
+## 12. 回测引擎 (engine_v2.py)
 
-### 12.1 核心类: `BacktestEngine`
+> **V1 已移除**：`core/engine.py` 已于 P-001（TD-3 Stage 3）删除；等价性证据见 `CHANGELOG.md` 的 R-1 受控对比（关闭因子处理后最大差异 0.000000）与 `docs/DIFF_REPORT_2026-10-23.md`。
 
-单策略回测引擎，集成所有模块，支持完整的待执行订单管理。
+### 12.1 核心类: `BacktestEngineV2`
 
-#### 引擎组件
+依赖注入 + 插拔式架构：`setup()` 优先使用注入组件，缺省时按配置构建 `dm / universe / pipeline / combiner / optimizer / trigger / executor / tracker / pending_queue`。
 
-```python
-class BacktestEngine:
-    self.dm: DataManager                    # 数据管理器
-    self.universe: UniverseFilter           # 股票池过滤器
-    self.pipeline: FactorPipeline           # 因子处理管道
-    self.combiner: FactorCombiner           # 因子合成器
-    self.optimizer: BaseOptimizer           # 组合优化器
-    self.trigger: BaseTrigger               # 再平衡触发器
-    self.executor: ExecutionSimulator       # 交易执行模拟器
-    self.tracker: PositionTracker           # 持仓跟踪器
-    self.pending_queue: PendingOrderQueue   # 待执行订单队列
-```
+### 12.2 装配入口与结果
 
-#### 回测主循环
-
-```python
-def run(self) -> dict[str, Any]:
-    for i, date in enumerate(self.dm.trade_dates):
-        self._process_trading_day(date, i)
-    return self._generate_results()
-
-def _process_trading_day(self, date, date_index):
-    # 1. 执行前一交易日生成的次日订单（开盘价）
-    self._execute_next_day_orders(date, date_index)
-    
-    # 2. 处理待执行订单（pending_queue）
-    self._process_pending_orders(date, date_index)
-    
-    # 3. 检查是否需要再平衡
-    if self.trigger.should_trigger(date, ...):
-        self._execute_rebalance(date, date_index)
-    
-    # 4. 更新持仓市值（收盘价）
-    self.tracker.update_market_values(date, close_prices)
-```
-
-#### 再平衡执行流程
-
-```
-触发再平衡
-    │
-    ├──→ 1. 取消过期待执行订单
-    │
-    ├──→ 2. 获取当日因子信号
-    │
-    ├──→ 3. 过滤可交易股票 (tradable_mask)
-    │
-    ├──→ 4. 组合优化 (optimizer.optimize)
-    │       ├── 获取收益率数据（用于风险模型）
-    │       └── 执行优化得到目标权重
-    │
-    ├──→ 5. 计算目标持仓（考虑整手数）
-    │       target_quantity = int(target_value / close_price / 100) * 100
-    │
-    └──→ 6. 生成交易订单，加入待执行队列
-            ├── 买入订单 → pending_queue
-            └── 卖出订单 → pending_queue
-```
-
-#### 次日开盘执行机制 (方案B)
-
-```python
-def _execute_order_next_open(self, order, date, date_index):
-    # 将订单存储到 _next_day_orders，在下一个交易日开盘时执行
-    self._next_day_orders.append({'order': order, 'create_date': date, ...})
-
-def _execute_next_day_orders(self, date, date_index):
-    # 使用当日开盘价执行前一交易日生成的订单
-    for order_info in self._next_day_orders:
-        success, trade = self.executor.execute_order(..., open_price)
-        if success:
-            self.tracker.execute_trade(trade)
-```
+| 入口 | 说明 |
+|------|------|
+| `create_default_engine(config)` | `core/factory.py`：`ComponentFactory` 装配后构造 V2（CLI 与 5 个 examples） |
+| `BacktestEngineV2(config, **injections)` | 手动装配（`examples/full_backtest_2020_2026_simple.py`） |
+| `run()` | 返回 `portfolio_value` / `performance_metrics` / `charts` / `reports` / `additional_info` / `unclosed_positions` |
 
 ---
 
@@ -922,36 +856,38 @@ config.py
     ├──→ data.py (BacktestConfig)
     │       │
     │       ├──→ filter/universe_filter_clean.py (DataManager)
-    │       │       └──→ engine.py (UniverseFilter)
+    │       │       └──→ engine_v2.py (UniverseFilter)
     │       │
     │       ├──→ factor.py (DataManager)
-    │       │       └──→ engine.py (FactorPipeline, FactorCombiner)
+    │       │       └──→ engine_v2.py (FactorPipeline, FactorCombiner)
     │       │
     │       └──→ portfolio.py (DataManager - 间接)
-    │               └──→ engine.py (BaseOptimizer)
+    │               └──→ engine_v2.py (BaseOptimizer)
     │
     ├──→ execution.py (CostConfig)
-    │       └──→ engine.py (ExecutionSimulator)
+    │       └──→ engine_v2.py (ExecutionSimulator)
     │
     ├──→ pending.py (BacktestConfig)
-    │       └──→ engine.py (PendingOrderQueue)
+    │       └──→ engine_v2.py (PendingOrderQueue)
     │
     ├──→ rebalance.py (RebalanceConfig)
-    │       └──→ engine.py (BaseTrigger)
+    │       └──→ engine_v2.py (BaseTrigger)
     │
     ├──→ tracker.py (无直接依赖)
-    │       └──→ engine.py (PositionTracker)
+    │       └──→ engine_v2.py (PositionTracker)
     │
     └──→ analytics.py (无直接依赖)
-            └──→ engine.py (generate_report)
+            └──→ engine_v2.py (generate_report)
 ```
+
+> 注：原 V1 `engine.py` 已于 P-001（TD-3 Stage 3）移除，上图为 V2 装配关系。
 
 ### 15.2 运行时序
 
 ```
-1. BacktestEngine.__init__(config)
+1. BacktestEngineV2.__init__(config)
    │
-2. BacktestEngine.setup()
+2. BacktestEngineV2.setup()
    ├──→ DataManager 初始化
    ├──→ UniverseFilter 构建掩码
    ├──→ FactorPipeline 预计算因子
@@ -961,7 +897,7 @@ config.py
    ├──→ PositionTracker 初始化
    └──→ PendingOrderQueue 初始化
    │
-3. BacktestEngine.run()
+3. BacktestEngineV2.run()
    └──→ 遍历每个交易日
         ├──→ 执行次日开盘订单
         ├──→ 处理待执行订单
@@ -969,7 +905,7 @@ config.py
         ├──→ 执行再平衡（如触发）
         └──→ 更新持仓市值
    │
-4. BacktestEngine._generate_results()
+4. BacktestEngineV2._generate_results()
    ├──→ 获取快照和交易记录
    ├──→ 生成性能分析报告
    ├──→ 保存交易记录 CSV

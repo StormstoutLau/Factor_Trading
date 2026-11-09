@@ -11,7 +11,7 @@ Engine 即插即用扩展模块
     from core.engine_plugins import EventLogPlugin, GuardPlugin, PluginIntegration
     
     # 方式1: 手动集成
-    engine = BacktestEngine(config)
+    engine = BacktestEngineV2(config)
     engine.setup()
     
     event_plugin = EventLogPlugin(engine)
@@ -380,7 +380,7 @@ class PluginIntegration:
     一键集成所有插件
 
     使用方式:
-        engine = BacktestEngine(config)
+        engine = BacktestEngineV2(config)
         engine.setup()
         
         integration = PluginIntegration(engine)

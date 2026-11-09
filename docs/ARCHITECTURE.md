@@ -78,7 +78,6 @@ Factor Trading v3.0 是专业的 A 股量化回测框架，从 Backtest_Opus_2.0
 
 | 模块 | 文件 | 行数(约) | 职责 | 状态 |
 |------|------|---------|------|------|
-| **Engine V1** | `engine.py` | 800+ | 经典回测引擎，config-driven setup/run cycle | ⚠️ 已弃用 |
 | **Engine V2** | `engine_v2.py` | 900+ | 主引擎，依赖注入 + 插拔式架构 | ✅ 活跃 |
 | **Engine V3** | `engine_v3_vector.py` | 700+ | 向量化快速因子预筛选，@njit 加速 | ✅ 活跃 |
 | **Config V1** | `config.py` | 400+ | Dataclass 配置系统 | ⚠️ 遗留 |
@@ -195,7 +194,7 @@ Blogger 文本 / 新闻 / 研报
 
 ## 五、引擎对比
 
-| 特性 | Engine V1 | Engine V2 (主引擎) | Engine V3 (预筛选) |
+| 特性 | Engine V1（已移除） | Engine V2 (主引擎) | Engine V3 (预筛选) |
 |------|-----------|-------------------|-------------------|
 | 架构 | 单体 | 依赖注入 + 插拔 | 纯向量化 NumPy |
 | 执行模型 | 逐日循环 | 逐日循环 + 事件队列 | 全矩阵一次性 |
@@ -206,7 +205,7 @@ Blogger 文本 / 新闻 / 研报
 | 多资产 | ❌ | ✅ | ❌ |
 | 性能 (500股×500天) | ~180s | ~120s | ~0.006s |
 | 适用场景 | 遗留兼容 | 精确策略回测 | 因子方向快速验证 |
-| 状态 | ⚠️ 已弃用 | ✅ 活跃 | ✅ 活跃 |
+| 状态 | ❌ 已移除（P-001） | ✅ 活跃 | ✅ 活跃 |
 
 ---
 
@@ -301,7 +300,6 @@ optimizer = PluginFactory.create("optimizer", "my_optimizer", config)
 |------|------|
 | `core/data.py` 与 `core/data_v3.py` 并存 | 两套数据加载器，应统一到 V3 |
 | `core/config.py` 与 `core/config_v2.py` 并存 | 两套配置系统，Engine V2 使用 V1 |
-| `core/engine.py` (V1) 未删除 | 标记已弃用但未移除，历史测试依赖 |
 
 ---
 

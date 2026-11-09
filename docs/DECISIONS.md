@@ -27,7 +27,7 @@
   - 单一引擎: 维护简单但无法同时满足两个不同场景
   - 双引擎 (V2 + V3): 各司其职，V2 精确模拟，V3 向量化快速验证
 - **决策**: V1 弃用，V2 作为主引擎，V3 作为预筛选工具
-- **影响**: `core/engine_v2.py` (活跃), `core/engine_v3_vector.py` (活跃), `core/engine.py` (弃用)
+- **影响**: `core/engine_v2.py` (活跃), `core/engine_v3_vector.py` (活跃), `core/engine.py` (已于 P-001 移除)
 
 ---
 

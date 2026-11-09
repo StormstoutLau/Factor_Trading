@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - **旧版过滤器**: 移除 `filter/universe.py`（生产零引用，`filter/__init__.py` 早已导出 clean 版）；2 个测试的导入迁移至 `filter.universe_filter_clean`
+- **TD-3 Stage 3 / P-001 — 移除 Engine V1**: 删除 `core/engine.py`（724 行，`BacktestEngine`），删除仅诊断 V1 且 0 收集的 `tests/test_visual_trace.py` 与 `tests/test_visual_trace_v2.py`，删除 `tests/test_rebalance_exits.py` 中 g2/g3 两个 V1 专用用例（等价性证据保留在本文 R-1 受控对比与 `docs/DIFF_REPORT_2026-10-23.md`）；6 个 `examples/` 脚本迁移至 `core.factory.create_default_engine()`（`full_backtest_2020_2026_simple.py` 改为手工装配 `BacktestEngineV2`，并顺带修复其 5 个不存在模块的导入）；本地测试 509 → 507 passed、测试文件 50 → 48。**行为说明**：`examples/demo.py` 改由 V2 执行 `FactorPipeline`，合成数据的数值输出随之变化（无 golden 断言，属预期）
 
 ### Docs
 - **台账校正**: `docs/PROGRESS.md` 快照刷新至 `df652f9`（Agg `509 passed`、black `75/5`、默认后端 Tk 失效读数）；关闭 U-004；`CHECKLIST_spec_runner_integration.md` §8 静态读码证据升级为 E3 @`df652f9`

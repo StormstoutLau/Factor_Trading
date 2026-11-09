@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path.cwd()))
 
 from core.config import BacktestConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig, FactorConfig
 from core.data import DataManager
-from core.engine import BacktestEngine
+from core.factory import create_default_engine
 
 print("="*70)
 print("全时段回测 (2020-2026, 后复权)")
@@ -50,7 +50,7 @@ config_long = config
 config_long.optimizer = OptimizerConfig(method='equal_weight', target_count=10, select_top=True)
 config_long.output_dir = Path('E:/Ashare_data/output/full_backtest_2026_long')
 
-engine_long = BacktestEngine(config_long)
+engine_long = create_default_engine(config_long)
 engine_long.setup()
 print(f"交易日: {len(engine_long.dm.trade_dates)}天")
 result_long = engine_long.run()
@@ -69,7 +69,7 @@ config_short = config
 config_short.optimizer = OptimizerConfig(method='equal_weight', target_count=10, select_top=False)
 config_short.output_dir = Path('E:/Ashare_data/output/full_backtest_2026_short')
 
-engine_short = BacktestEngine(config_short)
+engine_short = create_default_engine(config_short)
 engine_short.setup()
 result_short = engine_short.run()
 pv_short = result_short.get('portfolio_value', pd.Series())

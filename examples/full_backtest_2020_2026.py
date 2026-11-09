@@ -13,7 +13,7 @@ sys.path.insert(0, str(project_root))
 
 # 导入项目模块
 from core.config import BacktestConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig, FactorConfig
-from core.engine import BacktestEngine
+from core.factory import create_default_engine
 
 print("="*70)
 print("【全时段回测】多头(Top10) vs 空头(Bottom10) - 后复权价格")
@@ -52,7 +52,7 @@ def run_full_backtest_2026(strategy_name, select_top_value, target_count_value,
         enable_pending_orders=True,
     )
     
-    engine_full = BacktestEngine(config_full)
+    engine_full = create_default_engine(config_full)
     engine_full.setup()
     
     print(f"  交易日数: {len(engine_full.dm.trade_dates)}")

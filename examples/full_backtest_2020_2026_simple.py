@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path.cwd()))
 
 from core.config import BacktestConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig, FactorConfig
 from core.data import DataManager
-from core.engine import BacktestEngine
+from core.engine_v2 import BacktestEngineV2
 
 print("="*70)
 print("【简化版全时段回测】多头(Top10) vs 空头(Bottom10) - 后复权")
@@ -84,16 +84,16 @@ def run_simplified_backtest(strategy_name, select_top_value, target_count_value)
     
     # 初始化回测引擎
     print("初始化BacktestEngine...")
-    engine = BacktestEngine(config)
+    engine = BacktestEngineV2(config)
     engine.dm = dm
     
     # 手动设置关键组件
     from filter import UniverseFilter
-    from portfolio import build_optimizer
-    from rebalance import build_trigger
-    from execution import ExecutionSimulator
-    from tracker import PositionTracker
-    from pending import PendingOrderQueue
+    from core.portfolio import build_optimizer
+    from core.rebalance import build_trigger
+    from core.execution import ExecutionSimulator
+    from core.tracker import PositionTracker
+    from core.pending import PendingOrderQueue
     
     engine.universe = UniverseFilter(dm, config.universe)
     engine.pipeline = None  # 不使用pipeline
@@ -101,7 +101,7 @@ def run_simplified_backtest(strategy_name, select_top_value, target_count_value)
     engine._composite_signal = composite_signal
     engine._returns_matrix = dm.returns.values
     engine.optimizer = build_optimizer(config.optimizer)
-    engine.trigger = build_trigger(config.rebalance, engine.optimizer)
+    engine.trigger = build_trigger(config.rebalance, dm.trade_dates)
     engine.executor = ExecutionSimulator(config.cost)
     engine.tracker = PositionTracker(config.initial_capital)
     engine.pending_queue = PendingOrderQueue(

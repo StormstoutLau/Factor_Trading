@@ -10,7 +10,7 @@ import numpy as np
 sys.path.insert(0, str(Path.cwd()))
 
 from core.config import BacktestConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig, FactorConfig
-from core.engine import BacktestEngine
+from core.factory import create_default_engine
 
 print("="*70)
 print("全时段回测 (2020-2026)")
@@ -38,7 +38,7 @@ config = BacktestConfig(
 )
 
 print("\n【多头Top10】初始化引擎...")
-engine = BacktestEngine(config)
+engine = create_default_engine(config)
 
 print("设置引擎...")
 engine.setup()

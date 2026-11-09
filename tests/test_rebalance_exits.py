@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
-import warnings
 from collections import defaultdict
-from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -28,7 +26,6 @@ from core.config import (
     OptimizerConfig,
     RebalanceConfig,
 )
-from core.engine import BacktestEngine
 from core.engine_v2 import BacktestEngineV2
 from core.pending import OrderSide
 from core.target_positions import build_target_positions, compute_portfolio_value
@@ -225,11 +222,6 @@ class _FakePipeline:
         return raw
 
 
-class _FakeCombiner:
-    def __init__(self, *args, **kwargs):
-        pass
-
-
 class _Top2Optimizer:
     """确定性优化器：取因子最高的 2 只等权（模拟 nlargest 语义）"""
 
@@ -291,31 +283,6 @@ def _run_engine_v2(tmpdir: str, blocked_sell_stocks=()):
     return engine, results
 
 
-def _run_engine_v1(tmpdir: str):
-    """V1 的 setup() 直接构造组件，故用 patch 注入等价 fake"""
-    cfg = _build_config(tmpdir)
-    with ExitStack() as stack:
-        stack.enter_context(patch("core.engine.DataManager", return_value=_FakeDataManager()))
-        stack.enter_context(patch("core.engine.UniverseFilter", return_value=_FakeUniverse()))
-        stack.enter_context(patch("core.engine.FactorPipeline", return_value=_FakePipeline()))
-        stack.enter_context(patch("core.engine.FactorCombiner", return_value=_FakeCombiner()))
-        stack.enter_context(patch("core.engine.build_optimizer", return_value=_Top2Optimizer()))
-        stack.enter_context(patch("core.engine.build_trigger", return_value=_AlwaysTrigger()))
-        stack.enter_context(
-            patch(
-                "core.engine.generate_report",
-                return_value={"metrics": {}, "charts": {}, "reports": {}},
-            )
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            engine = BacktestEngine(cfg)
-        engine.setup()
-        engine._force_liquidation = lambda *args, **kwargs: None
-        results = engine.run()
-    return engine, results
-
-
 def _quantity(engine, stock: str) -> int:
     position = engine.tracker.get_position(stock)
     return int(position.quantity) if position is not None else 0
@@ -339,24 +306,6 @@ class TestGoldenRebalanceIntegration(unittest.TestCase):
         self.assertEqual(_quantity(engine, "B"), 0, "调出的 B 必须被卖出")
         self.assertGreater(_quantity(engine, "C"), 0)
         self.assertGreater(_quantity(engine, "D"), 0)
-
-    def test_g2_engine_v1_liquidates_exited_positions(self):
-        """G2 V1（CLI 路径）行为与 V2 一致"""
-        engine, _ = _run_engine_v1(self.tmpdir)
-
-        self.assertEqual(_quantity(engine, "A"), 0, "调出的 A 必须被卖出")
-        self.assertEqual(_quantity(engine, "B"), 0, "调出的 B 必须被卖出")
-        self.assertGreater(_quantity(engine, "C"), 0)
-        self.assertGreater(_quantity(engine, "D"), 0)
-
-    def test_g3_engines_share_identical_targets(self):
-        """G3 两引擎最近一次目标持仓逐项相等"""
-        engine_v1, _ = _run_engine_v1(self.tmpdir)
-        engine_v2, _ = _run_engine_v2(self.tmpdir)
-
-        self.assertTrue(hasattr(engine_v1, "_last_targets"), "V1 应记录最近一次目标持仓")
-        self.assertTrue(hasattr(engine_v2, "_last_targets"), "V2 应记录最近一次目标持仓")
-        self.assertEqual(engine_v1._last_targets, engine_v2._last_targets)
 
     def test_g4_no_hidden_leverage(self):
         """G4 全程现金不为负（缺陷版本会买入远超可用现金的仓位）"""

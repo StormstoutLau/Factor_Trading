@@ -94,6 +94,8 @@ def create_default_engine(config: BacktestConfig) -> 'BacktestEngineV2':
 
 **修正状态（2026-10-23，Stage 2 已完成）**: `cli.py:36` 改为 `from core.factory import create_default_engine`，`cli.py:77` 改为 `create_default_engine(config)`。R-1 基准对比：CLI 默认配置下 V1 +16.79%（终值 11,679,182）→ V2 +6.77%（终值 10,676,608）。受控对比（`winsorize/standardize/fill=none`、`neutralize=False`）显示两引擎 **500 个交易日逐日净值完全一致（最大绝对差异 0.000000）**，差异根因是 V1 `_precompute_factors` 直接使用原始因子、V2 执行 `FactorPipeline.process` —— CLI 暴露的 `--winsorize/--standardize/--fill/--neutralize` 参数此前在 V1 下被忽略，切换后开始生效，属预期的行为变更。全量测试 503 passed。
 
+**Stage 3 已完成（2026-11-09，P-001）**: `core/engine.py` 已整体删除（724 行 / V1 `BacktestEngine`），上文「10 个文件引用」全部消解——6 个 `examples/` 脚本迁移至 `create_default_engine()`（手动装配脚本改用 `BacktestEngineV2`）、2 个测试文件清理或迁移、`core/__init__.py` 仅余注释示例。V1 专用 g2/g3 golden 用例与 2 个 0 收集诊断脚本（`test_visual_trace*.py`）一并删除；等价性证据保留在 CHANGELOG R-1 受控对比与 `docs/DIFF_REPORT_2026-10-23.md`。本地测试 509 → 507 passed、测试文件 50 → 48；门禁基线随之下调 black 75 → 72、mypy 168 → 119（P-003 / P-007 后续按新基线执行）。
+
 ### TD-4: Factor_DB 实现与文档不符（文档幻觉 H-1）
 
 **现状**:

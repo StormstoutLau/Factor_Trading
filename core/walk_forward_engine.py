@@ -42,7 +42,7 @@ class WalkForwardEngine:
     
     Example:
         >>> engine = WalkForwardEngine(
-        ...     base_engine=BacktestEngine,
+        ...     base_engine=BacktestEngineV2,
         ...     splitter=splitter,
         ...     config=backtest_config
         ... )

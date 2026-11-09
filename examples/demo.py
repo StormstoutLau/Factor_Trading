@@ -220,9 +220,9 @@ def main():
     )
 
     # 3. 运行回测
-    from core.engine import BacktestEngine
+    from core.factory import create_default_engine
 
-    engine = BacktestEngine(config)
+    engine = create_default_engine(config)
     engine.setup()
     results = engine.run()
 

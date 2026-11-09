@@ -45,7 +45,7 @@ def test_new_import_paths():
 
     from core.config import BacktestConfig
     from core.data import DataManager
-    from core.engine import BacktestEngine
+    from core.engine_v2 import BacktestEngineV2
     from core.factor import FactorPipeline
     from core.portfolio import BaseOptimizer
     from core.execution import ExecutionSimulator
