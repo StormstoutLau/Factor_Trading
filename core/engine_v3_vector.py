@@ -256,16 +256,19 @@ class VectorBacktestEngine:
 
     def _precompute_signals(self) -> None:
         """预计算交易信号"""
+        dl = self.dl
+        assert dl is not None
+
         logger.info("预计算交易信号...")
 
-        if "factor" in self.dl.factor_data:
-            factor = self.dl.factor_data["factor"]
-        elif self.dl.factor_data:
+        if "factor" in dl.factor_data:
+            factor = dl.factor_data["factor"]
+        elif dl.factor_data:
             # 使用第一个因子
-            factor = list(self.dl.factor_data.values())[0]
+            factor = list(dl.factor_data.values())[0]
         else:
             # 使用价格动量作为默认信号
-            close = self.dl.price_data["close"]
+            close = dl.price_data["close"]
             factor = np.zeros_like(close)
             factor[1:] = (close[1:] - close[:-1]) / close[:-1]
             factor[0] = 0
@@ -282,6 +285,11 @@ class VectorBacktestEngine:
         if self.dl is None:
             raise RuntimeError("请先调用 setup() 方法")
 
+        positions = self._positions
+        cash = self._cash
+        pv = self._portfolio_value
+        assert positions is not None and cash is not None and pv is not None
+
         t0 = time.perf_counter()
         logger.info("开始向量回测...")
 
@@ -296,20 +304,20 @@ class VectorBacktestEngine:
         for i in range(n_dates):
             if i == 0:
                 # 首日初始化
-                self._portfolio_value[i] = self._cash[i]
+                pv[i] = cash[i]
                 continue
 
             # 复制前一日仓位
-            self._positions[i] = self._positions[i - 1]
-            self._cash[i] = self._cash[i - 1]
+            positions[i] = positions[i - 1]
+            cash[i] = cash[i - 1]
 
             # 再平衡日
             if i % rebalance_freq == 0 and i > 0:
                 self._rebalance_vectorized(i, top_n)
 
             # 计算当日市值
-            position_value = np.sum(self._positions[i] * close_prices[i])
-            self._portfolio_value[i] = self._cash[i] + position_value
+            position_value = np.sum(positions[i] * close_prices[i])
+            pv[i] = cash[i] + position_value
 
         # 生成结果
         self._results = self._generate_results()
@@ -326,31 +334,44 @@ class VectorBacktestEngine:
             date_idx: 日期索引
             top_n: 持仓数量
         """
-        n_stocks = self.dl.n_stocks
+        dl = self.dl
+        signal_matrix = self._signals
+        positions = self._positions
+        cash = self._cash
+        pv = self._portfolio_value
+        assert (
+            dl is not None
+            and signal_matrix is not None
+            and positions is not None
+            and cash is not None
+            and pv is not None
+        )
+
+        n_stocks = dl.n_stocks
 
         # 获取当日信号
-        signal = self._signals[date_idx].astype(np.float64)
+        signal = signal_matrix[date_idx].astype(np.float64)
 
         # 获取可交易掩码 (默认全 True)
-        if "buyable" in self.dl.mask_data:
-            buyable_mask = self.dl.mask_data["buyable"][date_idx]
+        if "buyable" in dl.mask_data:
+            buyable_mask = dl.mask_data["buyable"][date_idx]
         else:
             buyable_mask = np.ones(n_stocks, dtype=bool)
-        if "sellable" in self.dl.mask_data:
-            sellable_mask = self.dl.mask_data["sellable"][date_idx]
+        if "sellable" in dl.mask_data:
+            sellable_mask = dl.mask_data["sellable"][date_idx]
         else:
             sellable_mask = np.ones(n_stocks, dtype=bool)
 
         # 获取价格
-        prices = self.dl.price_data["close"][date_idx].astype(np.float64)
+        prices = dl.price_data["close"][date_idx].astype(np.float64)
 
         # 前一日组合价值
-        last_pv = self._portfolio_value[date_idx - 1] if date_idx > 0 else self._cash[date_idx]
+        last_pv = pv[date_idx - 1] if date_idx > 0 else cash[date_idx]
 
         # 调用 @njit 内核
         new_positions, new_cash = _rebalance_kernel(
-            self._positions[date_idx].astype(np.float64),
-            float(self._cash[date_idx]),
+            positions[date_idx].astype(np.float64),
+            float(cash[date_idx]),
             float(last_pv),
             signal,
             prices,
@@ -360,8 +381,8 @@ class VectorBacktestEngine:
             float(self.cfg.get("cost_rate", 0.001)),
         )
 
-        self._positions[date_idx] = new_positions
-        self._cash[date_idx] = new_cash
+        positions[date_idx] = new_positions
+        cash[date_idx] = new_cash
 
     def _generate_results(self) -> dict[str, Any]:
         """生成回测结果"""

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from core.config import BacktestConfig
 from core.data import DataManager
@@ -29,6 +29,9 @@ from core.portfolio import build_optimizer
 from core.rebalance import build_trigger
 from core.tracker import PositionTracker
 from filter.universe_filter_clean import UniverseFilter
+
+if TYPE_CHECKING:
+    from core.engine_v2 import BacktestEngineV2
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +95,7 @@ class ComponentFactory:
             logger.info(f"注销组件: {component_type}")
 
     def _create_component(
-        self, component_type: str, default_factory: callable, *args, **kwargs
+        self, component_type: str, default_factory: Callable[..., Any], *args, **kwargs
     ) -> Any:
         """创建组件（优先使用注册表）
 
@@ -113,66 +116,90 @@ class ComponentFactory:
 
     def create_data_manager(self) -> IDataManager:
         """创建数据管理器"""
-        return self._create_component(
-            "data_manager",
-            lambda: DataManager(self.cfg),
+        return cast(
+            IDataManager,
+            self._create_component(
+                "data_manager",
+                lambda: DataManager(self.cfg),
+            ),
         )
 
     def create_universe_filter(self, data_manager: IDataManager) -> IUniverseFilter:
         """创建股票池过滤器"""
-        return self._create_component(
-            "universe_filter",
-            lambda dm, cfg: UniverseFilter(dm, cfg),
-            data_manager,
-            self.cfg.universe,
+        return cast(
+            IUniverseFilter,
+            self._create_component(
+                "universe_filter",
+                lambda dm, cfg: UniverseFilter(dm, cfg),
+                data_manager,
+                self.cfg.universe,
+            ),
         )
 
     def create_factor_pipeline(self, data_manager: IDataManager) -> IFactorPipeline:
         """创建因子处理管道"""
-        return self._create_component(
-            "factor_pipeline",
-            lambda dm, cfg: FactorPipeline(dm, cfg),
-            data_manager,
-            self.cfg.factor,
+        return cast(
+            IFactorPipeline,
+            self._create_component(
+                "factor_pipeline",
+                lambda dm, cfg: FactorPipeline(dm, cfg),
+                data_manager,
+                self.cfg.factor,
+            ),
         )
 
     def create_factor_combiner(self) -> IFactorCombiner:
         """创建因子合成器"""
-        return self._create_component(
-            "factor_combiner",
-            lambda: FactorCombiner(self.cfg.factor_files, self.cfg.factor_weights),
+        return cast(
+            IFactorCombiner,
+            self._create_component(
+                "factor_combiner",
+                lambda: FactorCombiner(self.cfg.factor_files, self.cfg.factor_weights),
+            ),
         )
 
     def create_optimizer(self) -> IOptimizer:
         """创建组合优化器"""
-        return self._create_component(
-            "optimizer",
-            lambda: build_optimizer(self.cfg.optimizer),
+        return cast(
+            IOptimizer,
+            self._create_component(
+                "optimizer",
+                lambda: build_optimizer(self.cfg.optimizer),
+            ),
         )
 
     def create_trigger(self, trade_dates) -> IRebalanceTrigger:
         """创建再平衡触发器"""
-        return self._create_component(
-            "trigger",
-            lambda cfg, dates: build_trigger(cfg, dates),
-            self.cfg.rebalance,
-            trade_dates,
+        return cast(
+            IRebalanceTrigger,
+            self._create_component(
+                "trigger",
+                lambda cfg, dates: build_trigger(cfg, dates),
+                self.cfg.rebalance,
+                trade_dates,
+            ),
         )
 
     def create_executor(self) -> IExecutionSimulator:
         """创建执行模拟器"""
-        return self._create_component(
-            "executor",
-            lambda: ExecutionSimulator(self.cfg.cost),
+        return cast(
+            IExecutionSimulator,
+            self._create_component(
+                "executor",
+                lambda: ExecutionSimulator(self.cfg.cost),
+            ),
         )
 
     def create_tracker(self, n_stocks: int) -> IPositionTracker:
         """创建持仓跟踪器"""
-        return self._create_component(
-            "tracker",
-            lambda n, capital: PositionTracker(n, capital),
-            n_stocks,
-            self.cfg.initial_capital,
+        return cast(
+            IPositionTracker,
+            self._create_component(
+                "tracker",
+                lambda n, capital: PositionTracker(n, capital),
+                n_stocks,
+                self.cfg.initial_capital,
+            ),
         )
 
     def create_pending_queue(self) -> Optional[IPendingOrderQueue]:
@@ -180,14 +207,17 @@ class ComponentFactory:
         if not self.cfg.enable_pending_orders:
             return None
 
-        return self._create_component(
-            "pending_queue",
-            lambda buy_days, sell_days: PendingOrderQueue(
-                max_pending_days_buy=buy_days,
-                max_pending_days_sell=sell_days,
+        return cast(
+            Optional[IPendingOrderQueue],
+            self._create_component(
+                "pending_queue",
+                lambda buy_days, sell_days: PendingOrderQueue(
+                    max_pending_days_buy=buy_days,
+                    max_pending_days_sell=sell_days,
+                ),
+                self.cfg.max_pending_days_buy,
+                self.cfg.max_pending_days_sell,
             ),
-            self.cfg.max_pending_days_buy,
-            self.cfg.max_pending_days_sell,
         )
 
     def create_all(self) -> dict[str, Any]:
@@ -242,7 +272,7 @@ class ComponentFactory:
 # =============================================================================
 
 
-def create_default_engine(config: BacktestConfig) -> "BacktestEngineV2":
+def create_default_engine(config: BacktestConfig) -> BacktestEngineV2:
     """创建默认配置的引擎
 
     Args:
@@ -260,7 +290,7 @@ def create_default_engine(config: BacktestConfig) -> "BacktestEngineV2":
     return engine
 
 
-def create_engine_with_custom(config: BacktestConfig, **custom_components) -> "BacktestEngineV2":
+def create_engine_with_custom(config: BacktestConfig, **custom_components) -> BacktestEngineV2:
     """创建带自定义组件的引擎
 
     Args:

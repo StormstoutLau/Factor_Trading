@@ -42,6 +42,7 @@ from core.interfaces import (
 )
 from core.pending import (
     OrderSide,
+    PendingOrder,
     PendingOrderQueue,
     create_pending_order,
     select_fallback_stocks,
@@ -165,6 +166,15 @@ class BacktestEngineV2:
 
         根据注入的组件或创建默认组件。
         """
+        if (
+            not self.cfg.factor_files
+            and self._injected_pipeline is None
+            and self._injected_combiner is None
+        ):
+            raise ValueError(
+                "factor_files 不能为空：BacktestEngineV2 需要至少一个因子文件；"
+                "请在 BacktestConfig.factor_files 中指定（至少 1 项）"
+            )
         t0 = time.perf_counter()
         logger.info("开始设置回测引擎V2...")
 
@@ -304,6 +314,13 @@ class BacktestEngineV2:
 
     def _process_trading_day(self, date: pd.Timestamp, date_index: int):
         """处理单个交易日"""
+        dm = self.dm
+        trigger = self.trigger
+        tracker = self.tracker
+        signal_df = self._composite_signal
+        assert dm is not None and trigger is not None
+        assert tracker is not None and signal_df is not None
+
         logger.debug(f"处理交易日: {date}")
 
         # 执行次日订单
@@ -315,14 +332,10 @@ class BacktestEngineV2:
             self._process_pending_orders(date, date_index)
 
         # 检查再平衡
-        should_rebalance = self.trigger.should_trigger(
+        should_rebalance = trigger.should_trigger(
             date,
-            signal=(
-                self._composite_signal.loc[date]
-                if date_index < len(self._composite_signal)
-                else None
-            ),
-            portfolio_value=self.tracker.get_total_value(),
+            signal=(signal_df.loc[date] if date_index < len(signal_df) else None),
+            portfolio_value=tracker.get_total_value(),
         )
 
         if should_rebalance:
@@ -330,12 +343,12 @@ class BacktestEngineV2:
             self._execute_rebalance(date, date_index)
 
         # 更新持仓市值
-        close_prices = self.dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
-        self.tracker.update_market_values(date, close_prices)
+        close_prices = dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+        tracker.update_market_values(date, close_prices)
 
         # 主动盯市 (risk_manager)
         if self._risk_manager is not None:
-            positions = self.tracker.get_all_positions()
+            positions = tracker.get_all_positions()
             risk_actions = self._risk_manager.check_portfolio(positions)
             for action in risk_actions:
                 logger.warning(f"风险动作: {action.action.name} - {action.asset} - {action.reason}")
@@ -362,15 +375,20 @@ class BacktestEngineV2:
 
     def _force_liquidation(self, date: pd.Timestamp, date_index: int):
         """最后交易日强制平仓"""
+        dm = self.dm
+        executor = self.executor
+        tracker = self.tracker
+        assert dm is not None and executor is not None and tracker is not None
+
         logger.info(f"最后交易日强制平仓: {date}")
 
-        positions = self.tracker.get_all_positions()
+        positions = tracker.get_all_positions()
         if not positions:
             logger.info("无持仓需要平仓")
             return
 
         try:
-            close_prices = self.dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+            close_prices = dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
         except KeyError:
             logger.warning(f"最后交易日 {date} 无收盘价数据")
             return
@@ -387,16 +405,16 @@ class BacktestEngineV2:
             if pd.isna(close_price) or close_price <= 0:
                 continue
 
-            success, trade = self.executor.execute_order(
+            success, trade = executor.execute_order(
                 stock, OrderSide.SELL, position.quantity, date, close_price
             )
 
             if success and trade:
-                self.tracker.execute_trade(trade)
+                tracker.execute_trade(trade)
                 liquidated_count += 1
                 logger.info(f"强制平仓: {stock} {position.quantity}股 @ {close_price:.2f}")
 
-        self.tracker.update_market_values(date, close_prices)
+        tracker.update_market_values(date, close_prices)
         logger.info(f"强制平仓完成: {liquidated_count}只股票")
 
     def _process_pending_orders(self, date: pd.Timestamp, date_index: int):
@@ -404,21 +422,28 @@ class BacktestEngineV2:
         if not self.pending_queue:
             return
 
+        dm = self.dm
+        universe = self.universe
+        executor = self.executor
+        tracker = self.tracker
+        assert dm is not None and universe is not None
+        assert executor is not None and tracker is not None
+
         pending_orders = self.pending_queue.get_pending_orders()
         if not pending_orders:
             return
 
         logger.debug(f"处理{len(pending_orders)}个待执行订单")
 
-        open_prices = self.dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
+        open_prices = dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
         close_prices = (
-            self.dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
-            if date_index < len(self.dm.returns)
+            dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+            if date_index < len(dm.returns)
             else None
         )
 
-        buyable_mask = self.universe.buyable.loc[date]
-        sellable_mask = self.universe.sellable.loc[date]
+        buyable_mask = universe.buyable.loc[date]
+        sellable_mask = universe.sellable.loc[date]
 
         executed_orders = []
         skipped_suspended = []
@@ -445,12 +470,10 @@ class BacktestEngineV2:
                 else None
             )
 
-            success, trade = self.executor.execute_pending_order(
-                order, date, open_price, close_price
-            )
+            success, trade = executor.execute_pending_order(order, date, open_price, close_price)
 
             if success and trade:
-                self.tracker.execute_trade(trade)
+                tracker.execute_trade(trade)
                 self.pending_queue.mark_executed(order, date, trade.price)
                 executed_orders.append(order)
                 logger.debug(f"待执行订单执行成功: {order.stock} {order.side.name}")
@@ -475,10 +498,19 @@ class BacktestEngineV2:
 
     def _try_fallback_order(self, original_order, date: pd.Timestamp, date_index: int) -> bool:
         """尝试备选替补订单"""
-        if not self.pending_queue or date_index >= len(self._composite_signal):
+        signal_df = self._composite_signal
+        assert signal_df is not None
+        if not self.pending_queue or date_index >= len(signal_df):
             return False
 
-        daily_signal = self._composite_signal.iloc[date_index]
+        universe = self.universe
+        dm = self.dm
+        executor = self.executor
+        tracker = self.tracker
+        assert universe is not None and dm is not None
+        assert executor is not None and tracker is not None
+
+        daily_signal = signal_df.iloc[date_index]
 
         excluded_stocks = [original_order.stock]
         fallback_stocks = select_fallback_stocks(
@@ -488,13 +520,13 @@ class BacktestEngineV2:
         if not fallback_stocks:
             return False
 
-        buyable_mask = self.universe.buyable.loc[date]
+        buyable_mask = universe.buyable.loc[date]
 
         for fallback_stock in fallback_stocks:
             if not buyable_mask.get(fallback_stock, False):
                 continue
 
-            open_prices = self.dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
+            open_prices = dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
             if fallback_stock not in open_prices:
                 continue
 
@@ -505,10 +537,10 @@ class BacktestEngineV2:
             )
             fallback_order.fallback_stock = original_order.stock
 
-            success, trade = self.executor.execute_pending_order(fallback_order, date, open_price)
+            success, trade = executor.execute_pending_order(fallback_order, date, open_price)
 
             if success and trade:
-                self.tracker.execute_trade(trade)
+                tracker.execute_trade(trade)
                 self.pending_queue.mark_executed(original_order, date, trade.price)
                 original_order.fallback_stock = fallback_stock
 
@@ -519,20 +551,30 @@ class BacktestEngineV2:
 
     def _execute_rebalance(self, date: pd.Timestamp, date_index: int):
         """执行再平衡"""
-        if date_index >= len(self._composite_signal):
+        signal_df = self._composite_signal
+        assert signal_df is not None
+        if date_index >= len(signal_df):
             return
+
+        dm = self.dm
+        universe = self.universe
+        optimizer = self.optimizer
+        tracker = self.tracker
+        returns_matrix = self._returns_matrix
+        assert dm is not None and universe is not None
+        assert optimizer is not None and tracker is not None
 
         # 取消过期订单
         if self.pending_queue:
-            available_stocks = set(self._composite_signal.columns)
+            available_stocks = set(signal_df.columns)
             for stock in available_stocks:
                 self.pending_queue.cancel_orders(stock, date)
 
         # 获取因子信号
-        daily_signal = self._composite_signal.iloc[date_index]
+        daily_signal = signal_df.iloc[date_index]
 
         # 过滤可交易股票
-        tradable_mask = self.universe.tradable.loc[date]
+        tradable_mask = universe.tradable.loc[date]
         tradable_stocks = daily_signal[tradable_mask].dropna()
 
         if len(tradable_stocks) == 0:
@@ -542,17 +584,18 @@ class BacktestEngineV2:
         # 组合优化
         try:
             if date_index >= self.cfg.optimizer.cov_lookback:
+                assert returns_matrix is not None
                 start_idx = date_index - self.cfg.optimizer.cov_lookback
                 end_idx = date_index
                 returns_data = pd.DataFrame(
-                    self._returns_matrix[start_idx:end_idx],
-                    index=self.dm.trade_dates[start_idx:end_idx],
-                    columns=self.dm.stock_codes,
+                    returns_matrix[start_idx:end_idx],
+                    index=dm.trade_dates[start_idx:end_idx],
+                    columns=dm.stock_codes,
                 )
             else:
                 returns_data = None
 
-            target_weights = self.optimizer.optimize(tradable_stocks, returns_data)
+            target_weights = optimizer.optimize(tradable_stocks, returns_data)
 
             logger.debug(f"优化得到{len(target_weights)}只股票的目标权重")
 
@@ -562,19 +605,19 @@ class BacktestEngineV2:
 
         # 计算目标持仓（含调出标的的清仓项）
         try:
-            prices = self.dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+            prices = dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
         except (KeyError, IndexError):
             logger.warning(f"日期 {date} 缺少收盘价数据，跳过本次再平衡")
             return
 
-        positions = self.tracker.get_all_positions()
+        positions = tracker.get_all_positions()
         current_positions = {
             stock: int(position.quantity)
             for stock, position in positions.items()
             if int(position.quantity) > 0
         }
         total_value = compute_portfolio_value(
-            self.tracker.get_cash(),
+            tracker.get_cash(),
             current_positions,
             prices,
             {stock: position.market_value for stock, position in positions.items()},
@@ -611,13 +654,19 @@ class BacktestEngineV2:
             date_index: 日期索引
         """
         # 收集当前持仓
+        tracker = self.tracker
+        dm = self.dm
+        policy = self._execution_policy
+        assert tracker is not None and dm is not None
+        assert policy is not None
+
         current_positions = {
-            stock: pos.quantity for stock, pos in self.tracker.get_all_positions().items()
+            stock: pos.quantity for stock, pos in tracker.get_all_positions().items()
         }
 
         # 获取收盘价
         try:
-            adj_close = self.dm.get_adj_price("close", self.cfg.adjustment_type)
+            adj_close = dm.get_adj_price("close", self.cfg.adjustment_type)
             if date in adj_close.index:
                 close_prices = adj_close.loc[date]
             else:
@@ -625,7 +674,7 @@ class BacktestEngineV2:
         except (KeyError, IndexError):
             return
 
-        total_value = self.tracker.get_total_value()
+        total_value = tracker.get_total_value()
 
         # 1. 权重信号 → OrderIntent
         intents = SignalTranslator.from_weights(
@@ -637,9 +686,9 @@ class BacktestEngineV2:
         )
 
         # 2. OrderIntent → PendingOrder (通过 ExecutionPolicy)
-        all_orders = []
+        all_orders: list[PendingOrder] = []
         for intent in intents:
-            orders = self._execution_policy.create_orders(intent, date)
+            orders = policy.create_orders(intent, date)
             all_orders.extend(orders)
 
         # 3. 订单入队/执行
@@ -695,20 +744,23 @@ class BacktestEngineV2:
         if not hasattr(self, "_next_day_orders") or not self._next_day_orders:
             return
 
+        dm = self.dm
+        universe = self.universe
+        tracker = self.tracker
+        executor = self.executor
+        assert dm is not None and universe is not None
+        assert tracker is not None and executor is not None
+
         logger.info(f"执行次日开盘订单: {len(self._next_day_orders)}个订单, 日期: {date}")
 
         try:
-            open_prices = self.dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
+            open_prices = dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
         except KeyError:
             logger.warning(f"日期 {date} 没有开盘价数据")
             return
 
-        buyable_mask = (
-            self.universe.buyable.loc[date] if hasattr(self.universe, "buyable") else None
-        )
-        sellable_mask = (
-            self.universe.sellable.loc[date] if hasattr(self.universe, "sellable") else None
-        )
+        buyable_mask = universe.buyable.loc[date] if hasattr(universe, "buyable") else None
+        sellable_mask = universe.sellable.loc[date] if hasattr(universe, "sellable") else None
 
         executed_count = 0
         failed_orders = []
@@ -737,16 +789,16 @@ class BacktestEngineV2:
 
             if order.side == OrderSide.BUY:
                 required_cash = order.quantity * open_price * 1.002
-                if self.tracker.get_cash() < required_cash:
+                if tracker.get_cash() < required_cash:
                     failed_orders.append(order_info)
                     continue
 
-            success, trade = self.executor.execute_order(
+            success, trade = executor.execute_order(
                 order.stock, order.side, order.quantity, date, open_price
             )
 
             if success and trade:
-                self.tracker.execute_trade(trade)
+                tracker.execute_trade(trade)
                 executed_count += 1
             else:
                 failed_orders.append(order_info)
@@ -758,8 +810,12 @@ class BacktestEngineV2:
 
     def _generate_results(self) -> dict[str, Any]:
         """生成回测结果"""
-        snapshots = self.tracker.get_snapshots()
-        trades_df = self.executor.trade_log.get_trades_df()
+        if self.tracker is None or self.executor is None:
+            raise RuntimeError("请先调用setup()方法")
+        tracker = self.tracker
+        executor = self.executor
+        snapshots = tracker.get_snapshots()
+        trades_df = executor.trade_log.get_trades_df()
 
         output_dir = self.cfg.output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -778,7 +834,7 @@ class BacktestEngineV2:
             "pending_order_stats": (
                 self.pending_queue.get_order_stats() if self.pending_queue else {}
             ),
-            "execution_stats": self.executor.get_execution_stats(),
+            "execution_stats": executor.get_execution_stats(),
         }
 
         if not trades_df.empty:
@@ -787,7 +843,7 @@ class BacktestEngineV2:
             logger.info(f"交易记录已保存: {trades_path}")
 
         if snapshots:
-            snapshots_df = self.tracker.get_snapshots_df()
+            snapshots_df = tracker.get_snapshots_df()
             snapshots_path = output_dir / "portfolio_snapshots.csv"
             snapshots_df.to_csv(snapshots_path, index=False, encoding="utf-8-sig")
             logger.info(f"持仓快照已保存: {snapshots_path}")
@@ -801,7 +857,7 @@ class BacktestEngineV2:
 
         portfolio_value_series = pd.Series()
         if snapshots:
-            snapshots_df = self.tracker.get_snapshots_df()
+            snapshots_df = tracker.get_snapshots_df()
             if "total_value" in snapshots_df.columns and "date" in snapshots_df.columns:
                 portfolio_value_series = snapshots_df.set_index("date")["total_value"]
                 logger.info(f"✓ 组合价值序列已生成: {len(portfolio_value_series)} 个数据点")

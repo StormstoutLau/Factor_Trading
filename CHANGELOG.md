@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Spec_Runner 接入**: 新增 `scripts/spec_runner_adapter.py`（官方模板 v1.0 + 本项目配置：`PREFIX=factorv3`，门禁 `probe / unit-tests / black-check / mypy-check`）与 `tests/test_spec_runner_adapter.py`（6 项）；门禁 verdict/exit/stdout_tail 以 append-only JSONL 落在 `F:\Spec_Runner\sessions\`，可用 `replay` 重放。全量测试 503 → 509 passed；`black-check`（75 files）与 `mypy-check`（168 errors）已登记为已知基线
 
 ### Fixed
+- **`IPositionTracker.get_snapshots` 契约失实（P-007 层 B）**: 协议声明 `list[dict]` 与 `PositionTracker` 实际返回 `list[PortfolioSnapshot]` 不符，改为真实类型（`TYPE_CHECKING` 导入，零运行时开销）
+- **`IExecutionSimulator` 缺失 `trade_log` 声明（P-007 层 B）**: 引擎在结果生成中访问 `executor.trade_log.get_trades_df()`，协议未声明该成员；新增 `ITradeLog` 最小协议（仅 `get_trades_df`）并以只读 `@property` 暴露（PEP 544 协议属性不变性要求）
 - **`DataManager` 辅助数据重复读盘 + 类型契约（P-010）**: `_load_auxiliary_data` 增加幂等 guard，可选文件缺失时不再每次属性访问都重读已存在文件（实测 `.industry` 3 次访问的读盘次数 **3 → 1**；100 次 `.st` 访问的读盘次数由 **206 次**降至首次加载后 0 次）；`suspend`/`st` 缺失时按配置约定 `0=正常` 提供全 0 默认帧（旧版被覆盖实现的 `True` 默认值与 `1=停牌` 语义相反，已弃用）；`industry` 注解修正为 `Optional[pd.DataFrame]`，缺失时由消费方跳过过滤/中性化；新增 4 项测试（510 → **514 passed**）
 - **`CompositeRiskEngine.remove_monitor` 崩溃（P-007 层 A）**: `core/risk_monitor.py` 引用了未定义名 `RiskAction` 且与类内已声明的 `_signal_history`/`_action_history` 重复注解；调用 `remove_monitor()` 即 `NameError`。改为无注解赋值（类型仍由 L713/L714 提供），并补 smoke 测试
 - **`analyze_market_contagion` 崩溃（P-007 层 A）**: `core/global_contagion.py` 调用了 `GlobalContagionMonitor` 上不存在的 `evaluate()`；调用便捷函数即 `AttributeError`。改为 `monitor.monitor(...)` 单值返回
@@ -23,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo_data 复权文件缺失**: `examples/demo.py` 生成器改为输出 `stock_adj.pkl`（与配置默认一致），修复旧布局导入与硬编码路径；本地补齐 `demo_data/stock_adj.pkl`
 
 ### Changed
+- **空 `factor_files` fail-fast（P-007 层 B，行为变更）**: `BacktestEngineV2.setup()` 在「未注入因子管道/合成器且 `factor_files` 为空」时抛 `ValueError`（此前静默空回测：逐日 `TypeError` 被 `except Exception` 吞掉，100 条 ERROR 后返回空结果）；注入 `factor_pipeline`/`factor_combiner` 的手工信号工作流不受影响；新增 2 项 smoke（**514 → 516 passed**）
+- **`_generate_results` 未 setup 守卫（P-007 层 B，行为变更）**: 未 `setup()` 直接调用 `_generate_results()` 由 `AttributeError` 改为 `RuntimeError("请先调用setup()方法")`，与 `run()` 守卫文案一致
+- **引擎 mypy 清零（P-007 层 B）**: `engine_v2` 54 / `engine_v3_vector` 26 / `factory` 13 共 **93 errors → 0**（局部别名窄化 + factory `cast` 白名单，无 `type: ignore`）；`mypy-check` 门禁自接入以来首次 verdict=pass；盲区口径（`--check-untyped-defs`）102 → 8（另批评估）
 - **停牌数据缺失时的末日可交易性（P-010，行为变更）**: 停牌数据缺失时改为提供 `0=正常` 默认帧，`universe_filter_clean` 的 next-day 可交易掩码因此走「有数据」路径，**最后一天由可交易变为不可交易**（末日无次日，语义更正确）；其余日期与其余掩码数值不变。仓库测试夹具含 `suspend.pkl`，全量回归不受影响（510 → 514 passed）
 - **CLI 默认引擎**: `python cli.py run` 从已弃用的 V1 `BacktestEngine` 切换至 `core.factory.create_default_engine()`（V2）。V2 会执行 `FactorPipeline`，`--winsorize/--standardize/--fill/--neutralize` 参数自此真实生效（此前在 V1 下被忽略），默认结果随之变化；R-1 受控对比确认关闭因子处理后两引擎逐日净值完全一致（最大差异 0.000000）
 - **README**: Quick Start 增加 `python examples/demo.py` 数据生成步骤；测试统计更新为 503 passed / 49 files

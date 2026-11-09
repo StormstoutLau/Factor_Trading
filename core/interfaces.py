@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 import numpy as np
 import pandas as pd
 
 from core.config import BacktestConfig, CostConfig, FactorConfig, UniverseConfig
+
+if TYPE_CHECKING:
+    from core.tracker import PortfolioSnapshot
 
 # =============================================================================
 # 数据层接口
@@ -194,6 +197,14 @@ class IOptimizer(Protocol):
 # =============================================================================
 
 
+class ITradeLog(Protocol):
+    """交易日志最小契约（结果生成所需）"""
+
+    def get_trades_df(self) -> pd.DataFrame:
+        """获取交易记录 DataFrame"""
+        ...
+
+
 class IExecutionSimulator(Protocol):
     """交易执行模拟器接口
 
@@ -237,6 +248,11 @@ class IExecutionSimulator(Protocol):
         """获取执行统计"""
         ...
 
+    @property
+    def trade_log(self) -> ITradeLog:
+        """交易日志（只读）"""
+        ...
+
 
 class IPositionTracker(Protocol):
     """持仓跟踪器接口
@@ -268,7 +284,7 @@ class IPositionTracker(Protocol):
         """获取总资产"""
         ...
 
-    def get_snapshots(self) -> list[dict]:
+    def get_snapshots(self) -> list[PortfolioSnapshot]:
         """获取持仓快照"""
         ...
 
