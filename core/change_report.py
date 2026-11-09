@@ -253,7 +253,8 @@ def _require(path: Path) -> Path:
 
 
 def _read_long(path: Path, value_columns: tuple[str, ...]) -> dict[tuple[str, str], tuple]:
-    df = pd.read_csv(path)
+    # 股票代码必须按字符串读取：否则 000001 会被推断为整数 1
+    df = pd.read_csv(path, dtype={"date": str, "stock": str})
     result: dict[tuple[str, str], tuple] = {}
     for row in df.to_dict("records"):
         key = (str(row["date"]), str(row["stock"]))

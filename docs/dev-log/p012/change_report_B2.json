@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "before_run": "C:\\Users\\Peng\\AppData\\Local\\Temp\\p012_runs\\run2_a5ae5cc\\layers",
+  "after_run": "C:\\Users\\Peng\\AppData\\Local\\Temp\\p012_runs\\run2_4e2ab0b\\layers",
+  "nav": {
+    "before": 1155172.3318119394,
+    "after": 1155172.3318119394,
+    "diff": 0.0
+  },
+  "layers": [
+    {
+      "layer": "L1_limit_mask",
+      "changed": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "layer": "L2_tradable",
+      "changed": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "layer": "L3_target_positions",
+      "changed": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "layer": "L4_orders",
+      "changed": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "layer": "L5_fills",
+      "changed": 0,
+      "added": [],
+      "removed": []
+    },
+    {
+      "layer": "L6_nav",
+      "changed": 0,
+      "added": [],
+      "removed": []
+    }
+  ],
+  "nav_recomputed": 1155172.3318119394,
+  "residual": 0.0,
+  "attribution_complete": true
+}

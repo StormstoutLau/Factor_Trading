@@ -137,6 +137,19 @@ def generate_biased_fixture(out_dir: Path, seed: int = 42, start: str = "2024-01
     high = np.maximum(open_, close) * rng.uniform(1.0, 1.015, (n_days, n_stocks))
     low = np.minimum(open_, close) * rng.uniform(0.985, 1.0, (n_days, n_stocks))
 
+    # 除权日（split_idx）的 open/high/low 由除权前收盘滚动推导，需缩放到除权后
+    # 尺度；否则会形成 +100% 的虚假跳空，被涨跌停价格法误判为不可交易
+    open_[split_idx, 1] *= 0.5
+    high[split_idx, 1] = max(open_[split_idx, 1], close[split_idx, 1]) * 1.005
+    low[split_idx, 1] = min(open_[split_idx, 1], close[split_idx, 1]) * 0.995
+
+    # t=40 000001 开盘触及涨停（+10%）后回落：旧「收益阈值法」按收盘收益判定
+    # 仍可买，新「价格法」按开盘价判定不可买——为 B4 提供真实的 L1→L2 差异样本
+    limit_open_idx = 40
+    open_[limit_open_idx, 0] = close[limit_open_idx - 1, 0] * 1.10
+    high[limit_open_idx, 0] = open_[limit_open_idx, 0]
+    low[limit_open_idx, 0] = min(open_[limit_open_idx, 0], close[limit_open_idx, 0]) * 0.995
+
     adj = np.ones((n_days, n_stocks))
     adj[split_idx:, 1] = 2.0
     adj[:, 2] = 1.0 + 0.01 * np.arange(n_days)  # 688001 逐日递增
