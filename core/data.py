@@ -51,6 +51,7 @@ class DataManager:
         self._industry_data: Optional[pd.DataFrame] = None
         self._st_data: Optional[pd.DataFrame] = None
         self._mktcap_data: Optional[pd.DataFrame] = None
+        self._aux_loaded: bool = False
 
         # 派生数据
         self._returns: Optional[pd.DataFrame] = None
@@ -128,7 +129,7 @@ class DataManager:
         return self._suspend_data
 
     @property
-    def industry(self) -> pd.DataFrame:
+    def industry(self) -> Optional[pd.DataFrame]:
         """获取行业数据"""
         if self._industry_data is None:
             self._load_auxiliary_data()
@@ -262,33 +263,63 @@ class DataManager:
             raise
 
     def _load_auxiliary_data(self):
-        """加载辅助数据（停牌、行业、ST、市值）"""
+        """加载辅助数据（停牌、行业、ST、市值）
+
+        幂等：首次调用后置 _aux_loaded，后续直接返回，避免可选文件缺失时
+        反复重读已存在文件。注意：首次加载后新增的文件不会自动重载。
+
+        缺失处理（配置约定 1=停牌/ST，0=正常）：
+        - 停牌 / ST：缺失时按 0=正常 提供默认值，不中断回测；
+        - 行业 / 市值：无可辩护默认值，保持 None，由消费方跳过对应过滤/中性化。
+        """
+        if self._aux_loaded:
+            return
+
         # 确保基础数据已加载
         if self._trade_dates is None or self._stock_codes is None:
             self._load_basic_data()
+
+        if self._trade_dates is None or self._stock_codes is None:
+            # 不可达防御：基础数据加载失败会 raise
+            self._aux_loaded = True
+            return
 
         # 停牌数据
         if self.cfg.suspend_file:
             suspend_path = self.data_dir / self.cfg.suspend_file
             if suspend_path.exists():
                 self._suspend_data = self._load_and_align_data(suspend_path)
+            else:
+                logger.warning(f"停牌数据文件不存在: {suspend_path}，按 0=正常 处理")
+                self._suspend_data = pd.DataFrame(
+                    0, index=self._trade_dates, columns=self._stock_codes
+                )
 
         # 行业数据
         industry_path = self.data_dir / self.cfg.industry_file
         if industry_path.exists():
             self._industry_data = self._load_and_align_data(industry_path)
+        else:
+            logger.warning(f"行业数据文件不存在: {industry_path}，跳过行业过滤/中性化")
 
         # ST数据
         if self.cfg.st_file:
             st_path = self.data_dir / self.cfg.st_file
             if st_path.exists():
                 self._st_data = self._load_and_align_data(st_path)
+            else:
+                logger.warning(f"ST数据文件不存在: {st_path}，按 0=正常 处理")
+                self._st_data = pd.DataFrame(0, index=self._trade_dates, columns=self._stock_codes)
 
         # 市值数据
         if self.cfg.mktcap_file:
             mktcap_path = self.data_dir / self.cfg.mktcap_file
             if mktcap_path.exists():
                 self._mktcap_data = self._load_and_align_data(mktcap_path)
+            else:
+                logger.warning(f"市值数据文件不存在: {mktcap_path}，跳过市值过滤/中性化")
+
+        self._aux_loaded = True
 
     def _load_and_align_data(self, file_path: Path) -> pd.DataFrame:
         """加载并对齐数据到标准索引
