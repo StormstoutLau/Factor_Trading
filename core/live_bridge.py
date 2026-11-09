@@ -30,6 +30,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from core.config import AssetType
+
 if TYPE_CHECKING:
     from core.execution_policy import OrderIntent
 
@@ -171,7 +173,11 @@ class MockLiveBridge(LiveTradingBridge):
             order = LiveOrder(
                 order_id=order_id,
                 asset=intent.asset,
-                asset_type=str(intent.asset_type.value),
+                asset_type=(
+                    intent.asset_type.value
+                    if isinstance(intent.asset_type, AssetType)
+                    else intent.asset_type
+                ),
                 side=intent.action,
                 quantity=intent.trade_quantity,
                 status="pending",

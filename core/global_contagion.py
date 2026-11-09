@@ -160,7 +160,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
         score = 0.0
         reasons = []
-        metadata = {}
+        metadata: dict[str, Any] = {}
 
         # 1. 获取市场数据
         market_returns = kwargs.get("market_returns", {})
@@ -343,7 +343,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
     def _compute_covar_analysis(self, market_returns: dict[str, pd.Series]) -> dict:
         """计算CoVaR尾部依赖分析"""
-        results = {}
+        results: dict[str, Any] = {}
 
         if not market_returns or len(market_returns) < 2:
             return results
@@ -628,6 +628,6 @@ def analyze_market_contagion(
     if market_vols is None:
         market_vols = {k: v.std() for k, v in market_returns.items()}
 
-    signal, _ = monitor.evaluate(market_returns=market_returns, market_vols=market_vols)
+    signal = monitor.monitor(market_returns=market_returns, market_vols=market_vols)
 
     return {"signal": signal, "summary": monitor.get_contagion_summary()}

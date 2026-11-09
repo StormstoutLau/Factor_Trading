@@ -332,7 +332,7 @@ class BrinsonAttributionAnalyzer:
         if not self.results:
             return {}
 
-        sectors = set()
+        sectors: set[str] = set()
         for r in self.results:
             sectors.update(r.sector_allocation.keys())
 

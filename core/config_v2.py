@@ -24,7 +24,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, cast
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -234,7 +234,7 @@ class BacktestConfig(BaseModel):
         # Handle WindowsPath/PosixPath serialized as dict (from JSON)
         if isinstance(v, dict) and v.get("__path__"):
             return Path(v["__path__"])
-        return v
+        return cast(Path, v)
 
     @field_validator("start_date", "end_date")
     @classmethod

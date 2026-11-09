@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -232,7 +232,7 @@ class ExecutionSimulator:
                 try:
                     custom_price = self.custom_price_callback(date, stock, side)
                     if custom_price is not None and custom_price > 0:
-                        return custom_price
+                        return cast(float, custom_price)
                     else:
                         logger.warning(f"自定义价格无效，回退到开盘价")
                         return open_price

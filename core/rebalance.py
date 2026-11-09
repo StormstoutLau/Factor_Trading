@@ -199,7 +199,7 @@ class ConditionalTrigger(BaseTrigger):
         # 计算权重变化的L2范数
         weight_change = np.linalg.norm(current_weights.values - last_weights.values)
 
-        return weight_change
+        return float(weight_change)
 
     def _update_state(
         self,

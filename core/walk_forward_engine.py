@@ -279,15 +279,3 @@ def run_walk_forward_backtest(
 
     # 运行回测
     return wf_engine.run(agents=agents)
-
-
-if __name__ == "__main__":
-    # 简单测试
-    from core.walk_forward import create_walk_forward_splits
-
-    splitter = create_walk_forward_splits("2020-01-01", "2023-12-31", train_years=1, test_months=3)
-
-    engine = WalkForwardEngine(base_engine_class=None, splitter=splitter, config=None)
-
-    result = engine.run()
-    print(result)

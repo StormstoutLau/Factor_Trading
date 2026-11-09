@@ -720,8 +720,8 @@ class CompositeRiskEngine:
     def remove_monitor(self, monitor_name: str) -> None:
         """移除监控器"""
         self.monitors = [m for m in self.monitors if m.name != monitor_name]
-        self._signal_history: list[RiskSignal] = []
-        self._action_history: list[RiskAction] = []
+        self._signal_history = []
+        self._action_history = []
 
     def evaluate(
         self, symbol: Optional[str] = None, **kwargs

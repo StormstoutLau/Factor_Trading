@@ -219,6 +219,7 @@ class MinVarianceOptimizer(BaseOptimizer):
 
         # 获取协方差矩阵
         if cov_matrix is None:
+            assert returns is not None
             cov_estimator = COV_ESTIMATORS.get(self.cfg.cov_method, COV_ESTIMATORS["sample"])
             cov_matrix = cov_estimator(returns[selected_stocks])
         else:
@@ -296,6 +297,7 @@ class MeanVarianceOptimizer(BaseOptimizer):
         w = cp.Variable(n)
 
         # 目标函数：最大化效用 = 预期收益 - 风险厌恶系数 * 方差
+        assert cov_matrix is not None
         portfolio_return = expected_returns.values @ w
         portfolio_variance = cp.quad_form(w, cov_matrix.values)
         objective = cp.Maximize(portfolio_return - self.cfg.risk_aversion * portfolio_variance)
@@ -351,6 +353,7 @@ class RiskParityOptimizer(BaseOptimizer):
 
         # 获取协方差矩阵
         if cov_matrix is None:
+            assert returns is not None
             cov_estimator = COV_ESTIMATORS.get(self.cfg.cov_method, COV_ESTIMATORS["sample"])
             cov_matrix = cov_estimator(returns[selected_stocks])
         else:

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -443,7 +443,7 @@ class PendingOrderQueue:
         Returns:
             订单统计信息
         """
-        stats = {
+        stats: dict[str, Any] = {
             "total_orders": len(self._orders),
             "pending_orders": len([o for o in self._orders if o.status == OrderStatus.PENDING]),
             "executed_orders": len([o for o in self._orders if o.status == OrderStatus.EXECUTED]),
@@ -535,7 +535,7 @@ def select_fallback_stocks(
     # 选择得分最高的股票作为备选
     fallback_stocks = available_scores.nlargest(depth).index.tolist()
 
-    return fallback_stocks
+    return cast(list[str], fallback_stocks)
 
 
 def create_pending_order(

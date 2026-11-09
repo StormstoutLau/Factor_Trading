@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Spec_Runner 接入**: 新增 `scripts/spec_runner_adapter.py`（官方模板 v1.0 + 本项目配置：`PREFIX=factorv3`，门禁 `probe / unit-tests / black-check / mypy-check`）与 `tests/test_spec_runner_adapter.py`（6 项）；门禁 verdict/exit/stdout_tail 以 append-only JSONL 落在 `F:\Spec_Runner\sessions\`，可用 `replay` 重放。全量测试 503 → 509 passed；`black-check`（75 files）与 `mypy-check`（168 errors）已登记为已知基线
 
 ### Fixed
+- **`CompositeRiskEngine.remove_monitor` 崩溃（P-007 层 A）**: `core/risk_monitor.py` 引用了未定义名 `RiskAction` 且与类内已声明的 `_signal_history`/`_action_history` 重复注解；调用 `remove_monitor()` 即 `NameError`。改为无注解赋值（类型仍由 L713/L714 提供），并补 smoke 测试
+- **`analyze_market_contagion` 崩溃（P-007 层 A）**: `core/global_contagion.py` 调用了 `GlobalContagionMonitor` 上不存在的 `evaluate()`；调用便捷函数即 `AttributeError`。改为 `monitor.monitor(...)` 单值返回
+- **`RegistryPlugin.create_trigger` 崩溃（P-007 层 A）**: 以 3 个位置参数调用只接受 `(name, config, **kwargs)` 的 `PluginRegistry.create`，调用即 `TypeError`。改为 `dates=trade_dates` 关键字传参（与三个 trigger 工厂的 `(cfg, dates)` 契约一致）
+- **`DataManager._load_auxiliary_data` 重复定义（P-007 层 A，行为不变）**: 删除被同名方法覆盖的 48 行死代码，唯一实现保持原状；「辅助数据缺失时无安全默认值」的行为缺口**未在本条修复**，另立 P-010 跟踪
 - **CRITICAL 再平衡修复（行为变更）**: 调出组合的标的现在会生成清仓卖单（此前永不卖出），同一次调仓中卖单先于买单；`results` 新增 `unclosed_positions` 诊断；新增 `core/target_positions.py` 统一 V1/V2 目标持仓，并以价格重算组合价值，修复开盘成交后组合价值虚高导致的超额买入
 - **ARCHITECTURE.md 文档幻觉**: Factor_DB 存储由 "DuckDB" 改为 "JSON 元数据 + Parquet（DuckDB 为规划方向）"，架构图/模块表/缺口表/依赖表同步；Data V3 由 "多源 (AKShare, YFinance)" 改为 "Qlib 风格向量化加载器"；Config V2 由 "✅ 活跃/推荐" 改为 "⚠️ 冻结（零生产引用）"
 - **demo_data 复权文件缺失**: `examples/demo.py` 生成器改为输出 `stock_adj.pkl`（与配置默认一致），修复旧布局导入与硬编码路径；本地补齐 `demo_data/stock_adj.pkl`

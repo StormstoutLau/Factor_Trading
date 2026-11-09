@@ -332,7 +332,7 @@ class PositionTracker:
         Returns:
             行业暴露字典
         """
-        sector_exposure = {}
+        sector_exposure: dict[str, float] = {}
         total_value = self.get_total_value()
 
         if total_value <= 0:

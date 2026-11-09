@@ -378,7 +378,7 @@ class RegistryPlugin:
         """通过 Registry 创建触发器"""
         if not self._registered:
             self.enable()
-        return get_trigger_registry().create(config.method, config, trade_dates)
+        return get_trigger_registry().create(config.method, config, dates=trade_dates)
 
     def get_inventory(self) -> dict[str, list[dict]]:
         """获取已注册插件清单"""

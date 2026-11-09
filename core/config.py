@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 class ExecutionPriceType(str, Enum):
@@ -196,7 +196,7 @@ class CostConfig:
         如果未配置则返回默认值（印花税=通用配置，交易所费=0）。
         """
         if asset_type in self.asset_costs:
-            return self.asset_costs[asset_type]
+            return cast(AssetCost, self.asset_costs[asset_type])
         return AssetCost(stamp_tax_rate=self.stamp_tax_rate)
 
 

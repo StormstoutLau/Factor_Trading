@@ -307,7 +307,7 @@ class FactorPipeline:
                 continue
 
             # 构建回归矩阵
-            X = []
+            X_list: list[np.ndarray] = []
             # 【修复E5】确定有完整行业/市值数据的股票子集
             valid_stocks = neutralizable_stocks.copy()
 
@@ -320,7 +320,7 @@ class FactorPipeline:
                     industry_dummies = pd.get_dummies(industry_data, prefix="ind")
                     # 确保列对齐
                     aligned_dummies = industry_dummies.reindex(neutralizable_stocks, fill_value=0)
-                    X.extend(aligned_dummies.values.T)
+                    X_list.extend(aligned_dummies.values.T)
                     # 更新有效股票集合（只保留有行业数据的）
                     valid_stocks = industry_data.index
 
@@ -328,14 +328,14 @@ class FactorPipeline:
             if self.cfg.neutralize_mktcap and self.dm.mktcap is not None:
                 mktcap_data = self.dm.mktcap.loc[date, valid_stocks]
                 log_mktcap = np.log(mktcap_data.replace(0, np.nan))
-                X.append(log_mktcap.values)
+                X_list.append(log_mktcap.values)
 
-            if not X:
+            if not X_list:
                 continue
 
             # 使用有效股票子集的因子值
             y = series[valid_stocks].values
-            X = np.column_stack(X)
+            X = np.column_stack(X_list)
 
             # 去除常数列
             try:

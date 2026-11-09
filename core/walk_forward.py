@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterator, Optional
+from typing import Iterator, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -247,7 +247,7 @@ class WalkForwardResult:
         if not self.window_results:
             return 0.0
         returns = [r.get("total_return", 0) for r in self.window_results]
-        return np.mean(returns)
+        return cast(float, np.mean(returns))
 
     @property
     def avg_sharpe(self) -> float:
@@ -255,7 +255,7 @@ class WalkForwardResult:
         if not self.window_results:
             return 0.0
         sharpes = [r.get("sharpe_ratio", 0) for r in self.window_results]
-        return np.mean(sharpes)
+        return cast(float, np.mean(sharpes))
 
     @property
     def win_rate(self) -> float:

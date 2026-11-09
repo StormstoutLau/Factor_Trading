@@ -181,54 +181,6 @@ class DataManager:
             logger.error(f"基础数据加载失败: {e}")
             raise
 
-    def _load_auxiliary_data(self):
-        """加载辅助数据
-
-        辅助数据缺失时使用安全默认值，不影响回测执行。
-        但会记录警告日志提醒用户数据不完整。
-        """
-        # 加载停牌数据（关键数据，缺失时默认全部可交易）
-        suspend_path = self.data_dir / self.cfg.suspend_file
-        if suspend_path.exists():
-            self._suspend_data = self._load_and_align_data(suspend_path)
-        else:
-            logger.warning(f"停牌数据文件不存在: {suspend_path}，默认全部可交易")
-            self._suspend_data = pd.DataFrame(
-                True, index=self._trade_dates, columns=self._stock_codes
-            )
-
-        # 加载行业数据（可选数据，缺失时默认同一行业）
-        industry_path = self.data_dir / self.cfg.industry_file
-        if industry_path.exists():
-            self._industry_data = self._load_and_align_data(industry_path)
-        else:
-            logger.warning(f"行业数据文件不存在: {industry_path}，默认同一行业")
-            self._industry_data = pd.DataFrame(
-                1, index=self._trade_dates, columns=self._stock_codes
-            )
-
-        # 加载ST数据（可选数据，缺失时默认无ST）
-        if self.cfg.st_file:
-            st_path = self.data_dir / self.cfg.st_file
-            if st_path.exists():
-                self._st_data = self._load_and_align_data(st_path)
-            else:
-                logger.warning(f"ST数据文件不存在: {st_path}，默认无ST股票")
-                self._st_data = pd.DataFrame(
-                    False, index=self._trade_dates, columns=self._stock_codes
-                )
-
-        # 加载市值数据（可选数据，缺失时默认10亿）
-        if self.cfg.mktcap_file:
-            mktcap_path = self.data_dir / self.cfg.mktcap_file
-            if mktcap_path.exists():
-                self._mktcap_data = self._load_and_align_data(mktcap_path)
-            else:
-                logger.warning(f"市值数据文件不存在: {mktcap_path}，默认市值10亿")
-                self._mktcap_data = pd.DataFrame(
-                    1e9, index=self._trade_dates, columns=self._stock_codes
-                )
-
     def _apply_date_filter(self):
         """应用日期范围过滤"""
         if self._trade_dates is None:
