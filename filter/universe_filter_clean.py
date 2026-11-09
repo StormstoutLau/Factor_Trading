@@ -6,14 +6,17 @@
 
 import pandas as pd
 import numpy as np
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from dataclasses import dataclass, field
 import logging
 import warnings
 
-from filter.limit_rules import infer_board, resolve_limit
+from filter.limit_rules import build_limit_prices, special_no_limit_mask
 
 logger = logging.getLogger(__name__)
+
+# 涨跌停价比较容差（半分钱；P-012 D4）
+EPS_PRICE = 0.005
 
 
 @dataclass
@@ -25,7 +28,10 @@ class UniverseFilterConfig:
     exclude_limit_up: bool = True
     exclude_limit_down: bool = True
     exclude_st: bool = True
-    check_next_day_tradable: bool = True
+    # 旧字段：True→oracle / False→ignored；None 时读 next_day_tradable_mode（P-012 D4）
+    check_next_day_tradable: bool | None = None
+    next_day_tradable_mode: Literal["ignored", "oracle"] = "ignored"
+    limit_check_price: Literal["open", "close"] = "open"
 
     # 涨跌停阈值
     limit_up_threshold: float = 0.095
@@ -67,6 +73,7 @@ class UniverseFilter:
 
         # 预计算信息
         self._prefix_info = {}
+        self._next_day_mode = self._resolve_next_day_mode(emit_warning=False)
 
         # 过滤掩码
         self._suspend_mask: Optional[pd.DataFrame] = None
@@ -91,6 +98,7 @@ class UniverseFilter:
         """构建所有过滤掩码"""
         logger.info("开始构建股票池过滤掩码...")
         self._warn_deprecated_thresholds()
+        self._next_day_mode = self._resolve_next_day_mode(emit_warning=True)
 
         # 预计算基础信息
         self._precompute_basic_info()
@@ -101,7 +109,7 @@ class UniverseFilter:
         self._build_st_mask()
 
         # 构建扩展掩码
-        if self.cfg.check_next_day_tradable:
+        if self._next_day_mode == "oracle":
             self._build_next_day_tradable_mask()
 
         if self.cfg.exclude_na_factors:
@@ -144,63 +152,60 @@ class UniverseFilter:
             logger.warning("未找到停牌数据，假设所有股票都可交易")
 
     def _build_limit_masks(self):
-        """构建涨跌停掩码"""
-        if self.dm.returns is None:
-            logger.warning("未找到收益率数据，跳过涨跌停过滤")
-            self._limit_up_mask = pd.DataFrame(
-                True, index=self.dm.trade_dates, columns=self.dm.stock_codes, dtype=bool
+        """构建涨跌停掩码（价格法；P-012 D4 / T-7）。
+
+        判定：``open >= limit_up - EPS`` → 当日不可买；``open <= limit_down + EPS``
+        → 当日不可卖。``limit = ref_price * (1 ± ratio)``，``ref_price`` 为除权参考价，
+        首行无 prev_close 与 NaN 一律按「不限制」处理。
+        """
+        dates = self.dm.trade_dates
+        codes = self.dm.stock_codes
+
+        try:
+            close = self.dm.close
+            adj = self.dm.adj_factor
+            check = (
+                self.dm.open if getattr(self.cfg, "limit_check_price", "open") == "open" else close
             )
-            self._limit_down_mask = pd.DataFrame(
-                True, index=self.dm.trade_dates, columns=self.dm.stock_codes, dtype=bool
-            )
+        except (FileNotFoundError, ValueError, KeyError) as exc:
+            logger.warning(f"缺少 close/adj_factor/open 数据，跳过涨跌停过滤: {exc}")
+            self._limit_up_mask = pd.DataFrame(True, index=dates, columns=codes, dtype=bool)
+            self._limit_down_mask = pd.DataFrame(True, index=dates, columns=codes, dtype=bool)
             return
 
-        # 向量化计算（P-012 T-4：阈值来源改为规则表；ST 用当日状态）
-        returns = self.dm.returns
+        limit_up, limit_down = build_limit_prices(close, adj, self.dm.st, dates)
+        limit_up = limit_up.reindex(index=dates, columns=codes)
+        limit_down = limit_down.reindex(index=dates, columns=codes)
+        check = check.reindex(index=dates, columns=codes)
 
-        # 获取ST状态（当日；不再 shift(1)）
-        st_data = (
-            self.dm.st
-            if self.dm.st is not None
-            else pd.DataFrame(0, index=returns.index, columns=returns.columns)
-        )
+        self._limit_up_mask = ~(check >= limit_up - EPS_PRICE)
+        self._limit_down_mask = ~(check <= limit_down + EPS_PRICE)
 
-        up_threshold_df, down_threshold_df = self._rule_thresholds(
-            returns.index, returns.columns, st_data
-        )
+        # IPO 前 5 个交易日不适用涨跌停限制（T-3 要点 6；快照缺失时不生效）
+        snap = getattr(self.dm, "universe", None)
+        if snap is not None:
+            no_limit = special_no_limit_mask(dates, codes, snap)
+            self._limit_up_mask |= no_limit
+            self._limit_down_mask |= no_limit
 
-        # 向量化判断涨跌停
-        self._limit_up_mask = ~(returns >= up_threshold_df)
-        self._limit_down_mask = ~(returns <= down_threshold_df)
+    def _resolve_next_day_mode(self, emit_warning: bool) -> str:
+        """解析 next-day 可交易性模式；旧 bool 字段优先并弃用告警（T-7）。"""
+        legacy = self.cfg.check_next_day_tradable
+        if legacy is not None:
+            if emit_warning:
+                warnings.warn(
+                    "UniverseFilterConfig.check_next_day_tradable 已弃用；"
+                    "请改用 next_day_tradable_mode='oracle'|'ignored'（P-012 D4）",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
+            return "oracle" if legacy else "ignored"
+        return getattr(self.cfg, "next_day_tradable_mode", "ignored")
 
-        # 第一天设为True
-        if len(returns) > 0:
-            self._limit_up_mask.iloc[0] = True
-            self._limit_down_mask.iloc[0] = True
-
-    def _rule_thresholds(
-        self, dates: pd.DatetimeIndex, columns: pd.Index, st_data: pd.DataFrame
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """按规则表生成逐日逐股涨跌停阈值（ST 用当日状态）。"""
-        up = pd.DataFrame(np.nan, index=dates, columns=columns)
-        down = pd.DataFrame(np.nan, index=dates, columns=columns)
-
-        board_columns: Dict[str, List[str]] = {}
-        for code in columns:
-            board_columns.setdefault(infer_board(str(code)), []).append(code)
-
-        for date in dates:
-            st_row = st_data.loc[date] if date in st_data.index else None
-            for board, codes in board_columns.items():
-                normal = resolve_limit(board, False, date)
-                st_rule = resolve_limit(board, True, date)
-                if st_row is not None:
-                    st_mask = (st_row[codes] == 1).to_numpy()
-                else:
-                    st_mask = np.zeros(len(codes), dtype=bool)
-                up.loc[date, codes] = np.where(st_mask, st_rule.up, normal.up)
-                down.loc[date, codes] = np.where(st_mask, st_rule.down, normal.down)
-        return up, down
+    @property
+    def next_day_tradable_mode(self) -> str:
+        """当前生效的 next-day 模式（报告字段）。"""
+        return self._next_day_mode
 
     def _warn_deprecated_thresholds(self) -> None:
         """4 个旧阈值字段已弃用（每次 build_masks 一次，不逐行）。"""
@@ -424,8 +429,8 @@ class UniverseFilter:
         # 构建可交易掩码
         self._tradable_mask = self._buyable_mask & self._sellable_mask
 
-        # 下一交易日可交易性检查
-        if self.cfg.check_next_day_tradable and self._next_day_tradable_mask is not None:
+        # 下一交易日可交易性检查（仅 oracle 模式；默认 ignored 不构建该掩码）
+        if self._next_day_mode == "oracle" and self._next_day_tradable_mask is not None:
             self._buyable_mask &= self._next_day_tradable_mask
             self._tradable_mask = self._buyable_mask & self._sellable_mask
 

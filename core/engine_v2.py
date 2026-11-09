@@ -52,6 +52,7 @@ from core.portfolio import build_optimizer
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
 from core.tracker import PositionTracker
+from filter.limit_rules import RULESET_VERSION
 from filter.universe_filter_clean import UniverseFilter
 
 logger = logging.getLogger(__name__)
@@ -889,6 +890,15 @@ class BacktestEngineV2:
                 "optimizer_method": self.cfg.optimizer.method,
                 "rebalance_method": self.cfg.rebalance.method,
                 "enable_pending_orders": self.cfg.enable_pending_orders,
+                "adjustment_mode": {
+                    "trade": self.cfg.price_modes.trade,
+                    "valuation": self.cfg.price_modes.valuation,
+                    "signal": self.cfg.price_modes.signal,
+                    "returns": self.cfg.price_modes.returns,
+                    "legacy_adjustment": self.cfg.legacy_adjustment,
+                },
+                "next_day_tradable_mode": getattr(self.universe, "next_day_tradable_mode", None),
+                "ruleset_version": RULESET_VERSION,
             },
             "data_info": self.dm.get_data_info() if self.dm else {},
             "universe_summary": self.universe.get_mask_summary() if self.universe else {},

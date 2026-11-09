@@ -227,7 +227,9 @@ class UniverseConfig:
     excluded_industries: list[str] = field(default_factory=list)  # 需要排除的行业列表
     enable_custom_filters: bool = False  # 是否启用自定义过滤
     custom_filter_configs: dict = field(default_factory=dict)  # 自定义过滤配置
-    check_next_day_tradable: bool = True  # 检查下一日可交易性
+    # 已弃用：True→next_day_tradable_mode="oracle" / False→"ignored"；
+    # None 表示使用新字段（默认 ignored，P-012 D4）
+    check_next_day_tradable: bool | None = None
     limit_up_threshold: float = 0.095  # 涨停判定阈值（普通股票）
     limit_down_threshold: float = -0.095  # 跌停判定阈值（普通股票）
     st_limit_up_threshold: float = 0.048  # ST股票涨停阈值
