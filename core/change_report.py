@@ -189,6 +189,20 @@ class LayerDumper:
             }
         )
 
+    def update_last_nav(self, date: Any, nav: dict[str, float]) -> None:
+        """覆盖当日 L6 行（用于末日期强平后的终值刷新）。"""
+        if not self.enabled or not self._l6:
+            return
+        day = _fmt_date(date)
+        if self._l6[-1]["date"] != day:
+            return
+        self._l6[-1] = {
+            "date": day,
+            "cash": float(nav.get("cash", 0.0)),
+            "market_value": float(nav.get("market_value", 0.0)),
+            "total_value": float(nav.get("total_value", 0.0)),
+        }
+
     def finalize(self, trades_df: Optional[pd.DataFrame] = None) -> None:
         """落盘六层文件（未启用时零 I/O）。"""
         if not self.enabled:
@@ -347,9 +361,12 @@ def _diff_nav(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> Laye
     return LayerDiff("L6_nav", changed, sorted(added), sorted(removed))
 
 
-def _cash_flow(fills: dict) -> float:
+def _cash_flow(fills: dict, after_date: str, upto_date: str) -> float:
+    """区间 ``(after_date, upto_date]`` 的成交现金流（买入为负、卖出为正）。"""
     flow = 0.0
-    for rows in fills.values():
+    for day, rows in fills.items():
+        if not (after_date < str(day) <= upto_date):
+            continue
         for row in rows:
             amount = float(row["price"]) * int(row["qty"])
             cost = float(row.get("cost", 0.0))
@@ -364,8 +381,9 @@ def _cash_flow(fills: dict) -> float:
 def compare_runs(before_dir: Path | str, after_dir: Path | str) -> ChangeReport:
     """对比两次运行的六层 dump，返回 ChangeReport。
 
-    ``nav_recomputed`` = 末行市值 + (首行现金 + L5 现金流)；
+    ``nav_recomputed`` = 末行市值 + (首行现金 + 区间 (首日, 末日] 的 L5 现金流)；
     ``residual`` = |nav_recomputed - 末行 total_value|，检验 L5→L6 现金一致性。
+    首日现金流已包含在首行现金中，避免重复计入。
     """
     before = Path(before_dir)
     after = Path(after_dir)
@@ -396,6 +414,12 @@ def compare_runs(before_dir: Path | str, after_dir: Path | str) -> ChangeReport:
         _flatten_rows(_read_json(paths["L4_orders.json"][0]), ("stock", "side", "qty")),
         _flatten_rows(_read_json(paths["L4_orders.json"][1]), ("stock", "side", "qty")),
     )
+    # L3 只记录股票集合，订单数量随净值/价格变化；归因链用「订单构成」而非数量
+    l4_composition = _diff_counters(
+        "L4_orders_composition",
+        _flatten_rows(_read_json(paths["L4_orders.json"][0]), ("stock", "side")),
+        _flatten_rows(_read_json(paths["L4_orders.json"][1]), ("stock", "side")),
+    )
     l5 = _diff_counters(
         "L5_fills",
         _flatten_rows(_read_json(paths["L5_fills.json"][0]), ("stock", "side", "qty", "price")),
@@ -408,14 +432,19 @@ def compare_runs(before_dir: Path | str, after_dir: Path | str) -> ChangeReport:
     layers = [l1, l2, l3, l4, l5, l6]
 
     first_cash = after_nav[0]["cash"] if after_nav else 0.0
+    first_date = after_nav[0]["date"] if after_nav else ""
+    last_date = after_nav[-1]["date"] if after_nav else ""
     last_market_value = after_nav[-1]["market_value"] if after_nav else 0.0
     last_total_value = after_nav[-1]["total_value"] if after_nav else 0.0
     nav_recomputed = (
-        last_market_value + first_cash + _cash_flow(_read_json(paths["L5_fills.json"][1]))
+        last_market_value
+        + first_cash
+        + _cash_flow(_read_json(paths["L5_fills.json"][1]), first_date, last_date)
     )
     residual = abs(nav_recomputed - last_total_value)
 
     counts = {layer.layer: layer.changed for layer in layers}
+    counts["L4_orders"] = l4_composition.changed  # 数量变化不要求 L3 变化（见上）
     chain = (
         ("L6_nav", "L5_fills"),
         ("L5_fills", "L4_orders"),

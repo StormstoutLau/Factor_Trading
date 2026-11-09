@@ -568,10 +568,11 @@ class UniverseFilter:
     def get_layer_masks(
         self, date: pd.Timestamp
     ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
-        """返回当日 L1（停牌+涨跌停）与 L2（最终可交易）四个掩码 Series。
+        """返回当日 L1（停牌+涨跌停+上市状态）与 L2（最终可交易）四个掩码 Series。
 
-        L1: can_buy = suspend & limit_up；can_sell = suspend & limit_down。
-        L2: 最终 buyable / sellable。未构建的掩码按全 True 处理。
+        L1: can_buy = suspend & limit_up & listing；can_sell 同理。
+        L2: 最终 buyable / sellable（含 ST/前缀/NA/市值/行业等配置过滤）。
+        未构建的掩码按全 True 处理。
         """
         if self._buyable_mask is None or self._sellable_mask is None:
             self.build_masks()
@@ -586,9 +587,10 @@ class UniverseFilter:
         suspend = _row(self._suspend_mask)
         limit_up = _row(self._limit_up_mask)
         limit_down = _row(self._limit_down_mask)
+        listing = _row(self._listing_mask)
         return (
-            suspend & limit_up,
-            suspend & limit_down,
+            suspend & limit_up & listing,
+            suspend & limit_down & listing,
             _row(self._buyable_mask),
             _row(self._sellable_mask),
         )

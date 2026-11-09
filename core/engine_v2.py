@@ -313,6 +313,7 @@ class BacktestEngineV2:
                 if i == last_date_index:
                     self._snapshot_unclosed_positions()
                     self._force_liquidation(date, i)
+                    self._refresh_last_nav(date)
 
             except Exception as e:
                 logger.error(f"处理交易日 {date} 时发生错误: {e}")
@@ -425,6 +426,18 @@ class BacktestEngineV2:
                 if item.get("create_date") == date
             ]
         dumper.record_orders(date, orders)
+
+    def _refresh_last_nav(self, date: pd.Timestamp) -> None:
+        """末日期强平后刷新 L6 终值（默认关闭 → 零 I/O）。"""
+        dumper = self._layer_dumper
+        tracker = self.tracker
+        if not dumper.enabled or tracker is None:
+            return
+        cash = float(tracker.get_cash())
+        total = float(tracker.get_total_value())
+        dumper.update_last_nav(
+            date, {"cash": cash, "market_value": total - cash, "total_value": total}
+        )
 
     def _snapshot_unclosed_positions(self) -> None:
         """记录强平前仍持有、但已不在目标组合中的标的（正常应为空）
