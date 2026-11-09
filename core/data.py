@@ -68,7 +68,7 @@ class DataManager:
         self._asset_info: dict[str, AssetInfo] = {}
 
         # 股票池快照（P-012 D5 / T-8；懒加载 + 幂等 guard）
-        self._universe = None
+        self._universe: Any = None
         self._universe_status: dict[str, Any] = {}
 
         logger.info("数据管理器初始化完成")
