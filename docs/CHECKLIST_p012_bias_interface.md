@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_p012_bias_interface
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 9 实施完成**（2026-11-10）：**73/74 通过**（唯一待办 G7 = Step 10 远端 CI），四项行为 change_report 双门通过，实测列已按命令输出逐项回填（§10.0）
+> **状态**: **Step 9 实施 + Step 10 推送/远端 CI 完成**（2026-11-10）：**74/74 通过**（G7 = run `42694945888`，3.10/3.11/3.12 三 job `543 passed, 1 skipped`），实测列已按命令输出逐项回填（§10.0）
 > **审查记录**: §8 一致性 Review（机械校验 11 链接 0 broken / 74 项 0 预填 / A1-A41 缺号 0 / 断言链 10 条贯通 / 术语 7 组一致）；F-S8-1~F-S8-4 已回写 DESIGN / RESEARCH / CHECKLIST / PROGRESS
 > **上游**: [DESIGN_p012_bias_interface.md](DESIGN_p012_bias_interface.md)（Step 4 通过 + Step 6 回写；D1-D11 / 不变式 I1-I9） · [IMPL_p012_bias_interface.md](IMPL_p012_bias_interface.md)（Step 6 通过；T-0~T-13 / F-I1~F-I10 / Step 7 补记 F-S7-1/F-S7-2）
 > **填写规则**: 每条 ✅ 必须绑定证据出口；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`
@@ -111,7 +111,7 @@
 | G4 | V2 black unchanged；V3 mypy 0 errors；V4 盲区 ≤8（D11 可能 −1，按实测） | 三命令末行 | V2-V4 | ✅ V2 153 unchanged；V3 mypy 0（32 files）；V4 盲区 4 errors 2 files |
 | G5 | **V5 门禁**：`probe / unit-tests / black-check / mypy-check` 4 gate pass + `replay: rows OK`（session `factorv3-p012-bias-20261110`） | 门禁输出 | V5 / IMPL §7 | ✅ 4 gate pass；replay 12 rows OK（factorv3-p012-bias-20261110） |
 | G6 | V12 行为批次 change_report `residual<1e-8` + `attribution_complete=true`（I6）；V14 契约 4/4；V18 报告含 `adjustment_mode/survivorship/ruleset_version/next_day_tradable_mode` | change_report.json ×4 + 报告字段 | V12/V14/V18 | ✅ 四份 change_report 双门通过；报告含 adjustment_mode/survivorship/ruleset_version/next_day_tradable_mode（+unknown_board_codes） |
-| G7 | **V17 远端 CI** 三 job（3.10/3.11/3.12）`543 passed, 1 skipped`（预测 = (516−7 numba)+34；实测为准） | 远端 run 页面 | V17 / F-I6 | [待 Step 10] |
+| G7 | **V17 远端 CI** 三 job（3.10/3.11/3.12）`543 passed, 1 skipped`（预测 = (516−7 numba)+34；实测为准） | 远端 run 页面 | V17 / F-I6 | ✅ run `42694945888`：3.10/3.11/3.12 三 job 全 success，各 `543 passed, 1 skipped` |
 | G8 | **V20 回退粒度**：B1/B2/B3a/B3b/B4/B5/B6 七个代码提交各自 `git revert` dry-run 独立可回退；B3b 另有 `legacy_adjustment=True` 通道；B5 另有移除快照目录降级通道 | dry-run 记录 | V20 / IMPL §6 | ✅ V20：逆序逐批回退 9/9 干净；中间批次单 revert 在 HEAD 上冲突（§10.0-8） |
 
 ### 7.2 INV 不变式（DESIGN §8，I1-I9）— 9 项
@@ -365,7 +365,8 @@ GREEN：`550 passed, 124 warnings in 19.73s`（最终态 125 warnings，+1 为�
 | `black --check .` | **153 files would be left unchanged** |
 | `mypy --explicit-package-bases core` | **Success: no issues found in 32 source files** |
 | `mypy … --check-untyped-defs` | **4 errors in 2 files** |
-| `gate probe/unit-tests/black-check/mypy-check` + `replay` | 4/4 pass；**12 rows OK**（session `factorv3-p012-bias-20261110`） |
+| `gate probe/unit-tests/black-check/mypy-check` + `replay` | 4/4 pass；**16 rows OK**（session `factorv3-p012-bias-20261110`） |
+| 远端 CI run `42694945888` | 3.10 / 3.11 / 3.12 三 job 全 success；各 **543 passed, 1 skipped** |
 
 ### 10.1 验收统计
 
@@ -377,19 +378,19 @@ GREEN：`550 passed, 124 warnings in 19.73s`（最终态 125 warnings，+1 为�
 | D 涨跌停与掩码时点（B4） | 5 | 5 | 0 | 0 |
 | E 退市与动态池（B5） | 6 | 6 | 0 | 0 |
 | F 接口治理（B6） | 6 | 6 | 0 | 0 |
-| G 测试与验证 | 8 | 7 | 0 | 1 |
+| G 测试与验证 | 8 | 8 | 0 | 0 |
 | INV 不变式 | 9 | 9 | 0 | 0 |
 | RL 排除与红线 | 12 | 12 | 0 | 0 |
 | DOC 台账与文档 | 6 | 6 | 0 | 0 |
-| **总计** | **74** | **73** | **0** | **1** |
+| **总计** | **74** | **74** | **0** | **0** |
 
-> **统计口径（RULE-2）**：上表来自本文件逐项独立核对（74 行逐行标记），非事后汇总推算；逐行 `总数 = 通过 + 失败 + 待办` 成立，总计行按列求和成立（7+7+8+5+6+6+8+9+12+6 = 74；73+0+1 = 74）。§7.5 错误处理映射为锚点表，不重复计数。唯一待办 G7（V17 远端 CI）为 Step 10 计划项。
+> **统计口径（RULE-2）**：上表来自本文件逐项独立核对（74 行逐行标记），非事后汇总推算；逐行 `总数 = 通过 + 失败 + 待办` 成立，总计行按列求和成立（7+7+8+5+6+6+8+9+12+6 = 74；74+0+0 = 74）。§7.5 错误处理映射为锚点表，不重复计数。G7 由远端 run `42694945888` 回填。
 > **通过门槛**：P1/P2 = 0；行为批次（B2/B3b/B4/B5）各附 `change_report.json` 且 residual / attribution 双门通过；V17 以远端实测为准。
 
 ### 10.2 验收决定
 
-- [ ] **验收通过**：所有 P1 项通过，无阻塞性问题（待 Step 10 远端 CI 回收 G7 后勾选）
-- [x] **有条件通过**：Step 9 范围 **73/74** 通过（P1/P2 = 0；四项行为 change_report 双门全过）；唯一待办 G7 按计划于 Step 10 推送后回收
+- [x] **验收通过**：所有 P1 项通过，无阻塞性问题（74/74；G7 由远端 run `42694945888` 回填）
+- [ ] **有条件通过**：（已随 G7 关闭而不再适用）
 - [ ] **验收失败**：无
 
 ### 10.3 签字
@@ -406,8 +407,8 @@ GREEN：`550 passed, 124 warnings in 19.73s`（最终态 125 warnings，+1 为�
 | 行动 | 责任人 | 期限 | 状态 |
 |------|--------|------|------|
 | Step 8 一致性 Review（独立 pass；5 项预登记核对点 + 机械校验） | 单 Agent 自查 | Step 8 | ✅ 已完成（P1/P2 = 0，P3 = 4 全部回写，见 §8） |
-| Step 9 实施（B1→B2→B3a→B3b→B4→B5→B6 七提交 + T-13） | 单 Agent 自查 | Step 9 | ✅ 已完成（2026-11-10，73/74，见 §10.0） |
-| Step 10 ADD 审计 + 提交推送 + 远端 CI（V17 回填 G7） | 单 Agent 自查 | Step 10 | pending（本地已 550 passed，待推送） |
+| Step 9 实施（B1→B2→B3a→B3b→B4→B5→B6 七提交 + T-13） | 单 Agent 自查 | Step 9 | ✅ 已完成（2026-11-10，74/74，见 §10.0） |
+| Step 10 ADD 审计 + 提交推送 + 远端 CI（V17 回填 G7） | 单 Agent 自查 | Step 10 | 部分完成：推送 + CI 已完成（74/74，run `42694945888`）；ADD 审计待执行 |
 | P-011 Step 3 DESIGN（待 P-012 L2/L4 落地后启动） | 单 Agent 自查 | P-012 Step 9 后 | pending |
 | U-D1~U-D4 未决项按触发条件回收 | 单 Agent 自查 | 实施期 | pending |
 

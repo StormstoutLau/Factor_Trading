@@ -564,11 +564,11 @@ tests/
 |----|------|
 | V1 | 550 passed（516 + 34），0 failed |
 | V2 / V3 / V4 | black 153 unchanged / mypy 0（32 files）/ 盲区 4 errors 2 files |
-| V5 | 4 gate pass + replay 12 rows OK（session `factorv3-p012-bias-20261110`） |
+| V5 | 4 gate pass + replay 16 rows OK（session `factorv3-p012-bias-20261110`） |
 | V6 / V7 | 恒等式全等（ratio spread 4.44e-16）/ legacy rtol=0（NAV 1,155,172.3318119394，136 笔 trades 全等） |
 | V8 / V9 / V10 / V11 | 28 边界日唯一命中 / 扰动不变 / 退市后不可交易 / `survivorship="uncorrected"` + `n_unknown_*` |
 | V12 | 四份 change_report 双门通过（residual ≤ 4.66e-10；attribution=true） |
 | V13 / V14 / V15 / V16 | dump 零影响 / 契约 4/4 / `data_provider` 仅测试 2 处 / baseline sha256 全同 |
 | V18 / V19 | 报告含四字段（+unknown_board_codes）/ 取价仅 `_exec_price` 内 2 行 |
 | V20 | 逆序逐批回退 9/9 干净；中间批次单 revert 有顺序依赖冲突 |
-| V17 | 待 Step 10 推送后回填 |
+| V17 | 远端 run `42694945888`：3.10/3.11/3.12 三 job success，各 543 passed, 1 skipped |
