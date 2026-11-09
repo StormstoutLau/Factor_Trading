@@ -69,7 +69,7 @@ def test_b2_force_liquidation():
         price=10.0,
         amount=10000.0,
         cost=0.0,
-        net_amount=10000.0
+        net_amount=10000.0,
     )
     tracker.execute_trade(trade)
 
@@ -84,14 +84,19 @@ def test_b2_force_liquidation():
     close_price = 11.0
 
     # 执行卖出
-    success, sell_trade = executor.execute_order("AAPL", OrderSide.SELL, 1000, last_date, close_price)
+    success, sell_trade = executor.execute_order(
+        "AAPL", OrderSide.SELL, 1000, last_date, close_price
+    )
     assert success, "卖出应成功"
     tracker.execute_trade(sell_trade)
 
     # 验证平仓后无持仓
     positions = tracker.get_all_positions()
-    assert len(positions) == 0 or positions.get("AAPL", None) is None or positions["AAPL"].quantity == 0, \
-        "平仓后应无持仓"
+    assert (
+        len(positions) == 0
+        or positions.get("AAPL", None) is None
+        or positions["AAPL"].quantity == 0
+    ), "平仓后应无持仓"
     print(f"  ✓ 强制平仓后无持仓")
     print(f"  ✓ 最终现金: {tracker.get_cash():.2f}")
 
@@ -127,7 +132,9 @@ def test_b3_insufficient_cash():
     # 尝试买入500股 @ 10元 = 5000元（资金充足）
     required2 = 500 * 10.0 * 1.002
     if cash >= required2:
-        success, trade = executor.execute_order("AAPL", OrderSide.BUY, 500, pd.Timestamp("2024-01-02"), 10.0)
+        success, trade = executor.execute_order(
+            "AAPL", OrderSide.BUY, 500, pd.Timestamp("2024-01-02"), 10.0
+        )
         if success:
             tracker.execute_trade(trade)
             print(f"  ✓ 资金充足时买入成功: 现金从10000变为{tracker.get_cash():.2f}")

@@ -154,13 +154,16 @@ def test_pending_order_status_transitions():
 
     # 通过 queue.mark_executed 执行（增加 retry_count）
     from core.pending import PendingOrderQueue
+
     queue = PendingOrderQueue()
     queue.add_order(order)
     queue.mark_executed(order, pd.Timestamp("2024-01-03"), 150.0)
     assert order.status == OrderStatus.EXECUTED
     assert order.execute_price == 150.0
     assert order.retry_count == 1, f"queue.mark_executed应增加retry_count，实际{order.retry_count}"
-    print(f"  ✓ 执行后: {order.status.name}, price={order.execute_price}, retry={order.retry_count}")
+    print(
+        f"  ✓ 执行后: {order.status.name}, price={order.execute_price}, retry={order.retry_count}"
+    )
 
     # 创建新订单测试过期
     order2 = PendingOrder("GOOGL", OrderSide.SELL, 50, pd.Timestamp("2024-01-02"))
@@ -181,10 +184,7 @@ def test_fallback_stock_selection():
 
     from core.pending import select_fallback_stocks
 
-    scores = pd.Series(
-        [0.8, 0.6, 0.4, 0.2, 0.1],
-        index=["A", "B", "C", "D", "E"]
-    )
+    scores = pd.Series([0.8, 0.6, 0.4, 0.2, 0.1], index=["A", "B", "C", "D", "E"])
 
     # 排除 A 和 B
     fallback = select_fallback_stocks(scores, excluded_stocks=["A", "B"], depth=3)
@@ -200,6 +200,7 @@ def test_fallback_stock_selection():
 
 
 # ── 集成测试 ──
+
 
 def test_universe_filter_masks_shape():
     """测试: UniverseFilter 掩码形状正确"""
@@ -220,6 +221,7 @@ def test_universe_filter_masks_shape():
     # 使用模拟数据
     import tempfile
     import os
+
     with tempfile.TemporaryDirectory() as tmpdir:
         # 创建最小数据文件
         dates = pd.date_range("2024-01-02", "2024-01-31", freq="B")
@@ -228,8 +230,7 @@ def test_universe_filter_masks_shape():
         # 价格数据
         np.random.seed(42)
         close = pd.DataFrame(
-            np.random.uniform(5, 50, (len(dates), len(stocks))),
-            index=dates, columns=stocks
+            np.random.uniform(5, 50, (len(dates), len(stocks))), index=dates, columns=stocks
         )
         open_p = close * np.random.uniform(0.98, 1.02, close.shape)
         open_p = pd.DataFrame(open_p, index=dates, columns=stocks)
@@ -245,7 +246,7 @@ def test_universe_filter_masks_shape():
         # 停牌数据 (全部正常)
         suspend = pd.DataFrame(0, index=dates, columns=stocks)
         # 停牌一只股票
-        suspend.loc[dates[5]:dates[10], "000001"] = 1
+        suspend.loc[dates[5] : dates[10], "000001"] = 1
         suspend.to_pickle(data_dir / "suspend.pkl")
 
         # ST数据
@@ -262,13 +263,19 @@ def test_universe_filter_masks_shape():
 
         # 成交量数据
         volume = pd.DataFrame(
-            np.random.uniform(1e6, 1e8, (len(dates), len(stocks))),
-            index=dates, columns=stocks
+            np.random.uniform(1e6, 1e8, (len(dates), len(stocks))), index=dates, columns=stocks
         )
         volume.to_pickle(data_dir / "volume.pkl")
 
         # 使用 DataManager 加载
-        from core.config import BacktestConfig, FactorConfig, OptimizerConfig, RebalanceConfig, CostConfig
+        from core.config import (
+            BacktestConfig,
+            FactorConfig,
+            OptimizerConfig,
+            RebalanceConfig,
+            CostConfig,
+        )
+
         config = BacktestConfig(
             data_dir=data_dir,
             factor_files=["factor_value.pkl"],
@@ -287,22 +294,22 @@ def test_universe_filter_masks_shape():
         universe.build_masks()
 
         # 验证掩码形状
-        assert universe.buyable.shape == (len(dates), len(stocks)), \
-            f"buyable shape: {universe.buyable.shape}"
+        assert universe.buyable.shape == (
+            len(dates),
+            len(stocks),
+        ), f"buyable shape: {universe.buyable.shape}"
         assert universe.sellable.shape == (len(dates), len(stocks))
         assert universe.tradable.shape == (len(dates), len(stocks))
         print(f"  ✓ 掩码形状正确: {universe.buyable.shape}")
 
         # 停牌日期应不可交易
         suspend_date = dates[6]
-        assert not universe.tradable.loc[suspend_date, "000001"], \
-            "停牌股票应不可交易"
+        assert not universe.tradable.loc[suspend_date, "000001"], "停牌股票应不可交易"
         print(f"  ✓ 停牌股票 ({suspend_date.date()}, 000001) 正确过滤")
 
         # 正常日期应可交易
         normal_date = dates[2]
-        assert universe.tradable.loc[normal_date, "000001"], \
-            "正常股票应可交易"
+        assert universe.tradable.loc[normal_date, "000001"], "正常股票应可交易"
         print(f"  ✓ 正常股票 ({normal_date.date()}, 000001) 正确可交易")
 
     return True
@@ -340,6 +347,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"  ✗ FAILED: {e}")
                 import traceback
+
                 traceback.print_exc()
                 results.append((name, False))
 

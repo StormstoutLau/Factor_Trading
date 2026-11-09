@@ -9,14 +9,14 @@ Engine 即插即用扩展模块
 
 使用方式:
     from core.engine_plugins import EventLogPlugin, GuardPlugin, PluginIntegration
-    
+
     # 方式1: 手动集成
     engine = BacktestEngineV2(config)
     engine.setup()
-    
+
     event_plugin = EventLogPlugin(engine)
     guard_plugin = GuardPlugin(engine, GuardPipeline.default())
-    
+
     # 方式2: 一键集成
     integration = PluginIntegration(engine)
     integration.enable_all()  # 启用所有插件
@@ -65,11 +65,14 @@ class EventLogPlugin:
         self._enabled = True
 
         # 记录引擎初始化事件
-        self._log("engine.init", {
-            "initial_capital": self.engine.cfg.initial_capital,
-            "optimizer": self.engine.cfg.optimizer.method,
-            "rebalance": self.engine.cfg.rebalance.method,
-        })
+        self._log(
+            "engine.init",
+            {
+                "initial_capital": self.engine.cfg.initial_capital,
+                "optimizer": self.engine.cfg.optimizer.method,
+                "rebalance": self.engine.cfg.rebalance.method,
+            },
+        )
 
         logger.info("EventLogPlugin 已启用")
         return self
@@ -84,11 +87,14 @@ class EventLogPlugin:
         """记录再平衡事件"""
         if not self._enabled:
             return
-        self._log("engine.rebalance", {
-            "date": str(date),
-            "n_stocks": len(target_weights),
-            "top_stocks": list(target_weights.keys())[:5],
-        })
+        self._log(
+            "engine.rebalance",
+            {
+                "date": str(date),
+                "n_stocks": len(target_weights),
+                "top_stocks": list(target_weights.keys())[:5],
+            },
+        )
 
     def log_trade(
         self,
@@ -102,14 +108,17 @@ class EventLogPlugin:
         """记录交易事件"""
         if not self._enabled:
             return
-        self._log("engine.trade", {
-            "date": str(date),
-            "stock": stock,
-            "side": side,
-            "quantity": quantity,
-            "price": price,
-            "success": success,
-        })
+        self._log(
+            "engine.trade",
+            {
+                "date": str(date),
+                "stock": stock,
+                "side": side,
+                "quantity": quantity,
+                "price": price,
+                "success": success,
+            },
+        )
 
     def log_pending(
         self,
@@ -122,22 +131,28 @@ class EventLogPlugin:
         """记录待执行订单事件"""
         if not self._enabled:
             return
-        self._log("engine.pending", {
-            "date": str(date),
-            "stock": stock,
-            "side": side,
-            "quantity": quantity,
-            "action": action,
-        })
+        self._log(
+            "engine.pending",
+            {
+                "date": str(date),
+                "stock": stock,
+                "side": side,
+                "quantity": quantity,
+                "action": action,
+            },
+        )
 
     def log_day_end(self, date: pd.Timestamp, portfolio_value: float) -> None:
         """记录日终事件"""
         if not self._enabled:
             return
-        self._log("engine.day_end", {
-            "date": str(date),
-            "portfolio_value": portfolio_value,
-        })
+        self._log(
+            "engine.day_end",
+            {
+                "date": str(date),
+                "portfolio_value": portfolio_value,
+            },
+        )
 
     def _log(self, event_type: str, payload: dict[str, Any]) -> None:
         """内部记录方法"""
@@ -203,9 +218,7 @@ class GuardPlugin:
             return True, []
 
         try:
-            ctx = create_guard_context_from_engine(
-                self.engine, action, symbol, quantity, price
-            )
+            ctx = create_guard_context_from_engine(self.engine, action, symbol, quantity, price)
             reasons = self.pipeline.get_blocking_reasons(ctx)
 
             if reasons:
@@ -235,13 +248,16 @@ class GuardPlugin:
         allowed, reasons = self.check_trade(action, symbol, quantity, price)
 
         if event_plugin and event_plugin.is_enabled:
-            event_plugin._log("engine.guard_check", {
-                "action": action,
-                "symbol": symbol,
-                "allowed": allowed,
-                "reasons": reasons,
-                "mode": self.mode,
-            })
+            event_plugin._log(
+                "engine.guard_check",
+                {
+                    "action": action,
+                    "symbol": symbol,
+                    "allowed": allowed,
+                    "reasons": reasons,
+                    "mode": self.mode,
+                },
+            )
 
         return allowed
 
@@ -382,12 +398,12 @@ class PluginIntegration:
     使用方式:
         engine = BacktestEngineV2(config)
         engine.setup()
-        
+
         integration = PluginIntegration(engine)
         integration.enable_all()  # 启用 EventLog + Guard + Registry
-        
+
         results = engine.run()
-        
+
         stats = integration.get_stats()
     """
 

@@ -63,7 +63,7 @@ _PY312 = r'"C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe"'
 GATES = {
     "probe": "echo Spec_Runner OK",
     "unit-tests": f"set MPLBACKEND=Agg&& {_PY312} -m pytest tests -q",
-    "black-check": f"{_PY312} -m black --check core tests 2>&1",
+    "black-check": f"{_PY312} -m black --check . 2>&1",
     "mypy-check": f"{_PY312} -m mypy --explicit-package-bases core",
 }
 
@@ -92,9 +92,16 @@ def _build_gate_cmd(args, name: str) -> list:
     if name not in GATES:
         print(f"gate: unknown '{name}'——可用: {', '.join(GATES)}", file=sys.stderr)
         sys.exit(2)
-    return ([*_runner_cmd(), "gate", "--name", name, "--cmd", GATES[name],
-             "--session", args.session or _session_for(name)] +
-            (["--cwd", DEFAULT_CWD]))
+    return [
+        *_runner_cmd(),
+        "gate",
+        "--name",
+        name,
+        "--cmd",
+        GATES[name],
+        "--session",
+        args.session or _session_for(name),
+    ] + (["--cwd", DEFAULT_CWD])
 
 
 def _build_run_cmd(args) -> list:
@@ -108,17 +115,16 @@ def _build_run_cmd(args) -> list:
         cmd += ["--prompt", args.prompt]
     if args.prompt_file:
         cmd += ["--prompt-file", args.prompt_file]
-    for flag, val in (("--endpoint", ENDPOINT), ("--model", MODEL),
-                      ("--provider", PROVIDER)):
+    for flag, val in (("--endpoint", ENDPOINT), ("--model", MODEL), ("--provider", PROVIDER)):
         if val:
             cmd += [flag, val]
     return cmd
 
 
 def _run(argv_override=None) -> int:
-    p = argparse.ArgumentParser(prog="spec_runner_adapter",
-                                description="Spec_Runner 通用接入模板",
-                                add_help=True)
+    p = argparse.ArgumentParser(
+        prog="spec_runner_adapter", description="Spec_Runner 通用接入模板", add_help=True
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     g = sub.add_parser("gate", help="从 GATES 表执行门禁（exit 透传）")
@@ -150,8 +156,9 @@ def _run(argv_override=None) -> int:
     sub.add_parser("probe", help="接入自检（一个 echo 探针 gate）")
 
     d = sub.add_parser("dry-run", help="打印将执行的命令，不实际运行")
-    d.add_argument("inner", nargs=argparse.REMAINDER,
-                   help="如: dry-run gate unit-tests / dry-run gates")
+    d.add_argument(
+        "inner", nargs=argparse.REMAINDER, help="如: dry-run gate unit-tests / dry-run gates"
+    )
 
     args = p.parse_args(argv_override)
 
@@ -176,9 +183,11 @@ def _run(argv_override=None) -> int:
         return _exec_run(args)
     # status / replay / fork：透传
     cmd = [*_runner_cmd(), args.cmd]
-    for flag, val in (("--session", getattr(args, "session", None)),
-                      ("--seq", getattr(args, "seq_from", None)),
-                      ("--new", getattr(args, "new", None))):
+    for flag, val in (
+        ("--session", getattr(args, "session", None)),
+        ("--seq", getattr(args, "seq_from", None)),
+        ("--new", getattr(args, "new", None)),
+    ):
         if val:
             cmd += [flag, str(val)]
     return _exec(cmd)
@@ -196,8 +205,7 @@ def _exec_run(args) -> int:
 def _exec(cmd: list) -> int:
     print("+", " ".join(cmd))
     try:
-        proc = subprocess.run(cmd, cwd=DEFAULT_CWD, text=True,
-                              encoding="utf-8", errors="replace")
+        proc = subprocess.run(cmd, cwd=DEFAULT_CWD, text=True, encoding="utf-8", errors="replace")
     except FileNotFoundError:
         print(f"exec: 找不到 {cmd[1]}——请检查 RUNNER 配置", file=sys.stderr)
         return 127
@@ -213,13 +221,14 @@ def _action_cmd(args) -> list:
     if args.cmd == "gates":
         return ["(列出 GATES 表)"]
     if args.cmd == "probe":
-        probe = argparse.Namespace(cmd="gate", name="probe", session=None,
-                                   resume=False)
+        probe = argparse.Namespace(cmd="gate", name="probe", session=None, resume=False)
         return _build_gate_cmd(probe, "probe")
     cmd = [*_runner_cmd(), args.cmd]
-    for flag, val in (("--session", getattr(args, "session", None)),
-                      ("--seq", getattr(args, "seq_from", None)),
-                      ("--new", getattr(args, "new", None))):
+    for flag, val in (
+        ("--session", getattr(args, "session", None)),
+        ("--seq", getattr(args, "seq_from", None)),
+        ("--new", getattr(args, "new", None)),
+    ):
         if val:
             cmd += [flag, str(val)]
     return cmd

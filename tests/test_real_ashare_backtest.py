@@ -1,4 +1,5 @@
 """真实A股数据回测验证测试"""
+
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import unittest
 import pandas as pd
 import numpy as np
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -202,7 +204,7 @@ class TestRealAshareBacktest(unittest.TestCase):
         results = engine.run()
 
         # 检查交易记录
-        if hasattr(engine, 'executor') and engine.executor:
+        if hasattr(engine, "executor") and engine.executor:
             stats = engine.executor.get_execution_stats()
             print(f"  ✓ 交易统计: {stats}")
 

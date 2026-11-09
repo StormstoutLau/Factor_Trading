@@ -27,11 +27,24 @@ def test_old_import_paths_removed():
 
     project_root = Path(__file__).parent.parent
     old_modules = [
-        "config", "data", "factor", "execution", "portfolio",
-        "rebalance", "tracker", "pending", "analytics", "engine",
-        "agent_framework", "guru_agent_v2", "research_team_v2",
-        "sentiment_framework", "multi_strategy_engine",
-        "style_drift_analysis", "adaptive_agent", "hierarchical_bayesian_agent"
+        "config",
+        "data",
+        "factor",
+        "execution",
+        "portfolio",
+        "rebalance",
+        "tracker",
+        "pending",
+        "analytics",
+        "engine",
+        "agent_framework",
+        "guru_agent_v2",
+        "research_team_v2",
+        "sentiment_framework",
+        "multi_strategy_engine",
+        "style_drift_analysis",
+        "adaptive_agent",
+        "hierarchical_bayesian_agent",
     ]
     for mod in old_modules:
         file_path = project_root / f"{mod}.py"
@@ -147,7 +160,9 @@ def test_guard_pipeline():
     # Test default pipeline
     pipeline = GuardPipeline.default()
     results = pipeline.check(ctx)
-    assert all(r.passed for r in results), f"Some guards failed: {[r.message for r in results if not r.passed]}"
+    assert all(
+        r.passed for r in results
+    ), f"Some guards failed: {[r.message for r in results if not r.passed]}"
     print(f"  ✓ Default pipeline: all passed ({len(results)} guards)")
 
     # Test blocking scenario

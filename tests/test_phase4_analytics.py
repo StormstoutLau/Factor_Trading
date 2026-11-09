@@ -30,40 +30,48 @@ def test_e13_negative_return_protection():
     snapshots = []
     for i in range(10):
         cr = -0.9 * (i / 9)  # 从0到-90%
-        snapshots.append(PortfolioSnapshot(
-            date=pd.Timestamp(f"2024-01-{i+2:02d}"),
-            cash=100000 * (1 + cr),
-            total_value=100000 * (1 + cr),
-            positions={},
-            daily_return=cr / 10 if i > 0 else 0,
-            cumulative_return=cr
-        ))
+        snapshots.append(
+            PortfolioSnapshot(
+                date=pd.Timestamp(f"2024-01-{i+2:02d}"),
+                cash=100000 * (1 + cr),
+                total_value=100000 * (1 + cr),
+                positions={},
+                daily_return=cr / 10 if i > 0 else 0,
+                cumulative_return=cr,
+            )
+        )
 
     analyzer.set_data(snapshots, pd.DataFrame())
     metrics = analyzer.calculate_performance_metrics()
 
     # 验证：total_return为-0.9，annual_return不应为NaN或异常值
-    assert not np.isnan(metrics['annual_return']), "年化收益率不应为NaN"
-    assert metrics['annual_return'] == -1.0, f"全部亏损时年化收益率应为-1.0, 实际为{metrics['annual_return']}"
-    print(f"  ✓ 负收益保护正确: total_return={metrics['total_return']:.2%}, annual_return={metrics['annual_return']:.2%}")
+    assert not np.isnan(metrics["annual_return"]), "年化收益率不应为NaN"
+    assert (
+        metrics["annual_return"] == -1.0
+    ), f"全部亏损时年化收益率应为-1.0, 实际为{metrics['annual_return']}"
+    print(
+        f"  ✓ 负收益保护正确: total_return={metrics['total_return']:.2%}, annual_return={metrics['annual_return']:.2%}"
+    )
 
     # 测试正常正收益
     snapshots2 = []
     for i in range(10):
         cr = 0.5 * (i / 9)  # 从0到50%
-        snapshots2.append(PortfolioSnapshot(
-            date=pd.Timestamp(f"2024-01-{i+2:02d}"),
-            cash=100000 * (1 + cr),
-            total_value=100000 * (1 + cr),
-            positions={},
-            daily_return=cr / 10 if i > 0 else 0,
-            cumulative_return=cr
-        ))
+        snapshots2.append(
+            PortfolioSnapshot(
+                date=pd.Timestamp(f"2024-01-{i+2:02d}"),
+                cash=100000 * (1 + cr),
+                total_value=100000 * (1 + cr),
+                positions={},
+                daily_return=cr / 10 if i > 0 else 0,
+                cumulative_return=cr,
+            )
+        )
 
     analyzer.set_data(snapshots2, pd.DataFrame())
     metrics2 = analyzer.calculate_performance_metrics()
 
-    assert metrics2['annual_return'] > 0, "正收益时年化收益率应大于0"
+    assert metrics2["annual_return"] > 0, "正收益时年化收益率应大于0"
     print(f"  ✓ 正收益计算正确: annual_return={metrics2['annual_return']:.2%}")
 
     return True

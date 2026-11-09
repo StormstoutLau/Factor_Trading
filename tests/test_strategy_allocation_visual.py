@@ -18,7 +18,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from agents.strategy_allocator import StrategyAllocationManager
 
 
-def generate_regime_switching_returns(n_days: int = 300) -> tuple[np.ndarray, list[datetime], list[str]]:
+def generate_regime_switching_returns(
+    n_days: int = 300,
+) -> tuple[np.ndarray, list[datetime], list[str]]:
     """生成带有状态切换的策略收益
 
     模拟三个策略在不同市场状态下的表现：
@@ -35,17 +37,17 @@ def generate_regime_switching_returns(n_days: int = 300) -> tuple[np.ndarray, li
             # 牛市: 动量策略好
             regimes.append("bull")
             returns[i] = [
-                rng.normal(0.003, 0.015),   # 动量策略: 高正收益
-                rng.normal(0.001, 0.012),   # 价值策略: 中等
-                rng.normal(-0.002, 0.02),   # 均值回归: 负收益
+                rng.normal(0.003, 0.015),  # 动量策略: 高正收益
+                rng.normal(0.001, 0.012),  # 价值策略: 中等
+                rng.normal(-0.002, 0.02),  # 均值回归: 负收益
             ]
         elif i < 200:
             # 震荡市: 均值回归策略好
             regimes.append("range")
             returns[i] = [
                 rng.normal(-0.001, 0.018),  # 动量策略: 亏损
-                rng.normal(0.000, 0.010),   # 价值策略: 持平
-                rng.normal(0.002, 0.008),   # 均值回归: 正收益
+                rng.normal(0.000, 0.010),  # 价值策略: 持平
+                rng.normal(0.002, 0.008),  # 均值回归: 正收益
             ]
         else:
             # 熊市: 空头策略相对好（或亏得少）
@@ -53,7 +55,7 @@ def generate_regime_switching_returns(n_days: int = 300) -> tuple[np.ndarray, li
             returns[i] = [
                 rng.normal(-0.003, 0.020),  # 动量策略: 大亏
                 rng.normal(-0.001, 0.015),  # 价值策略: 小亏
-                rng.normal(0.001, 0.012),   # 均值回归: 微盈
+                rng.normal(0.001, 0.012),  # 均值回归: 微盈
             ]
 
     dates = [datetime(2024, 1, 1) + timedelta(days=i) for i in range(n_days)]
@@ -72,12 +74,12 @@ def visualize_allocation_weights():
     # 使用FTRL分配器（带遗忘因子，适应非平稳环境）
     manager = StrategyAllocationManager(
         strategy_names=strategy_names,
-        allocator_type='ftrl',
+        allocator_type="ftrl",
         learning_rate=0.15,
         forget_factor=0.97,
         turnover_penalty=0.005,
         min_weight=0.1,
-        max_weight=0.7
+        max_weight=0.7,
     )
 
     # 逐日更新
@@ -101,7 +103,9 @@ def visualize_allocation_weights():
     print(f"  总天数: {len(dates)}")
     print(f"  组合累计收益: {cumulative_returns[-1]:.4f}")
     print(f"  组合夏普比率: {np.mean(portfolio_returns) / (np.std(portfolio_returns) + 1e-8):.4f}")
-    print(f"  组合最大回撤: {np.min(cumulative_returns - np.maximum.accumulate(cumulative_returns)):.4f}")
+    print(
+        f"  组合最大回撤: {np.min(cumulative_returns - np.maximum.accumulate(cumulative_returns)):.4f}"
+    )
 
     print(f"\n【各策略累计收益】")
     for i, name in enumerate(strategy_names):
@@ -139,47 +143,72 @@ def visualize_allocation_weights():
 
         # 图1: 权重时间序列
         ax1 = axes[0]
-        colors = ['#e74c3c', '#3498db', '#2ecc71']
+        colors = ["#e74c3c", "#3498db", "#2ecc71"]
         for i, name in enumerate(strategy_names):
             ax1.plot(dates, weights_history[:, i], label=name, color=colors[i], linewidth=1.5)
-        ax1.axvline(x=dates[100], color='gray', linestyle='--', alpha=0.5, label='状态切换')
-        ax1.axvline(x=dates[200], color='gray', linestyle='--', alpha=0.5)
-        ax1.set_ylabel('权重', fontsize=12)
-        ax1.set_title('动态资金分配权重变化', fontsize=14, fontweight='bold')
-        ax1.legend(loc='upper right', fontsize=10)
+        ax1.axvline(x=dates[100], color="gray", linestyle="--", alpha=0.5, label="状态切换")
+        ax1.axvline(x=dates[200], color="gray", linestyle="--", alpha=0.5)
+        ax1.set_ylabel("权重", fontsize=12)
+        ax1.set_title("动态资金分配权重变化", fontsize=14, fontweight="bold")
+        ax1.legend(loc="upper right", fontsize=10)
         ax1.set_ylim(0, 1)
         ax1.grid(True, alpha=0.3)
 
         # 添加市场状态标注
-        ax1.text(dates[50], 0.95, '牛市', ha='center', fontsize=11,
-                bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.5))
-        ax1.text(dates[150], 0.95, '震荡市', ha='center', fontsize=11,
-                bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.5))
-        ax1.text(dates[250], 0.95, '熊市', ha='center', fontsize=11,
-                bbox=dict(boxstyle='round', facecolor='lightcoral', alpha=0.5))
+        ax1.text(
+            dates[50],
+            0.95,
+            "牛市",
+            ha="center",
+            fontsize=11,
+            bbox=dict(boxstyle="round", facecolor="lightgreen", alpha=0.5),
+        )
+        ax1.text(
+            dates[150],
+            0.95,
+            "震荡市",
+            ha="center",
+            fontsize=11,
+            bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.5),
+        )
+        ax1.text(
+            dates[250],
+            0.95,
+            "熊市",
+            ha="center",
+            fontsize=11,
+            bbox=dict(boxstyle="round", facecolor="lightcoral", alpha=0.5),
+        )
 
         # 图2: 累计收益对比
         ax2 = axes[1]
-        ax2.plot(dates, cumulative_returns, label='动态分配组合', color='purple', linewidth=2)
+        ax2.plot(dates, cumulative_returns, label="动态分配组合", color="purple", linewidth=2)
         for i, name in enumerate(strategy_names):
-            ax2.plot(dates, strategy_cumreturns[:, i], label=name, color=colors[i],
-                    linewidth=1, alpha=0.6, linestyle='--')
-        ax2.axvline(x=dates[100], color='gray', linestyle='--', alpha=0.5)
-        ax2.axvline(x=dates[200], color='gray', linestyle='--', alpha=0.5)
-        ax2.set_ylabel('累计收益', fontsize=12)
-        ax2.set_title('累计收益对比', fontsize=14, fontweight='bold')
-        ax2.legend(loc='upper left', fontsize=10)
+            ax2.plot(
+                dates,
+                strategy_cumreturns[:, i],
+                label=name,
+                color=colors[i],
+                linewidth=1,
+                alpha=0.6,
+                linestyle="--",
+            )
+        ax2.axvline(x=dates[100], color="gray", linestyle="--", alpha=0.5)
+        ax2.axvline(x=dates[200], color="gray", linestyle="--", alpha=0.5)
+        ax2.set_ylabel("累计收益", fontsize=12)
+        ax2.set_title("累计收益对比", fontsize=14, fontweight="bold")
+        ax2.legend(loc="upper left", fontsize=10)
         ax2.grid(True, alpha=0.3)
 
         # 图3: 每日收益
         ax3 = axes[2]
-        ax3.bar(dates, portfolio_returns, color='steelblue', alpha=0.6, width=0.8)
-        ax3.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
-        ax3.axvline(x=dates[100], color='gray', linestyle='--', alpha=0.5)
-        ax3.axvline(x=dates[200], color='gray', linestyle='--', alpha=0.5)
-        ax3.set_ylabel('日收益', fontsize=12)
-        ax3.set_xlabel('日期', fontsize=12)
-        ax3.set_title('组合每日收益', fontsize=14, fontweight='bold')
+        ax3.bar(dates, portfolio_returns, color="steelblue", alpha=0.6, width=0.8)
+        ax3.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax3.axvline(x=dates[100], color="gray", linestyle="--", alpha=0.5)
+        ax3.axvline(x=dates[200], color="gray", linestyle="--", alpha=0.5)
+        ax3.set_ylabel("日收益", fontsize=12)
+        ax3.set_xlabel("日期", fontsize=12)
+        ax3.set_title("组合每日收益", fontsize=14, fontweight="bold")
         ax3.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -187,7 +216,7 @@ def visualize_allocation_weights():
         # 保存图表
         output_path = Path(__file__).parent.parent / "output" / "strategy_allocation_weights.png"
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
         print(f"\n  图表已保存: {output_path}")
 
         plt.close()
@@ -212,20 +241,34 @@ def compare_allocators():
     returns, dates, regimes = generate_regime_switching_returns(300)
 
     allocator_configs = {
-        '等权固定': {'type': 'ftrl', 'kwargs': {'learning_rate': 0.0}, 'desc': '基准: 始终1/3等权'},
-        'Hedge': {'type': 'hedge', 'kwargs': {'learning_rate': 0.1, 'forget_factor': 0.97}, 'desc': '指数加权平均'},
-        'FTRL': {'type': 'ftrl', 'kwargs': {'learning_rate': 0.15, 'forget_factor': 0.97, 'turnover_penalty': 0.005}, 'desc': '在线凸优化'},
-        'UCB': {'type': 'ucb', 'kwargs': {'exploration_coeff': 1.5, 'min_weight': 0.1}, 'desc': '上置信界'},
-        'Thompson': {'type': 'thompson', 'kwargs': {'temperature': 1.0, 'min_weight': 0.1}, 'desc': '贝叶斯采样'},
+        "等权固定": {"type": "ftrl", "kwargs": {"learning_rate": 0.0}, "desc": "基准: 始终1/3等权"},
+        "Hedge": {
+            "type": "hedge",
+            "kwargs": {"learning_rate": 0.1, "forget_factor": 0.97},
+            "desc": "指数加权平均",
+        },
+        "FTRL": {
+            "type": "ftrl",
+            "kwargs": {"learning_rate": 0.15, "forget_factor": 0.97, "turnover_penalty": 0.005},
+            "desc": "在线凸优化",
+        },
+        "UCB": {
+            "type": "ucb",
+            "kwargs": {"exploration_coeff": 1.5, "min_weight": 0.1},
+            "desc": "上置信界",
+        },
+        "Thompson": {
+            "type": "thompson",
+            "kwargs": {"temperature": 1.0, "min_weight": 0.1},
+            "desc": "贝叶斯采样",
+        },
     }
 
     results = []
 
     for name, config in allocator_configs.items():
         manager = StrategyAllocationManager(
-            strategy_names=strategy_names,
-            allocator_type=config['type'],
-            **config['kwargs']
+            strategy_names=strategy_names, allocator_type=config["type"], **config["kwargs"]
         )
 
         portfolio_returns = []
@@ -247,19 +290,25 @@ def compare_allocators():
         else:
             turnover = 0.0
 
-        results.append({
-            'name': name,
-            'desc': config['desc'],
-            'final_return': final_return,
-            'sharpe': sharpe,
-            'max_dd': max_dd,
-            'turnover': turnover,
-        })
+        results.append(
+            {
+                "name": name,
+                "desc": config["desc"],
+                "final_return": final_return,
+                "sharpe": sharpe,
+                "max_dd": max_dd,
+                "turnover": turnover,
+            }
+        )
 
-    print(f"\n{'分配器':<12} {'描述':<20} {'累计收益':>10} {'夏普比率':>10} {'最大回撤':>10} {'日均换手':>10}")
+    print(
+        f"\n{'分配器':<12} {'描述':<20} {'累计收益':>10} {'夏普比率':>10} {'最大回撤':>10} {'日均换手':>10}"
+    )
     print("-" * 80)
     for r in results:
-        print(f"{r['name']:<12} {r['desc']:<20} {r['final_return']:>10.4f} {r['sharpe']:>10.4f} {r['max_dd']:>10.4f} {r['turnover']:>10.4f}")
+        print(
+            f"{r['name']:<12} {r['desc']:<20} {r['final_return']:>10.4f} {r['sharpe']:>10.4f} {r['max_dd']:>10.4f} {r['turnover']:>10.4f}"
+        )
 
     print("\n" + "=" * 80)
 

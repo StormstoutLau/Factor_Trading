@@ -29,7 +29,8 @@ st.set_page_config(
 )
 
 # ── Dark Theme CSS ───────────────────────────────────────────────────────────
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Bloomberg Terminal inspired dark theme */
     :root {
@@ -61,15 +62,20 @@ st.markdown("""
         margin: 24px 0 12px 0;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ── Sidebar Navigation ───────────────────────────────────────────────────────
-st.sidebar.markdown("""
+st.sidebar.markdown(
+    """
 <div style="text-align:center; padding:16px 0;">
     <h1 style="color:#00d4ff; font-size:24px; margin:0;">📊 Factor Trading</h1>
     <p style="color:#64748b; font-size:12px; margin:4px 0;">v3.2 — Multi-Agent Quant Framework</p>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.sidebar.markdown("---")
 

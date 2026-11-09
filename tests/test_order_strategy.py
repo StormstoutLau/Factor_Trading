@@ -47,11 +47,13 @@ class TestOrderStrategies(unittest.TestCase):
         base_price = 100.0
         for i in range(20):
             price = base_price * (1 + np.random.randn() * 0.01)
-            self.market_data.append({
-                "price": price,
-                "close": price,
-                "volume": 1000000,
-            })
+            self.market_data.append(
+                {
+                    "price": price,
+                    "close": price,
+                    "volume": 1000000,
+                }
+            )
             base_price = price
 
     def test_market_order(self):
@@ -155,4 +157,3 @@ class TestStrategyEvaluator(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

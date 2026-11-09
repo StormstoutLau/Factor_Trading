@@ -14,11 +14,11 @@ from order_strategy.strategies import (
 from order_strategy.evaluator import OrderStrategyEvaluator
 
 __all__ = [
-    'BaseOrderStrategy',
-    'MarketOrderStrategy',
-    'TWAPStrategy',
-    'VWAPStrategy',
-    'IcebergStrategy',
-    'MarketImpactModel',
-    'OrderStrategyEvaluator',
+    "BaseOrderStrategy",
+    "MarketOrderStrategy",
+    "TWAPStrategy",
+    "VWAPStrategy",
+    "IcebergStrategy",
+    "MarketImpactModel",
+    "OrderStrategyEvaluator",
 ]

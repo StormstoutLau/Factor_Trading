@@ -21,15 +21,15 @@ class TestBrinsonAttributionWithSmallSample:
 
     def test_two_stock_two_period_attribution(self):
         """两只股票、两期的精确归因验证
-        
+
         组合: 股票A(权重60%), 股票B(权重40%)
         基准: 股票A(权重50%), 股票B(50%)
-        
+
         第1期:
         - 组合收益 = 0.6*0.10 + 0.4*0.05 = 0.08
         - 基准收益 = 0.5*0.10 + 0.5*0.05 = 0.075
         - 超额收益 = 0.005
-        
+
         配置效应 = (0.6-0.5)*0.10 + (0.4-0.5)*0.05 = 0.01 - 0.005 = 0.005
         选择效应 = 0.5*(0.10-0.10) + 0.5*(0.05-0.05) = 0
         交互效应 = (0.6-0.5)*(0.10-0.10) + (0.4-0.5)*(0.05-0.05) = 0
@@ -61,12 +61,14 @@ class TestBrinsonAttributionWithSmallSample:
         total = result.allocation_effect + result.selection_effect + result.interaction_effect
         assert abs(total - result.total_excess_return) < 1e-10
 
-        print(f"✓ 第1期验证通过: 超额={result.total_excess_return:.4f}, "
-              f"配置={result.allocation_effect:.4f}, 选择={result.selection_effect:.4f}")
+        print(
+            f"✓ 第1期验证通过: 超额={result.total_excess_return:.4f}, "
+            f"配置={result.allocation_effect:.4f}, 选择={result.selection_effect:.4f}"
+        )
 
     def test_selection_effect_only(self):
         """纯选择效应验证
-        
+
         组合和基准权重相同，但组合内股票收益不同
         配置效应 = 0, 交互效应 = 0, 超额收益 = 选择效应
         """
@@ -95,7 +97,7 @@ class TestBrinsonAttributionWithSmallSample:
 
     def test_interaction_effect(self):
         """交互效应验证
-        
+
         当权重和收益都不同的时候，交互效应不为零
         """
         from core.attribution import AttributionPeriod, BrinsonAttributionAnalyzer
@@ -127,8 +129,10 @@ class TestBrinsonAttributionWithSmallSample:
         total = result.allocation_effect + result.selection_effect + result.interaction_effect
         assert abs(total - result.total_excess_return) < 1e-10
 
-        print(f"✓ 交互效应验证通过: 配置={result.allocation_effect:.4f}, "
-              f"选择={result.selection_effect:.4f}, 交互={result.interaction_effect:.4f}")
+        print(
+            f"✓ 交互效应验证通过: 配置={result.allocation_effect:.4f}, "
+            f"选择={result.selection_effect:.4f}, 交互={result.interaction_effect:.4f}"
+        )
 
     def test_multi_period_linking(self):
         """多期连接验证"""
@@ -137,26 +141,30 @@ class TestBrinsonAttributionWithSmallSample:
         analyzer = BrinsonAttributionAnalyzer(linking_method="geometric")
 
         # 第1期: 组合+5%, 基准+3%
-        analyzer.add_period(AttributionPeriod(
-            period_date=pd.Timestamp("2024-01-01"),
-            portfolio_return=0.05,
-            benchmark_return=0.03,
-            portfolio_weights={"科技": 0.6, "金融": 0.4},
-            portfolio_returns={"科技": 0.08, "金融": 0.02},
-            benchmark_weights={"科技": 0.5, "金融": 0.5},
-            benchmark_returns={"科技": 0.06, "金融": 0.02},
-        ))
+        analyzer.add_period(
+            AttributionPeriod(
+                period_date=pd.Timestamp("2024-01-01"),
+                portfolio_return=0.05,
+                benchmark_return=0.03,
+                portfolio_weights={"科技": 0.6, "金融": 0.4},
+                portfolio_returns={"科技": 0.08, "金融": 0.02},
+                benchmark_weights={"科技": 0.5, "金融": 0.5},
+                benchmark_returns={"科技": 0.06, "金融": 0.02},
+            )
+        )
 
         # 第2期: 组合+3%, 基准+2%
-        analyzer.add_period(AttributionPeriod(
-            period_date=pd.Timestamp("2024-02-01"),
-            portfolio_return=0.03,
-            benchmark_return=0.02,
-            portfolio_weights={"科技": 0.6, "金融": 0.4},
-            portfolio_returns={"科技": 0.05, "金融": 0.01},
-            benchmark_weights={"科技": 0.5, "金融": 0.5},
-            benchmark_returns={"科技": 0.04, "金融": 0.01},
-        ))
+        analyzer.add_period(
+            AttributionPeriod(
+                period_date=pd.Timestamp("2024-02-01"),
+                portfolio_return=0.03,
+                benchmark_return=0.02,
+                portfolio_weights={"科技": 0.6, "金融": 0.4},
+                portfolio_returns={"科技": 0.05, "金融": 0.01},
+                benchmark_weights={"科技": 0.5, "金融": 0.5},
+                benchmark_returns={"科技": 0.04, "金融": 0.01},
+            )
+        )
 
         result = analyzer.calculate_multi_period()
 
@@ -167,8 +175,10 @@ class TestBrinsonAttributionWithSmallSample:
         assert abs(result.cumulative_portfolio_return - expected_portfolio) < 1e-10
         assert abs(result.cumulative_benchmark_return - expected_benchmark) < 1e-10
 
-        print(f"✓ 多期连接验证通过: 组合累计={result.cumulative_portfolio_return:.4f}, "
-              f"基准累计={result.cumulative_benchmark_return:.4f}")
+        print(
+            f"✓ 多期连接验证通过: 组合累计={result.cumulative_portfolio_return:.4f}, "
+            f"基准累计={result.cumulative_benchmark_return:.4f}"
+        )
 
 
 class TestRiskMonitorWithSmallSample:
@@ -193,11 +203,7 @@ class TestRiskMonitorWithSmallSample:
         print(f"✓ 业绩miss: {signal.level_name} (score={signal.score:.2f})")
 
         # 测试3: 业绩miss + 管理层变动 (0.4+0.3=0.7 -> 二级预警)
-        signal = monitor.monitor(
-            symbol="TEST003",
-            earnings_miss=True,
-            management_change=True
-        )
+        signal = monitor.monitor(symbol="TEST003", earnings_miss=True, management_change=True)
         assert signal.level == RiskLevel.MEDIUM
         assert abs(signal.score - 0.7) < 1e-10
         print(f"✓ 业绩miss+管理层变动: {signal.level_name} (score={signal.score:.2f})")
@@ -207,8 +213,8 @@ class TestRiskMonitorWithSmallSample:
             symbol="TEST004",
             earnings_miss=True,
             management_change=True,
-            events=['lawsuit', 'insider_selling'],
-            financial_data={'debt_ratio': 0.85, 'operating_cashflow': -500}
+            events=["lawsuit", "insider_selling"],
+            financial_data={"debt_ratio": 0.85, "operating_cashflow": -500},
         )
         assert signal.level == RiskLevel.HIGH
         assert signal.score == 1.0
@@ -229,50 +235,49 @@ class TestRiskMonitorWithSmallSample:
         # 测试: 基本面高风险
         signal, actions = engine.evaluate(
             fundamental={
-                'earnings_miss': True,
-                'management_change': True,
-                'events': ['lawsuit'],
-                'financial_data': {'debt_ratio': 0.9}
+                "earnings_miss": True,
+                "management_change": True,
+                "events": ["lawsuit"],
+                "financial_data": {"debt_ratio": 0.9},
             }
         )
         assert signal.level == RiskLevel.HIGH
-        assert any(a.action_type == 'clear' for a in actions)
-        print(f"✓ 综合评估(基本面高风险): {signal.level_name}, 动作={[a.action_type for a in actions]}")
+        assert any(a.action_type == "clear" for a in actions)
+        print(
+            f"✓ 综合评估(基本面高风险): {signal.level_name}, 动作={[a.action_type for a in actions]}"
+        )
 
     def test_risk_action_generation(self):
         """风控动作生成验证"""
         from core.risk_monitor import (
-            CompositeRiskEngine, RiskLevel,
-            FundamentalMonitor, IndustryMonitor
+            CompositeRiskEngine,
+            RiskLevel,
+            FundamentalMonitor,
+            IndustryMonitor,
         )
 
         engine = CompositeRiskEngine()
 
         # 三级预警 -> hold
-        signal, actions = engine.evaluate(
-            fundamental={'earnings_miss': True}  # score=0.4 -> LOW
-        )
-        assert any(a.action_type == 'hold' for a in actions)
+        signal, actions = engine.evaluate(fundamental={"earnings_miss": True})  # score=0.4 -> LOW
+        assert any(a.action_type == "hold" for a in actions)
         print(f"✓ 三级预警动作: {[a.action_type for a in actions]}")
 
         # 二级预警 -> reduce + pause_buy
         signal, actions = engine.evaluate(
             fundamental={
-                'earnings_miss': True,
-                'management_change': True,
-                'events': ['lawsuit']
+                "earnings_miss": True,
+                "management_change": True,
+                "events": ["lawsuit"],
             }  # score=0.4+0.3+0.35=1.05 -> 1.0 -> HIGH (因为超过0.85)
         )
         # 注意: 这个组合实际上会触发HIGH，让我们调整
 
         # 重新测试二级预警
-        engine2 = CompositeRiskEngine([
-            FundamentalMonitor(),
-            IndustryMonitor()
-        ])
+        engine2 = CompositeRiskEngine([FundamentalMonitor(), IndustryMonitor()])
         signal, actions = engine2.evaluate(
-            fundamental={'earnings_miss': True},  # 0.4 -> LOW
-            industry={'policy_changes': ['investigation']}  # 0.4 -> LOW
+            fundamental={"earnings_miss": True},  # 0.4 -> LOW
+            industry={"policy_changes": ["investigation"]},  # 0.4 -> LOW
         )
         # 综合分数 = (0.4*1.0 + 0.4*0.8) / (1.0+0.8) = 0.72/1.8 = 0.4 -> LOW
         # 但最高等级是LOW
@@ -288,13 +293,9 @@ class TestWalkForwardWithSmallSample:
         from core.walk_forward import WalkForwardSplitter
 
         # 20个交易日，训练10天，测试5天，清除2天
-        dates = pd.date_range("2024-01-01", periods=20, freq='B')
+        dates = pd.date_range("2024-01-01", periods=20, freq="B")
         splitter = WalkForwardSplitter(
-            dates=dates,
-            train_size=10,
-            test_size=5,
-            purge_gap=2,
-            method="rolling"
+            dates=dates, train_size=10, test_size=5, purge_gap=2, method="rolling"
         )
 
         windows = list(splitter.split())
@@ -304,8 +305,10 @@ class TestWalkForwardWithSmallSample:
         assert n_splits > 0
 
         for i, window in enumerate(windows):
-            print(f"  窗口{i+1}: 训练[{window.train_start.date()}~{window.train_end.date()}], "
-                  f"测试[{window.test_start.date()}~{window.test_end.date()}]")
+            print(
+                f"  窗口{i+1}: 训练[{window.train_start.date()}~{window.train_end.date()}], "
+                f"测试[{window.test_start.date()}~{window.test_end.date()}]"
+            )
 
             # 验证训练集和测试集不重叠
             assert window.train_end < window.test_start
@@ -318,13 +321,9 @@ class TestWalkForwardWithSmallSample:
         """验证清除间隙防止数据泄露"""
         from core.walk_forward import WalkForwardSplitter
 
-        dates = pd.date_range("2024-01-01", periods=30, freq='B')
+        dates = pd.date_range("2024-01-01", periods=30, freq="B")
         splitter = WalkForwardSplitter(
-            dates=dates,
-            train_size=10,
-            test_size=5,
-            purge_gap=5,  # 5天清除间隙
-            method="rolling"
+            dates=dates, train_size=10, test_size=5, purge_gap=5, method="rolling"  # 5天清除间隙
         )
 
         for window in splitter.split():
@@ -354,23 +353,23 @@ class TestIntegrationWithSmallSample:
         print("\n=== 小样本全流程验证 ===")
 
         # 1. 创建模拟数据
-        dates = pd.date_range("2024-01-01", periods=10, freq='B')
-        stocks = ['A', 'B']
+        dates = pd.date_range("2024-01-01", periods=10, freq="B")
+        stocks = ["A", "B"]
 
         # 股票收益
-        returns = pd.DataFrame({
-            'A': [0.01, 0.02, -0.01, 0.03, 0.01, -0.02, 0.01, 0.02, 0.01, -0.01],
-            'B': [0.02, -0.01, 0.01, 0.02, 0.03, 0.01, -0.01, 0.01, 0.02, 0.01]
-        }, index=dates)
+        returns = pd.DataFrame(
+            {
+                "A": [0.01, 0.02, -0.01, 0.03, 0.01, -0.02, 0.01, 0.02, 0.01, -0.01],
+                "B": [0.02, -0.01, 0.01, 0.02, 0.03, 0.01, -0.01, 0.01, 0.02, 0.01],
+            },
+            index=dates,
+        )
 
         # 2. 创建基准 (等权)
         benchmark_returns = returns.mean(axis=1)
 
         # 3. 创建组合权重 (假设我们持有A 60%, B 40%)
-        portfolio_weights = pd.DataFrame({
-            'A': [0.6] * 10,
-            'B': [0.4] * 10
-        }, index=dates)
+        portfolio_weights = pd.DataFrame({"A": [0.6] * 10, "B": [0.4] * 10}, index=dates)
 
         # 4. 计算组合收益
         portfolio_returns = (returns * portfolio_weights).sum(axis=1)
@@ -384,19 +383,17 @@ class TestIntegrationWithSmallSample:
         from core.walk_forward import WalkForwardSplitter
 
         splitter = WalkForwardSplitter(
-            dates=dates,
-            train_size=5,
-            test_size=3,
-            purge_gap=1,
-            method="rolling"
+            dates=dates, train_size=5, test_size=3, purge_gap=1, method="rolling"
         )
 
         windows = list(splitter.split())
         print(f"✓ Walk-Forward窗口数: {len(windows)}")
 
         for i, w in enumerate(windows):
-            print(f"  窗口{i+1}: 训练{w.train_start.date()}~{w.train_end.date()}, "
-                  f"测试{w.test_start.date()}~{w.test_end.date()}")
+            print(
+                f"  窗口{i+1}: 训练{w.train_start.date()}~{w.train_end.date()}, "
+                f"测试{w.test_start.date()}~{w.test_end.date()}"
+            )
 
         # 7. 风险监控验证
         from core.risk_monitor import CompositeRiskEngine
@@ -404,10 +401,10 @@ class TestIntegrationWithSmallSample:
         engine = CompositeRiskEngine()
         signal, actions = engine.evaluate(
             fundamental={
-                'financial_data': {
-                    'debt_ratio': 0.5,
-                    'operating_cashflow': 1000,
-                    'revenue_growth': 0.15
+                "financial_data": {
+                    "debt_ratio": 0.5,
+                    "operating_cashflow": 1000,
+                    "revenue_growth": 0.15,
                 }
             }
         )

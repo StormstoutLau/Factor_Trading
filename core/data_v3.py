@@ -292,4 +292,3 @@ class DataLoaderV3:
             info: AssetInfo 实例
         """
         self._asset_info[symbol] = info
-

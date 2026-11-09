@@ -23,7 +23,9 @@ import pandas as pd
 
 from core.pending import OrderSide, PendingOrder, PendingOrderQueue
 from core.execution_policy import (
-    SignalTranslator, T1StockPolicy, OrderIntent,
+    SignalTranslator,
+    T1StockPolicy,
+    OrderIntent,
 )
 from core.tracker import Position, PositionTracker
 
@@ -130,6 +132,7 @@ class TestEngineV2ExecutionPolicyInjection(unittest.TestCase):
         """engine_v2 构造函数接受 execution_policy 参数"""
         import importlib
         import core.engine_v2 as ev2
+
         importlib.reload(ev2)
 
         from core.config import BacktestConfig
@@ -150,6 +153,7 @@ class TestEngineV2ExecutionPolicyInjection(unittest.TestCase):
         """engine_v2 构造函数接受 risk_manager 参数"""
         import importlib
         import core.engine_v2 as ev2
+
         importlib.reload(ev2)
 
         from core.config import BacktestConfig
@@ -169,6 +173,7 @@ class TestEngineV2ExecutionPolicyInjection(unittest.TestCase):
         """不注入 execution_policy 时使用旧路径 (默认行为)"""
         import importlib
         import core.engine_v2 as ev2
+
         importlib.reload(ev2)
 
         from core.config import BacktestConfig
@@ -186,7 +191,9 @@ class TestMarkToMarketPolicyIntegration(unittest.TestCase):
     def test_risk_manager_checks_positions(self):
         """风险管理器检查持仓并生成动作"""
         from core.risk_manager import (
-            MarkToMarketPolicy, StopLossConfig, RiskAction,
+            MarkToMarketPolicy,
+            StopLossConfig,
+            RiskAction,
         )
         from core.config import MarginConfig
 

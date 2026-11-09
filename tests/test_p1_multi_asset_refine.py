@@ -19,7 +19,6 @@ import unittest
 import numpy as np
 import pandas as pd
 
-
 # ============================================================================
 # P1.1: AssetType 枚举测试
 # ============================================================================
@@ -85,9 +84,7 @@ class TestAssetTypeEnum(unittest.TestCase):
         target_weights = pd.Series([1.0], index=["000001.SZ"])
         prices = pd.Series([10.0], index=["000001.SZ"])
 
-        intents = SignalTranslator.from_weights(
-            target_weights, {}, prices, 1_000_000.0
-        )
+        intents = SignalTranslator.from_weights(target_weights, {}, prices, 1_000_000.0)
         self.assertEqual(len(intents), 1)
         self.assertEqual(intents[0].asset_type, AssetType.STOCK)
 
@@ -100,9 +97,7 @@ class TestAssetTypeEnum(unittest.TestCase):
         sell_signal = pd.Series([False], index=["IF2406"])
         prices = pd.Series([3500.0], index=["IF2406"])
 
-        intents = SignalTranslator.from_signals(
-            buy_signal, sell_signal, {}, prices, 700000.0
-        )
+        intents = SignalTranslator.from_signals(buy_signal, sell_signal, {}, prices, 700000.0)
         self.assertEqual(len(intents), 1)
         self.assertEqual(intents[0].asset_type, AssetType.FUTURE)
 
@@ -115,7 +110,10 @@ class TestAssetTypeEnum(unittest.TestCase):
         prices = pd.Series([3500.0], index=["IF2406"])
 
         intents = SignalTranslator.from_weights(
-            target_weights, {}, prices, 700000.0,
+            target_weights,
+            {},
+            prices,
+            700000.0,
             asset_type=AssetType.FUTURE,
         )
         self.assertEqual(intents[0].asset_type, AssetType.FUTURE)
@@ -176,6 +174,7 @@ class TestCalculateCostByAsset(unittest.TestCase):
 
     def setUp(self):
         from core.config import CostConfig
+
         self.cfg = CostConfig()
 
     def test_stock_sell_has_stamp_tax(self):
@@ -185,8 +184,7 @@ class TestCalculateCostByAsset(unittest.TestCase):
         from core.config import AssetType
 
         sim = ExecutionSimulator(self.cfg)
-        cost = sim._calculate_cost(10000.0, OrderSide.SELL,
-                                   asset_type=AssetType.STOCK)
+        cost = sim._calculate_cost(10000.0, OrderSide.SELL, asset_type=AssetType.STOCK)
         # 佣金(5, 因为 min=5 > 3) + 印花税(10) + 滑点(10) = 25
         self.assertAlmostEqual(cost, 25.0)
 
@@ -200,8 +198,7 @@ class TestCalculateCostByAsset(unittest.TestCase):
         cfg.asset_costs[AssetType.FUTURE] = AssetCost(stamp_tax_rate=0.0)
 
         sim = ExecutionSimulator(cfg)
-        cost = sim._calculate_cost(10000.0, OrderSide.SELL,
-                                   asset_type=AssetType.FUTURE)
+        cost = sim._calculate_cost(10000.0, OrderSide.SELL, asset_type=AssetType.FUTURE)
         # 佣金(5) + 滑点(10) = 15 (无印花税)
         self.assertAlmostEqual(cost, 15.0)
 
@@ -215,8 +212,7 @@ class TestCalculateCostByAsset(unittest.TestCase):
         cfg.asset_costs[AssetType.FUTURE] = AssetCost(stamp_tax_rate=0.0)
 
         sim = ExecutionSimulator(cfg)
-        cost = sim._calculate_cost(10000.0, OrderSide.SELL_SHORT,
-                                   asset_type=AssetType.FUTURE)
+        cost = sim._calculate_cost(10000.0, OrderSide.SELL_SHORT, asset_type=AssetType.FUTURE)
         # 佣金(5) + 滑点(10) = 15
         self.assertAlmostEqual(cost, 15.0)
 
@@ -241,8 +237,7 @@ class TestCalculateCostByAsset(unittest.TestCase):
             exchange_fee=0.000025,  # 万分之0.25
         )
         sim = ExecutionSimulator(cfg)
-        cost = sim._calculate_cost(10000.0, OrderSide.BUY,
-                                   asset_type=AssetType.FUTURE)
+        cost = sim._calculate_cost(10000.0, OrderSide.BUY, asset_type=AssetType.FUTURE)
         # 佣金(min=5, 所以 5 > 3) + 交易所费(0.25) + 滑点(10) = 15.25
         expected = 5.0 + 10000 * 0.000025 + 10000 * 0.001
         self.assertAlmostEqual(cost, expected)
@@ -280,9 +275,7 @@ class TestBuyNoImplicitCover(unittest.TestCase):
     def test_buy_increases_long_position(self):
         """BUY 加多仓正常"""
         pos = self.Position("000001.SZ", 500, 10.0, 5000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.BUY, 500, 12.0, 6000.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.BUY, 500, 12.0, 6000.0, 5.0)
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, 1000)
         self.assertAlmostEqual(pos.avg_cost, 11.0)
@@ -290,15 +283,13 @@ class TestBuyNoImplicitCover(unittest.TestCase):
     def test_buy_does_not_cover_short(self):
         """BUY 不再自动平空: 空头时 BUY 应加多而非平空"""
         pos = self.Position("IF2406", -2, 3500.0, 7000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "IF2406", self.OrderSide.BUY, 1, 3600.0, 3600.0, 5.0
-        )
+        trade = self._make_trade("IF2406", self.OrderSide.BUY, 1, 3600.0, 3600.0, 5.0)
         pos.execute_trade(trade)
 
         # 新的行为: BUY 在空头持仓时加多仓 (quantity 从 -2 变为 -1)
         # 即: total = |-2|*3500 + 3600 = 7000+3600 = 10600
         # total_quantity = 2 + 1 = 3, avg_cost = 10600/3 = 3533.33
-        # 但 quantity 仍然是负数（表示净空头 + 多头混合）... 
+        # 但 quantity 仍然是负数（表示净空头 + 多头混合）...
 
         # 实际上新逻辑应该: BUY 总是加多仓 side
         # 如果 quantity < 0, BUY 减去空头 (平掉部分空头) → 不，这就是旧逻辑
@@ -327,27 +318,21 @@ class TestBuyNoImplicitCover(unittest.TestCase):
     def test_buy_to_cover_still_works(self):
         """BUY_TO_COVER 正常平空"""
         pos = self.Position("IF2406", -2, 3500.0, 7000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "IF2406", self.OrderSide.BUY_TO_COVER, 1, 3600.0, 3600.0, 5.0
-        )
+        trade = self._make_trade("IF2406", self.OrderSide.BUY_TO_COVER, 1, 3600.0, 3600.0, 5.0)
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, -1)
 
     def test_sell_short_still_works(self):
         """SELL_SHORT 正常加空"""
         pos = self.Position("IF2406", -2, 3500.0, 7000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "IF2406", self.OrderSide.SELL_SHORT, 1, 3400.0, 3400.0, 5.0
-        )
+        trade = self._make_trade("IF2406", self.OrderSide.SELL_SHORT, 1, 3400.0, 3400.0, 5.0)
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, -3)
 
     def test_sell_still_works(self):
         """SELL 正常减多"""
         pos = self.Position("000001.SZ", 1000, 10.0, 10000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.SELL, 400, 12.0, 4800.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.SELL, 400, 12.0, 4800.0, 5.0)
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, 600)
 

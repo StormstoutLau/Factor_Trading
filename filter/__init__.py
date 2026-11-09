@@ -17,11 +17,11 @@ Filter模块 - 股票过滤器集合
     from filter import UniverseFilter, MarketCapFilter
     from filter.prefix import filter_a_share
     from filter.market_cap import filter_large_cap
-    
+
     # 方式2: 使用工厂函数创建过滤器
     from filter import create_filter
     filter_obj = create_filter('market_cap', min_cap=1000000)
-    
+
     # 方式3: 使用便捷函数
     from filter.prefix import filter_gem, filter_kcb
     from filter.market_cap import filter_large_cap, filter_small_cap
@@ -117,6 +117,7 @@ from .custom import (
 # ==================== 原有Universe过滤器 ====================
 try:
     from .predictive_listing_filter import PredictiveListDateFilter
+
     PredictiveListingFilter = PredictiveListDateFilter
 except ImportError:
     PredictiveListDateFilter = None
@@ -129,7 +130,7 @@ from .universe_filter_clean import UniverseFilter
 def create_filter(filter_type: str, **kwargs):
     """
     统一的过滤器创建工厂函数
-    
+
     Args:
         filter_type: 过滤器类型，支持:
             - 'universe': 基础宇宙过滤器
@@ -150,149 +151,132 @@ def create_filter(filter_type: str, **kwargs):
             - 'custom': 自定义过滤器
             - 'expression': 表达式过滤器
         **kwargs: 过滤器特定参数
-        
+
     Returns:
         过滤器实例
-        
+
     Examples:
         >>> from filter import create_filter
-        >>> 
+        >>>
         >>> # 创建大盘股过滤器
         >>> filter_obj = create_filter('large_cap', top_n=100, market_cap_data=cap_data)
-        >>> 
+        >>>
         >>> # 创建创业板过滤器
         >>> filter_obj = create_filter('board', board='gem')
-        >>> 
+        >>>
         >>> # 创建NA删除过滤器
         >>> filter_obj = create_filter('na_drop', threshold=0.1)
     """
     type_mapping = {
         # 基础过滤器
-        'universe': UniverseFilter,
-        
+        "universe": UniverseFilter,
         # 扩展过滤器
-        'date_range': DateRangeFilter,
-        'stock_pool': StockPoolFilter,
-        'turnover': TurnoverFilter,
-        'volatility': VolatilityFilter,
-        'liquidity': LiquidityFilter,
-        
+        "date_range": DateRangeFilter,
+        "stock_pool": StockPoolFilter,
+        "turnover": TurnoverFilter,
+        "volatility": VolatilityFilter,
+        "liquidity": LiquidityFilter,
         # NA过滤器
-        'na_drop': NAFactorDropFilter,
-        'na_fill': NAFactorFillFilter,
-        'na_forward_fill': NAFactorForwardFillFilter,
-        
+        "na_drop": NAFactorDropFilter,
+        "na_fill": NAFactorFillFilter,
+        "na_forward_fill": NAFactorForwardFillFilter,
         # 前缀过滤器
-        'prefix': PrefixFilter,
-        'board': BoardFilter,
-        
+        "prefix": PrefixFilter,
+        "board": BoardFilter,
         # 市值过滤器
-        'market_cap': MarketCapFilter,
-        'large_cap': LargeCapFilter,
-        'small_cap': SmallCapFilter,
-        'mid_cap': MidCapFilter,
-        
+        "market_cap": MarketCapFilter,
+        "large_cap": LargeCapFilter,
+        "small_cap": SmallCapFilter,
+        "mid_cap": MidCapFilter,
         # 行业过滤器
-        'industry': IndustryFilter,
-        'sector': SectorFilter,
-        
+        "industry": IndustryFilter,
+        "sector": SectorFilter,
         # 自定义过滤器
-        'custom': CustomFunctionFilter,
-        'expression': ExpressionFilter,
+        "custom": CustomFunctionFilter,
+        "expression": ExpressionFilter,
     }
-    
+
     if filter_type not in type_mapping:
         raise ValueError(
-            f"未知过滤器类型: {filter_type}\n"
-            f"可用类型: {list(type_mapping.keys())}"
+            f"未知过滤器类型: {filter_type}\n" f"可用类型: {list(type_mapping.keys())}"
         )
-    
+
     return type_mapping[filter_type](**kwargs)
 
 
 # ==================== 导出列表 ====================
 __all__ = [
     # 基类
-    'BaseFilter',
-    'FilterConfig',
-    'CompositeFilter',
-    'FilterChain',
-    
+    "BaseFilter",
+    "FilterConfig",
+    "CompositeFilter",
+    "FilterChain",
     # 扩展过滤器
-    'ExtendedFilter',
-    'DateRangeFilter',
-    'StockPoolFilter',
-    'TurnoverFilter',
-    'VolatilityFilter',
-    'LiquidityFilter',
-    
+    "ExtendedFilter",
+    "DateRangeFilter",
+    "StockPoolFilter",
+    "TurnoverFilter",
+    "VolatilityFilter",
+    "LiquidityFilter",
     # NA过滤器
-    'NAFactorFilter',
-    'NAFactorDropFilter',
-    'NAFactorFillFilter',
-    'NAFactorForwardFillFilter',
-    'CrossSectionalNAFilter',
-    
+    "NAFactorFilter",
+    "NAFactorDropFilter",
+    "NAFactorFillFilter",
+    "NAFactorForwardFillFilter",
+    "CrossSectionalNAFilter",
     # 前缀过滤器
-    'PrefixFilter',
-    'BoardFilter',
-    'RegexPrefixFilter',
-    
+    "PrefixFilter",
+    "BoardFilter",
+    "RegexPrefixFilter",
     # 市值过滤器
-    'MarketCapFilter',
-    'LargeCapFilter',
-    'SmallCapFilter',
-    'MidCapFilter',
-    'MarketCapRatioFilter',
-    'MarketCapMomentumFilter',
-    
+    "MarketCapFilter",
+    "LargeCapFilter",
+    "SmallCapFilter",
+    "MidCapFilter",
+    "MarketCapRatioFilter",
+    "MarketCapMomentumFilter",
     # 行业过滤器
-    'IndustryFilter',
-    'SectorFilter',
-    'IndustryExclusionFilter',
-    'IndustryRotationFilter',
-    
+    "IndustryFilter",
+    "SectorFilter",
+    "IndustryExclusionFilter",
+    "IndustryRotationFilter",
     # 自定义过滤器
-    'CustomFunctionFilter',
-    'ExpressionFilter',
-    'MultiConditionFilter',
-    'DynamicFilter',
-    'ConditionalFilter',
-    
+    "CustomFunctionFilter",
+    "ExpressionFilter",
+    "MultiConditionFilter",
+    "DynamicFilter",
+    "ConditionalFilter",
     # 原有过滤器
-    'UniverseFilter',
-    'PredictiveListingFilter',
-    
+    "UniverseFilter",
+    "PredictiveListingFilter",
     # 工厂函数
-    'create_filter',
-    'create_extended_filter',
-    'create_na_filter',
-    'create_prefix_filter',
-    'create_market_cap_filter',
-    'create_industry_filter',
-    'create_custom_filter',
-    
+    "create_filter",
+    "create_extended_filter",
+    "create_na_filter",
+    "create_prefix_filter",
+    "create_market_cap_filter",
+    "create_industry_filter",
+    "create_custom_filter",
     # 工具函数
-    'build_boolean_mask',
-    'vectorized_filter_by_list',
-    'fast_date_range_filter',
-    'fill_na_vectorized',
-    'drop_na_vectorized',
-    
+    "build_boolean_mask",
+    "vectorized_filter_by_list",
+    "fast_date_range_filter",
+    "fill_na_vectorized",
+    "drop_na_vectorized",
     # 便捷函数
-    'filter_shanghai_main',
-    'filter_shenzhen_main',
-    'filter_gem',
-    'filter_kcb',
-    'filter_a_share',
-    'filter_large_cap',
-    'filter_small_cap',
-    'filter_cap_range',
-    'filter_by_industry',
-    'exclude_industries',
-    'filter_sector',
-    'create_filter_from_func',
-    'create_filter_from_expr',
-    'create_threshold_filter',
-    'create_range_filter',
+    "filter_shanghai_main",
+    "filter_shenzhen_main",
+    "filter_gem",
+    "filter_kcb",
+    "filter_a_share",
+    "filter_large_cap",
+    "filter_small_cap",
+    "filter_cap_range",
+    "filter_by_industry",
+    "exclude_industries",
+    "filter_sector",
+    "create_filter_from_func",
+    "create_filter_from_expr",
+    "create_threshold_filter",
+    "create_range_filter",
 ]

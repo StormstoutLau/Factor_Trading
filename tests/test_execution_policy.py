@@ -173,14 +173,18 @@ class TestOrderIntent(unittest.TestCase):
         from core.execution_policy import OrderIntent
 
         buy_intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
         self.assertEqual(buy_intent.abs_trade_quantity, 1000.0)
 
         sell_intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=0.0, current_quantity=500.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=0.0,
+            current_quantity=500.0,
         )
         self.assertEqual(sell_intent.abs_trade_quantity, 500.0)
 
@@ -189,8 +193,10 @@ class TestOrderIntent(unittest.TestCase):
         from core.execution_policy import OrderIntent
 
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
             urgency=0.5,
         )
         self.assertEqual(intent.urgency, 0.5)
@@ -209,8 +215,10 @@ class TestExecutionResult(unittest.TestCase):
         from core.execution_policy import ExecutionResult, OrderIntent
 
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
         result = ExecutionResult(
             success=True,
@@ -230,8 +238,10 @@ class TestExecutionResult(unittest.TestCase):
         from core.execution_policy import ExecutionResult, OrderIntent
 
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
         result = ExecutionResult(
             success=False,
@@ -250,8 +260,10 @@ class TestExecutionResult(unittest.TestCase):
         from core.execution_policy import ExecutionResult, OrderIntent
 
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
         result = ExecutionResult(
             success=True,
@@ -308,8 +320,10 @@ class TestExecutionPolicy(unittest.TestCase):
 
         policy = T1StockPolicy()
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
         date = pd.Timestamp("2024-01-15")
 
@@ -328,8 +342,10 @@ class TestExecutionPolicy(unittest.TestCase):
 
         policy = T1StockPolicy()
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=0.0, current_quantity=500.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=0.0,
+            current_quantity=500.0,
         )
         date = pd.Timestamp("2024-01-15")
 
@@ -348,8 +364,10 @@ class TestExecutionPolicy(unittest.TestCase):
 
         policy = T1StockPolicy()
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=500.0, current_quantity=500.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=500.0,
+            current_quantity=500.0,
         )
         date = pd.Timestamp("2024-01-15")
 
@@ -362,8 +380,10 @@ class TestExecutionPolicy(unittest.TestCase):
 
         policy = T1StockPolicy()
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=300.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=300.0,
         )
         date = pd.Timestamp("2024-01-15")
 
@@ -378,8 +398,10 @@ class TestExecutionPolicy(unittest.TestCase):
 
         policy = T1StockPolicy()
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=200.0, current_quantity=1000.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=200.0,
+            current_quantity=1000.0,
         )
         date = pd.Timestamp("2024-01-15")
 
@@ -525,8 +547,11 @@ class TestSignalTranslator(unittest.TestCase):
         total_value = 1_000_000.0
 
         intents = SignalTranslator.from_weights(
-            target_weights, current_positions={}, prices=prices,
-            total_value=total_value, asset_type="future",
+            target_weights,
+            current_positions={},
+            prices=prices,
+            total_value=total_value,
+            asset_type="future",
         )
 
         self.assertEqual(len(intents), 1)
@@ -545,7 +570,9 @@ class TestPolicyPolymorphism(unittest.TestCase):
     def test_policies_share_interface(self):
         """不同策略实现相同的接口"""
         from core.execution_policy import (
-            ExecutionPolicy, T1StockPolicy, ExecutionTiming,
+            ExecutionPolicy,
+            T1StockPolicy,
+            ExecutionTiming,
         )
 
         # 验证 T1StockPolicy 实现了所有抽象方法
@@ -565,8 +592,10 @@ class TestPolicyPolymorphism(unittest.TestCase):
         }
 
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
 
         policy = policies[intent.asset_type]
@@ -615,8 +644,10 @@ class TestBackwardCompatibility(unittest.TestCase):
 
         policy = T1StockPolicy()
         intent = OrderIntent(
-            asset="000001.SZ", asset_type="stock",
-            target_quantity=1000.0, current_quantity=0.0,
+            asset="000001.SZ",
+            asset_type="stock",
+            target_quantity=1000.0,
+            current_quantity=0.0,
         )
 
         orders = policy.create_orders(intent, pd.Timestamp("2024-01-15"))
@@ -631,9 +662,7 @@ class TestBackwardCompatibility(unittest.TestCase):
         target_weights = pd.Series([0.5, 0.5], index=["000001.SZ", "000002.SZ"])
         prices = pd.Series([10.0, 20.0], index=["000001.SZ", "000002.SZ"])
 
-        intents = SignalTranslator.from_weights(
-            target_weights, {}, prices, 1_000_000.0
-        )
+        intents = SignalTranslator.from_weights(target_weights, {}, prices, 1_000_000.0)
 
         policy = T1StockPolicy()
         date = pd.Timestamp("2024-01-15")

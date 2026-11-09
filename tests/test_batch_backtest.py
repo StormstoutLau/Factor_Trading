@@ -21,7 +21,11 @@ def temp_db():
     stocks = ["000001.SZ", "000002.SZ"]
     for name in ["f1", "f2"]:
         data = {s: np.random.randn(20) for s in stocks}
-        db.add_factor(name, pd.DataFrame(data, index=dates), metadata={"category": "test", "frequency": "daily", "author": "a"})
+        db.add_factor(
+            name,
+            pd.DataFrame(data, index=dates),
+            metadata={"category": "test", "frequency": "daily", "author": "a"},
+        )
 
     yield db
     shutil.rmtree(tmpdir)
@@ -87,7 +91,13 @@ class TestBatchBacktestEngine:
     def test_compare_results_with_data(self, mock_config):
         batch = BatchBacktestEngine(mock_config)
         mock_results = {
-            "s1": {"performance_metrics": {"sharpe_ratio": 1.5, "total_return": 0.1, "max_drawdown": -0.05}},
+            "s1": {
+                "performance_metrics": {
+                    "sharpe_ratio": 1.5,
+                    "total_return": 0.1,
+                    "max_drawdown": -0.05,
+                }
+            },
             "s2": {"error": "failed"},
         }
         df = batch.compare_results(mock_results)

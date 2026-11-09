@@ -20,16 +20,20 @@ def render() -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        data_dir = st.text_input("Data Directory", value="./demo_data",
-                                 help="Path to market data directory")
+        data_dir = st.text_input(
+            "Data Directory", value="./demo_data", help="Path to market data directory"
+        )
         factor_files = st.multiselect(
             "Factor Files",
             options=["factor_value.pkl", "factor_momentum.pkl"],
             default=["factor_value.pkl"],
         )
         initial_capital = st.number_input(
-            "Initial Capital", min_value=100_000, value=10_000_000,
-            step=1_000_000, format="%d",
+            "Initial Capital",
+            min_value=100_000,
+            value=10_000_000,
+            step=1_000_000,
+            format="%d",
         )
 
     with col2:
@@ -56,11 +60,14 @@ def render() -> None:
     c1, c2, c3 = st.columns(3)
     with c1:
         opt_method = st.selectbox(
-            "Optimizer", ["equal_weight", "min_variance", "mean_variance", "risk_parity"],
+            "Optimizer",
+            ["equal_weight", "min_variance", "mean_variance", "risk_parity"],
             index=0,
         )
     with c2:
-        rebalance_freq = st.selectbox("Rebalance", ["monthly", "weekly", "daily", "quarterly"], index=0)
+        rebalance_freq = st.selectbox(
+            "Rebalance", ["monthly", "weekly", "daily", "quarterly"], index=0
+        )
     with c3:
         commission = st.number_input("Commission Rate", value=0.0003, format="%.4f", step=0.0001)
 
@@ -105,14 +112,16 @@ def render() -> None:
     st.markdown("### 📜 Recent Backtest Runs")
 
     st.dataframe(
-        pd.DataFrame({
-            "Timestamp": ["—"],
-            "Factors": ["—"],
-            "Sharpe": ["—"],
-            "Return": ["—"],
-            "MaxDD": ["—"],
-            "Status": ["No runs yet"],
-        }),
+        pd.DataFrame(
+            {
+                "Timestamp": ["—"],
+                "Factors": ["—"],
+                "Sharpe": ["—"],
+                "Return": ["—"],
+                "MaxDD": ["—"],
+                "Status": ["No runs yet"],
+            }
+        ),
         use_container_width=True,
         hide_index=True,
     )

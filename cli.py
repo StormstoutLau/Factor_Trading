@@ -32,7 +32,13 @@ def cmd_run(args: argparse.Namespace) -> None:
     print("=" * 70)
 
     try:
-        from core.config import BacktestConfig, FactorConfig, OptimizerConfig, RebalanceConfig, CostConfig
+        from core.config import (
+            BacktestConfig,
+            FactorConfig,
+            OptimizerConfig,
+            RebalanceConfig,
+            CostConfig,
+        )
         from core.factory import create_default_engine
 
         data_dir = args.data_dir or "./demo_data"
@@ -111,10 +117,12 @@ def cmd_run(args: argparse.Namespace) -> None:
 
             # Save results
             if args.output:
-                result_df = pd.DataFrame({
-                    "date": pv.index,
-                    "portfolio_value": pv.values,
-                })
+                result_df = pd.DataFrame(
+                    {
+                        "date": pv.index,
+                        "portfolio_value": pv.values,
+                    }
+                )
                 result_df.to_csv(args.output, index=False)
                 print(f"\n  Results saved to: {args.output}")
         else:
@@ -174,7 +182,11 @@ def cmd_analyze(args: argparse.Namespace) -> None:
     daily_ret = pv.pct_change().dropna()
     annual_vol = daily_ret.std() * np.sqrt(252) * 100
     sharpe = annual_return / annual_vol if annual_vol > 0 else 0
-    sortino = annual_return / (daily_ret[daily_ret < 0].std() * np.sqrt(252)) if len(daily_ret[daily_ret < 0]) > 0 else 0
+    sortino = (
+        annual_return / (daily_ret[daily_ret < 0].std() * np.sqrt(252))
+        if len(daily_ret[daily_ret < 0]) > 0
+        else 0
+    )
     calmar = annual_return / abs(max_dd) if max_dd != 0 else 0
     win_rate = (daily_ret > 0).sum() / len(daily_ret) * 100
 
@@ -276,13 +288,27 @@ Examples:
     run_parser.add_argument("--capital", type=float, default=10_000_000, help="Initial capital")
     run_parser.add_argument("--start-date", default="2020-01-01", help="Start date")
     run_parser.add_argument("--end-date", default="2024-12-31", help="End date")
-    run_parser.add_argument("--optimizer", default="equal_weight", choices=["equal_weight", "min_variance", "mean_variance", "risk_parity"])
+    run_parser.add_argument(
+        "--optimizer",
+        default="equal_weight",
+        choices=["equal_weight", "min_variance", "mean_variance", "risk_parity"],
+    )
     run_parser.add_argument("--target-count", type=int, default=30, help="Target stock count")
-    run_parser.add_argument("--rebalance", default="monthly", choices=["daily", "weekly", "monthly", "quarterly"])
-    run_parser.add_argument("--winsorize", default="mad", choices=["mad", "percentile", "std", "none"])
-    run_parser.add_argument("--standardize", default="zscore", choices=["zscore", "rank", "minmax", "none"])
-    run_parser.add_argument("--fill", default="median", choices=["median", "mean", "industry", "none"])
-    run_parser.add_argument("--no-neutralize", action="store_true", help="Skip industry neutralization")
+    run_parser.add_argument(
+        "--rebalance", default="monthly", choices=["daily", "weekly", "monthly", "quarterly"]
+    )
+    run_parser.add_argument(
+        "--winsorize", default="mad", choices=["mad", "percentile", "std", "none"]
+    )
+    run_parser.add_argument(
+        "--standardize", default="zscore", choices=["zscore", "rank", "minmax", "none"]
+    )
+    run_parser.add_argument(
+        "--fill", default="median", choices=["median", "mean", "industry", "none"]
+    )
+    run_parser.add_argument(
+        "--no-neutralize", action="store_true", help="Skip industry neutralization"
+    )
     run_parser.add_argument("--commission", type=float, default=0.0003, help="Commission rate")
     run_parser.add_argument("--output", help="Save results to CSV")
 

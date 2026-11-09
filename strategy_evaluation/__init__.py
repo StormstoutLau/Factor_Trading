@@ -6,4 +6,4 @@
 from strategy_evaluation.stats import FactorStatsCalculator
 from strategy_evaluation.evaluator import StrategyEvaluator
 
-__all__ = ['FactorStatsCalculator', 'StrategyEvaluator']
+__all__ = ["FactorStatsCalculator", "StrategyEvaluator"]

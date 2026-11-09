@@ -148,8 +148,7 @@ class PluginRegistry(Generic[T]):
         if entry is None:
             available = ", ".join(self.list_names())
             raise KeyError(
-                f"{self.category} plugin '{name}' not found. "
-                f"Available: {available or 'none'}"
+                f"{self.category} plugin '{name}' not found. " f"Available: {available or 'none'}"
             )
         return entry.create(config, **kwargs)
 
@@ -168,9 +167,7 @@ class PluginRegistry(Generic[T]):
         try:
             return self.create(name, config, **kwargs)
         except KeyError:
-            logger.warning(
-                f"Plugin '{name}' not found, falling back to '{default_name}'"
-            )
+            logger.warning(f"Plugin '{name}' not found, falling back to '{default_name}'")
             return self.create(default_name, config, **kwargs)
 
 

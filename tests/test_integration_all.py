@@ -75,7 +75,9 @@ def test_cross_layer_consistency():
     from core.pending import OrderSide
 
     # 创建完整链路：Execution -> Tracker -> Analytics
-    cfg = CostConfig(commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001)
+    cfg = CostConfig(
+        commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+    )
     executor = ExecutionSimulator(cfg)
     tracker = PositionTracker(n_stocks=2, initial_capital=100000.0)
 
@@ -147,9 +149,13 @@ def test_data_factor_pipeline():
 
         for fname in ["suspend.pkl", "industry.pkl", "st.pkl"]:
             if "industry" in fname:
-                df = pd.DataFrame({s: ["Tech"] * len(trade_dates) for s in stocks}, index=trade_dates)
+                df = pd.DataFrame(
+                    {s: ["Tech"] * len(trade_dates) for s in stocks}, index=trade_dates
+                )
             else:
-                df = pd.DataFrame({s: [False] * len(trade_dates) for s in stocks}, index=trade_dates)
+                df = pd.DataFrame(
+                    {s: [False] * len(trade_dates) for s in stocks}, index=trade_dates
+                )
             df.to_pickle(tmpdir / fname)
 
         # 创建因子数据（含NaN）
@@ -170,7 +176,9 @@ def test_data_factor_pipeline():
         print(f"  ✓ 数据层NaN保持正确")
 
         # 因子处理
-        pipeline = FactorPipeline(dm, FactorConfig(standardize_method="zscore", fill_method="median"))
+        pipeline = FactorPipeline(
+            dm, FactorConfig(standardize_method="zscore", fill_method="median")
+        )
         processed = pipeline.process(factor)
 
         # 验证因子层修复

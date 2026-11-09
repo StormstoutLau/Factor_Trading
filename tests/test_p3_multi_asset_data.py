@@ -21,7 +21,6 @@ import unittest
 import numpy as np
 import pandas as pd
 
-
 # ============================================================================
 # P3.2.1: AssetInfo 数据类
 # ============================================================================
@@ -158,12 +157,15 @@ class TestDataManagerAssetInfo(unittest.TestCase):
         from core.config import AssetInfo, AssetType
 
         # 配置期货信息
-        self.dm.configure_asset("IF2406", AssetInfo(
-            asset_type=AssetType.FUTURE,
-            multiplier=300,
-            margin_ratio=0.12,
-            tick_size=0.2,
-        ))
+        self.dm.configure_asset(
+            "IF2406",
+            AssetInfo(
+                asset_type=AssetType.FUTURE,
+                multiplier=300,
+                margin_ratio=0.12,
+                tick_size=0.2,
+            ),
+        )
 
         info = self.dm.get_asset_info("IF2406")
         self.assertEqual(info.asset_type, AssetType.FUTURE)
@@ -174,11 +176,13 @@ class TestDataManagerAssetInfo(unittest.TestCase):
         """批量配置多资产"""
         from core.config import AssetInfo, AssetType
 
-        self.dm.configure_assets({
-            "IF2406": AssetInfo(asset_type=AssetType.FUTURE, multiplier=300),
-            "IC2406": AssetInfo(asset_type=AssetType.FUTURE, multiplier=200),
-            "000001.SZ": AssetInfo(asset_type=AssetType.STOCK),
-        })
+        self.dm.configure_assets(
+            {
+                "IF2406": AssetInfo(asset_type=AssetType.FUTURE, multiplier=300),
+                "IC2406": AssetInfo(asset_type=AssetType.FUTURE, multiplier=200),
+                "000001.SZ": AssetInfo(asset_type=AssetType.STOCK),
+            }
+        )
 
         self.assertEqual(
             self.dm.get_asset_info("IF2406").asset_type,
@@ -222,10 +226,13 @@ class TestDataLoaderV3AssetInfo(unittest.TestCase):
         """DataLoaderV3 支持 configure_asset"""
         from core.config import AssetInfo, AssetType
 
-        self.dl.configure_asset("IF2406", AssetInfo(
-            asset_type=AssetType.FUTURE,
-            multiplier=300,
-        ))
+        self.dl.configure_asset(
+            "IF2406",
+            AssetInfo(
+                asset_type=AssetType.FUTURE,
+                multiplier=300,
+            ),
+        )
 
         info = self.dl.get_asset_info("IF2406")
         self.assertEqual(info.asset_type, AssetType.FUTURE)

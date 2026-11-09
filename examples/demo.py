@@ -17,6 +17,7 @@ import pandas as pd
 # 合成数据生成
 # ======================================================================
 
+
 def generate_synthetic_data(
     n_stocks: int = 200,
     n_days: int = 500,
@@ -24,13 +25,13 @@ def generate_synthetic_data(
     seed: int = 42,
 ):
     """创建逼真的A股数据
-    
+
     Args:
         n_stocks: 股票数量
         n_days: 交易天数
         data_dir: 数据目录
         seed: 随机种子
-        
+
     Returns:
         数据路径
     """
@@ -49,9 +50,7 @@ def generate_synthetic_data(
     daily_mu = rng.uniform(-0.0002, 0.0005, n_stocks)
     daily_sigma = rng.uniform(0.015, 0.04, n_stocks)
 
-    log_returns = rng.normal(
-        daily_mu[None, :], daily_sigma[None, :], (n_days, n_stocks)
-    )
+    log_returns = rng.normal(daily_mu[None, :], daily_sigma[None, :], (n_days, n_stocks))
     # 限制在A股日涨跌幅±10%
     log_returns = np.clip(log_returns, -0.098, 0.098)
 
@@ -70,7 +69,9 @@ def generate_synthetic_data(
     for s in range(n_stocks):
         # 随机除权除息日期
         n_events = rng.integers(0, 3)
-        event_days = rng.choice(range(50, n_days), size=n_events, replace=False) if n_events > 0 else []
+        event_days = (
+            rng.choice(range(50, n_days), size=n_events, replace=False) if n_events > 0 else []
+        )
         for d in sorted(event_days):
             factor = rng.uniform(0.90, 0.98)
             adj[d:, s] *= factor
@@ -85,7 +86,7 @@ def generate_synthetic_data(
         for _ in range(n_blocks):
             start = rng.integers(10, n_days - 20)
             length = rng.integers(1, 10)
-            suspend[start:start + length, s] = 1
+            suspend[start : start + length, s] = 1
 
     # --- 行业映射（中信一级：约30个行业） ---
     industry_codes = rng.integers(1, 31, n_stocks)
@@ -116,11 +117,11 @@ def generate_synthetic_data(
     # --- 因子2：动量因子（过去20日收益） ---
     momentum_factor = np.zeros((n_days, n_stocks))
     for t in range(20, n_days):
-        momentum_factor[t] = log_returns[t - 20:t].sum(axis=0)
+        momentum_factor[t] = log_returns[t - 20 : t].sum(axis=0)
 
     # --- 保存所有数据为pkl ---
     def save_df(name, arr):
-        df = pd.DataFrame(arr, index=dates[:len(arr)], columns=codes)
+        df = pd.DataFrame(arr, index=dates[: len(arr)], columns=codes)
         df.to_pickle(data_path / name)
 
     save_df("close.pkl", close_arr)
@@ -143,6 +144,7 @@ def generate_synthetic_data(
 # 运行回测
 # ======================================================================
 
+
 def main():
     """主函数"""
     logging.basicConfig(
@@ -154,16 +156,18 @@ def main():
     # 1. 生成数据
     repo_root = Path(__file__).resolve().parent.parent
     data_dir = generate_synthetic_data(
-        n_stocks=200, 
-        n_days=500, 
-        data_dir=str(repo_root / "demo_data")
+        n_stocks=200, n_days=500, data_dir=str(repo_root / "demo_data")
     )
 
     # 2. 配置回测
     sys.path.insert(0, str(repo_root))
     from core.config import (
-        BacktestConfig, CostConfig, UniverseConfig, 
-        FactorConfig, OptimizerConfig, RebalanceConfig
+        BacktestConfig,
+        CostConfig,
+        UniverseConfig,
+        FactorConfig,
+        OptimizerConfig,
+        RebalanceConfig,
     )
 
     config = BacktestConfig(
@@ -199,7 +203,7 @@ def main():
             fill_method="median",
         ),
         optimizer=OptimizerConfig(
-            method="equal_weight",     # 从简单开始，可改为'min_variance', 'mvo', 'risk_parity'
+            method="equal_weight",  # 从简单开始，可改为'min_variance', 'mvo', 'risk_parity'
             max_weight=0.05,
             target_count=30,
             select_top=True,
@@ -227,11 +231,11 @@ def main():
     results = engine.run()
 
     # 4. 输出结果摘要
-    metrics = results['performance_metrics']
-    
-    print("\n" + "="*60)
+    metrics = results["performance_metrics"]
+
+    print("\n" + "=" * 60)
     print("回测结果摘要")
-    print("="*60)
+    print("=" * 60)
     print(f"累计收益率: {metrics.get('total_return', 0):.2%}")
     print(f"年化收益率: {metrics.get('annual_return', 0):.2%}")
     print(f"年化波动率: {metrics.get('annual_volatility', 0):.2%}")
@@ -240,9 +244,9 @@ def main():
     print(f"胜率: {metrics.get('win_rate', 0):.2%}")
     print(f"总交易次数: {metrics.get('total_trades', 0)}")
     print(f"换手率: {metrics.get('turnover_rate', 0):.2%}")
-    
-    if results.get('additional_info', {}).get('pending_order_stats'):
-        pending_stats = results['additional_info']['pending_order_stats']
+
+    if results.get("additional_info", {}).get("pending_order_stats"):
+        pending_stats = results["additional_info"]["pending_order_stats"]
         print(f"\n待执行订单统计:")
         print(f"  总订单数: {pending_stats.get('total_orders', 0)}")
         print(f"  执行订单数: {pending_stats.get('executed_orders', 0)}")

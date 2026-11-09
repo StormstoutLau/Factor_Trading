@@ -38,35 +38,38 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MarketData:
     """市场数据"""
-    name: str           # 市场名称
-    code: str           # 市场代码
+
+    name: str  # 市场名称
+    code: str  # 市场代码
     returns: pd.Series  # 收益率序列
-    volatility: float   # 当前波动率
-    regime: str         # 市场状态 (normal/stress/crisis)
+    volatility: float  # 当前波动率
+    regime: str  # 市场状态 (normal/stress/crisis)
 
 
 @dataclass
 class ContagionChannel:
     """传染通道"""
-    source: str         # 源头市场
-    target: str         # 目标市场
-    strength: float     # 传染强度 0-1
-    lag: int            # 传染时滞 (天)
+
+    source: str  # 源头市场
+    target: str  # 目标市场
+    strength: float  # 传染强度 0-1
+    lag: int  # 传染时滞 (天)
     correlation: float  # 相关系数
     spillover_index: float  # 波动率溢出指数
     covar_delta: float  # ΔCoVaR
-    trend: str          # 趋势 (up/down/flat)
+    trend: str  # 趋势 (up/down/flat)
 
 
 @dataclass
 class ContagionNetwork:
     """传染网络"""
-    markets: list[str]                          # 市场列表
-    correlation_matrix: pd.DataFrame            # 相关性矩阵
-    spillover_matrix: pd.DataFrame              # 溢出矩阵
-    centrality: dict[str, float]                # 中心性
-    mst_edges: list[tuple]                      # 最小生成树边
-    contagion_paths: list[dict]                 # 传染路径
+
+    markets: list[str]  # 市场列表
+    correlation_matrix: pd.DataFrame  # 相关性矩阵
+    spillover_matrix: pd.DataFrame  # 溢出矩阵
+    centrality: dict[str, float]  # 中心性
+    mst_edges: list[tuple]  # 最小生成树边
+    contagion_paths: list[dict]  # 传染路径
 
 
 # ==================== 全球市场传染监控器 ====================
@@ -90,44 +93,44 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
     # 全球市场定义
     MARKETS = {
-        'SPX': {'name': '美股', 'region': 'US', 'type': 'equity'},
-        'DJI': {'name': '道指', 'region': 'US', 'type': 'equity'},
-        'NDX': {'name': '纳指', 'region': 'US', 'type': 'equity'},
-        'DAX': {'name': '德股', 'region': 'EU', 'type': 'equity'},
-        'FTSE': {'name': '英股', 'region': 'EU', 'type': 'equity'},
-        'N225': {'name': '日股', 'region': 'AP', 'type': 'equity'},
-        'HSI': {'name': '港股', 'region': 'AP', 'type': 'equity'},
-        'SH': {'name': '上证', 'region': 'CN', 'type': 'equity'},
-        'SZ': {'name': '深证', 'region': 'CN', 'type': 'equity'},
-        'VIX': {'name': 'VIX', 'region': 'US', 'type': 'volatility'},
-        'GOLD': {'name': '黄金', 'region': 'GL', 'type': 'commodity'},
-        'OIL': {'name': '原油', 'region': 'GL', 'type': 'commodity'},
-        'DXY': {'name': '美元', 'region': 'US', 'type': 'fx'},
-        'USDCNH': {'name': '离岸人民币', 'region': 'CN', 'type': 'fx'},
+        "SPX": {"name": "美股", "region": "US", "type": "equity"},
+        "DJI": {"name": "道指", "region": "US", "type": "equity"},
+        "NDX": {"name": "纳指", "region": "US", "type": "equity"},
+        "DAX": {"name": "德股", "region": "EU", "type": "equity"},
+        "FTSE": {"name": "英股", "region": "EU", "type": "equity"},
+        "N225": {"name": "日股", "region": "AP", "type": "equity"},
+        "HSI": {"name": "港股", "region": "AP", "type": "equity"},
+        "SH": {"name": "上证", "region": "CN", "type": "equity"},
+        "SZ": {"name": "深证", "region": "CN", "type": "equity"},
+        "VIX": {"name": "VIX", "region": "US", "type": "volatility"},
+        "GOLD": {"name": "黄金", "region": "GL", "type": "commodity"},
+        "OIL": {"name": "原油", "region": "GL", "type": "commodity"},
+        "DXY": {"name": "美元", "region": "US", "type": "fx"},
+        "USDCNH": {"name": "离岸人民币", "region": "CN", "type": "fx"},
     }
 
     # 传染通道定义 (源头→目标)
     CHANNELS = [
-        ('SPX', 'SH'),      # 美股→A股
-        ('SPX', 'HSI'),     # 美股→港股
-        ('SPX', 'N225'),    # 美股→日股
-        ('DAX', 'SH'),      # 欧股→A股
-        ('N225', 'SH'),     # 日股→A股
-        ('HSI', 'SH'),      # 港股→A股
-        ('VIX', 'SH'),      # VIX→A股
-        ('OIL', 'SH'),      # 原油→A股
-        ('GOLD', 'SH'),     # 黄金→A股
-        ('DXY', 'USDCNH'),  # 美元→离岸人民币
-        ('USDCNH', 'SH'),   # 离岸人民币→A股
+        ("SPX", "SH"),  # 美股→A股
+        ("SPX", "HSI"),  # 美股→港股
+        ("SPX", "N225"),  # 美股→日股
+        ("DAX", "SH"),  # 欧股→A股
+        ("N225", "SH"),  # 日股→A股
+        ("HSI", "SH"),  # 港股→A股
+        ("VIX", "SH"),  # VIX→A股
+        ("OIL", "SH"),  # 原油→A股
+        ("GOLD", "SH"),  # 黄金→A股
+        ("DXY", "USDCNH"),  # 美元→离岸人民币
+        ("USDCNH", "SH"),  # 离岸人民币→A股
     ]
 
     def __init__(self, enabled: bool = True, weight: float = 1.2):
         super().__init__("global_contagion", enabled, weight)
-        self.threshold_low = 0.35      # 三级预警阈值
-        self.threshold_medium = 0.60   # 二级预警阈值
-        self.threshold_high = 0.80     # 一级预警阈值
-        self.correlation_window = 60   # 相关性计算窗口
-        self.lookback_history = 20     # Delta检测回看
+        self.threshold_low = 0.35  # 三级预警阈值
+        self.threshold_medium = 0.60  # 二级预警阈值
+        self.threshold_high = 0.80  # 一级预警阈值
+        self.correlation_window = 60  # 相关性计算窗口
+        self.lookback_history = 20  # Delta检测回看
         self._correlation_history: list[pd.DataFrame] = []
         self._spillover_history: list[pd.DataFrame] = []
         self._network_history: list[ContagionNetwork] = []
@@ -152,7 +155,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
                 level=RiskLevel.SAFE,
                 score=0.0,
                 symbol=symbol,
-                message="全球传染监控已禁用"
+                message="全球传染监控已禁用",
             )
 
         score = 0.0
@@ -160,9 +163,9 @@ class GlobalContagionMonitor(BaseRiskMonitor):
         metadata = {}
 
         # 1. 获取市场数据
-        market_returns = kwargs.get('market_returns', {})
-        market_vols = kwargs.get('market_vols', {})
-        stress_events = kwargs.get('stress_events', [])
+        market_returns = kwargs.get("market_returns", {})
+        market_vols = kwargs.get("market_vols", {})
+        stress_events = kwargs.get("stress_events", [])
 
         if not market_returns:
             # 无数据时返回模拟信号
@@ -176,25 +179,25 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
         # 3. 检测相关性突变 (Delta检测)
         corr_delta = self._detect_correlation_delta(corr_matrix)
-        if corr_delta['max_delta'] > 0.3:
+        if corr_delta["max_delta"] > 0.3:
             score += 0.25
             reasons.append(f"相关性突变: {corr_delta['max_delta']:.2f}")
-            metadata['correlation_delta'] = corr_delta
+            metadata["correlation_delta"] = corr_delta
 
         # 4. 计算波动率溢出指数
         spillover = self._compute_spillover_index(market_returns, market_vols)
         if spillover > 0.3:
             score += 0.25
             reasons.append(f"波动率溢出: {spillover:.2f}")
-            metadata['spillover_index'] = spillover
+            metadata["spillover_index"] = spillover
 
         # 5. 计算CoVaR尾部依赖
         covar_results = self._compute_covar_analysis(market_returns)
-        max_covar_delta = max((r['delta_covar'] for r in covar_results.values()), default=0)
+        max_covar_delta = max((r["delta_covar"] for r in covar_results.values()), default=0)
         if max_covar_delta > 0.05:
             score += 0.20
             reasons.append(f"CoVaR恶化: {max_covar_delta:.3f}")
-            metadata['covar'] = covar_results
+            metadata["covar"] = covar_results
 
         # 6. 网络中心性分析
         network = self._build_contagion_network(corr_matrix, market_vols)
@@ -203,7 +206,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
         if max_centrality > 0.25:
             score += 0.15
             reasons.append(f"系统重要性集中: {max_centrality:.2f}")
-            metadata['centrality'] = network.centrality
+            metadata["centrality"] = network.centrality
 
         # 7. 压力事件检测
         for event in stress_events:
@@ -220,22 +223,24 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
         message = "; ".join(reasons) if reasons else "全球传染风险正常"
 
-        return self._record(RiskSignal(
-            dimension=self.name,
-            level=level,
-            score=score,
-            symbol=symbol,
-            message=message,
-            metadata={
-                'correlation_matrix': corr_matrix.to_dict(),
-                'spillover_index': spillover,
-                'covar_results': covar_results,
-                'centrality': network.centrality,
-                'contagion_paths': contagion_paths,
-                'network_edges': network.mst_edges,
-                **metadata
-            }
-        ))
+        return self._record(
+            RiskSignal(
+                dimension=self.name,
+                level=level,
+                score=score,
+                symbol=symbol,
+                message=message,
+                metadata={
+                    "correlation_matrix": corr_matrix.to_dict(),
+                    "spillover_index": spillover,
+                    "covar_results": covar_results,
+                    "centrality": network.centrality,
+                    "contagion_paths": contagion_paths,
+                    "network_edges": network.mst_edges,
+                    **metadata,
+                },
+            )
+        )
 
     def _generate_mock_signal(self) -> RiskSignal:
         """生成模拟信号（无数据时）"""
@@ -244,10 +249,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             level=RiskLevel.LOW,
             score=0.35,
             message="全球传染监控运行中 (模拟数据)",
-            metadata={
-                'status': 'simulation',
-                'note': '未提供市场收益率数据，使用模拟值'
-            }
+            metadata={"status": "simulation", "note": "未提供市场收益率数据，使用模拟值"},
         )
 
     def _compute_correlation_matrix(self, market_returns: dict[str, pd.Series]) -> pd.DataFrame:
@@ -266,7 +268,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
     def _detect_correlation_delta(self, current_corr: pd.DataFrame) -> dict:
         """检测相关性突变 (Cruix Delta检测)"""
         if len(self._correlation_history) < 2:
-            return {'max_delta': 0.0, 'pairs': []}
+            return {"max_delta": 0.0, "pairs": []}
 
         prev_corr = self._correlation_history[-2]
 
@@ -275,7 +277,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
         common_cols = current_corr.columns.intersection(prev_corr.columns)
 
         if len(common_idx) == 0 or len(common_cols) == 0:
-            return {'max_delta': 0.0, 'pairs': []}
+            return {"max_delta": 0.0, "pairs": []}
 
         curr = current_corr.loc[common_idx, common_cols]
         prev = prev_corr.loc[common_idx, common_cols]
@@ -297,21 +299,20 @@ class GlobalContagionMonitor(BaseRiskMonitor):
                     max_delta = d
                     max_pair = (i, j)
                 if d > 0.2:  # 显著变化阈值
-                    significant_pairs.append({
-                        'pair': (i, j),
-                        'delta': d,
-                        'current': curr.loc[i, j],
-                        'previous': prev.loc[i, j]
-                    })
+                    significant_pairs.append(
+                        {
+                            "pair": (i, j),
+                            "delta": d,
+                            "current": curr.loc[i, j],
+                            "previous": prev.loc[i, j],
+                        }
+                    )
 
-        return {
-            'max_delta': max_delta,
-            'max_pair': max_pair,
-            'pairs': significant_pairs
-        }
+        return {"max_delta": max_delta, "max_pair": max_pair, "pairs": significant_pairs}
 
-    def _compute_spillover_index(self, market_returns: dict[str, pd.Series],
-                                  market_vols: dict[str, float]) -> float:
+    def _compute_spillover_index(
+        self, market_returns: dict[str, pd.Series], market_vols: dict[str, float]
+    ) -> float:
         """计算波动率溢出指数 (简化版BEKK)"""
         if not market_returns or len(market_returns) < 2:
             return 0.0
@@ -375,27 +376,31 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             delta_covar = abs(covar_95) - abs(var_95)
 
             results[f"{source}->{target}"] = {
-                'source': source,
-                'target': target,
-                'covar_95': covar_95,
-                'var_95': var_95,
-                'delta_covar': delta_covar,
-                'stress_probability': stress_mask.mean()
+                "source": source,
+                "target": target,
+                "covar_95": covar_95,
+                "var_95": var_95,
+                "delta_covar": delta_covar,
+                "stress_probability": stress_mask.mean(),
             }
 
         return results
 
-    def _build_contagion_network(self, corr_matrix: pd.DataFrame,
-                                  market_vols: dict[str, float]) -> ContagionNetwork:
+    def _build_contagion_network(
+        self, corr_matrix: pd.DataFrame, market_vols: dict[str, float]
+    ) -> ContagionNetwork:
         """构建传染网络"""
         markets = list(corr_matrix.index)
         n = len(markets)
 
         if n == 0:
             return ContagionNetwork(
-                markets=[], correlation_matrix=pd.DataFrame(),
-                spillover_matrix=pd.DataFrame(), centrality={},
-                mst_edges=[], contagion_paths=[]
+                markets=[],
+                correlation_matrix=pd.DataFrame(),
+                spillover_matrix=pd.DataFrame(),
+                centrality={},
+                mst_edges=[],
+                contagion_paths=[],
             )
 
         # 计算溢出矩阵 (基于相关性和波动率)
@@ -404,7 +409,11 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             for j in markets:
                 if i == j:
                     continue
-                corr = abs(corr_matrix.loc[i, j]) if i in corr_matrix.index and j in corr_matrix.columns else 0
+                corr = (
+                    abs(corr_matrix.loc[i, j])
+                    if i in corr_matrix.index and j in corr_matrix.columns
+                    else 0
+                )
                 vol_ratio = market_vols.get(j, 0) / (market_vols.get(i, 1) + 1e-6)
                 spillover.loc[i, j] = corr * min(vol_ratio, 2.0)
 
@@ -447,11 +456,12 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             spillover_matrix=spillover,
             centrality=centrality,
             mst_edges=mst_edges,
-            contagion_paths=contagion_paths
+            contagion_paths=contagion_paths,
         )
 
-    def _identify_contagion_paths(self, spillover: pd.DataFrame,
-                                   centrality: dict[str, float]) -> list[dict]:
+    def _identify_contagion_paths(
+        self, spillover: pd.DataFrame, centrality: dict[str, float]
+    ) -> list[dict]:
         """识别主要传染路径"""
         paths = []
         markets = list(spillover.index)
@@ -463,17 +473,21 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
                 strength = spillover.loc[source, target]
                 if strength > 0.2:  # 显著传染阈值
-                    paths.append({
-                        'source': source,
-                        'target': target,
-                        'strength': float(strength),
-                        'source_centrality': centrality.get(source, 0),
-                        'target_centrality': centrality.get(target, 0),
-                        'risk_level': 'HIGH' if strength > 0.5 else 'MEDIUM' if strength > 0.3 else 'LOW'
-                    })
+                    paths.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "strength": float(strength),
+                            "source_centrality": centrality.get(source, 0),
+                            "target_centrality": centrality.get(target, 0),
+                            "risk_level": (
+                                "HIGH" if strength > 0.5 else "MEDIUM" if strength > 0.3 else "LOW"
+                            ),
+                        }
+                    )
 
         # 按传染强度排序
-        paths.sort(key=lambda x: x['strength'], reverse=True)
+        paths.sort(key=lambda x: x["strength"], reverse=True)
         return paths[:20]  # 只保留前20条
 
     def _describe_contagion_paths(self, network: ContagionNetwork) -> list[str]:
@@ -487,14 +501,14 @@ class GlobalContagionMonitor(BaseRiskMonitor):
     def _evaluate_stress_event(self, event: str) -> float:
         """评估压力事件得分"""
         event_scores = {
-            'us_market_crash': 0.4,      # 美股崩盘
-            'eu_debt_crisis': 0.35,      # 欧债危机
-            'geopolitical_conflict': 0.3, # 地缘冲突
-            'commodity_spike': 0.25,     # 商品价格暴涨
-            'fx_volatility': 0.2,        # 汇率剧烈波动
-            'trade_war': 0.35,           # 贸易战
-            'pandemic': 0.4,             # 疫情
-            'banking_crisis': 0.45,      # 银行业危机
+            "us_market_crash": 0.4,  # 美股崩盘
+            "eu_debt_crisis": 0.35,  # 欧债危机
+            "geopolitical_conflict": 0.3,  # 地缘冲突
+            "commodity_spike": 0.25,  # 商品价格暴涨
+            "fx_volatility": 0.2,  # 汇率剧烈波动
+            "trade_war": 0.35,  # 贸易战
+            "pandemic": 0.4,  # 疫情
+            "banking_crisis": 0.45,  # 银行业危机
         }
         return event_scores.get(event, 0.15)
 
@@ -527,60 +541,59 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             "contagion_index": round(contagion_index * 100, 1),
             "markets_count": len(latest.markets),
             "active_channels": len(latest.contagion_paths),
-            "high_risk_channels": sum(1 for p in latest.contagion_paths if p['risk_level'] == 'HIGH'),
+            "high_risk_channels": sum(
+                1 for p in latest.contagion_paths if p["risk_level"] == "HIGH"
+            ),
             "max_correlation": round(max_corr, 3),
             "avg_spillover": round(avg_spillover, 3),
-            "most_central_market": max(latest.centrality.items(), key=lambda x: x[1])[0] if latest.centrality else None,
+            "most_central_market": (
+                max(latest.centrality.items(), key=lambda x: x[1])[0] if latest.centrality else None
+            ),
             "top_contagion_paths": latest.contagion_paths[:5],
             "recent_signals": [
                 {
                     "time": s.timestamp.strftime("%H:%M:%S"),
                     "level": s.level_name,
                     "score": round(s.score, 2),
-                    "message": s.message
+                    "message": s.message,
                 }
                 for s in recent_signals
-            ]
+            ],
         }
 
 
 # ==================== 传染分析工具函数 ====================
 
-def compute_granger_causality(x: pd.Series, y: pd.Series,
-                               max_lag: int = 5) -> dict:
+
+def compute_granger_causality(x: pd.Series, y: pd.Series, max_lag: int = 5) -> dict:
     """计算Granger因果检验"""
     from statsmodels.tsa.stattools import grangercausalitytests
 
     try:
-        data = pd.DataFrame({'y': y, 'x': x}).dropna()
+        data = pd.DataFrame({"y": y, "x": x}).dropna()
         if len(data) < max_lag + 10:
-            return {'causal': False, 'p_value': 1.0, 'lag': 0}
+            return {"causal": False, "p_value": 1.0, "lag": 0}
 
-        result = grangercausalitytests(data[['y', 'x']], maxlag=max_lag, verbose=False)
+        result = grangercausalitytests(data[["y", "x"]], maxlag=max_lag, verbose=False)
 
         # 找出最小p值
         min_p = 1.0
         best_lag = 0
         for lag, test_result in result.items():
-            p_value = test_result[0]['ssr_ftest'][1]
+            p_value = test_result[0]["ssr_ftest"][1]
             if p_value < min_p:
                 min_p = p_value
                 best_lag = lag
 
-        return {
-            'causal': min_p < 0.05,
-            'p_value': min_p,
-            'lag': best_lag,
-            'strength': 1 - min_p
-        }
+        return {"causal": min_p < 0.05, "p_value": min_p, "lag": best_lag, "strength": 1 - min_p}
     except Exception as e:
         logger.warning(f"Granger因果检验失败: {e}")
-        return {'causal': False, 'p_value': 1.0, 'lag': 0, 'strength': 0}
+        return {"causal": False, "p_value": 1.0, "lag": 0, "strength": 0}
 
 
-def compute_impulse_response(cov_matrix: np.ndarray,
-                              shock_market: int,
-                              steps: int = 10) -> np.ndarray:
+def compute_impulse_response(
+    cov_matrix: np.ndarray, shock_market: int, steps: int = 10
+) -> np.ndarray:
     """计算脉冲响应函数 (简化版)"""
     n = cov_matrix.shape[0]
     response = np.zeros((steps, n))
@@ -592,7 +605,7 @@ def compute_impulse_response(cov_matrix: np.ndarray,
     for t in range(1, steps):
         for i in range(n):
             for j in range(n):
-                response[t, i] += cov_matrix[i, j] * response[t-1, j]
+                response[t, i] += cov_matrix[i, j] * response[t - 1, j]
         response[t] = np.clip(response[t], -2, 2)
 
     return response
@@ -600,25 +613,21 @@ def compute_impulse_response(cov_matrix: np.ndarray,
 
 # ==================== 便捷函数 ====================
 
+
 def create_contagion_monitor(**kwargs) -> GlobalContagionMonitor:
     """创建传染监控器的工厂函数"""
     return GlobalContagionMonitor(**kwargs)
 
 
-def analyze_market_contagion(market_returns: dict[str, pd.Series],
-                              market_vols: Optional[dict[str, float]] = None) -> dict:
+def analyze_market_contagion(
+    market_returns: dict[str, pd.Series], market_vols: Optional[dict[str, float]] = None
+) -> dict:
     """便捷函数: 分析市场传染"""
     monitor = GlobalContagionMonitor()
 
     if market_vols is None:
         market_vols = {k: v.std() for k, v in market_returns.items()}
 
-    signal, _ = monitor.evaluate(
-        market_returns=market_returns,
-        market_vols=market_vols
-    )
+    signal, _ = monitor.evaluate(market_returns=market_returns, market_vols=market_vols)
 
-    return {
-        'signal': signal,
-        'summary': monitor.get_contagion_summary()
-    }
+    return {"signal": signal, "summary": monitor.get_contagion_summary()}

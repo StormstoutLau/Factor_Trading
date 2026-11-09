@@ -147,7 +147,9 @@ def run_benchmark_suite():
 
             # 计算吞吐量
             data_points = n_dates * n_stocks
-            throughput = data_points / result["elapsed_seconds"] if result["elapsed_seconds"] > 0 else 0
+            throughput = (
+                data_points / result["elapsed_seconds"] if result["elapsed_seconds"] > 0 else 0
+            )
             print(f"吞吐量: {throughput:,.0f} 数据点/秒")
 
         except Exception as e:
@@ -176,4 +178,3 @@ def run_benchmark_suite():
 
 if __name__ == "__main__":
     run_benchmark_suite()
-

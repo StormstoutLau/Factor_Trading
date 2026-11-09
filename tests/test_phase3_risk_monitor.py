@@ -20,7 +20,6 @@ import unittest
 
 import pandas as pd
 
-
 # ============================================================================
 # 模块 3.1: RiskAction / RiskActionItem
 # ============================================================================
@@ -252,7 +251,9 @@ class TestMarginRiskCheck(unittest.TestCase):
         """空头止损: 价格上涨致亏损"""
         from core.tracker import Position
         from core.risk_manager import (
-            MarkToMarketPolicy, StopLossConfig, RiskAction,
+            MarkToMarketPolicy,
+            StopLossConfig,
+            RiskAction,
         )
         from core.config import MarginConfig
 
@@ -279,7 +280,9 @@ class TestPortfolioRiskCheck(unittest.TestCase):
         """多持仓批量检查"""
         from core.tracker import Position
         from core.risk_manager import (
-            MarkToMarketPolicy, StopLossConfig, RiskAction,
+            MarkToMarketPolicy,
+            StopLossConfig,
+            RiskAction,
         )
         from core.config import MarginConfig
 
@@ -290,8 +293,10 @@ class TestPortfolioRiskCheck(unittest.TestCase):
 
         positions = {
             "000001.SZ": Position("000001.SZ", 1000, 10.0, 8500.0, -1500.0, 0.0),  # 亏损 15% → 止损
-            "000002.SZ": Position("000002.SZ", 500, 20.0, 11000.0, 1000.0, 0.0),   # 盈利 → 无风险
-            "IF2406": Position("IF2406", -2, 3500.0, 100000.0, 0.0, 0.0, margin_used=4000.0),  # 保证金不足 → 强平
+            "000002.SZ": Position("000002.SZ", 500, 20.0, 11000.0, 1000.0, 0.0),  # 盈利 → 无风险
+            "IF2406": Position(
+                "IF2406", -2, 3500.0, 100000.0, 0.0, 0.0, margin_used=4000.0
+            ),  # 保证金不足 → 强平
         }
 
         all_results = mtm.check_portfolio(positions)

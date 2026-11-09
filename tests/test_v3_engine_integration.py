@@ -34,7 +34,9 @@ def build_test_data():
         close[i] = close[i - 1] * (1 + np.random.normal(0.0005, 0.02, n_stocks))
 
     close_df = pd.DataFrame(close, index=dates, columns=stocks)
-    open_df = pd.DataFrame(close * np.random.uniform(0.98, 1.02, close.shape), index=dates, columns=stocks)
+    open_df = pd.DataFrame(
+        close * np.random.uniform(0.98, 1.02, close.shape), index=dates, columns=stocks
+    )
     high_df = pd.DataFrame(close * 1.05, index=dates, columns=stocks)
     low_df = pd.DataFrame(close * 0.95, index=dates, columns=stocks)
 
@@ -53,9 +55,15 @@ def build_test_data():
     st_df = pd.DataFrame(np.zeros((n_dates, n_stocks), dtype=int), index=dates, columns=stocks)
 
     return {
-        "close": close_df, "open": open_df, "high": high_df, "low": low_df,
-        "factor": factor_df, "suspend": suspend_df, "st": st_df,
-        "dates": dates, "stocks": stocks,
+        "close": close_df,
+        "open": open_df,
+        "high": high_df,
+        "low": low_df,
+        "factor": factor_df,
+        "suspend": suspend_df,
+        "st": st_df,
+        "dates": dates,
+        "stocks": stocks,
     }
 
 
@@ -63,7 +71,14 @@ def test_v3_engine_with_universe_filter():
     """测试: V3 引擎集成 UniverseFilter 后正确过滤停牌股票"""
     print("\n[Test] V3 引擎集成 UniverseFilter 过滤停牌...")
 
-    from core.config import BacktestConfig, FactorConfig, OptimizerConfig, RebalanceConfig, CostConfig, UniverseConfig
+    from core.config import (
+        BacktestConfig,
+        FactorConfig,
+        OptimizerConfig,
+        RebalanceConfig,
+        CostConfig,
+        UniverseConfig,
+    )
     from core.data_v3 import DataLoaderV3
     from core.engine_v3_vector import VectorBacktestEngine
     from filter.universe_filter_clean import UniverseFilter
@@ -182,9 +197,15 @@ def test_v3_engine_results_structure():
     results = engine.run()
 
     required_keys = [
-        "portfolio_value", "returns", "total_return",
-        "annual_return", "volatility", "sharpe_ratio",
-        "max_drawdown", "final_value", "initial_value",
+        "portfolio_value",
+        "returns",
+        "total_return",
+        "annual_return",
+        "volatility",
+        "sharpe_ratio",
+        "max_drawdown",
+        "final_value",
+        "initial_value",
     ]
     for key in required_keys:
         assert key in results, f"缺少关键字段: {key}"
@@ -253,6 +274,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"  ✗ FAILED: {e}")
                 import traceback
+
                 traceback.print_exc()
                 results.append((name, False))
 

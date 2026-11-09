@@ -42,10 +42,11 @@ if TYPE_CHECKING:
 
 class RiskAction(Enum):
     """风险动作类型"""
-    NONE = auto()           # 无风险
-    STOP_LOSS = auto()      # 止损
-    MARGIN_CALL = auto()    # 追加保证金
-    FORCE_CLOSE = auto()    # 强制平仓
+
+    NONE = auto()  # 无风险
+    STOP_LOSS = auto()  # 止损
+    MARGIN_CALL = auto()  # 追加保证金
+    FORCE_CLOSE = auto()  # 强制平仓
 
 
 @dataclass
@@ -58,6 +59,7 @@ class RiskActionItem:
         reason: 触发原因描述
         severity: 严重程度 (0-1, 1=最高)
     """
+
     action: RiskAction
     asset: str
     reason: str
@@ -83,6 +85,7 @@ class StopLossConfig:
         trailing_stop_pct: 移动止损线 (负值, 从最高点回撤触发)
         enabled: 是否启用止损
     """
+
     stop_loss_pct: float = -0.10
     trailing_stop_pct: float = -0.05
     enabled: bool = True
@@ -160,31 +163,33 @@ class MarkToMarketPolicy:
             margin_ratio = position.margin_used / position.market_value
 
             if margin_ratio < self.margin_config.force_liquidation_ratio:
-                results.append(RiskActionItem(
-                    action=RiskAction.FORCE_CLOSE,
-                    asset=position.stock,
-                    reason=(
-                        f"保证金比例 {margin_ratio:.1%} "
-                        f"低于强平线 {self.margin_config.force_liquidation_ratio:.1%}"
-                    ),
-                    severity=1.0,
-                ))
+                results.append(
+                    RiskActionItem(
+                        action=RiskAction.FORCE_CLOSE,
+                        asset=position.stock,
+                        reason=(
+                            f"保证金比例 {margin_ratio:.1%} "
+                            f"低于强平线 {self.margin_config.force_liquidation_ratio:.1%}"
+                        ),
+                        severity=1.0,
+                    )
+                )
             elif margin_ratio < self.margin_config.maintenance_margin_ratio:
-                results.append(RiskActionItem(
-                    action=RiskAction.MARGIN_CALL,
-                    asset=position.stock,
-                    reason=(
-                        f"保证金比例 {margin_ratio:.1%} "
-                        f"低于维持线 {self.margin_config.maintenance_margin_ratio:.1%}"
-                    ),
-                    severity=0.7,
-                ))
+                results.append(
+                    RiskActionItem(
+                        action=RiskAction.MARGIN_CALL,
+                        asset=position.stock,
+                        reason=(
+                            f"保证金比例 {margin_ratio:.1%} "
+                            f"低于维持线 {self.margin_config.maintenance_margin_ratio:.1%}"
+                        ),
+                        severity=0.7,
+                    )
+                )
 
         return results
 
-    def check_portfolio(
-        self, positions: dict[str, Position]
-    ) -> list[RiskActionItem]:
+    def check_portfolio(self, positions: dict[str, Position]) -> list[RiskActionItem]:
         """检查整个组合的风险
 
         Args:

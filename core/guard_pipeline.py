@@ -327,33 +327,39 @@ class GuardPipeline:
     @classmethod
     def default(cls) -> GuardPipeline:
         """创建默认 Guard 管道"""
-        return cls([
-            MaxPositionGuard(max_weight=0.1),
-            DrawdownGuard(max_drawdown=0.15),
-            MinCashGuard(min_cash_ratio=0.05),
-            TurnoverGuard(max_daily_turnover=0.5),
-        ])
+        return cls(
+            [
+                MaxPositionGuard(max_weight=0.1),
+                DrawdownGuard(max_drawdown=0.15),
+                MinCashGuard(min_cash_ratio=0.05),
+                TurnoverGuard(max_daily_turnover=0.5),
+            ]
+        )
 
     @classmethod
     def conservative(cls) -> GuardPipeline:
         """创建保守风格 Guard 管道"""
-        return cls([
-            MaxPositionGuard(max_weight=0.05),
-            DrawdownGuard(max_drawdown=0.10),
-            CooldownGuard(cooldown_days=10),
-            MinCashGuard(min_cash_ratio=0.10),
-            TurnoverGuard(max_daily_turnover=0.3),
-        ])
+        return cls(
+            [
+                MaxPositionGuard(max_weight=0.05),
+                DrawdownGuard(max_drawdown=0.10),
+                CooldownGuard(cooldown_days=10),
+                MinCashGuard(min_cash_ratio=0.10),
+                TurnoverGuard(max_daily_turnover=0.3),
+            ]
+        )
 
     @classmethod
     def aggressive(cls) -> GuardPipeline:
         """创建激进风格 Guard 管道"""
-        return cls([
-            MaxPositionGuard(max_weight=0.2),
-            DrawdownGuard(max_drawdown=0.25),
-            MinCashGuard(min_cash_ratio=0.02),
-            TurnoverGuard(max_daily_turnover=1.0),
-        ])
+        return cls(
+            [
+                MaxPositionGuard(max_weight=0.2),
+                DrawdownGuard(max_drawdown=0.25),
+                MinCashGuard(min_cash_ratio=0.02),
+                TurnoverGuard(max_daily_turnover=1.0),
+            ]
+        )
 
 
 # ==================== Integration Helper ====================
@@ -380,9 +386,7 @@ def create_guard_context_from_engine(
     cash = portfolio_value
 
     if tracker:
-        positions = {
-            s: p.quantity for s, p in getattr(tracker, "positions", {}).items()
-        }
+        positions = {s: p.quantity for s, p in getattr(tracker, "positions", {}).items()}
         portfolio_value = getattr(tracker, "portfolio_value", portfolio_value)
         cash = getattr(tracker, "cash", cash)
 

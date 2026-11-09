@@ -34,20 +34,16 @@ class TestRiskModuleNaming(unittest.TestCase):
         import core.risk_monitor as rm
 
         self.assertFalse(
-            hasattr(rm, "RiskAction"),
-            "risk_monitor 应将 RiskAction 重命名为 MonitorAction"
+            hasattr(rm, "RiskAction"), "risk_monitor 应将 RiskAction 重命名为 MonitorAction"
         )
-        self.assertTrue(
-            hasattr(rm, "MonitorAction"),
-            "risk_monitor 应有 MonitorAction"
-        )
+        self.assertTrue(hasattr(rm, "MonitorAction"), "risk_monitor 应有 MonitorAction")
 
     def test_MonitorAction_has_correct_fields(self):
         """MonitorAction 应有正确的动作类型"""
         from core.risk_monitor import MonitorAction
 
-        ma = MonitorAction(action_type='hold')
-        self.assertEqual(ma.action_type, 'hold')
+        ma = MonitorAction(action_type="hold")
+        self.assertEqual(ma.action_type, "hold")
 
     def test_risk_manager_module_doc_mentions_purpose(self):
         """risk_manager 模块文档应说明盯市职责"""
@@ -89,8 +85,8 @@ class TestRiskModuleNaming(unittest.TestCase):
         # 无语法错误即可
         self.assertEqual(RiskAction.STOP_LOSS.name, "STOP_LOSS")
         self.assertEqual(RiskLevel.SAFE.value, 0)
-        ma = MonitorAction(action_type='clear')
-        self.assertEqual(ma.action_type, 'clear')
+        ma = MonitorAction(action_type="clear")
+        self.assertEqual(ma.action_type, "clear")
 
 
 class TestRiskModuleResponsibilities(unittest.TestCase):
@@ -119,7 +115,7 @@ class TestRiskModuleResponsibilities(unittest.TestCase):
                 initial_margin_ratio=0.10,
                 maintenance_margin_ratio=0.08,
                 force_liquidation_ratio=0.05,
-            )
+            ),
         )
 
         actions = policy.check_position(pos)
@@ -133,7 +129,7 @@ class TestRiskModuleResponsibilities(unittest.TestCase):
         monitor = FundamentalMonitor()
         signal = monitor.monitor(
             symbol="TEST",
-            financial_data={'debt_ratio': 0.5, 'operating_cashflow': 1000},
+            financial_data={"debt_ratio": 0.5, "operating_cashflow": 1000},
         )
         self.assertEqual(signal.level, RiskLevel.SAFE)
 

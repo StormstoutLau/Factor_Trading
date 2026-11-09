@@ -30,10 +30,10 @@ from core.risk_monitor import (
     RiskLevel,
 )
 
-
 # ============================================================
 # 辅助函数
 # ============================================================
+
 
 def generate_market_scenario(n_days: int, scenario: str = "normal", seed: int = 42):
     """生成不同市场场景下的策略收益"""
@@ -73,6 +73,7 @@ def generate_market_scenario(n_days: int, scenario: str = "normal", seed: int = 
 # 测试 1: 正常市场下的全栈运行
 # ============================================================
 
+
 def test_normal_market():
     """正常市场：分配器正常工作，假设检验不触发，风控安全"""
     print("\n" + "=" * 70)
@@ -84,17 +85,14 @@ def test_normal_market():
     # 初始化三个模块
     allocator = StrategyAllocationManager(
         strategy_names=["动量策略", "价值策略", "均值回归策略"],
-        allocator_type='ftrl',
+        allocator_type="ftrl",
         learning_rate=0.1,
         forget_factor=0.95,
         turnover_penalty=0.01,
         min_weight=0.1,
     )
 
-    assumption_layer = AssumptionMonitorLayer(
-        n_strategies=3,
-        fallback_strategy="equal_weight"
-    )
+    assumption_layer = AssumptionMonitorLayer(n_strategies=3, fallback_strategy="equal_weight")
 
     risk_engine = CompositeRiskEngine()
 
@@ -111,9 +109,7 @@ def test_normal_market():
         pred_means = allocator.evaluator.get_expected_returns()
         pred_stds = allocator.evaluator.get_uncertainty()
         monitor_state = assumption_layer.monitor(
-            weights, ret,
-            predicted_means=pred_means,
-            predicted_stds=pred_stds
+            weights, ret, predicted_means=pred_means, predicted_stds=pred_stds
         )
 
         if monitor_state.should_fallback:
@@ -143,6 +139,7 @@ def test_normal_market():
 # 测试 2: 崩盘市场下的全栈运行
 # ============================================================
 
+
 def test_crash_market():
     """崩盘市场：假设检验应触发退化，风控应发出警报"""
     print("\n" + "=" * 70)
@@ -153,17 +150,14 @@ def test_crash_market():
 
     allocator = StrategyAllocationManager(
         strategy_names=["动量策略", "价值策略", "均值回归策略"],
-        allocator_type='ftrl',
+        allocator_type="ftrl",
         learning_rate=0.1,
         forget_factor=0.95,
         turnover_penalty=0.01,
         min_weight=0.1,
     )
 
-    assumption_layer = AssumptionMonitorLayer(
-        n_strategies=3,
-        fallback_strategy="equal_weight"
-    )
+    assumption_layer = AssumptionMonitorLayer(n_strategies=3, fallback_strategy="equal_weight")
 
     risk_engine = CompositeRiskEngine()
 
@@ -177,9 +171,7 @@ def test_crash_market():
         pred_means = allocator.evaluator.get_expected_returns()
         pred_stds = allocator.evaluator.get_uncertainty()
         monitor_state = assumption_layer.monitor(
-            weights, ret,
-            predicted_means=pred_means,
-            predicted_stds=pred_stds
+            weights, ret, predicted_means=pred_means, predicted_stds=pred_stds
         )
 
         if monitor_state.should_fallback:
@@ -191,14 +183,18 @@ def test_crash_market():
             risk_signal, risk_actions = risk_engine.evaluate(
                 symbol=None,
                 fundamental={
-                    'earnings_miss': True,
-                    'financial_data': {'debt_ratio': 0.9, 'operating_cashflow': -100, 'revenue_growth': -0.5},
-                    'events': ['lawsuit', 'insider_selling']
+                    "earnings_miss": True,
+                    "financial_data": {
+                        "debt_ratio": 0.9,
+                        "operating_cashflow": -100,
+                        "revenue_growth": -0.5,
+                    },
+                    "events": ["lawsuit", "insider_selling"],
                 },
-                industry={'policy_restrictions': True, 'tech_disruption': True},
-                macro={'pmi': 45.0, 'interest_rate_hike': True, 'geopolitical_conflict': True},
-                capital={'main_force_outflow': -500, 'northbound_net_flow': -200},
-                sentiment={'limit_down_count': 50, 'margin_balance_drop': -0.15, 'vix_spike': True}
+                industry={"policy_restrictions": True, "tech_disruption": True},
+                macro={"pmi": 45.0, "interest_rate_hike": True, "geopolitical_conflict": True},
+                capital={"main_force_outflow": -500, "northbound_net_flow": -200},
+                sentiment={"limit_down_count": 50, "margin_balance_drop": -0.15, "vix_spike": True},
             )
         else:
             risk_signal, risk_actions = risk_engine.evaluate(symbol=None)
@@ -222,6 +218,7 @@ def test_crash_market():
 # 测试 3: 状态切换下的全栈运行
 # ============================================================
 
+
 def test_regime_change():
     """状态切换：假设检验应检测到非平稳性并触发退化"""
     print("\n" + "=" * 70)
@@ -232,17 +229,14 @@ def test_regime_change():
 
     allocator = StrategyAllocationManager(
         strategy_names=["动量策略", "价值策略", "均值回归策略"],
-        allocator_type='ftrl',
+        allocator_type="ftrl",
         learning_rate=0.1,
         forget_factor=0.97,
         turnover_penalty=0.005,
         min_weight=0.1,
     )
 
-    assumption_layer = AssumptionMonitorLayer(
-        n_strategies=3,
-        fallback_strategy="equal_weight"
-    )
+    assumption_layer = AssumptionMonitorLayer(n_strategies=3, fallback_strategy="equal_weight")
 
     portfolio_returns = []
     weights_history = []
@@ -255,9 +249,7 @@ def test_regime_change():
         pred_means = allocator.evaluator.get_expected_returns()
         pred_stds = allocator.evaluator.get_uncertainty()
         monitor_state = assumption_layer.monitor(
-            weights, ret,
-            predicted_means=pred_means,
-            predicted_stds=pred_stds
+            weights, ret, predicted_means=pred_means, predicted_stds=pred_stds
         )
 
         if monitor_state.should_fallback:
@@ -282,7 +274,7 @@ def test_regime_change():
 
     # 验证：退化后权重应更分散
     if fallback_days:
-        post_fallback_weights = weights_history[fallback_days[0]:]
+        post_fallback_weights = weights_history[fallback_days[0] :]
         avg_weight_std = np.mean(np.std(post_fallback_weights, axis=1))
         print(f"  退化后权重标准差均值: {avg_weight_std:.4f}")
         assert avg_weight_std < 0.15, "退化后权重应更分散"
@@ -293,6 +285,7 @@ def test_regime_change():
 # ============================================================
 # 测试 4: 权重过度集中时的联动
 # ============================================================
+
 
 def test_concentration_risk():
     """权重过度集中：假设检验应检测到过拟合并触发退化"""
@@ -305,7 +298,7 @@ def test_concentration_risk():
 
     allocator = StrategyAllocationManager(
         strategy_names=["策略A", "策略B", "策略C"],
-        allocator_type='ftrl',
+        allocator_type="ftrl",
         learning_rate=0.5,  # 高学习率导致权重快速集中
         forget_factor=1.0,
         turnover_penalty=0.0,  # 无换手率惩罚
@@ -319,7 +312,7 @@ def test_concentration_risk():
         enable_correlation_monitor=False,
         enable_bayesian_monitor=False,
         enable_universal_monitor=False,
-        fallback_strategy="equal_weight"
+        fallback_strategy="equal_weight",
     )
 
     # 策略A持续略好，导致权重过度集中
@@ -340,13 +333,14 @@ def test_concentration_risk():
     summary = assumption_layer.get_summary()
     print(f"  假设检验摘要: {summary}")
 
-    assert summary['fallback_triggered'] > 0, "权重过度集中应触发退化"
+    assert summary["fallback_triggered"] > 0, "权重过度集中应触发退化"
     print("  ✓ 权重过度集中测试通过")
 
 
 # ============================================================
 # 测试 5: 综合报告生成
 # ============================================================
+
 
 def test_comprehensive_report():
     """生成综合报告，验证三个模块的数据一致性"""
@@ -358,7 +352,7 @@ def test_comprehensive_report():
 
     allocator = StrategyAllocationManager(
         strategy_names=["动量策略", "价值策略", "均值回归策略"],
-        allocator_type='ftrl',
+        allocator_type="ftrl",
         learning_rate=0.1,
         forget_factor=0.95,
     )
@@ -377,23 +371,25 @@ def test_comprehensive_report():
 
         risk_signal, risk_actions = risk_engine.evaluate(symbol=None)
 
-        daily_records.append({
-            'date': date,
-            'weights': weights.copy(),
-            'returns': ret.copy(),
-            'portfolio_return': np.dot(weights, ret),
-            'assumption_level': monitor_state.overall_level.value,
-            'should_fallback': monitor_state.should_fallback,
-            'risk_level': risk_signal.level.value,
-            'risk_score': risk_signal.score,
-        })
+        daily_records.append(
+            {
+                "date": date,
+                "weights": weights.copy(),
+                "returns": ret.copy(),
+                "portfolio_return": np.dot(weights, ret),
+                "assumption_level": monitor_state.overall_level.value,
+                "should_fallback": monitor_state.should_fallback,
+                "risk_level": risk_signal.level.value,
+                "risk_score": risk_signal.score,
+            }
+        )
 
     # 生成综合报告
-    portfolio_returns = [r['portfolio_return'] for r in daily_records]
+    portfolio_returns = [r["portfolio_return"] for r in daily_records]
     cumulative = np.cumsum(portfolio_returns)
 
-    fallback_days = sum(1 for r in daily_records if r['should_fallback'])
-    risk_alert_days = sum(1 for r in daily_records if r['risk_level'] >= RiskLevel.MEDIUM.value)
+    fallback_days = sum(1 for r in daily_records if r["should_fallback"])
+    risk_alert_days = sum(1 for r in daily_records if r["risk_level"] >= RiskLevel.MEDIUM.value)
 
     print(f"\n  【综合报告】")
     print(f"  总交易日: {len(daily_records)}")
@@ -405,7 +401,7 @@ def test_comprehensive_report():
 
     # 验证数据一致性
     assert len(daily_records) == 40, "记录数应等于交易日数"
-    assert all(abs(np.sum(r['weights']) - 1.0) < 1e-6 for r in daily_records), "权重和应始终为1"
+    assert all(abs(np.sum(r["weights"]) - 1.0) < 1e-6 for r in daily_records), "权重和应始终为1"
 
     print("  ✓ 综合报告一致性测试通过")
 
@@ -413,6 +409,7 @@ def test_comprehensive_report():
 # ============================================================
 # 主测试入口
 # ============================================================
+
 
 def run_all_tests():
     """运行所有集成测试"""

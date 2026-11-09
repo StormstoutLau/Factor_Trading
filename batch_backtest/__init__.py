@@ -5,4 +5,4 @@
 
 from batch_backtest.engine import BatchBacktestEngine
 
-__all__ = ['BatchBacktestEngine']
+__all__ = ["BatchBacktestEngine"]

@@ -58,6 +58,7 @@ def test_event_log_plugin():
 
         # 记录事件
         import pandas as pd
+
         plugin.log_trade(pd.Timestamp("2024-01-01"), "AAPL", "BUY", 100, 150.0, True)
         plugin.log_rebalance(pd.Timestamp("2024-01-01"), {"AAPL": 0.1, "TSLA": 0.1})
         plugin.log_day_end(pd.Timestamp("2024-01-01"), 10_500_000.0)
@@ -313,6 +314,7 @@ def test_backward_compatibility():
 
     # 新 Registry 方式也可用
     from core.engine_plugins import RegistryPlugin
+
     plugin = RegistryPlugin()
     plugin.enable()
 

@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StrategyEvaluationResult:
     """策略评估结果"""
+
     strategy_name: str
     total_qty: int
     avg_price: float
@@ -116,7 +117,13 @@ class OrderStrategyEvaluator:
         strategies = [
             MarketOrderStrategy(),
             TWAPStrategy({"intervals": 10}),
-            VWAPStrategy({"volume_profile": np.array([0.08, 0.10, 0.12, 0.10, 0.08, 0.08, 0.10, 0.12, 0.10, 0.12])}),
+            VWAPStrategy(
+                {
+                    "volume_profile": np.array(
+                        [0.08, 0.10, 0.12, 0.10, 0.08, 0.08, 0.10, 0.12, 0.10, 0.12]
+                    )
+                }
+            ),
             IcebergStrategy({"visible_size": 1000}),
         ]
 
@@ -135,4 +142,3 @@ class OrderStrategyEvaluator:
             )
 
         return results
-

@@ -40,12 +40,14 @@ def build_large_test_data(n_dates=500, n_stocks=500):
 # TDD RED Phase: 首先定义预期的内核函数签名
 # ============================================================
 
+
 def test_numba_available():
     """测试: numba 已安装且可用"""
     print("\n[Test] numba 可用性检查...")
     try:
         import numba
         from numba import njit
+
         print(f"  ✓ numba version: {numba.__version__}")
         return True
     except ImportError as e:
@@ -78,8 +80,15 @@ def test_rebalance_kernel_correctness():
     cost_rate = 0.001
 
     new_positions, new_cash = _rebalance_kernel(
-        positions, cash, last_pv, signal, prices,
-        buyable, sellable, top_n, cost_rate,
+        positions,
+        cash,
+        last_pv,
+        signal,
+        prices,
+        buyable,
+        sellable,
+        top_n,
+        cost_rate,
     )
 
     # 基本验证
@@ -123,15 +132,17 @@ def test_rebalance_kernel_performance():
     cost_rate = 0.001
 
     # Warm-up (JIT 编译)
-    _ = _rebalance_kernel(positions, cash, last_pv, signal, prices,
-                          buyable, sellable, top_n, cost_rate)
+    _ = _rebalance_kernel(
+        positions, cash, last_pv, signal, prices, buyable, sellable, top_n, cost_rate
+    )
 
     # 性能测试
     n_runs = 50
     t0 = time.perf_counter()
     for _ in range(n_runs):
-        _ = _rebalance_kernel(positions, cash, last_pv, signal, prices,
-                              buyable, sellable, top_n, cost_rate)
+        _ = _rebalance_kernel(
+            positions, cash, last_pv, signal, prices, buyable, sellable, top_n, cost_rate
+        )
     elapsed = time.perf_counter() - t0
     avg_ms = (elapsed / n_runs) * 1000
 
@@ -161,8 +172,7 @@ def test_metrics_kernel_correctness():
     assert len(result) == 6, f"应返回6个指标，实际{len(result)}"
     total_return, annual_return, volatility, sharpe, max_dd, final_value = result
 
-    print(f"  ✓ 指标计算: Sharpe={sharpe:.3f}, MaxDD={max_dd:.3f}, "
-          f"Annual={annual_return:.3f}")
+    print(f"  ✓ 指标计算: Sharpe={sharpe:.3f}, MaxDD={max_dd:.3f}, " f"Annual={annual_return:.3f}")
 
     # 合理性检查
     assert -1.0 <= max_dd <= 0.0, f"max_drawdown 不合理: {max_dd}"
@@ -218,12 +228,14 @@ def test_v3_engine_jit_integration():
         close[i] = close[i - 1] * (1 + np.random.normal(0.0005, 0.02, n_stocks))
 
     import pandas as pd
+
     dates = pd.date_range("2024-01-01", periods=n_dates, freq="B")
     stocks = [f"S{i:04d}" for i in range(n_stocks)]
 
     close_df = pd.DataFrame(close, index=dates, columns=stocks)
-    open_df = pd.DataFrame(close * np.random.uniform(0.98, 1.02, close.shape),
-                           index=dates, columns=stocks)
+    open_df = pd.DataFrame(
+        close * np.random.uniform(0.98, 1.02, close.shape), index=dates, columns=stocks
+    )
     high_df = pd.DataFrame(close * 1.05, index=dates, columns=stocks)
     low_df = pd.DataFrame(close * 0.95, index=dates, columns=stocks)
 
@@ -232,7 +244,10 @@ def test_v3_engine_jit_integration():
     factor_df = pd.DataFrame(factor, index=dates, columns=stocks)
 
     dl = DataLoaderV3.from_pandas_dataframes(
-        close=close_df, open=open_df, high=high_df, low=low_df,
+        close=close_df,
+        open=open_df,
+        high=high_df,
+        low=low_df,
         factor_dict={"factor_momentum": factor_df},
     )
 
@@ -247,8 +262,14 @@ def test_v3_engine_jit_integration():
     results = engine.run()
 
     # 验证结果完整性
-    required_keys = ["portfolio_value", "returns", "sharpe_ratio",
-                     "max_drawdown", "final_value", "initial_value"]
+    required_keys = [
+        "portfolio_value",
+        "returns",
+        "sharpe_ratio",
+        "max_drawdown",
+        "final_value",
+        "initial_value",
+    ]
     for key in required_keys:
         assert key in results, f"缺少关键字段: {key}"
     print(f"  ✓ 结果结构完整")
@@ -258,8 +279,10 @@ def test_v3_engine_jit_integration():
     assert results["final_value"] > 0
     assert -1.0 <= results["max_drawdown"] <= 0.0
     assert not np.isnan(results["sharpe_ratio"])
-    print(f"  ✓ 数值合理性: Sharpe={results['sharpe_ratio']:.3f}, "
-          f"MaxDD={results['max_drawdown']:.3f}")
+    print(
+        f"  ✓ 数值合理性: Sharpe={results['sharpe_ratio']:.3f}, "
+        f"MaxDD={results['max_drawdown']:.3f}"
+    )
 
     return True
 
@@ -274,18 +297,23 @@ def test_v3_engine_jit_large_scale():
     close, signals = build_large_test_data(500, 500)
 
     import pandas as pd
+
     dates = pd.date_range("2024-01-01", periods=500, freq="B")
     stocks = [f"S{i:04d}" for i in range(500)]
 
     close_df = pd.DataFrame(close, index=dates, columns=stocks)
-    open_df = pd.DataFrame(close * np.random.uniform(0.98, 1.02, close.shape),
-                           index=dates, columns=stocks)
+    open_df = pd.DataFrame(
+        close * np.random.uniform(0.98, 1.02, close.shape), index=dates, columns=stocks
+    )
     high_df = pd.DataFrame(close * 1.05, index=dates, columns=stocks)
     low_df = pd.DataFrame(close * 0.95, index=dates, columns=stocks)
     factor_df = pd.DataFrame(signals, index=dates, columns=stocks)
 
     dl = DataLoaderV3.from_pandas_dataframes(
-        close=close_df, open=open_df, high=high_df, low=low_df,
+        close=close_df,
+        open=open_df,
+        high=high_df,
+        low=low_df,
         factor_dict={"factor_momentum": factor_df},
     )
 
@@ -321,6 +349,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"  ✗ FAILED: {e}")
                 import traceback
+
                 traceback.print_exc()
                 results.append((name, False))
 

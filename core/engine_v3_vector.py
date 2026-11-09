@@ -48,17 +48,21 @@ import pandas as pd
 
 try:
     from numba import njit
+
     _NUMBA_AVAILABLE = True
 except ImportError:
     _NUMBA_AVAILABLE = False
 
     def njit(*args, **kwargs):
         """Fallback: 无 numba 时返回原始函数"""
+
         def decorator(fn):
             return fn
+
         if len(args) == 1 and callable(args[0]):
             return args[0]
         return decorator
+
 
 from core.data_v3 import DataLoaderV3
 
@@ -68,6 +72,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # Numba JIT 内核函数
 # ============================================================
+
 
 @njit
 def _rebalance_kernel(
@@ -364,8 +369,9 @@ class VectorBacktestEngine:
             return {}
 
         # 调用 @njit 内核计算指标
-        total_return, annual_return, volatility, sharpe_ratio, max_drawdown, final_value = \
+        total_return, annual_return, volatility, sharpe_ratio, max_drawdown, final_value = (
             _metrics_kernel(self._portfolio_value)
+        )
 
         # 计算 returns 序列 (用于后续分析)
         returns = np.diff(self._portfolio_value) / self._portfolio_value[:-1]
@@ -389,4 +395,3 @@ class VectorBacktestEngine:
     def get_portfolio_value(self) -> Optional[np.ndarray]:
         """获取组合价值序列"""
         return self._portfolio_value
-

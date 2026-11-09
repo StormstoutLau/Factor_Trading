@@ -48,8 +48,12 @@ def test_partial_status_in_pending_order():
 
     # 创建限价单
     limit_order = PendingOrder(
-        "GOOGL", OrderSide.BUY, 100, pd.Timestamp("2024-01-02"),
-        order_type=OrderType.LIMIT, limit_price=150.0
+        "GOOGL",
+        OrderSide.BUY,
+        100,
+        pd.Timestamp("2024-01-02"),
+        order_type=OrderType.LIMIT,
+        limit_price=150.0,
     )
     assert limit_order.order_type == OrderType.LIMIT
     assert limit_order.limit_price == 150.0
@@ -80,8 +84,12 @@ def test_limit_order_price_check():
 
     # 买入限价单: 只有当价格 <= limit_price 时才成交
     buy_limit = PendingOrder(
-        "AAPL", OrderSide.BUY, 100, pd.Timestamp("2024-01-02"),
-        order_type=OrderType.LIMIT, limit_price=150.0
+        "AAPL",
+        OrderSide.BUY,
+        100,
+        pd.Timestamp("2024-01-02"),
+        order_type=OrderType.LIMIT,
+        limit_price=150.0,
     )
 
     # 价格高于限价，不应成交
@@ -99,8 +107,12 @@ def test_limit_order_price_check():
 
     # 卖出限价单: 只有当价格 >= limit_price 时才成交
     sell_limit = PendingOrder(
-        "AAPL", OrderSide.SELL, 100, pd.Timestamp("2024-01-02"),
-        order_type=OrderType.LIMIT, limit_price=150.0
+        "AAPL",
+        OrderSide.SELL,
+        100,
+        pd.Timestamp("2024-01-02"),
+        order_type=OrderType.LIMIT,
+        limit_price=150.0,
     )
     assert not sell_limit.can_execute_at_price(145.0)
     print(f"  ✓ 卖出限价150: 价格145 -> 不成交")
@@ -118,8 +130,12 @@ def test_stop_order_trigger():
 
     # 卖出止损单: 当价格 <= stop_price 时触发
     stop_loss = PendingOrder(
-        "AAPL", OrderSide.SELL, 100, pd.Timestamp("2024-01-02"),
-        order_type=OrderType.STOP, stop_price=140.0
+        "AAPL",
+        OrderSide.SELL,
+        100,
+        pd.Timestamp("2024-01-02"),
+        order_type=OrderType.STOP,
+        stop_price=140.0,
     )
 
     assert stop_loss.is_triggered(139.0), "价格低于止损价应触发"
@@ -133,15 +149,20 @@ def test_pending_order_queue_with_partial():
     """测试: PendingOrderQueue 支持部分成交"""
     print("\n[Test] PendingOrderQueue 部分成交统计...")
 
-    from core.pending import PendingOrderQueue, PendingOrder, OrderSide, OrderType, create_pending_order
+    from core.pending import (
+        PendingOrderQueue,
+        PendingOrder,
+        OrderSide,
+        OrderType,
+        create_pending_order,
+    )
 
     queue = PendingOrderQueue()
     date = pd.Timestamp("2024-01-02")
 
     # 创建限价单
     order = PendingOrder(
-        "AAPL", OrderSide.BUY, 100, date,
-        order_type=OrderType.LIMIT, limit_price=150.0
+        "AAPL", OrderSide.BUY, 100, date, order_type=OrderType.LIMIT, limit_price=150.0
     )
     queue.add_order(order)
 
@@ -181,8 +202,7 @@ def test_create_order_with_type():
 
     # 限价单
     o2 = create_pending_order(
-        "GOOGL", OrderSide.BUY, 100, date,
-        order_type=OrderType.LIMIT, limit_price=200.0
+        "GOOGL", OrderSide.BUY, 100, date, order_type=OrderType.LIMIT, limit_price=200.0
     )
     assert o2.order_type == OrderType.LIMIT
     assert o2.limit_price == 200.0
@@ -201,6 +221,7 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"  ✗ FAILED: {e}")
                 import traceback
+
                 traceback.print_exc()
                 results.append((name, False))
 

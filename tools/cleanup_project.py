@@ -4,7 +4,7 @@
 
 清理范围:
 1. data_analysis/ 中的临时分析脚本
-2. test/ 中的临时测试文件  
+2. test/ 中的临时测试文件
 3. __pycache__/ 缓存目录
 4. 旧的报告文件(.md)
 
@@ -28,7 +28,7 @@ def get_project_root():
 def get_files_to_cleanup():
     """定义需要清理的文件列表"""
     root = get_project_root()
-    
+
     # 1. 需要删除的分析脚本 (data_analysis/)
     analysis_scripts_to_remove = [
         # 临时分析脚本
@@ -84,7 +84,7 @@ def get_files_to_cleanup():
         "stock_name_analysis_report.md",
         "suspend_factor_timing_analysis.md",
     ]
-    
+
     # 2. 根目录下旧的总结文件
     old_summary_files = [
         "CLEANUP_SUMMARY.md",
@@ -92,7 +92,7 @@ def get_files_to_cleanup():
         "universe_filter_analysis_summary.md",
         "universe_filter_cleanup_summary.md",
     ]
-    
+
     # 3. __pycache__ 目录
     pycache_dirs = [
         root / "__pycache__",
@@ -100,7 +100,7 @@ def get_files_to_cleanup():
         root / "test" / "__pycache__",
         root / "filter" / "__pycache__",
     ]
-    
+
     # 4. test/ 目录中的临时测试文件
     test_files_to_remove = []
     test_dir = root / "test"
@@ -108,7 +108,7 @@ def get_files_to_cleanup():
         for f in test_dir.iterdir():
             if f.is_file() and f.name not in ["__init__.py", "conftest.py"]:
                 test_files_to_remove.append(f)
-    
+
     return {
         "analysis_scripts": [(root / "data_analysis" / f, f) for f in analysis_scripts_to_remove],
         "old_summaries": [(root / f, f) for f in old_summary_files],
@@ -120,14 +120,14 @@ def get_files_to_cleanup():
 def cleanup_files(dry_run=True):
     """执行清理"""
     files_to_cleanup = get_files_to_cleanup()
-    
-    print("="*70)
+
+    print("=" * 70)
     print("项目文件清理" + " (模拟运行)" if dry_run else " (实际执行)")
-    print("="*70)
-    
+    print("=" * 70)
+
     total_files = 0
     total_size = 0
-    
+
     # 1. 清理分析脚本
     print("\n【1】清理 data_analysis/ 临时分析脚本...")
     for filepath, filename in files_to_cleanup["analysis_scripts"]:
@@ -138,7 +138,7 @@ def cleanup_files(dry_run=True):
             total_size += size
             if not dry_run:
                 filepath.unlink()
-    
+
     # 2. 清理旧的总结文件
     print("\n【2】清理根目录旧总结文件...")
     for filepath, filename in files_to_cleanup["old_summaries"]:
@@ -149,19 +149,21 @@ def cleanup_files(dry_run=True):
             total_size += size
             if not dry_run:
                 filepath.unlink()
-    
+
     # 3. 清理 __pycache__
     print("\n【3】清理 __pycache__ 缓存目录...")
     for dirpath, dirname in files_to_cleanup["pycache_dirs"]:
         if dirpath.exists():
-            size = sum(f.stat().st_size for f in dirpath.rglob('*') if f.is_file())
-            file_count = len(list(dirpath.rglob('*')))
-            print(f"  {'[将删除]' if not dry_run else '[将删除]'} {dirname} ({file_count} 文件, {size/1024:.1f} KB)")
+            size = sum(f.stat().st_size for f in dirpath.rglob("*") if f.is_file())
+            file_count = len(list(dirpath.rglob("*")))
+            print(
+                f"  {'[将删除]' if not dry_run else '[将删除]'} {dirname} ({file_count} 文件, {size/1024:.1f} KB)"
+            )
             total_files += file_count
             total_size += size
             if not dry_run:
                 shutil.rmtree(dirpath)
-    
+
     # 4. 清理 test/ 临时文件
     print("\n【4】清理 test/ 临时测试文件...")
     for filepath, filename in files_to_cleanup["test_files"]:
@@ -172,7 +174,7 @@ def cleanup_files(dry_run=True):
             total_size += size
             if not dry_run:
                 filepath.unlink()
-    
+
     # 5. 检查空目录
     print("\n【5】检查空目录...")
     root = get_project_root()
@@ -181,11 +183,11 @@ def cleanup_files(dry_run=True):
         if dirpath.exists() and not any(dirpath.iterdir()):
             empty_dirs.append(dirpath)
             print(f"  [空目录] {dirpath.name}")
-    
-    print("\n" + "="*70)
+
+    print("\n" + "=" * 70)
     print(f"统计: {total_files} 个文件/目录, 总计 {total_size/1024/1024:.2f} MB")
-    print("="*70)
-    
+    print("=" * 70)
+
     if dry_run:
         print("\n这是模拟运行，使用 --execute 参数执行实际清理:")
         print(f"  python {Path(__file__).name} --execute")
@@ -195,17 +197,17 @@ def cleanup_files(dry_run=True):
             print(f"\n注意: 发现 {len(empty_dirs)} 个空目录，可手动删除:")
             for d in empty_dirs:
                 print(f"  - {d}")
-    
+
     return total_files, total_size
 
 
 def main():
     """主函数"""
     dry_run = "--execute" not in sys.argv
-    
+
     if dry_run:
         print("\n[注意] 模拟运行模式 - 不会实际删除文件\n")
-    
+
     cleanup_files(dry_run=dry_run)
 
 

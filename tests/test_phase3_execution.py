@@ -25,7 +25,9 @@ def test_e10_liquidation_cost():
     from core.config import CostConfig
     from core.pending import OrderSide
 
-    cfg = CostConfig(commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001)
+    cfg = CostConfig(
+        commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+    )
     sim = ExecutionSimulator(cfg)
 
     # 卖出1000股，价格10元，金额10000元
@@ -50,7 +52,9 @@ def test_e16_net_amount_calculation():
     from core.config import CostConfig
     from core.pending import OrderSide
 
-    cfg = CostConfig(commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001)
+    cfg = CostConfig(
+        commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+    )
     sim = ExecutionSimulator(cfg)
 
     date = pd.Timestamp("2024-01-02")
@@ -62,10 +66,13 @@ def test_e16_net_amount_calculation():
     expected_cost_buy = 5.0 + 10000 * 0.001  # 佣金5 + 滑点10 = 15（买入无印花税）
     expected_net_buy = 10000 + expected_cost_buy  # 总支出 = 金额 + 成本
 
-    assert abs(trade_buy.net_amount - expected_net_buy) < 1e-6, \
-        f"买入净金额应为{expected_net_buy}, 实际为{trade_buy.net_amount}"
+    assert (
+        abs(trade_buy.net_amount - expected_net_buy) < 1e-6
+    ), f"买入净金额应为{expected_net_buy}, 实际为{trade_buy.net_amount}"
     assert trade_buy.net_amount > 10000, "买入净金额应大于金额（因为包含成本）"
-    print(f"  ✓ 买入净金额正确: {trade_buy.net_amount:.2f} (金额: {trade_buy.amount:.2f}, 成本: {trade_buy.cost:.2f})")
+    print(
+        f"  ✓ 买入净金额正确: {trade_buy.net_amount:.2f} (金额: {trade_buy.amount:.2f}, 成本: {trade_buy.cost:.2f})"
+    )
 
     # 卖出1000股 @ 10元
     success_sell, trade_sell = sim.execute_order("AAPL", OrderSide.SELL, 1000, date, 10.0)
@@ -74,10 +81,13 @@ def test_e16_net_amount_calculation():
     expected_cost_sell = 5.0 + 10000 * 0.001 + 10000 * 0.001  # 佣金5 + 印花税10 + 滑点10 = 25
     expected_net_sell = 10000 - expected_cost_sell  # 净收入 = 金额 - 成本
 
-    assert abs(trade_sell.net_amount - expected_net_sell) < 1e-6, \
-        f"卖出净金额应为{expected_net_sell}, 实际为{trade_sell.net_amount}"
+    assert (
+        abs(trade_sell.net_amount - expected_net_sell) < 1e-6
+    ), f"卖出净金额应为{expected_net_sell}, 实际为{trade_sell.net_amount}"
     assert trade_sell.net_amount < 10000, "卖出净金额应小于金额（因为扣除了成本）"
-    print(f"  ✓ 卖出净金额正确: {trade_sell.net_amount:.2f} (金额: {trade_sell.amount:.2f}, 成本: {trade_sell.cost:.2f})")
+    print(
+        f"  ✓ 卖出净金额正确: {trade_sell.net_amount:.2f} (金额: {trade_sell.amount:.2f}, 成本: {trade_sell.cost:.2f})"
+    )
 
     return True
 
@@ -91,7 +101,9 @@ def test_tracker_cash_update():
     from core.config import CostConfig
     from core.pending import OrderSide
 
-    cfg = CostConfig(commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001)
+    cfg = CostConfig(
+        commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+    )
     sim = ExecutionSimulator(cfg)
     tracker = PositionTracker(n_stocks=1, initial_capital=100000.0)
 
@@ -102,8 +114,9 @@ def test_tracker_cash_update():
     tracker.execute_trade(trade)
 
     expected_cash = 100000.0 - trade.net_amount
-    assert abs(tracker.get_cash() - expected_cash) < 1e-6, \
-        f"买入后现金应为{expected_cash}, 实际为{tracker.get_cash()}"
+    assert (
+        abs(tracker.get_cash() - expected_cash) < 1e-6
+    ), f"买入后现金应为{expected_cash}, 实际为{tracker.get_cash()}"
     print(f"  ✓ 买入后现金正确: {tracker.get_cash():.2f}")
 
     # 卖出
@@ -112,8 +125,9 @@ def test_tracker_cash_update():
 
     # 卖出后现金 = 之前现金 + 卖出净收入
     expected_cash_after_sell = expected_cash + trade.net_amount
-    assert abs(tracker.get_cash() - expected_cash_after_sell) < 1e-6, \
-        f"卖出后现金应为{expected_cash_after_sell}, 实际为{tracker.get_cash()}"
+    assert (
+        abs(tracker.get_cash() - expected_cash_after_sell) < 1e-6
+    ), f"卖出后现金应为{expected_cash_after_sell}, 实际为{tracker.get_cash()}"
     print(f"  ✓ 卖出后现金正确: {tracker.get_cash():.2f}")
 
     return True

@@ -24,7 +24,8 @@ def render() -> None:
         )
 
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="display:flex; gap:16px; margin-top:8px;">
             <div class="metric-card" style="flex:1;">
                 <div class="metric-label">IC Mean</div>
@@ -43,7 +44,9 @@ def render() -> None:
                 <div class="metric-value" style="font-size:18px;">—</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     # ── IC Analysis Chart ─────────────────────────────────────────────────────
     st.markdown("### 📈 IC Analysis")
@@ -75,10 +78,12 @@ def render() -> None:
     decay_horizons = [1, 3, 5, 10, 20, 40, 60]
     decay_values = [0.04, 0.035, 0.03, 0.025, 0.018, 0.01, 0.005]
 
-    decay_df = pd.DataFrame({
-        "Horizon (days)": decay_horizons,
-        "IC": decay_values,
-    }).set_index("Horizon (days)")
+    decay_df = pd.DataFrame(
+        {
+            "Horizon (days)": decay_horizons,
+            "IC": decay_values,
+        }
+    ).set_index("Horizon (days)")
 
     st.line_chart(decay_df, use_container_width=True, color="#10b981")
 
@@ -88,13 +93,15 @@ def render() -> None:
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        corr_data = np.array([
-            [1.00, 0.15, -0.05, 0.08, 0.12],
-            [0.15, 1.00, 0.22, -0.10, 0.05],
-            [-0.05, 0.22, 1.00, 0.18, 0.30],
-            [0.08, -0.10, 0.18, 1.00, -0.08],
-            [0.12, 0.05, 0.30, -0.08, 1.00],
-        ])
+        corr_data = np.array(
+            [
+                [1.00, 0.15, -0.05, 0.08, 0.12],
+                [0.15, 1.00, 0.22, -0.10, 0.05],
+                [-0.05, 0.22, 1.00, 0.18, 0.30],
+                [0.08, -0.10, 0.18, 1.00, -0.08],
+                [0.12, 0.05, 0.30, -0.08, 1.00],
+            ]
+        )
         factors = ["Value", "Momentum", "Quality", "Size", "Volatility"]
         corr_df = pd.DataFrame(corr_data, index=factors, columns=factors)
 
@@ -105,7 +112,8 @@ def render() -> None:
 
     with col2:
         st.markdown("### Pipeline Stages")
-        st.code("""
+        st.code(
+            """
 Raw Factor
   │
   ├─ [1] Winsorize (MAD)
@@ -122,21 +130,27 @@ Raw Factor
   │
   └─ [5] Combine
       └─ Weighted average
-        """, language=None)
+        """,
+            language=None,
+        )
 
     # ── Factor Performance Table ──────────────────────────────────────────────
     st.markdown("### 📊 Factor Performance Summary")
 
-    perf_data = pd.DataFrame({
-        "Factor": ["Value", "Momentum", "Quality", "Size", "Volatility"],
-        "IC Mean": [0.035, 0.028, 0.022, 0.015, -0.018],
-        "IC Std": [0.08, 0.10, 0.07, 0.09, 0.06],
-        "IC IR": [0.44, 0.28, 0.31, 0.17, -0.30],
-        "Win Rate": ["58%", "54%", "52%", "49%", "45%"],
-        "Sharpe": [1.25, 0.98, 1.12, 0.65, -0.42],
-        "MaxDD": ["-12.3%", "-15.8%", "-10.2%", "-18.5%", "-22.1%"],
-    })
+    perf_data = pd.DataFrame(
+        {
+            "Factor": ["Value", "Momentum", "Quality", "Size", "Volatility"],
+            "IC Mean": [0.035, 0.028, 0.022, 0.015, -0.018],
+            "IC Std": [0.08, 0.10, 0.07, 0.09, 0.06],
+            "IC IR": [0.44, 0.28, 0.31, 0.17, -0.30],
+            "Win Rate": ["58%", "54%", "52%", "49%", "45%"],
+            "Sharpe": [1.25, 0.98, 1.12, 0.65, -0.42],
+            "MaxDD": ["-12.3%", "-15.8%", "-10.2%", "-18.5%", "-22.1%"],
+        }
+    )
 
     st.dataframe(perf_data, use_container_width=True, hide_index=True)
 
-    st.caption("Load real factor data to see actual analysis results. Data required: factor values, daily returns, industry classification.")
+    st.caption(
+        "Load real factor data to see actual analysis results. Data required: factor values, daily returns, industry classification."
+    )

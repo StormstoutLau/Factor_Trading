@@ -28,8 +28,7 @@ class TestV3EnginePurpose(unittest.TestCase):
 
         self.assertIn("因子", v3.__doc__)
         self.assertTrue(
-            "筛选" in v3.__doc__ or "预筛选" in v3.__doc__,
-            "模块文档应明确标注 V3 的因子筛选定位"
+            "筛选" in v3.__doc__ or "预筛选" in v3.__doc__, "模块文档应明确标注 V3 的因子筛选定位"
         )
 
     def test_module_docstring_mentions_limitations(self):
@@ -37,16 +36,14 @@ class TestV3EnginePurpose(unittest.TestCase):
         import core.engine_v3_vector as v3
 
         doc = v3.__doc__
-        self.assertIn("不支持", doc,
-                      "模块文档应明确列出 V3 不支持的功能")
+        self.assertIn("不支持", doc, "模块文档应明确列出 V3 不支持的功能")
 
     def test_engine_has_purpose_attribute(self):
         """VectorBacktestEngine 应有 purpose 属性"""
         from core.engine_v3_vector import VectorBacktestEngine
 
         engine = VectorBacktestEngine()
-        self.assertTrue(hasattr(engine, "purpose"),
-                        "VectorBacktestEngine 应暴露 purpose 属性")
+        self.assertTrue(hasattr(engine, "purpose"), "VectorBacktestEngine 应暴露 purpose 属性")
 
     def test_purpose_mentions_factor_screening(self):
         """purpose 属性应提及因子筛选"""
@@ -61,8 +58,7 @@ class TestV3EnginePurpose(unittest.TestCase):
         from core.engine_v3_vector import VectorBacktestEngine
 
         engine = VectorBacktestEngine()
-        self.assertTrue(hasattr(engine, "unsupported_features"),
-                        "应暴露 unsupported_features 列表")
+        self.assertTrue(hasattr(engine, "unsupported_features"), "应暴露 unsupported_features 列表")
 
     def test_unsupported_features_includes_key_items(self):
         """unsupported_features 应包含关键受限功能"""
@@ -73,12 +69,9 @@ class TestV3EnginePurpose(unittest.TestCase):
 
         # 至少应提及 execution_policy, pending_orders, risk_manager
         found = " ".join(unsupported).lower()
-        self.assertIn("execution_policy", found,
-                      "应说明不支持 execution_policy")
-        self.assertIn("pending", found,
-                      "应说明不支持 pending_orders")
-        self.assertIn("risk", found,
-                      "应说明不支持 risk_manager")
+        self.assertIn("execution_policy", found, "应说明不支持 execution_policy")
+        self.assertIn("pending", found, "应说明不支持 pending_orders")
+        self.assertIn("risk", found, "应说明不支持 risk_manager")
 
     def test_setup_without_data_loader_raises_clear_error(self):
         """未 setup 就 run 应给出清晰错误"""
@@ -135,9 +128,14 @@ class TestV3EngineBasicFunctionality(unittest.TestCase):
         results = self.engine.run()
 
         expected_keys = [
-            "total_return", "annual_return", "volatility",
-            "sharpe_ratio", "max_drawdown", "final_value",
-            "portfolio_value", "returns",
+            "total_return",
+            "annual_return",
+            "volatility",
+            "sharpe_ratio",
+            "max_drawdown",
+            "final_value",
+            "portfolio_value",
+            "returns",
         ]
         for key in expected_keys:
             self.assertIn(key, results, f"结果应包含 '{key}'")
@@ -154,9 +152,7 @@ class TestV3EngineBasicFunctionality(unittest.TestCase):
         """V3 接受 dict 配置（非 BacktestConfig）"""
         from core.engine_v3_vector import VectorBacktestEngine
 
-        engine = VectorBacktestEngine(
-            config={"initial_capital": 500_000.0, "top_n": 10}
-        )
+        engine = VectorBacktestEngine(config={"initial_capital": 500_000.0, "top_n": 10})
         self.assertEqual(engine.cfg["initial_capital"], 500_000.0)
         self.assertEqual(engine.cfg["top_n"], 10)
 

@@ -27,7 +27,6 @@ import pandas as pd
 from core.config import AssetType
 from core.pending import OrderSide, PendingOrder, create_pending_order
 
-
 # ============================================================================
 # Module 1: ExecutionTiming - 执行时机
 # ============================================================================
@@ -41,11 +40,12 @@ class ExecutionTiming(Enum):
         - 期货: T+0, 当日信号→当日执行
         - 期权: T+1, 类似股票
     """
-    IMMEDIATE_OPEN = "immediate_open"       # T+0 当日开盘执行
-    IMMEDIATE_CLOSE = "immediate_close"     # T+0 当日收盘执行
-    NEXT_OPEN = "next_open"                # T+1 次日开盘执行 (当前A股默认)
-    NEXT_CLOSE = "next_close"              # T+1 次日收盘执行
-    CUSTOM = "custom"                      # 自定义时机
+
+    IMMEDIATE_OPEN = "immediate_open"  # T+0 当日开盘执行
+    IMMEDIATE_CLOSE = "immediate_close"  # T+0 当日收盘执行
+    NEXT_OPEN = "next_open"  # T+1 次日开盘执行 (当前A股默认)
+    NEXT_CLOSE = "next_close"  # T+1 次日收盘执行
+    CUSTOM = "custom"  # 自定义时机
 
 
 # ============================================================================
@@ -174,9 +174,7 @@ class ExecutionPolicy(ABC):
         ...
 
     @abstractmethod
-    def create_orders(
-        self, intent: OrderIntent, date: pd.Timestamp
-    ) -> list[PendingOrder]:
+    def create_orders(self, intent: OrderIntent, date: pd.Timestamp) -> list[PendingOrder]:
         """将 OrderIntent 转换为 PendingOrder 列表
 
         Args:
@@ -216,9 +214,7 @@ class T1StockPolicy(ExecutionPolicy):
     def supports_intraday(self) -> bool:
         return False
 
-    def create_orders(
-        self, intent: OrderIntent, date: pd.Timestamp
-    ) -> list[PendingOrder]:
+    def create_orders(self, intent: OrderIntent, date: pd.Timestamp) -> list[PendingOrder]:
         """将 OrderIntent 转换为 PendingOrder
 
         T+1 规则:
@@ -283,9 +279,7 @@ class T0FuturesPolicy(ExecutionPolicy):
     def supports_intraday(self) -> bool:
         return True
 
-    def create_orders(
-        self, intent: OrderIntent, date: pd.Timestamp
-    ) -> list[PendingOrder]:
+    def create_orders(self, intent: OrderIntent, date: pd.Timestamp) -> list[PendingOrder]:
         """将 OrderIntent 转换为 PendingOrder
 
         T+0 规则:
@@ -309,77 +303,93 @@ class T0FuturesPolicy(ExecutionPolicy):
 
         elif action == "BUY":
             # 纯加多仓
-            orders.append(create_pending_order(
-                stock=intent.asset,
-                side=OrderSide.BUY,
-                quantity=int(abs(tq)),
-                create_date=date,
-            ))
+            orders.append(
+                create_pending_order(
+                    stock=intent.asset,
+                    side=OrderSide.BUY,
+                    quantity=int(abs(tq)),
+                    create_date=date,
+                )
+            )
 
         elif action == "SELL":
             if intent.target_quantity < 0 and intent.current_quantity > 0:
                 # 翻仓: 多头→空头
                 # 先平多仓
-                orders.append(create_pending_order(
-                    stock=intent.asset,
-                    side=OrderSide.SELL,
-                    quantity=int(abs(intent.current_quantity)),
-                    create_date=date,
-                ))
+                orders.append(
+                    create_pending_order(
+                        stock=intent.asset,
+                        side=OrderSide.SELL,
+                        quantity=int(abs(intent.current_quantity)),
+                        create_date=date,
+                    )
+                )
                 # 再开空仓
                 open_qty = int(abs(intent.target_quantity))
                 if open_qty > 0:
-                    orders.append(create_pending_order(
-                        stock=intent.asset,
-                        side=OrderSide.SELL_SHORT,
-                        quantity=open_qty,
-                        create_date=date,
-                    ))
+                    orders.append(
+                        create_pending_order(
+                            stock=intent.asset,
+                            side=OrderSide.SELL_SHORT,
+                            quantity=open_qty,
+                            create_date=date,
+                        )
+                    )
             else:
                 # 纯减多仓
-                orders.append(create_pending_order(
-                    stock=intent.asset,
-                    side=OrderSide.SELL,
-                    quantity=int(abs(tq)),
-                    create_date=date,
-                ))
+                orders.append(
+                    create_pending_order(
+                        stock=intent.asset,
+                        side=OrderSide.SELL,
+                        quantity=int(abs(tq)),
+                        create_date=date,
+                    )
+                )
 
         elif action == "SELL_SHORT":
             # 纯加空仓（不处理翻仓，翻仓已在 SELL 分支处理）
-            orders.append(create_pending_order(
-                stock=intent.asset,
-                side=OrderSide.SELL_SHORT,
-                quantity=int(abs(tq)),
-                create_date=date,
-            ))
+            orders.append(
+                create_pending_order(
+                    stock=intent.asset,
+                    side=OrderSide.SELL_SHORT,
+                    quantity=int(abs(tq)),
+                    create_date=date,
+                )
+            )
 
         elif action == "BUY_TO_COVER":
-             if intent.target_quantity > 0 and intent.current_quantity < 0:
-                 # 翻仓: 空头→多头
-                 # 先平空仓
-                 orders.append(create_pending_order(
-                     stock=intent.asset,
-                     side=OrderSide.BUY_TO_COVER,
-                     quantity=int(abs(intent.current_quantity)),
-                     create_date=date,
-                 ))
-                 # 再开多仓
-                 open_qty = int(abs(intent.target_quantity))
-                 if open_qty > 0:
-                     orders.append(create_pending_order(
-                         stock=intent.asset,
-                         side=OrderSide.BUY,
-                         quantity=open_qty,
-                         create_date=date,
-                     ))
-             else:
-                 # 纯减空仓
-                 orders.append(create_pending_order(
-                     stock=intent.asset,
-                     side=OrderSide.BUY_TO_COVER,
-                     quantity=int(abs(tq)),
-                     create_date=date,
-                 ))
+            if intent.target_quantity > 0 and intent.current_quantity < 0:
+                # 翻仓: 空头→多头
+                # 先平空仓
+                orders.append(
+                    create_pending_order(
+                        stock=intent.asset,
+                        side=OrderSide.BUY_TO_COVER,
+                        quantity=int(abs(intent.current_quantity)),
+                        create_date=date,
+                    )
+                )
+                # 再开多仓
+                open_qty = int(abs(intent.target_quantity))
+                if open_qty > 0:
+                    orders.append(
+                        create_pending_order(
+                            stock=intent.asset,
+                            side=OrderSide.BUY,
+                            quantity=open_qty,
+                            create_date=date,
+                        )
+                    )
+            else:
+                # 纯减空仓
+                orders.append(
+                    create_pending_order(
+                        stock=intent.asset,
+                        side=OrderSide.BUY_TO_COVER,
+                        quantity=int(abs(tq)),
+                        create_date=date,
+                    )
+                )
 
         return orders
 
@@ -444,12 +454,14 @@ class SignalTranslator:
             if abs(target_qty - current_qty) < 1e-10:
                 continue
 
-            intents.append(OrderIntent(
-                asset=asset_str,
-                asset_type=asset_type,
-                target_quantity=target_qty,
-                current_quantity=current_qty,
-            ))
+            intents.append(
+                OrderIntent(
+                    asset=asset_str,
+                    asset_type=asset_type,
+                    target_quantity=target_qty,
+                    current_quantity=current_qty,
+                )
+            )
 
         return intents
 
@@ -514,45 +526,53 @@ class SignalTranslator:
             # 1. 买入信号 (开多仓)
             buy = bool(buy_signal.get(asset, False))
             if buy and current_qty <= 0:
-                intents.append(OrderIntent(
-                    asset=asset_str,
-                    asset_type=asset_type,
-                    target_quantity=position_qty,
-                    current_quantity=current_qty,
-                ))
+                intents.append(
+                    OrderIntent(
+                        asset=asset_str,
+                        asset_type=asset_type,
+                        target_quantity=position_qty,
+                        current_quantity=current_qty,
+                    )
+                )
                 continue
 
             # 2. 卖出信号 (平多仓)
             sell = bool(sell_signal.get(asset, False))
             if sell and current_qty > 0:
-                intents.append(OrderIntent(
-                    asset=asset_str,
-                    asset_type=asset_type,
-                    target_quantity=0.0,
-                    current_quantity=current_qty,
-                ))
+                intents.append(
+                    OrderIntent(
+                        asset=asset_str,
+                        asset_type=asset_type,
+                        target_quantity=0.0,
+                        current_quantity=current_qty,
+                    )
+                )
                 continue
 
             # 3. 做空信号 (开空仓)
             short = bool(short_signal.get(asset, False))
             if short and current_qty >= 0:
-                intents.append(OrderIntent(
-                    asset=asset_str,
-                    asset_type=asset_type,
-                    target_quantity=-position_qty,
-                    current_quantity=current_qty,
-                ))
+                intents.append(
+                    OrderIntent(
+                        asset=asset_str,
+                        asset_type=asset_type,
+                        target_quantity=-position_qty,
+                        current_quantity=current_qty,
+                    )
+                )
                 continue
 
             # 4. 平空信号 (平空仓)
             short_exit = bool(short_exit_signal.get(asset, False))
             if short_exit and current_qty < 0:
-                intents.append(OrderIntent(
-                    asset=asset_str,
-                    asset_type=asset_type,
-                    target_quantity=0.0,
-                    current_quantity=current_qty,
-                ))
+                intents.append(
+                    OrderIntent(
+                        asset=asset_str,
+                        asset_type=asset_type,
+                        target_quantity=0.0,
+                        current_quantity=current_qty,
+                    )
+                )
                 continue
 
         return intents

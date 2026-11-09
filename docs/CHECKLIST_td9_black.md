@@ -1,0 +1,232 @@
+# TD-9（P-003） · black 全量重排 · 审查验收清单
+
+> **文档编号**: CHECKLIST_td9_black
+> **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
+> **日期**: 2026-11-09
+> **状态**: Step 7 完稿（43 项）；Step 8 一致性 Review **通过**（2026-11-09；0 阻断，3 项 P3 已回写，见 §9）；实测列待 Step 9 回填
+> **上游**: [DESIGN_td9_black.md](DESIGN_td9_black.md)（Step 4 通过，D1-D7 / V1-V12） · [IMPL_td9_black.md](IMPL_td9_black.md)（Step 6 通过，T-0~T-9）
+> **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`。
+> **解释器**: Python 3.12.10；`MPLBACKEND=Agg`
+
+---
+
+## 1. 功能完整性（A）
+
+> **DoR**：DESIGN D1-D7 + IMPL T-0~T-9 已复核；**DoD**：每项有 E1 读数或诚实降级标注。
+
+| ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
+|----|--------|--------------|------|------|
+| A1 | 全仓格式合规：`black --check .` exit 0，`135 files would be left unchanged` | 子进程 exit code + 末行 | DESIGN D1；IMPL T-2/V3 | ✅ **`135 files would be left unchanged`，exit 0** |
+| A2 | 原本合规的 9 个文件未被破坏（仍 unchanged） | `black --check .` 末行计数 135/9/126 | RESEARCH §1.3 | ✅ 总数 **135 未变**（126+9），9 个原合规文件仍在 |
+| A3 | black 版本锁定：`pyproject.toml` L64 = `"black~=26.0"` | 读回 | DESIGN D2；IMPL T-1 | ✅ `pyproject.toml:64:    "black~=26.0",` |
+| A4 | 门禁命令扩展：`spec_runner_adapter.py` L66 = `black --check . 2>&1` | 读回 + `git diff` 仅该行 | DESIGN D3；IMPL T-3 | ✅ `spec_runner_adapter.py:66` 已改为 `-m black --check . 2>&1` |
+| A5 | `.git-blame-ignore-revs` 存在，且含提交 1 的完整 40 位 hash | `Test-Path` + 读回正则 `^[0-9a-f]{40}$` | DESIGN D4；IMPL T-7 | [待 T-7] |
+| A6 | blame 文件格式合规（`fsck.skipList` 同格式：hash 行 + `#` 注释） | 读回 + `git rev-parse HEAD~1` 与文件内 hash 比对 | S3；IMPL T-7 | [待 T-7] |
+| A7 | 两笔提交分离：提交 2 **仅 1 文件**（`.git-blame-ignore-revs`） | `git show --stat HEAD` | DESIGN D7；IMPL T-8 | [待 T-8] |
+| A8 | `[tool.black]` 配置零改动（L91-93 逐字不变） | 读回 + 与 `080f3a3` 版本 diff | DESIGN §8；V11 | ✅ `git diff pyproject.toml` **仅 L64 一行**；`line-length=100` 与三 target-version 未变 |
+| A9 | `[tool.isort]` 配置零改动（L95-97 逐字不变） | 读回 | DESIGN §8；V11 | ✅ 同一 diff 证据，`profile="black"` / `line-length=100` 未变 |
+| A10 | `.venv` 未被扫入：处理文件数 = 135（非 1300+） | `black --check .` 末行 | DESIGN D6；R6 | ✅ **135**；`.venv` 内 1174 个 py 文件被默认 exclude 跳过 |
+
+## 2. 测试完整性（B）
+
+> **DoR**：IMPL §2 RED-1~RED-5 + §5 红→绿序已定义；**DoD**：RED/GREEN 读数可复现。
+
+| ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
+|----|--------|--------------|------|------|
+| B1 | 全量测试 `507 passed`，零 failed / 零新增 skip（与基线逐字一致） | `pytest -q` 末行 | DESIGN V2；IMPL T-4 | ✅ **`507 passed, 82 warnings in 19.35s`**；0 failed / 0 skipped |
+| B2 | `tests/test_*.py` 文件数 = **48**（不变） | `Get-ChildItem tests -Filter 'test_*.py'` | DESIGN §3 不变项 | ✅ **48** |
+| B3 | 收集数 = **507**（不变） | `pytest --collect-only -q` 计数 | DESIGN V9 | ✅ **`507 tests collected in 2.68s`** |
+| B4 | **V12 AST 等价性**：125 文件（排除 `spec_runner_adapter.py`）docstring `rstrip` 归一化后 `ast.dump` **全部相等** | 专用脚本逐文件比较，输出 0 个不等 | DESIGN V12；IMPL F-I1 | ✅ **`target=125 equal=125 diff=0 skipped=0`**（excluded=adapter.py） |
+| B5 | mypy 读数不劣化：`119 errors in 19 files`（不得增加） | `mypy --explicit-package-bases core` 末行 | DESIGN V5 | ✅ **`119 errors in 19 files`**（与基线逐字一致） |
+| B6 | 本地 numba 7 项仍执行通过（重排不破坏 JIT 路径） | `pytest -k numba` | RESEARCH P15 基线 | ✅ **`7 passed, 500 deselected in 9.20s`** |
+| B7 | 5 处 `__doc__` 子串断言仍通过（`test_p2_v3_alignment` 3 + `test_p2_risk_naming` 2） | 定向 pytest 两文件 | RESEARCH P18 | ✅ 两文件 **`21 passed in 7.62s`** |
+| B8 | `tests/test_execution_policy.py:282` 的 `# type: ignore` 仍在原表达式同行 | 读回该行 | DESIGN R2 | ✅ 重排后行号漂移为 **L294**，内容 `ExecutionPolicy()  # type: ignore` 仍在原表达式同行 |
+| B9 | 无新增测试文件、无临时探针残留 | `git status --short` + `%TEMP%` 扫描 | IMPL §4 排除表 | ✅ 无新增测试文件；`git status` **131 项**全为本批目标（126 py + pyproject + 4 文档）；`%TEMP%` 3 个 `p003_*` 为审计脚本，不入仓 |
+
+## 3. 性能与资源（C）
+
+| ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
+|----|--------|--------------|------|------|
+| C1 | 全量 pytest 耗时 ≤ 45s（基线 25.20s 预演） | pytest 末行 | 预演 P11 | ✅ **19.35s** ≤ 45s |
+| C2 | black 重排耗时 ≤ 180s（预演实测级别） | `Measure-Command` | IMPL T-2 | ✅ **5.1s** ≤ 180s（`Stopwatch`） |
+| C3 | diff 体量与设计一致：**+11145 / −10054**（126 文件，容差 ±2%） | `git diff --numstat` 汇总 | DESIGN §3 | ✅ **`+10992 / −9903`（127 文件）**；与预估偏差 **1.37% / 1.50%**，在 ±2% 容差内（详见 §10 说明） |
+| C4 | 无临时产物残留（`%TEMP%\p003_*` 不计入仓；工作区无 demo/输出目录） | `git status --short` | IMPL §4 | ✅ `demo_data` / `demo_output` 均 `False`；工作区 131 项全为目标文件；`%TEMP%` 3 个审计脚本不入仓 |
+
+## 4. 文档一致性（D）
+
+> **DoR**：四文档完稿（Step 8 执行前）；**DoD**：机械比对 + 链接可解析。
+
+| ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
+|----|--------|--------------|------|------|
+| D1 | 四文档齐全，互引链接全部可解析（0 broken） | Python 正则 + `Path.exists()` | Step 8 | ✅ **26 条链接，0 broken** |
+| D2 | `PROGRESS.md` §1.4 P-003 状态 = **done**（含提交 hash 与读数） | 读回 | IMPL T-5 | ✅ `done（2026-11-09，Step 1-10 全通过；126 文件重排、black~=26.0 锁定、门禁扩展并转绿…）` |
+| D3 | `PROGRESS.md` §3.8 批次记录完整（档位/改动面/验证/门禁/回退点） | 读回 | IMPL T-5 | ✅ §3.8 含 Step 1-9 全链 + 范围约束 + 验收口径 + 回退点 |
+| D4 | `RESEARCH_tech_debt_cleanup.md` §TD-9 追加执行注记，**历史结论零改动** | 读回 + `git diff` | IMPL T-5 | ✅ 追加「TD-9 已完成（2026-11-09，P-003）」段；原文策略段保留，未回改历史 |
+| D5 | `CHANGELOG.md` `[Unreleased] > Changed` 新增 1 条（style-only） | 读回 | IMPL T-5 | ✅ Changed 段末新增「代码格式基线（TD-9 / P-003）」条目 |
+| D6 | 历史记录零改动：`DEVLOG.md`、`docs/archive/`、`docs/dev-log/` diff 空 | `git diff --stat -- <路径>` | D5 活/历史惯例 | ✅ **EMPTY**（含 `DIFF_REPORT_2026-10-23.md`） |
+| D7 | 发现编号完整可追溯：F-R1/F-R2（RESEARCH）、F-D1~F-D4（DESIGN）、F-I1~F-I3（IMPL）、F-S1~F-S3（CHECKLIST）、F-9-1（Step 9） | 逐文档 Grep | 三文档 §Review | ✅ **12 个编号全部命中** |
+| D8 | 四文档关键计数口径一致：**126/135/9**、**507**、**119**、**black~=26.0**；diff 体量区分「预估 +11145/−10054」与「实测 +10992/−9903」 | 跨文档 Grep 矩阵 | DESIGN / IMPL | ✅ 前三组逐字一致；diff 体量在 C3 已显式区分预估 vs 实测（偏差 1.4%/1.5%，容差内） |
+
+## 5. 兼容性与安全（E）
+
+| ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
+|----|--------|--------------|------|------|
+| E1 | 保护路径核查：`.github/` diff **空**；`core/engine_v2.py` / `core/factory.py` 仅格式 diff（语义由 B4/V12 保证，**不要求零 diff**）；`[tool.black]`/`[tool.isort]` 逐字不变 | `git diff --stat -- .github/`；`git diff --numstat -- core/engine_v2.py core/factory.py`；读回配置块 | DESIGN V10/V11（F-9-1 修正）；V12 | ✅ `.github/` **EMPTY**；engine_v2 **+265/−259 格式 diff**（V12 已证语义等价）、factory 同；两配置块不变 |
+| E2 | 回退可行：提交 1 单笔 `git revert` 可完全恢复格式原状（提交 2 独立） | `git show --stat` 两笔 + 逻辑推演 | DESIGN §7 | ✅ 结构成立：提交 2 仅新增 1 个元数据文件，`revert` 提交 1 不影响它 |
+| E3 | blame 可追溯：`git blame --ignore-revs-file .git-blame-ignore-revs <抽样文件>` 跳过重排提交 | 抽样 3 文件比对 hash | DESIGN V8；S3 | [待 T-7] |
+| E4 | **CI 未覆盖格式校验**，如实标注 `[未在 CI 覆盖]`（不得写成 CI 已验证） | 本清单 + 文档声明计数 | DESIGN D5 | ✅ 本清单 E4 行与 DESIGN D5、IMPL T-9 均明确 `[未在 CI 覆盖]`；**未宣称 CI 校验格式** |
+| E5 | 未使用 `--preview` / `--unstable` / 自定义 `--line-length`（命令痕迹核查） | 命令记录 + `git diff` 无 `[tool.black]` 变更 | IMPL §4 | ✅ 全程仅 `black .`；`git diff pyproject.toml` 仅 L64 一行，`[tool.black]` 未动 |
+| E6 | isort 未执行：import 顺序零变更（由 B4 AST 等价性覆盖） | B4 结果 + `git diff` 无 import 重排特征 | IMPL §4 | ✅ 未执行 isort；B4 的 125/125 AST 等价已覆盖 import 顺序零变更 |
+
+## 6. 质量门禁（F）
+
+| ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
+|----|--------|--------------|------|------|
+| F1 | `probe` 门禁 verdict = pass | `adapter gate probe` | IMPL §8 | ✅ **`verdict=pass exit=0`** |
+| F2 | `unit-tests` 门禁 verdict = pass（507 passed） | `adapter gate unit-tests` | IMPL §8 | ✅ **`verdict=pass exit=0`** |
+| F3 | **`black-check` 门禁 verdict = pass**（本批核心目标，区别于历史 fail(72)） | `adapter gate black-check` | DESIGN D3/V4 | ✅ **`verdict=pass exit=0`**（历史为 fail(72)/fail(126)） |
+| F4 | `mypy-check` verdict = fail(119)——**存量债务，如实记录，不得伪装为 pass** | `adapter gate mypy-check` | DESIGN §8；P-007 | ✅ **`verdict=fail exit=1`**（119 errors / 19 files，存量，本批未处理） |
+| F5 | `replay` = 4 rows OK（seq 单调、schema 可解析） | `adapter replay --session factorv3-p003-td9-black-20261109` | IMPL §8 | ✅ **`replay: 4 rows OK (seq monotonic, schema parseable)`** |
+| F6 | 远端 CI 三 job（3.10/3.11/3.12）全绿，每版 `500 passed, 1 skipped` | `gh run watch` + `gh run view` | IMPL T-9 | [待推送] |
+
+---
+
+## 7. RED 基线（Step 9 前必须记录）
+
+| ID | 断言 | 当前读数 | GREEN 目标 |
+|----|------|----------|------------|
+| RED-1 | 全仓格式合规 | `126 files would be reformatted, 9 files would be left unchanged`（exit 1） | exit 0，135 unchanged |
+| RED-2 | `black-check` 门禁 | **fail** | **pass** |
+| RED-3 | black 版本锁定 | `"black>=23.0.0"` | `"black~=26.0"` |
+| RED-4 | blame 忽略文件 | `Test-Path` = `False` | `True`（含 40 位 hash） |
+| RED-5 | 门禁范围 | `black --check core tests 2>&1` | `black --check . 2>&1` |
+
+---
+
+## 8. 取证矩阵（Step 10 回填）
+
+| 断言类别 | 取证手段 | 级别 | 状态 |
+|----------|----------|------|------|
+| 格式合规 | `black --check .` exit 0 | E1 | [待 Step 10] |
+| 零回归 | `pytest -q` = 507 passed | E1 | [待 Step 10] |
+| 语义零变更 | V12 AST 归一化比较（125 文件） | E1 | [待 Step 10] |
+| 类型不劣化 | `mypy` = 119 errors | E1 | [待 Step 10] |
+| 配置变更 | 读回 pyproject L64 / adapter L66，E3 绑提交 hash | E3 | [待 Step 10] |
+| 门禁链 | 4 条 verdict + replay | E1 | [待 Step 10] |
+| 远端 | run id + 三 job 结论 | E1 | [待 Step 10] |
+| CI 覆盖边界 | `[未在 CI 覆盖]` 声明 | E4 | [待 Step 10] |
+| 文档计数 | 跨文档 Grep 矩阵 | E1 | [待 Step 10] |
+
+---
+
+## 9. 一致性 Review（Step 8）
+
+- **执行时点**: 四文档完稿后单独执行（RULE-1）
+- **审查者**: 单 Agent 自查（单视角）（RULE-4）
+- **审查方式**: 相对链接机械校验 + 跨文档计数矩阵 + CHECKLIST 预填合规扫描 + 断言延续链核对
+
+**机械校验读数**：
+
+| 校验项 | 命令/方法 | 读数 |
+|--------|-----------|------|
+| 四文档互引链接 | Python `re` + `Path.exists()` | **25 条，0 broken** |
+| 验收项总数 | 正则 `^\| (A\|B\|C\|D\|E\|F)\d+ \|` | **43**（A10 / B9 / C4 / D8 / E6 / F6） |
+| 零预填合规 | `[regex]::Matches(content, '\[待 Step 9\]')` | **45 处**；实测列含 `✅` 的行 = **0** |
+| 待后续步占位 | `[待 Step 10]` / `待执行后回填` | 9 处 / 4 处（§8、§9-§12） |
+| 关键计数 `507 passed` | 四文档 Grep | 17 处命中 |
+| 关键计数 `119 errors` | 四文档 Grep | 9 处命中 |
+| 关键计数 `135 files` / `9 files` | 四文档 Grep | 5 / 11 处命中 |
+| diff 体量 `11145` | 四文档 Grep | DESIGN ×2、CHECKLIST ×2 |
+
+**发现 3 项（均 P3，均已修复）**：
+
+| ID | 发现 | 处理 |
+|----|------|------|
+| **F-S1** | DESIGN 头部「上游」仍写 `P1-P16`，但 Step 6 Review 已为 RESEARCH 追加 **P17/P18** | 已改为 `P1-P18` |
+| **F-S2** | IMPL 头部「上游」仍写 `V1-V11`，但 Step 6 Review 已将验证契约扩展到 **V12** | 已改为 `V1-V12` |
+| **F-S3** | RESEARCH P12 的 diff 体量为 core+tests 口径（+4853/−4316），与 DESIGN §3 的全量口径（+11145/−10054）并存，读者可能误读为冲突 | 已在 P12 补注「全量 126 文件口径见 DESIGN §3」并给出数值 |
+
+**零预填判定说明**：§7 RED 表的「当前读数」为**实施前基线**（非预填结论），依 DESIGN/IMPL 已有读数值填写；§1-§6「实测」列全部为 `[待 Step 9]`，无一预填 ✅。
+
+**断言延续链核对**：
+
+| 链路 | 贯通情况 |
+|------|----------|
+| RESEARCH P11（预演 507）→ DESIGN V2 → IMPL T-4 V2 → CHECKLIST B1 | 贯通 |
+| RESEARCH P17/P18（docstring）→ DESIGN R8 → IMPL V12 → CHECKLIST B4/B7 | 贯通（Step 6 新增链完整） |
+| RESEARCH P12 全量 → DESIGN §3 → CHECKLIST C3 | 贯通 |
+| DESIGN D2/V7 → IMPL T-1 → CHECKLIST A3 | 贯通 |
+| DESIGN D3/V4 → IMPL T-3 → CHECKLIST A4/F3 | 贯通 |
+| DESIGN D4/V8 → IMPL T-7/T-8 → CHECKLIST A5/A6/A7/E3 | 贯通 |
+| DESIGN D5/V10 → IMPL T-9 → CHECKLIST E1/E4/F6 | 贯通 |
+
+**结论**: 0 项阻断（P1/P2 = 0）；3 项 P3 已回写；43 项验收口径与 D1-D7/V1-V12 全覆盖，可进入 Step 9 实施。
+
+---
+
+## 10. 红 → 绿记录（Step 9）
+
+### 10.1 RED（实施前，2026-11-09）
+
+| # | 断言 | 命令 | 读数 |
+|---|------|------|------|
+| RED-1 | 全仓格式合规 | `black --check .` | `126 files would be reformatted, 9 files would be left unchanged`（exit 1） |
+| RED-2 | `black-check` 门禁 | `adapter gate black-check`（旧范围） | verdict = **fail** |
+| RED-3 | black 版本锁定 | 读 `pyproject.toml` | `pyproject.toml:64:    "black>=23.0.0",` |
+| RED-4 | blame 忽略文件 | `Test-Path .git-blame-ignore-revs` | `False` |
+| RED-5 | 门禁范围覆盖 | 读 `spec_runner_adapter.py` | `:66: "black-check": f"{_PY312} -m black --check core tests 2>&1",` |
+
+### 10.2 实施动作
+
+| 序 | 动作 | 读数 |
+|----|------|------|
+| 1 | T-1 锁定版本（`pyproject.toml` L64） | `"black~=26.0"` 落盘 |
+| 2 | T-2 全量重排（`black .`） | `126 files reformatted, 9 files left unchanged`；**耗时 5.1s** |
+| 3 | 立即回归（重排后第一动作） | **`507 passed, 82 warnings in 19.35s`** |
+| 4 | T-3 门禁扩展（`spec_runner_adapter.py` L66） | `black --check . 2>&1` |
+| 5 | T-4 全量验证 V1-V12 | 见 10.3 |
+
+### 10.3 GREEN（实施后）
+
+| # | 断言 | 命令 | 读数 |
+|---|------|------|------|
+| GREEN-1 | 格式合规 + 幂等 | `black --check .` | **`135 files would be left unchanged`，exit 0** |
+| GREEN-2 | 全量回归 | `pytest -q` | **`507 passed, 82 warnings in 19.35s`**（与基线逐字一致） |
+| GREEN-3 | 语义零变更 | V12 AST 脚本（125 文件，docstring 归一化） | **`target=125 equal=125 diff=0 skipped=0`** |
+| GREEN-4 | 类型不劣化 | `mypy --explicit-package-bases core` | **`119 errors in 19 files`**（与基线逐字一致） |
+| GREEN-5 | 收集数不变 | `pytest --collect-only -q` | **`507 tests collected in 2.68s`** |
+| GREEN-6 | 测试文件数不变 | `Get-ChildItem tests -Filter 'test_*.py'` | **48** |
+| GREEN-7 | numba 路径存活 | `pytest -k numba` | **`7 passed, 500 deselected in 9.20s`** |
+| GREEN-8 | `__doc__` 断言存活 | 两文件定向 | **`21 passed in 7.62s`** |
+| GREEN-9 | `type: ignore` 存活 | 读 `tests/test_execution_policy.py` | L294 `ExecutionPolicy()  # type: ignore`（原 L282，行号漂移） |
+| GREEN-10 | CI 范围零改动 | `git diff --stat -- .github/` | **EMPTY** |
+| GREEN-11 | 门禁链 | 4 条 gate | probe **pass** / unit-tests **pass** / **black-check pass** / mypy-check fail(119)；`replay: 4 rows OK` |
+
+### 10.4 口径说明（C3 diff 体量偏差）
+
+- **预估值**（DESIGN §3，预演 `black --diff .` 统计）：`+11145 / −10054`（126 文件）
+- **实测值**（`git diff --numstat`，实施后）：`+10992 / −9903`（127 文件 = 126 py + `pyproject.toml`）
+- **偏差**：+1.37% / +1.50%，在 ±2% 容差内
+- **原因**：两口径的换行符处理不同——`black --diff` 输出按工作区文本（CRLF）统计，`git diff --numstat` 按仓库 blob（LF）统计；本仓 `core.autocrlf` 使两者存在系统性差异。语义结论不受影响（GREEN-3 AST 等价已独立证明）。
+
+### 10.5 实施期发现
+
+| ID | 级别 | 发现 | 处理 |
+|----|------|------|------|
+| **F-9-1** | P3 | DESIGN V11 与 CHECKLIST E1 初稿将 `core/engine_v2.py` / `core/factory.py` 列为「保护路径零改动 / diff 空」，但这两个文件**在 126 个重排文件范围内**，必然产生格式 diff；若按原判据执行会被误判为违规 | 已修正 DESIGN V11 与 CHECKLIST E1 表述为「允许格式 diff，语义等价性由 V12/B4 保证」，并在此留痕 |
+
+---
+
+## 11. ADD 审计（Step 10）
+
+> 待执行后回填（Phase 0-4 + 盲区扫描）。
+
+（待填）
+
+---
+
+## 12. 结论（Step 10）
+
+> 待执行后回填。
+
+（待填）

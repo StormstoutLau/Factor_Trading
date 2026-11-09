@@ -5,4 +5,4 @@
 
 from factor_library.database import FactorDatabase, FactorMetadata
 
-__all__ = ['FactorDatabase', 'FactorMetadata']
+__all__ = ["FactorDatabase", "FactorMetadata"]

@@ -69,12 +69,20 @@ class TestPositionLongShort(unittest.TestCase):
         from core.tracker import Position
 
         self.long_pos = Position(
-            stock="000001.SZ", quantity=1000, avg_cost=10.0,
-            market_value=10000.0, unrealized_pnl=0.0, realized_pnl=0.0,
+            stock="000001.SZ",
+            quantity=1000,
+            avg_cost=10.0,
+            market_value=10000.0,
+            unrealized_pnl=0.0,
+            realized_pnl=0.0,
         )
         self.short_pos = Position(
-            stock="IF2406", quantity=-2, avg_cost=3500.0,
-            market_value=7000.0, unrealized_pnl=0.0, realized_pnl=0.0,
+            stock="IF2406",
+            quantity=-2,
+            avg_cost=3500.0,
+            market_value=7000.0,
+            unrealized_pnl=0.0,
+            realized_pnl=0.0,
         )
 
     def test_direction_long(self):
@@ -168,9 +176,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_sell_short_new_position(self):
         """开空仓: SELL_SHORT 1000股 @ 10"""
         pos = self.Position("000001.SZ", 0, 0.0, 0.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.SELL_SHORT, 1000, 10.0, 10000.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.SELL_SHORT, 1000, 10.0, 10000.0, 5.0)
 
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, -1000)
@@ -179,9 +185,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_sell_short_add_to_position(self):
         """加空仓: 已有 -500 → 再加 -500"""
         pos = self.Position("000001.SZ", -500, 10.0, 5000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.SELL_SHORT, 500, 11.0, 5500.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.SELL_SHORT, 500, 11.0, 5500.0, 5.0)
 
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, -1000)
@@ -190,9 +194,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_buy_to_cover_partial(self):
         """部分平空: -1000 → 买回 400 → -600"""
         pos = self.Position("000001.SZ", -1000, 10.0, 10000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.BUY_TO_COVER, 400, 9.0, 3600.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.BUY_TO_COVER, 400, 9.0, 3600.0, 5.0)
 
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, -600)
@@ -203,9 +205,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_buy_to_cover_full(self):
         """全部平空: -1000 → 0"""
         pos = self.Position("000001.SZ", -1000, 10.0, 10000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.BUY_TO_COVER, 1000, 9.0, 9000.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.BUY_TO_COVER, 1000, 9.0, 9000.0, 5.0)
 
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, 0)
@@ -216,9 +216,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_buy_to_cover_short_loss(self):
         """平空亏损: 空头均价 10，买回价 12"""
         pos = self.Position("000001.SZ", -1000, 10.0, 10000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.BUY_TO_COVER, 1000, 12.0, 12000.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.BUY_TO_COVER, 1000, 12.0, 12000.0, 5.0)
 
         pos.execute_trade(trade)
         # 亏损: 1000 * (10 - 12) - 5 = -2005
@@ -228,9 +226,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_buy_still_works(self):
         """原有 BUY 逻辑不受影响"""
         pos = self.Position("000001.SZ", 500, 10.0, 5000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.BUY, 500, 12.0, 6000.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.BUY, 500, 12.0, 6000.0, 5.0)
 
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, 1000)
@@ -239,9 +235,7 @@ class TestPositionTradeExecution(unittest.TestCase):
     def test_sell_still_works(self):
         """原有 SELL 逻辑不受影响"""
         pos = self.Position("000001.SZ", 1000, 10.0, 10000.0, 0.0, 0.0)
-        trade = self._make_trade(
-            "000001.SZ", self.OrderSide.SELL, 400, 12.0, 4800.0, 5.0
-        )
+        trade = self._make_trade("000001.SZ", self.OrderSide.SELL, 400, 12.0, 4800.0, 5.0)
 
         pos.execute_trade(trade)
         self.assertEqual(pos.quantity, 600)
@@ -452,33 +446,65 @@ class TestPhase2Integration(unittest.TestCase):
         pos = Position("IF2406", 0, 0.0, 0.0, 0.0, 0.0)
 
         # Step 1: 开多 2 手 @ 3500
-        pos.execute_trade(Trade(
-            pd.Timestamp("2024-01-15"), "IF2406", OrderSide.BUY,
-            2, 3500.0, 7000.0, 5.0, 7005.0,
-        ))
+        pos.execute_trade(
+            Trade(
+                pd.Timestamp("2024-01-15"),
+                "IF2406",
+                OrderSide.BUY,
+                2,
+                3500.0,
+                7000.0,
+                5.0,
+                7005.0,
+            )
+        )
         self.assertEqual(pos.quantity, 2)
         self.assertEqual(pos.direction, 1)
 
         # Step 2: 平多 + 开空 -2 手 @ 3600
-        pos.execute_trade(Trade(
-            pd.Timestamp("2024-01-16"), "IF2406", OrderSide.SELL,
-            2, 3600.0, 7200.0, 5.0, 7195.0,
-        ))
+        pos.execute_trade(
+            Trade(
+                pd.Timestamp("2024-01-16"),
+                "IF2406",
+                OrderSide.SELL,
+                2,
+                3600.0,
+                7200.0,
+                5.0,
+                7195.0,
+            )
+        )
         self.assertEqual(pos.quantity, 0)
         self.assertEqual(pos.avg_cost, 0)
 
-        pos.execute_trade(Trade(
-            pd.Timestamp("2024-01-16"), "IF2406", OrderSide.SELL_SHORT,
-            2, 3600.0, 7200.0, 5.0, 7195.0,
-        ))
+        pos.execute_trade(
+            Trade(
+                pd.Timestamp("2024-01-16"),
+                "IF2406",
+                OrderSide.SELL_SHORT,
+                2,
+                3600.0,
+                7200.0,
+                5.0,
+                7195.0,
+            )
+        )
         self.assertEqual(pos.quantity, -2)
         self.assertEqual(pos.direction, -1)
 
         # Step 3: 平空 @ 3500
-        pos.execute_trade(Trade(
-            pd.Timestamp("2024-01-17"), "IF2406", OrderSide.BUY_TO_COVER,
-            2, 3500.0, 7000.0, 5.0, 6995.0,
-        ))
+        pos.execute_trade(
+            Trade(
+                pd.Timestamp("2024-01-17"),
+                "IF2406",
+                OrderSide.BUY_TO_COVER,
+                2,
+                3500.0,
+                7000.0,
+                5.0,
+                6995.0,
+            )
+        )
         self.assertEqual(pos.quantity, 0)
         self.assertEqual(pos.direction, 0)
         # 空头盈利: 2 * (3600 - 3500) - 5 = 195
@@ -489,7 +515,9 @@ class TestPhase2Integration(unittest.TestCase):
     def test_policy_router_stock_vs_future(self):
         """策略路由: stock → T1StockPolicy, future → T0FuturesPolicy"""
         from core.execution_policy import (
-            T1StockPolicy, T0FuturesPolicy, OrderIntent,
+            T1StockPolicy,
+            T0FuturesPolicy,
+            OrderIntent,
         )
 
         policies = {

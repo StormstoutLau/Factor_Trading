@@ -239,9 +239,7 @@ class EventLog:
 
         return unsubscribe
 
-    def subscribe_type(
-        self, event_type: str, listener: EventListener
-    ) -> Callable[[], None]:
+    def subscribe_type(self, event_type: str, listener: EventListener) -> Callable[[], None]:
         """
         订阅特定类型事件
 

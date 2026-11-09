@@ -80,9 +80,7 @@ class LiveTradingBridge(ABC):
     """
 
     @abstractmethod
-    def place_intents(
-        self, intents: list[OrderIntent], date: pd.Timestamp
-    ) -> list[str]:
+    def place_intents(self, intents: list[OrderIntent], date: pd.Timestamp) -> list[str]:
         """将订单意图转换为实盘订单并发送
 
         Args:
@@ -161,9 +159,7 @@ class MockLiveBridge(LiveTradingBridge):
 
     # ── 抽象方法实现 ──────────────────────────────────────────
 
-    def place_intents(
-        self, intents: list[OrderIntent], date: pd.Timestamp
-    ) -> list[str]:
+    def place_intents(self, intents: list[OrderIntent], date: pd.Timestamp) -> list[str]:
         order_ids: list[str] = []
         for intent in intents:
             if intent.action == "HOLD":

@@ -299,6 +299,7 @@ class BacktestConfig(BaseModel):
     def from_json(cls, json_str: str) -> BacktestConfig:
         """从 JSON 字符串创建配置"""
         import json
+
         data = json.loads(json_str)
         return cls.from_dict(data)
 

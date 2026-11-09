@@ -102,10 +102,7 @@ class TestStyleReflectionEngine:
         engine.mark_reflection_completed(datetime(2024, 1, 1))
 
         # 量化回撤5%触发
-        should, reason = engine.should_reflect(
-            datetime(2024, 1, 10),
-            current_drawdown=0.06
-        )
+        should, reason = engine.should_reflect(datetime(2024, 1, 10), current_drawdown=0.06)
         assert should is True
         assert "drawdown" in reason
 
@@ -115,8 +112,7 @@ class TestStyleReflectionEngine:
 
         # 宏观事件触发（超过最小间隔才能触发）
         should, reason = engine.should_reflect(
-            datetime(2024, 4, 10),  # 超过63天
-            event_type="central_bank_policy"
+            datetime(2024, 4, 10), event_type="central_bank_policy"  # 超过63天
         )
         assert should is True
         assert "event" in reason
@@ -176,7 +172,10 @@ class TestStyleReflectionEngine:
 
         result = engine.evaluate_anchor({"factor_decay_speed": 0.03})
         assert result["needs_adjustment"] is True
-        assert result["primary_status"]["factor_decay_speed"].get("recommendation") == "rebalance_factors"
+        assert (
+            result["primary_status"]["factor_decay_speed"].get("recommendation")
+            == "rebalance_factors"
+        )
 
     def test_evaluate_anchor_normal(self):
         engine = StyleReflectionEngine(InvestmentStyle.LONG_TERM_VALUE)

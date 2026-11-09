@@ -19,42 +19,46 @@ import pandas as pd
 
 class InvestmentStyle(str, Enum):
     """投资风格"""
-    LONG_TERM_VALUE = "long_term_value"      # 长期价值：巴菲特型
-    MACRO_TREND = "macro_trend"              # 宏观趋势：索罗斯型
-    FUNDAMENTAL = "fundamental"              # 基本面：财务分析师型
+
+    LONG_TERM_VALUE = "long_term_value"  # 长期价值：巴菲特型
+    MACRO_TREND = "macro_trend"  # 宏观趋势：索罗斯型
+    FUNDAMENTAL = "fundamental"  # 基本面：财务分析师型
     TECHNICAL_TRADING = "technical_trading"  # 技术交易：日内/波段
-    QUANTITATIVE = "quantitative"            # 量化：统计套利/因子
-    BALANCED = "balanced"                    # 平衡型
+    QUANTITATIVE = "quantitative"  # 量化：统计套利/因子
+    BALANCED = "balanced"  # 平衡型
 
 
 class ReflectionTrigger(str, Enum):
     """反思触发机制"""
-    SCHEDULED = "scheduled"          # 定期触发
-    PER_TRADE = "per_trade"          # 每笔交易后
-    EVENT_DRIVEN = "event_driven"    # 事件驱动
-    PERFORMANCE = "performance"      # 绩效阈值
-    HYBRID = "hybrid"                # 混合
+
+    SCHEDULED = "scheduled"  # 定期触发
+    PER_TRADE = "per_trade"  # 每笔交易后
+    EVENT_DRIVEN = "event_driven"  # 事件驱动
+    PERFORMANCE = "performance"  # 绩效阈值
+    HYBRID = "hybrid"  # 混合
 
 
 class InformationSource(str, Enum):
     """信息源类型"""
-    ANNUAL_REPORT = "annual_report"          # 年报
+
+    ANNUAL_REPORT = "annual_report"  # 年报
     QUARTERLY_EARNINGS = "quarterly_earnings"  # 季报
-    MACRO_DATA = "macro_data"                # 宏观数据
-    PRICE_VOLUME = "price_volume"            # 价量数据
+    MACRO_DATA = "macro_data"  # 宏观数据
+    PRICE_VOLUME = "price_volume"  # 价量数据
     FACTOR_PERFORMANCE = "factor_performance"  # 因子绩效
-    NEWS_SENTIMENT = "news_sentiment"        # 新闻情绪
-    INDUSTRY_CHAIN = "industry_chain"        # 产业链
+    NEWS_SENTIMENT = "news_sentiment"  # 新闻情绪
+    INDUSTRY_CHAIN = "industry_chain"  # 产业链
     POLICY_REGULATION = "policy_regulation"  # 政策法规
 
 
 @dataclass
 class ReflectionCadence:
     """反思节奏配置"""
+
     trigger_mode: ReflectionTrigger = ReflectionTrigger.SCHEDULED
-    min_interval_days: int = 20          # 最小反思间隔（日）
-    max_interval_days: int = 60          # 最大反思间隔（日）
-    per_trade_enabled: bool = False      # 是否每笔交易后反思
+    min_interval_days: int = 20  # 最小反思间隔（日）
+    max_interval_days: int = 60  # 最大反思间隔（日）
+    per_trade_enabled: bool = False  # 是否每笔交易后反思
     event_types: list[str] = field(default_factory=list)  # 触发反思的事件类型
     performance_threshold: float | None = None  # 绩效阈值触发（如回撤>5%）
 
@@ -62,6 +66,7 @@ class ReflectionCadence:
 @dataclass
 class InformationPreference:
     """信息偏好配置"""
+
     # 信息源优先级 (0-1, 越高越优先)
     source_weights: dict[InformationSource, float] = field(default_factory=dict)
     # 信息处理深度 (shallow/medium/deep)
@@ -75,6 +80,7 @@ class InformationPreference:
 @dataclass
 class AnchoringTarget:
     """反思锚定对象配置"""
+
     # 核心锚定指标
     primary_metrics: list[str] = field(default_factory=list)
     # 辅助锚定指标
@@ -90,6 +96,7 @@ class AnchoringTarget:
 @dataclass
 class StyleProfile:
     """Agent风格画像"""
+
     style: InvestmentStyle
     name: str
     description: str
@@ -114,8 +121,8 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
         description="以合理价格买入具有持久竞争优势的伟大企业，长期持有",
         cadence=ReflectionCadence(
             trigger_mode=ReflectionTrigger.HYBRID,
-            min_interval_days=252,      # 至少1年
-            max_interval_days=756,      # 最多3年
+            min_interval_days=252,  # 至少1年
+            max_interval_days=756,  # 最多3年
             event_types=["annual_report", "management_change", "industry_disruption"],
             performance_threshold=0.20,  # 回撤20%才触发
         ),
@@ -135,25 +142,24 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
         anchoring=AnchoringTarget(
             primary_metrics=["moat_score", "roe_stability", "valuation_deviation"],
             secondary_metrics=["market_share_trend", "management_quality"],
-            anchoring_window_days=756,   # 3年窗口
+            anchoring_window_days=756,  # 3年窗口
             evaluation_fn="moat_based",
             adjustment_targets=["belief_strength", "position_max_weight"],
         ),
         custom_params={
-            "moat_decay_threshold": 0.3,    # 护城河评分下降30%触发深度反思
-            "roe_min_sustainable": 0.15,    # ROE持续低于15%触发反思
-            "holding_period_years": 10,     # 预期持有10年
+            "moat_decay_threshold": 0.3,  # 护城河评分下降30%触发深度反思
+            "roe_min_sustainable": 0.15,  # ROE持续低于15%触发反思
+            "holding_period_years": 10,  # 预期持有10年
         },
     ),
-
     InvestmentStyle.MACRO_TREND: StyleProfile(
         style=InvestmentStyle.MACRO_TREND,
         name="宏观趋势交易",
         description="基于宏观经济趋势进行大额方向性押注，利用反身性在趋势中获利",
         cadence=ReflectionCadence(
             trigger_mode=ReflectionTrigger.HYBRID,
-            min_interval_days=63,       # 1季度
-            max_interval_days=252,      # 1年
+            min_interval_days=63,  # 1季度
+            max_interval_days=252,  # 1年
             event_types=["central_bank_policy", "geopolitical_event", "currency_crisis"],
             performance_threshold=0.10,  # 回撤10%触发
         ),
@@ -173,7 +179,7 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
         anchoring=AnchoringTarget(
             primary_metrics=["macro_assumption_validity", "trend_strength", "reflexivity_feedback"],
             secondary_metrics=["position_flow", "sentiment_extreme"],
-            anchoring_window_days=126,   # 半年窗口
+            anchoring_window_days=126,  # 半年窗口
             evaluation_fn="macro_based",
             adjustment_targets=["position_direction", "leverage_level", "hedge_ratio"],
         ),
@@ -183,15 +189,14 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
             "max_position_concentration": 0.5,  # 单方向最大50%
         },
     ),
-
     InvestmentStyle.FUNDAMENTAL: StyleProfile(
         style=InvestmentStyle.FUNDAMENTAL,
         name="基本面分析",
         description="基于财务数据和行业研究，通过DCF估值寻找安全边际",
         cadence=ReflectionCadence(
             trigger_mode=ReflectionTrigger.HYBRID,
-            min_interval_days=63,       # 1季度
-            max_interval_days=126,      # 半年
+            min_interval_days=63,  # 1季度
+            max_interval_days=126,  # 半年
             event_types=["earnings_release", "industry_data", "guidance_change"],
             performance_threshold=0.15,
         ),
@@ -209,7 +214,11 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
             noise_threshold=0.15,
         ),
         anchoring=AnchoringTarget(
-            primary_metrics=["earnings_forecast_accuracy", "valuation_model_error", "margin_of_safety"],
+            primary_metrics=[
+                "earnings_forecast_accuracy",
+                "valuation_model_error",
+                "margin_of_safety",
+            ],
             secondary_metrics=["consensus_deviation", "earnings_surprise"],
             anchoring_window_days=252,
             evaluation_fn="fundamental_based",
@@ -221,7 +230,6 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
             "margin_of_safety_min": 0.3,
         },
     ),
-
     InvestmentStyle.TECHNICAL_TRADING: StyleProfile(
         style=InvestmentStyle.TECHNICAL_TRADING,
         name="技术交易",
@@ -247,7 +255,12 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
             noise_threshold=0.05,
         ),
         anchoring=AnchoringTarget(
-            primary_metrics=["win_rate", "profit_loss_ratio", "max_consecutive_losses", "slippage_cost"],
+            primary_metrics=[
+                "win_rate",
+                "profit_loss_ratio",
+                "max_consecutive_losses",
+                "slippage_cost",
+            ],
             secondary_metrics=["avg_holding_period", "time_in_market"],
             anchoring_window_days=20,
             evaluation_fn="technical_based",
@@ -260,15 +273,14 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
             "slippage_tolerance_bps": 10,
         },
     ),
-
     InvestmentStyle.QUANTITATIVE: StyleProfile(
         style=InvestmentStyle.QUANTITATIVE,
         name="量化策略",
         description="基于统计模型和因子进行系统化交易",
         cadence=ReflectionCadence(
             trigger_mode=ReflectionTrigger.HYBRID,
-            min_interval_days=5,        # 1周
-            max_interval_days=21,       # 1月
+            min_interval_days=5,  # 1周
+            max_interval_days=21,  # 1月
             event_types=["factor_ic_decay", "regime_change", "drawdown_limit"],
             performance_threshold=0.05,  # 5%回撤触发
         ),
@@ -298,7 +310,6 @@ STYLE_PROFILES: dict[InvestmentStyle, StyleProfile] = {
             "turnover_limit": 0.3,
         },
     ),
-
     InvestmentStyle.BALANCED: StyleProfile(
         style=InvestmentStyle.BALANCED,
         name="平衡型",

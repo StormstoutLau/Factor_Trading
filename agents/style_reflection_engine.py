@@ -113,7 +113,9 @@ class StyleReflectionEngine:
 
         return False, "no_trigger"
 
-    def get_information_priority(self, available_sources: list[InformationSource] | None = None) -> list[tuple[InformationSource, float]]:
+    def get_information_priority(
+        self, available_sources: list[InformationSource] | None = None
+    ) -> list[tuple[InformationSource, float]]:
         """获取信息源优先级排序
 
         Args:
@@ -130,12 +132,18 @@ class StyleReflectionEngine:
             sources = [s for s in available_sources if s in weights]
 
         # 过滤噪声
-        filtered = [(s, w) for s, w in weights.items() if s in sources and w >= self.information.noise_threshold]
+        filtered = [
+            (s, w)
+            for s, w in weights.items()
+            if s in sources and w >= self.information.noise_threshold
+        ]
 
         # 按权重降序
         return sorted(filtered, key=lambda x: x[1], reverse=True)
 
-    def log_information_access(self, source: InformationSource, relevance_score: float, timestamp: datetime | None = None) -> None:
+    def log_information_access(
+        self, source: InformationSource, relevance_score: float, timestamp: datetime | None = None
+    ) -> None:
         """记录信息获取"""
         if timestamp is None:
             timestamp = datetime.now()
@@ -166,7 +174,11 @@ class StyleReflectionEngine:
             alignment += min(actual_ratio, preferred_ratio)
 
         # 计算多样性（实际使用的信息源数量 / 偏好的信息源数量）
-        preferred_sources = sum(1 for w in self.information.source_weights.values() if w >= self.information.noise_threshold)
+        preferred_sources = sum(
+            1
+            for w in self.information.source_weights.values()
+            if w >= self.information.noise_threshold
+        )
         actual_sources = len(source_counts)
         diversity = min(actual_sources / max(preferred_sources, 1), 1.0)
 
@@ -207,11 +219,13 @@ class StyleReflectionEngine:
 
             if status.get("alert", False):
                 result["needs_adjustment"] = True
-                result["adjustment_recommendations"].append({
-                    "target": metric,
-                    "current_value": value,
-                    "recommended_action": status.get("recommendation", "review"),
-                })
+                result["adjustment_recommendations"].append(
+                    {
+                        "target": metric,
+                        "current_value": value,
+                        "recommended_action": status.get("recommendation", "review"),
+                    }
+                )
 
         # 评估辅助指标
         for metric in secondary:
@@ -231,39 +245,69 @@ class StyleReflectionEngine:
         if style == InvestmentStyle.LONG_TERM_VALUE and metric == "moat_score":
             threshold = self.profile.custom_params.get("moat_decay_threshold", 0.3)
             if value < threshold:
-                return {"alert": True, "level": "critical", "recommendation": "reduce_position", "message": f"护城河评分({value:.2f})低于阈值({threshold})"}
+                return {
+                    "alert": True,
+                    "level": "critical",
+                    "recommendation": "reduce_position",
+                    "message": f"护城河评分({value:.2f})低于阈值({threshold})",
+                }
             return {"alert": False, "level": "normal"}
 
         # 长期价值型：ROE稳定性
         if style == InvestmentStyle.LONG_TERM_VALUE and metric == "roe_stability":
             min_roe = self.profile.custom_params.get("roe_min_sustainable", 0.15)
             if value < min_roe:
-                return {"alert": True, "level": "warning", "recommendation": "review_holdings", "message": f"ROE({value:.2%})低于可持续水平({min_roe:.0%})"}
+                return {
+                    "alert": True,
+                    "level": "warning",
+                    "recommendation": "review_holdings",
+                    "message": f"ROE({value:.2%})低于可持续水平({min_roe:.0%})",
+                }
             return {"alert": False, "level": "normal"}
 
         # 宏观趋势型：趋势强度
         if style == InvestmentStyle.MACRO_TREND and metric == "trend_strength":
             if value < 0.2:
-                return {"alert": True, "level": "warning", "recommendation": "reduce_exposure", "message": f"趋势强度({value:.2f})显著减弱"}
+                return {
+                    "alert": True,
+                    "level": "warning",
+                    "recommendation": "reduce_exposure",
+                    "message": f"趋势强度({value:.2f})显著减弱",
+                }
             return {"alert": False, "level": "normal"}
 
         # 技术交易型：胜率
         if style == InvestmentStyle.TECHNICAL_TRADING and metric == "win_rate":
             min_wr = self.profile.custom_params.get("min_win_rate", 0.45)
             if value < min_wr:
-                return {"alert": True, "level": "critical", "recommendation": "pause_trading", "message": f"胜率({value:.1%})低于最低要求({min_wr:.0%})"}
+                return {
+                    "alert": True,
+                    "level": "critical",
+                    "recommendation": "pause_trading",
+                    "message": f"胜率({value:.1%})低于最低要求({min_wr:.0%})",
+                }
             return {"alert": False, "level": "normal"}
 
         # 量化型：因子衰减
         if style == InvestmentStyle.QUANTITATIVE and metric == "factor_decay_speed":
             threshold = self.profile.custom_params.get("ic_decay_threshold", 0.02)
             if value > threshold:
-                return {"alert": True, "level": "warning", "recommendation": "rebalance_factors", "message": f"因子衰减速度({value:.4f})超过阈值({threshold})"}
+                return {
+                    "alert": True,
+                    "level": "warning",
+                    "recommendation": "rebalance_factors",
+                    "message": f"因子衰减速度({value:.4f})超过阈值({threshold})",
+                }
             return {"alert": False, "level": "normal"}
 
         # 通用评估
         if value < 0:
-            return {"alert": True, "level": "warning", "recommendation": "review", "message": f"{metric}为负值({value:.4f})"}
+            return {
+                "alert": True,
+                "level": "warning",
+                "recommendation": "review",
+                "message": f"{metric}为负值({value:.4f})",
+            }
 
         return {"alert": False, "level": "normal"}
 
@@ -275,7 +319,9 @@ class StyleReflectionEngine:
             "style": self.profile.style.value,
             "style_name": self.profile.name,
             "reflection_count": self.reflection_count,
-            "last_reflection": self.last_reflection_time.isoformat() if self.last_reflection_time else None,
+            "last_reflection": (
+                self.last_reflection_time.isoformat() if self.last_reflection_time else None
+            ),
             "cadence": {
                 "trigger_mode": self.cadence.trigger_mode.value,
                 "min_interval_days": self.cadence.min_interval_days,
@@ -283,8 +329,7 @@ class StyleReflectionEngine:
             },
             "information_diet": info_diet,
             "top_information_sources": [
-                {"source": s.value, "weight": w}
-                for s, w in self.get_information_priority()[:3]
+                {"source": s.value, "weight": w} for s, w in self.get_information_priority()[:3]
             ],
             "primary_anchors": self.anchoring.primary_metrics,
             "adjustment_targets": self.anchoring.adjustment_targets,

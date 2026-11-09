@@ -59,9 +59,7 @@ def test_e4_fill_missing_mask_types():
     print("  ✓ DataFrame掩码正确处理")
 
     # 测试2: Series掩码
-    mask_series = pd.Series(
-        {"AAPL": True, "TSLA": True}
-    )
+    mask_series = pd.Series({"AAPL": True, "TSLA": True})
     result_series = pipeline._fill_missing(factor.copy(), mask_series)
     assert pd.notna(result_series.loc["2024-01-03", "AAPL"]), "Series掩码: AAPL NaN应被填充"
     assert pd.notna(result_series.loc["2024-01-02", "TSLA"]), "Series掩码: TSLA NaN应被填充"

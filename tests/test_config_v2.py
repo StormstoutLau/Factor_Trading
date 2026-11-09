@@ -121,9 +121,7 @@ def test_nested_validation():
 
         config = BacktestConfig(
             factor_files=["f.pkl"],
-            rebalance=RebalanceConfig(
-                method="hybrid", hybrid_min_days=20, hybrid_max_days=10
-            ),
+            rebalance=RebalanceConfig(method="hybrid", hybrid_min_days=20, hybrid_max_days=10),
         )
         print("  ✗ 应触发验证错误")
         return False
@@ -244,8 +242,9 @@ def test_hot_reload():
         if not result:
             reloader.force_reload()
 
-        assert reloader.config.initial_capital == 2_000_000.0, \
-            f"Expected 2000000, got {reloader.config.initial_capital}"
+        assert (
+            reloader.config.initial_capital == 2_000_000.0
+        ), f"Expected 2000000, got {reloader.config.initial_capital}"
         print(f"  ✓ 热重载成功: capital={reloader.config.initial_capital}")
         print(f"  ✓ 回调触发: {len(changes)} 次")
 
@@ -260,13 +259,13 @@ def test_backward_compatibility():
     # 旧导入路径
     from core.config import BacktestConfig as OldConfig
     from core.config_v2 import BacktestConfig as NewConfig
-    
+
     # 旧方式创建
     old = OldConfig(
         factor_files=["factor_value.pkl"],
         initial_capital=10_000_000.0,
     )
-    
+
     # 新方式创建
     new = NewConfig(
         factor_files=["factor_value.pkl"],

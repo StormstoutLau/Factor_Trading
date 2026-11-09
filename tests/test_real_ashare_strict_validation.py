@@ -2,6 +2,7 @@
 
 验证回测管道每一步输出的正确性，而非仅验证"能跑通"。
 """
+
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import unittest
 import pandas as pd
 import numpy as np
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -29,21 +31,31 @@ class TestStrictDataValidation(unittest.TestCase):
             start_date="2024-01-02",
             end_date="2024-06-04",
             cost=CostConfig(
-                commission_rate=0.0003, commission_min=5.0,
-                stamp_tax_rate=0.001, slippage_pct=0.001,
+                commission_rate=0.0003,
+                commission_min=5.0,
+                stamp_tax_rate=0.001,
+                slippage_pct=0.001,
             ),
             universe=UniverseConfig(
-                exclude_suspended=True, exclude_limit_up=True, exclude_st=False,
+                exclude_suspended=True,
+                exclude_limit_up=True,
+                exclude_st=False,
             ),
             factor=FactorConfig(
-                neutralize=False, standardize_method="zscore",
-                winsorize_method="percentile", winsorize_pct=(0.01, 0.99),
+                neutralize=False,
+                standardize_method="zscore",
+                winsorize_method="percentile",
+                winsorize_pct=(0.01, 0.99),
             ),
             optimizer=OptimizerConfig(
-                method="equal_weight", target_count=10, max_weight=0.15,
+                method="equal_weight",
+                target_count=10,
+                max_weight=0.15,
             ),
             rebalance=RebalanceConfig(
-                method="fixed", frequency="N_days", n_days=20,
+                method="fixed",
+                frequency="N_days",
+                n_days=20,
             ),
             enable_pending_orders=True,
             output_dir=Path("data/test_ashare/output"),
@@ -83,7 +95,9 @@ class TestStrictDataValidation(unittest.TestCase):
         lo_violations = (l_aligned > o_aligned).sum()
         self.assertLessEqual(lo_violations, 5, f"存在{lo_violations}处 low > open")
 
-        print(f"  ✓ OHLC价格一致性通过 (high<low:{hl_violations}, high<close:{hc_violations}, low>open:{lo_violations})")
+        print(
+            f"  ✓ OHLC价格一致性通过 (high<low:{hl_violations}, high<close:{hc_violations}, low>open:{lo_violations})"
+        )
 
     def test_02_cross_file_alignment(self):
         """跨文件一致性: 所有价格文件日期和股票代码一致"""
@@ -106,8 +120,7 @@ class TestStrictDataValidation(unittest.TestCase):
         unique_vals = adj[valid].stack().unique()
         # 应该只有1.0（或非常接近）
         self.assertTrue(
-            all(abs(v - 1.0) < 1e-6 for v in unique_vals),
-            f"复权因子不全是1.0: {unique_vals[:5]}"
+            all(abs(v - 1.0) < 1e-6 for v in unique_vals), f"复权因子不全是1.0: {unique_vals[:5]}"
         )
         print("  ✓ 复权因子全为1.0（测试数据为手工构造）")
 
@@ -122,13 +135,19 @@ class TestStrictDataValidation(unittest.TestCase):
         # 手工验算几个非NaN的收益率: pct_change = (p1 - p0) / p0
         for day_idx in [1, 10, 50]:
             for col_idx in [0, 10, 30]:
-                if pd.notna(close.iloc[day_idx, col_idx]) and pd.notna(close.iloc[day_idx - 1, col_idx]):
-                    manual_ret = (close.iloc[day_idx, col_idx] - close.iloc[day_idx - 1, col_idx]) / close.iloc[day_idx - 1, col_idx]
+                if pd.notna(close.iloc[day_idx, col_idx]) and pd.notna(
+                    close.iloc[day_idx - 1, col_idx]
+                ):
+                    manual_ret = (
+                        close.iloc[day_idx, col_idx] - close.iloc[day_idx - 1, col_idx]
+                    ) / close.iloc[day_idx - 1, col_idx]
                     engine_ret = returns.iloc[day_idx, col_idx]
                     if pd.notna(engine_ret):
                         self.assertAlmostEqual(
-                            manual_ret, engine_ret, delta=1e-10,
-                            msg=f"day={day_idx}, col={col_idx}: 手工={manual_ret:.10f}, 引擎={engine_ret:.10f}"
+                            manual_ret,
+                            engine_ret,
+                            delta=1e-10,
+                            msg=f"day={day_idx}, col={col_idx}: 手工={manual_ret:.10f}, 引擎={engine_ret:.10f}",
                         )
         print("  ✓ 收益率手工验算通过")
 
@@ -147,11 +166,18 @@ class TestStrictFactorValidation(unittest.TestCase):
             initial_capital=1_000_000.0,
             start_date="2024-01-02",
             end_date="2024-06-04",
-            cost=CostConfig(commission_rate=0.0003, commission_min=5.0,
-                          stamp_tax_rate=0.001, slippage_pct=0.001),
-            universe=UniverseConfig(exclude_suspended=True, exclude_limit_up=True, exclude_st=False),
-            factor=FactorConfig(neutralize=False, standardize_method="zscore",
-                              winsorize_method="percentile", winsorize_pct=(0.01, 0.99)),
+            cost=CostConfig(
+                commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+            ),
+            universe=UniverseConfig(
+                exclude_suspended=True, exclude_limit_up=True, exclude_st=False
+            ),
+            factor=FactorConfig(
+                neutralize=False,
+                standardize_method="zscore",
+                winsorize_method="percentile",
+                winsorize_pct=(0.01, 0.99),
+            ),
             optimizer=OptimizerConfig(method="equal_weight", target_count=10, max_weight=0.15),
             rebalance=RebalanceConfig(method="fixed", frequency="N_days", n_days=20),
             enable_pending_orders=True,
@@ -161,6 +187,7 @@ class TestStrictFactorValidation(unittest.TestCase):
         cls.dm.preload_data()
 
         from core.factor import FactorPipeline
+
         cls.pipeline = FactorPipeline(cls.dm, cls.cfg.factor)
 
         # 用收益率作为因子输入
@@ -181,8 +208,7 @@ class TestStrictFactorValidation(unittest.TestCase):
         within_tolerance = (valid_means.abs() < 0.15).sum()
         pass_rate = within_tolerance / len(valid_means)
         self.assertGreaterEqual(
-            pass_rate, 0.8,
-            f"只有{pass_rate:.1%}的截面均值在[-0.15, 0.15]范围内"
+            pass_rate, 0.8, f"只有{pass_rate:.1%}的截面均值在[-0.15, 0.15]范围内"
         )
         print(f"  ✓ zscore截面均值: 均值={valid_means.mean():.6f}, std={valid_means.std():.6f}")
 
@@ -234,10 +260,7 @@ class TestStrictFactorValidation(unittest.TestCase):
         raw_has_value = raw.notna()
         proc_is_nan = processed.isna()
         falsely_nan = (raw_has_value & proc_is_nan).sum().sum()
-        self.assertEqual(
-            falsely_nan, 0,
-            f"原始有值的{falsely_nan}个单元格在处理后变为NaN"
-        )
+        self.assertEqual(falsely_nan, 0, f"原始有值的{falsely_nan}个单元格在处理后变为NaN")
         print("  ✓ 前瞻偏差防护: 原始有值的地方处理后不丢失")
 
 
@@ -257,11 +280,18 @@ class TestStrictEngineValidation(unittest.TestCase):
             initial_capital=1_000_000.0,
             start_date="2024-01-02",
             end_date="2024-06-04",
-            cost=CostConfig(commission_rate=0.0003, commission_min=5.0,
-                          stamp_tax_rate=0.001, slippage_pct=0.001),
-            universe=UniverseConfig(exclude_suspended=True, exclude_limit_up=True, exclude_st=False),
-            factor=FactorConfig(neutralize=False, standardize_method="zscore",
-                              winsorize_method="percentile", winsorize_pct=(0.01, 0.99)),
+            cost=CostConfig(
+                commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+            ),
+            universe=UniverseConfig(
+                exclude_suspended=True, exclude_limit_up=True, exclude_st=False
+            ),
+            factor=FactorConfig(
+                neutralize=False,
+                standardize_method="zscore",
+                winsorize_method="percentile",
+                winsorize_pct=(0.01, 0.99),
+            ),
             optimizer=OptimizerConfig(method="equal_weight", target_count=10, max_weight=0.15),
             rebalance=RebalanceConfig(method="fixed", frequency="N_days", n_days=20),
             enable_pending_orders=False,  # 关闭队列，即时成交便于追踪
@@ -297,9 +327,7 @@ class TestStrictEngineValidation(unittest.TestCase):
             # 因此用 total_value - cash 反推持仓市值来验证
             implied_holdings = snap.total_value - snap.cash
             # 直接核算持仓市值（可能存在浅拷贝问题）
-            direct_holdings = sum(
-                pos.market_value for pos in snap.positions.values()
-            )
+            direct_holdings = sum(pos.market_value for pos in snap.positions.values())
             # 如果直接核算值>0，用它验证；否则用反推值
             if direct_holdings > 0.01:
                 expected = snap.cash + direct_holdings
@@ -347,8 +375,7 @@ class TestStrictEngineValidation(unittest.TestCase):
         overlap = top_weight_stocks & top_signal_stocks
         overlap_rate = len(overlap) / len(top_weight_stocks) if top_weight_stocks else 0
         self.assertGreaterEqual(
-            overlap_rate, 0.8,
-            f"优化器选股与信号top{top_n}交集仅{overlap_rate:.0%}"
+            overlap_rate, 0.8, f"优化器选股与信号top{top_n}交集仅{overlap_rate:.0%}"
         )
         print(f"  ✓ 信号→持仓映射: {overlap_rate:.0%}权重股票在信号top{top_n}中")
 
@@ -359,21 +386,22 @@ class TestStrictEngineValidation(unittest.TestCase):
             self.skipTest("无交易记录")
 
         # 按股票汇总交易量
-        for stock in trades_df['stock'].unique()[:5]:  # 抽检5只
-            stock_trades = trades_df[trades_df['stock'] == stock]
+        for stock in trades_df["stock"].unique()[:5]:  # 抽检5只
+            stock_trades = trades_df[trades_df["stock"] == stock]
             net_buy = 0
             for _, trade in stock_trades.iterrows():
-                if trade['side'] == 'BUY':
-                    net_buy += trade['quantity']
+                if trade["side"] == "BUY":
+                    net_buy += trade["quantity"]
                 else:
-                    net_buy -= trade['quantity']
+                    net_buy -= trade["quantity"]
 
             # 最终持仓应与净买入量一致
             final_pos = self.engine.tracker.get_position(stock)
             if final_pos and final_pos.quantity > 0:
                 self.assertEqual(
-                    final_pos.quantity, net_buy,
-                    f"{stock}: 最终持仓={final_pos.quantity}, 净买入={net_buy}"
+                    final_pos.quantity,
+                    net_buy,
+                    f"{stock}: 最终持仓={final_pos.quantity}, 净买入={net_buy}",
                 )
         print("  ✓ 持仓跟踪一致性通过")
 
@@ -394,11 +422,18 @@ class TestStrictCostValidation(unittest.TestCase):
             initial_capital=1_000_000.0,
             start_date="2024-01-02",
             end_date="2024-06-04",
-            cost=CostConfig(commission_rate=0.0003, commission_min=5.0,
-                          stamp_tax_rate=0.001, slippage_pct=0.001),
-            universe=UniverseConfig(exclude_suspended=True, exclude_limit_up=True, exclude_st=False),
-            factor=FactorConfig(neutralize=False, standardize_method="zscore",
-                              winsorize_method="percentile", winsorize_pct=(0.01, 0.99)),
+            cost=CostConfig(
+                commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+            ),
+            universe=UniverseConfig(
+                exclude_suspended=True, exclude_limit_up=True, exclude_st=False
+            ),
+            factor=FactorConfig(
+                neutralize=False,
+                standardize_method="zscore",
+                winsorize_method="percentile",
+                winsorize_pct=(0.01, 0.99),
+            ),
             optimizer=OptimizerConfig(method="equal_weight", target_count=10, max_weight=0.15),
             rebalance=RebalanceConfig(method="fixed", frequency="N_days", n_days=20),
             enable_pending_orders=True,
@@ -432,14 +467,16 @@ class TestStrictCostValidation(unittest.TestCase):
         errors = []
 
         for idx, trade in self.trades_df.head(20).iterrows():  # 抽检前20笔
-            amount = trade['amount']
-            qty = trade['quantity']
-            price = trade['price']
+            amount = trade["amount"]
+            qty = trade["quantity"]
+            price = trade["price"]
 
             # 手工验算 amount = qty * price
             self.assertAlmostEqual(
-                amount, qty * price, delta=0.02,
-                msg=f"交易#{idx}: amount={amount:.2f}, qty*price={qty*price:.2f}"
+                amount,
+                qty * price,
+                delta=0.02,
+                msg=f"交易#{idx}: amount={amount:.2f}, qty*price={qty*price:.2f}",
             )
 
             # 手工验算费用
@@ -447,14 +484,14 @@ class TestStrictCostValidation(unittest.TestCase):
             expected_commission = max(amount * cfg.commission_rate, cfg.commission_min)
 
             # 印花税（仅卖出）
-            expected_stamp = amount * cfg.stamp_tax_rate if trade['side'] == 'SELL' else 0.0
+            expected_stamp = amount * cfg.stamp_tax_rate if trade["side"] == "SELL" else 0.0
 
             # 滑点
             expected_slippage = amount * cfg.slippage_pct
 
             expected_cost = expected_commission + expected_stamp + expected_slippage
 
-            if abs(trade['cost'] - expected_cost) > 0.05:
+            if abs(trade["cost"] - expected_cost) > 0.05:
                 errors.append(
                     f"交易#{idx} {trade['stock']} {trade['side']}: "
                     f"cost={trade['cost']:.4f}, 期望={expected_cost:.4f}, "
@@ -469,29 +506,32 @@ class TestStrictCostValidation(unittest.TestCase):
         if self.trades_df.empty:
             self.skipTest("无交易记录")
 
-        total_cost_from_trades = self.trades_df['cost'].sum()
+        total_cost_from_trades = self.trades_df["cost"].sum()
         exec_stats = self.engine.executor.get_execution_stats()
-        total_cost_from_stats = exec_stats.get('total_cost', 0)
+        total_cost_from_stats = exec_stats.get("total_cost", 0)
 
         self.assertAlmostEqual(
-            total_cost_from_trades, total_cost_from_stats, delta=0.05,
-            msg=f"交易汇总费用={total_cost_from_trades:.4f}, 统计费用={total_cost_from_stats:.4f}"
+            total_cost_from_trades,
+            total_cost_from_stats,
+            delta=0.05,
+            msg=f"交易汇总费用={total_cost_from_trades:.4f}, 统计费用={total_cost_from_stats:.4f}",
         )
-        print(f"  ✓ 总费用一致性: 交易汇总={total_cost_from_trades:.2f}, 统计={total_cost_from_stats:.2f}")
+        print(
+            f"  ✓ 总费用一致性: 交易汇总={total_cost_from_trades:.2f}, 统计={total_cost_from_stats:.2f}"
+        )
 
     def test_14_net_amount_calculation(self):
         """净金额验算: 买入 net=amount+cost, 卖出 net=amount-cost"""
         errors = []
         for idx, trade in self.trades_df.head(20).iterrows():
-            if trade['side'] == 'BUY':
-                expected_net = trade['amount'] + trade['cost']
+            if trade["side"] == "BUY":
+                expected_net = trade["amount"] + trade["cost"]
             else:
-                expected_net = trade['amount'] - trade['cost']
+                expected_net = trade["amount"] - trade["cost"]
 
-            if abs(trade['net_amount'] - expected_net) > 0.05:
+            if abs(trade["net_amount"] - expected_net) > 0.05:
                 errors.append(
-                    f"交易#{idx}: net_amount={trade['net_amount']:.4f}, "
-                    f"期望={expected_net:.4f}"
+                    f"交易#{idx}: net_amount={trade['net_amount']:.4f}, " f"期望={expected_net:.4f}"
                 )
 
         self.assertEqual(len(errors), 0, "净金额计算错误:\n" + "\n".join(errors[:5]))
@@ -514,11 +554,18 @@ class TestStrictMetricsValidation(unittest.TestCase):
             initial_capital=1_000_000.0,
             start_date="2024-01-02",
             end_date="2024-06-04",
-            cost=CostConfig(commission_rate=0.0003, commission_min=5.0,
-                          stamp_tax_rate=0.001, slippage_pct=0.001),
-            universe=UniverseConfig(exclude_suspended=True, exclude_limit_up=True, exclude_st=False),
-            factor=FactorConfig(neutralize=False, standardize_method="zscore",
-                              winsorize_method="percentile", winsorize_pct=(0.01, 0.99)),
+            cost=CostConfig(
+                commission_rate=0.0003, commission_min=5.0, stamp_tax_rate=0.001, slippage_pct=0.001
+            ),
+            universe=UniverseConfig(
+                exclude_suspended=True, exclude_limit_up=True, exclude_st=False
+            ),
+            factor=FactorConfig(
+                neutralize=False,
+                standardize_method="zscore",
+                winsorize_method="percentile",
+                winsorize_pct=(0.01, 0.99),
+            ),
             optimizer=OptimizerConfig(method="equal_weight", target_count=10, max_weight=0.15),
             rebalance=RebalanceConfig(method="fixed", frequency="N_days", n_days=20),
             enable_pending_orders=True,
@@ -553,8 +600,10 @@ class TestStrictMetricsValidation(unittest.TestCase):
         engine_return = self.metrics.get("total_return", 0)
 
         self.assertAlmostEqual(
-            manual_return, engine_return, delta=0.001,
-            msg=f"手工总收益={manual_return:.6f}, 引擎={engine_return:.6f}"
+            manual_return,
+            engine_return,
+            delta=0.001,
+            msg=f"手工总收益={manual_return:.6f}, 引擎={engine_return:.6f}",
         )
         print(f"  ✓ 总收益率: 手工={manual_return:.4%}, 引擎={engine_return:.4%}")
 
@@ -573,8 +622,10 @@ class TestStrictMetricsValidation(unittest.TestCase):
         engine_max_dd = self.metrics.get("max_drawdown", 0)
 
         self.assertAlmostEqual(
-            manual_max_dd, engine_max_dd, delta=0.005,
-            msg=f"手工最大回撤={manual_max_dd:.4%}, 引擎={engine_max_dd:.4%}"
+            manual_max_dd,
+            engine_max_dd,
+            delta=0.005,
+            msg=f"手工最大回撤={manual_max_dd:.4%}, 引擎={engine_max_dd:.4%}",
         )
         print(f"  ✓ 最大回撤: 手工={manual_max_dd:.4%}, 引擎={engine_max_dd:.4%}")
 
@@ -604,8 +655,10 @@ class TestStrictMetricsValidation(unittest.TestCase):
         engine_sharpe = self.metrics.get("sharpe_ratio", 0)
 
         self.assertAlmostEqual(
-            manual_sharpe, engine_sharpe, delta=0.05,
-            msg=f"手工夏普={manual_sharpe:.4f}, 引擎={engine_sharpe:.4f}"
+            manual_sharpe,
+            engine_sharpe,
+            delta=0.05,
+            msg=f"手工夏普={manual_sharpe:.4f}, 引擎={engine_sharpe:.4f}",
         )
         print(f"  ✓ 夏普比率: 手工={manual_sharpe:.4f}, 引擎={engine_sharpe:.4f}")
 
@@ -616,15 +669,16 @@ class TestStrictMetricsValidation(unittest.TestCase):
             self.skipTest("无快照数据")
 
         final = snapshots[-1]
-        holdings_value = sum(
-            pos.market_value for pos in final.positions.values()
-        )
+        holdings_value = sum(pos.market_value for pos in final.positions.values())
 
         self.assertEqual(
-            final.total_value, final.cash + holdings_value,
-            msg=f"总价值={final.total_value:.2f}, 现金+持仓={final.cash + holdings_value:.2f}"
+            final.total_value,
+            final.cash + holdings_value,
+            msg=f"总价值={final.total_value:.2f}, 现金+持仓={final.cash + holdings_value:.2f}",
         )
-        print(f"  ✓ 最终资产负债: 现金={final.cash:.2f}, 持仓={holdings_value:.2f}, 总计={final.total_value:.2f}")
+        print(
+            f"  ✓ 最终资产负债: 现金={final.cash:.2f}, 持仓={holdings_value:.2f}, 总计={final.total_value:.2f}"
+        )
 
 
 if __name__ == "__main__":

@@ -217,7 +217,8 @@ class TestSignalTranslatorFromSignals(unittest.TestCase):
     def test_from_signals_to_t0_policy(self):
         """from_signals 输出可直接消费于 T0FuturesPolicy"""
         from core.execution_policy import (
-            SignalTranslator, T0FuturesPolicy,
+            SignalTranslator,
+            T0FuturesPolicy,
         )
 
         buy_signal = pd.Series([True], index=["IF2406"])

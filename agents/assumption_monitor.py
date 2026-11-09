@@ -32,16 +32,19 @@ logger = logging.getLogger(__name__)
 # 数据模型
 # ============================================================
 
+
 class AlertLevel(Enum):
     """预警级别"""
-    GREEN = "green"    # 正常
+
+    GREEN = "green"  # 正常
     YELLOW = "yellow"  # 警告
-    RED = "red"        # 严重
+    RED = "red"  # 严重
 
 
 @dataclass
 class AssumptionCheck:
     """假设检验结果"""
+
     name: str
     level: AlertLevel
     statistic: float
@@ -54,6 +57,7 @@ class AssumptionCheck:
 @dataclass
 class MonitorState:
     """监控层整体状态"""
+
     checks: list[AssumptionCheck] = field(default_factory=list)
     overall_level: AlertLevel = AlertLevel.GREEN
     should_fallback: bool = False
@@ -72,6 +76,7 @@ class MonitorState:
 # 1. 收益分布突变检测
 # ============================================================
 
+
 class ReturnDistributionMonitor:
     """
     监控策略收益分布是否发生突变
@@ -82,11 +87,13 @@ class ReturnDistributionMonitor:
     - KPSS: 检验序列是否平稳
     """
 
-    def __init__(self,
-                 cusum_threshold: float = 2.0,
-                 window_size: int = 30,
-                 t_test_threshold: float = 2.5,
-                 kpss_threshold: float = 0.05):
+    def __init__(
+        self,
+        cusum_threshold: float = 2.0,
+        window_size: int = 30,
+        t_test_threshold: float = 2.5,
+        kpss_threshold: float = 0.05,
+    ):
         """
         Args:
             cusum_threshold: CUSUM控制限
@@ -150,8 +157,8 @@ class ReturnDistributionMonitor:
         if len(returns) < 2 * self.window_size:
             return 0.0, 1.0
 
-        recent = returns[-self.window_size:]
-        previous = returns[-2 * self.window_size:-self.window_size]
+        recent = returns[-self.window_size :]
+        previous = returns[-2 * self.window_size : -self.window_size]
 
         t_stat, p_val = stats.ttest_ind(recent, previous, equal_var=False)
         if np.isnan(t_stat):
@@ -176,7 +183,7 @@ class ReturnDistributionMonitor:
             # H0: 序列平稳
             n = len(returns)
             cumsum = np.cumsum(returns - np.mean(returns))
-            eta = np.sum(cumsum ** 2) / (n ** 2)
+            eta = np.sum(cumsum**2) / (n**2)
             s2 = np.var(returns, ddof=1)
             if s2 < 1e-12:
                 return 0.0, 1.0
@@ -219,43 +226,51 @@ class ReturnDistributionMonitor:
             cusum_max = max(abs(pos_cusum), abs(neg_cusum))
 
             if cusum_max > self.cusum_threshold:
-                level = AlertLevel.RED if cusum_max > 2 * self.cusum_threshold else AlertLevel.YELLOW
-                checks.append(AssumptionCheck(
-                    name=f"CUSUM_策略{i}",
-                    level=level,
-                    statistic=cusum_max,
-                    threshold=self.cusum_threshold,
-                    description=f"策略{i}收益CUSUM统计量{cusum_max:.4f}超过阈值",
-                    recommended_action="收益分布可能发生突变，考虑重置该策略评估"
-                ))
+                level = (
+                    AlertLevel.RED if cusum_max > 2 * self.cusum_threshold else AlertLevel.YELLOW
+                )
+                checks.append(
+                    AssumptionCheck(
+                        name=f"CUSUM_策略{i}",
+                        level=level,
+                        statistic=cusum_max,
+                        threshold=self.cusum_threshold,
+                        description=f"策略{i}收益CUSUM统计量{cusum_max:.4f}超过阈值",
+                        recommended_action="收益分布可能发生突变，考虑重置该策略评估",
+                    )
+                )
 
             # 2. 滑动t检验
             t_stat, p_val = self._rolling_t_test(strategy_returns)
             if t_stat > self.t_test_threshold:
                 level = AlertLevel.RED if t_stat > 3.5 else AlertLevel.YELLOW
-                checks.append(AssumptionCheck(
-                    name=f"滑动t检验_策略{i}",
-                    level=level,
-                    statistic=t_stat,
-                    threshold=self.t_test_threshold,
-                    p_value=p_val,
-                    description=f"策略{i}近期收益均值显著变化 (t={t_stat:.2f})",
-                    recommended_action="策略表现可能发生结构性变化"
-                ))
+                checks.append(
+                    AssumptionCheck(
+                        name=f"滑动t检验_策略{i}",
+                        level=level,
+                        statistic=t_stat,
+                        threshold=self.t_test_threshold,
+                        p_value=p_val,
+                        description=f"策略{i}近期收益均值显著变化 (t={t_stat:.2f})",
+                        recommended_action="策略表现可能发生结构性变化",
+                    )
+                )
 
             # 3. KPSS检验
             kpss_stat, kpss_p = self._kpss_test(strategy_returns)
             if kpss_p < self.kpss_threshold:
                 level = AlertLevel.RED if kpss_p < 0.01 else AlertLevel.YELLOW
-                checks.append(AssumptionCheck(
-                    name=f"KPSS_策略{i}",
-                    level=level,
-                    statistic=kpss_stat,
-                    threshold=self.kpss_threshold,
-                    p_value=kpss_p,
-                    description=f"策略{i}收益序列非平稳 (KPSS p={kpss_p:.4f})",
-                    recommended_action="收益分布非平稳，MAB假设被违反"
-                ))
+                checks.append(
+                    AssumptionCheck(
+                        name=f"KPSS_策略{i}",
+                        level=level,
+                        statistic=kpss_stat,
+                        threshold=self.kpss_threshold,
+                        p_value=kpss_p,
+                        description=f"策略{i}收益序列非平稳 (KPSS p={kpss_p:.4f})",
+                        recommended_action="收益分布非平稳，MAB假设被违反",
+                    )
+                )
 
         return checks
 
@@ -263,6 +278,7 @@ class ReturnDistributionMonitor:
 # ============================================================
 # 2. 策略间相关结构变化监控
 # ============================================================
+
 
 class CorrelationStructureMonitor:
     """
@@ -274,10 +290,12 @@ class CorrelationStructureMonitor:
     - 条件数监控
     """
 
-    def __init__(self,
-                 window_size: int = 60,
-                 eigenvalue_change_threshold: float = 2.0,
-                 condition_number_threshold: float = 100.0):
+    def __init__(
+        self,
+        window_size: int = 60,
+        eigenvalue_change_threshold: float = 2.0,
+        condition_number_threshold: float = 100.0,
+    ):
         """
         Args:
             window_size: 滚动窗口
@@ -304,7 +322,7 @@ class CorrelationStructureMonitor:
             return checks
 
         returns_matrix = np.array(returns_history)
-        recent_returns = returns_matrix[-self.window_size:]
+        recent_returns = returns_matrix[-self.window_size :]
 
         # 计算协方差矩阵
         cov_matrix = np.cov(recent_returns.T)
@@ -331,26 +349,34 @@ class CorrelationStructureMonitor:
 
             if z_score > self.eigenvalue_change_threshold:
                 level = AlertLevel.RED if z_score > 3.0 else AlertLevel.YELLOW
-                checks.append(AssumptionCheck(
-                    name="特征值结构变化",
-                    level=level,
-                    statistic=z_score,
-                    threshold=self.eigenvalue_change_threshold,
-                    description=f"最大特征值占比突变 (z={z_score:.2f})，策略间相关性结构可能改变",
-                    recommended_action="切换到风险平价或等权分配"
-                ))
+                checks.append(
+                    AssumptionCheck(
+                        name="特征值结构变化",
+                        level=level,
+                        statistic=z_score,
+                        threshold=self.eigenvalue_change_threshold,
+                        description=f"最大特征值占比突变 (z={z_score:.2f})，策略间相关性结构可能改变",
+                        recommended_action="切换到风险平价或等权分配",
+                    )
+                )
 
         # 检测条件数异常
         if condition_number > self.condition_number_threshold:
-            level = AlertLevel.RED if condition_number > 2 * self.condition_number_threshold else AlertLevel.YELLOW
-            checks.append(AssumptionCheck(
-                name="协方差条件数异常",
-                level=level,
-                statistic=condition_number,
-                threshold=self.condition_number_threshold,
-                description=f"协方差矩阵条件数{condition_number:.1f}过高，策略间高度共线",
-                recommended_action="增加分散化，避免均值-方差优化"
-            ))
+            level = (
+                AlertLevel.RED
+                if condition_number > 2 * self.condition_number_threshold
+                else AlertLevel.YELLOW
+            )
+            checks.append(
+                AssumptionCheck(
+                    name="协方差条件数异常",
+                    level=level,
+                    statistic=condition_number,
+                    threshold=self.condition_number_threshold,
+                    description=f"协方差矩阵条件数{condition_number:.1f}过高，策略间高度共线",
+                    recommended_action="增加分散化，避免均值-方差优化",
+                )
+            )
 
         return checks
 
@@ -358,6 +384,7 @@ class CorrelationStructureMonitor:
 # ============================================================
 # 3. 换手率异常与过拟合检测
 # ============================================================
+
 
 class TurnoverMonitor:
     """
@@ -369,10 +396,12 @@ class TurnoverMonitor:
     - 权重熵的突变
     """
 
-    def __init__(self,
-                 turnover_percentile: float = 95.0,
-                 entropy_drop_threshold: float = 0.3,
-                 min_effective_count: float = 2.0):
+    def __init__(
+        self,
+        turnover_percentile: float = 95.0,
+        entropy_drop_threshold: float = 0.3,
+        min_effective_count: float = 2.0,
+    ):
         """
         Args:
             turnover_percentile: 换手率分位数阈值
@@ -402,9 +431,9 @@ class TurnoverMonitor:
         entropy = self._calculate_entropy(weights)
         return np.exp(entropy)
 
-    def check(self,
-              current_weights: np.ndarray,
-              previous_weights: Optional[np.ndarray] = None) -> list[AssumptionCheck]:
+    def check(
+        self, current_weights: np.ndarray, previous_weights: Optional[np.ndarray] = None
+    ) -> list[AssumptionCheck]:
         """检测换手率异常
 
         Args:
@@ -425,26 +454,30 @@ class TurnoverMonitor:
                 threshold = np.percentile(self.turnover_history[:-1], self.turnover_percentile)
                 if turnover > threshold:
                     level = AlertLevel.RED if turnover > 1.5 * threshold else AlertLevel.YELLOW
-                    checks.append(AssumptionCheck(
-                        name="换手率异常",
-                        level=level,
-                        statistic=turnover,
-                        threshold=threshold,
-                        description=f"权重换手率{turnover:.4f}超过历史{self.turnover_percentile:.0f}分位数",
-                        recommended_action="增加交易成本惩罚系数"
-                    ))
+                    checks.append(
+                        AssumptionCheck(
+                            name="换手率异常",
+                            level=level,
+                            statistic=turnover,
+                            threshold=threshold,
+                            description=f"权重换手率{turnover:.4f}超过历史{self.turnover_percentile:.0f}分位数",
+                            recommended_action="增加交易成本惩罚系数",
+                        )
+                    )
 
         # 2. 有效数量检测
         eff_count = self._effective_count(current_weights)
         if eff_count < self.min_effective_count:
-            checks.append(AssumptionCheck(
-                name="有效策略数过低",
-                level=AlertLevel.RED,
-                statistic=eff_count,
-                threshold=self.min_effective_count,
-                description=f"有效策略数{eff_count:.2f}低于阈值，权重过度集中",
-                recommended_action="强制分散化，设置最小权重约束"
-            ))
+            checks.append(
+                AssumptionCheck(
+                    name="有效策略数过低",
+                    level=AlertLevel.RED,
+                    statistic=eff_count,
+                    threshold=self.min_effective_count,
+                    description=f"有效策略数{eff_count:.2f}低于阈值，权重过度集中",
+                    recommended_action="强制分散化，设置最小权重约束",
+                )
+            )
 
         # 3. 熵突变检测
         entropy = self._calculate_entropy(current_weights)
@@ -455,14 +488,16 @@ class TurnoverMonitor:
             if prev_entropy > 1e-10:
                 entropy_drop = (prev_entropy - entropy) / prev_entropy
                 if entropy_drop > self.entropy_drop_threshold:
-                    checks.append(AssumptionCheck(
-                        name="权重熵骤降",
-                        level=AlertLevel.YELLOW,
-                        statistic=entropy_drop,
-                        threshold=self.entropy_drop_threshold,
-                        description=f"权重熵骤降{entropy_drop:.1%}，可能过拟合近期表现",
-                        recommended_action="增加正则化，降低学习率"
-                    ))
+                    checks.append(
+                        AssumptionCheck(
+                            name="权重熵骤降",
+                            level=AlertLevel.YELLOW,
+                            statistic=entropy_drop,
+                            threshold=self.entropy_drop_threshold,
+                            description=f"权重熵骤降{entropy_drop:.1%}，可能过拟合近期表现",
+                            recommended_action="增加正则化，降低学习率",
+                        )
+                    )
 
         return checks
 
@@ -470,6 +505,7 @@ class TurnoverMonitor:
 # ============================================================
 # 4. 后验预测检验与模型证据监控
 # ============================================================
+
 
 class BayesianModelMonitor:
     """
@@ -481,10 +517,12 @@ class BayesianModelMonitor:
     - Kalman创新序列白噪声检验
     """
 
-    def __init__(self,
-                 ppc_outlier_threshold: float = 0.05,
-                 loglikelihood_drop_threshold: float = 2.0,
-                 innovation_ljung_box_threshold: float = 0.05):
+    def __init__(
+        self,
+        ppc_outlier_threshold: float = 0.05,
+        loglikelihood_drop_threshold: float = 2.0,
+        innovation_ljung_box_threshold: float = 0.05,
+    ):
         """
         Args:
             ppc_outlier_threshold: 后验预测异常值比例阈值
@@ -504,7 +542,7 @@ class BayesianModelMonitor:
         """计算高斯对数似然"""
         if std < 1e-10:
             return -np.inf
-        return -0.5 * np.log(2 * np.pi * std ** 2) - 0.5 * ((obs - mean) / std) ** 2
+        return -0.5 * np.log(2 * np.pi * std**2) - 0.5 * ((obs - mean) / std) ** 2
 
     def _ljung_box(self, residuals: list[float], lags: int = 5) -> tuple[float, float]:
         """简化的Ljung-Box检验"""
@@ -519,22 +557,24 @@ class BayesianModelMonitor:
         autocorrs = []
         for lag in range(1, lags + 1):
             c_lag = np.sum(r_centered[:-lag] * r_centered[lag:]) / n
-            c_0 = np.sum(r_centered ** 2) / n
+            c_0 = np.sum(r_centered**2) / n
             if c_0 > 1e-10:
                 autocorrs.append(c_lag / c_0)
             else:
                 autocorrs.append(0.0)
 
-        lb_stat = n * (n + 2) * sum(a ** 2 / (n - i) for i, a in enumerate(autocorrs, 1))
+        lb_stat = n * (n + 2) * sum(a**2 / (n - i) for i, a in enumerate(autocorrs, 1))
         p_value = 1 - stats.chi2.cdf(lb_stat, lags)
 
         return lb_stat, p_value
 
-    def check(self,
-              returns_history: list[np.ndarray],
-              predicted_means: np.ndarray,
-              predicted_stds: np.ndarray,
-              innovations: Optional[dict[int, list[float]]] = None) -> list[AssumptionCheck]:
+    def check(
+        self,
+        returns_history: list[np.ndarray],
+        predicted_means: np.ndarray,
+        predicted_stds: np.ndarray,
+        innovations: Optional[dict[int, list[float]]] = None,
+    ) -> list[AssumptionCheck]:
         """执行贝叶斯模型监控
 
         Args:
@@ -565,14 +605,16 @@ class BayesianModelMonitor:
             if self.ppc_total[i] >= 20:
                 outlier_ratio = self.ppc_violations[i] / self.ppc_total[i]
                 if outlier_ratio > self.ppc_outlier_threshold:
-                    checks.append(AssumptionCheck(
-                        name=f"PPC_策略{i}",
-                        level=AlertLevel.RED,
-                        statistic=outlier_ratio,
-                        threshold=self.ppc_outlier_threshold,
-                        description=f"策略{i}后验预测异常比例{outlier_ratio:.1%}，模型可能misspecified",
-                        recommended_action="检查先验和似然函数设定"
-                    ))
+                    checks.append(
+                        AssumptionCheck(
+                            name=f"PPC_策略{i}",
+                            level=AlertLevel.RED,
+                            statistic=outlier_ratio,
+                            threshold=self.ppc_outlier_threshold,
+                            description=f"策略{i}后验预测异常比例{outlier_ratio:.1%}，模型可能misspecified",
+                            recommended_action="检查先验和似然函数设定",
+                        )
+                    )
 
             # 2. 累积对数似然
             loglik = self._gaussian_loglikelihood(
@@ -586,14 +628,16 @@ class BayesianModelMonitor:
             ll_drop = previous_ll - recent_ll
 
             if ll_drop > self.loglikelihood_drop_threshold:
-                checks.append(AssumptionCheck(
-                    name="对数似然下降",
-                    level=AlertLevel.YELLOW,
-                    statistic=ll_drop,
-                    threshold=self.loglikelihood_drop_threshold,
-                    description=f"近期对数似然均值下降{ll_drop:.4f}，模型拟合能力退化",
-                    recommended_action="考虑更换模型或增加正则化"
-                ))
+                checks.append(
+                    AssumptionCheck(
+                        name="对数似然下降",
+                        level=AlertLevel.YELLOW,
+                        statistic=ll_drop,
+                        threshold=self.loglikelihood_drop_threshold,
+                        description=f"近期对数似然均值下降{ll_drop:.4f}，模型拟合能力退化",
+                        recommended_action="考虑更换模型或增加正则化",
+                    )
+                )
 
         # 3. 创新序列白噪声检验
         if innovations:
@@ -601,15 +645,17 @@ class BayesianModelMonitor:
                 if len(innov_list) >= 20:
                     lb_stat, lb_p = self._ljung_box(innov_list)
                     if lb_p < self.innovation_ljung_box_threshold:
-                        checks.append(AssumptionCheck(
-                            name=f"创新序列自相关_策略{i}",
-                            level=AlertLevel.YELLOW,
-                            statistic=lb_stat,
-                            threshold=self.innovation_ljung_box_threshold,
-                            p_value=lb_p,
-                            description=f"策略{i}Kalman创新序列存在自相关，DLM假设被违反",
-                            recommended_action="增加状态方差或检查模型设定"
-                        ))
+                        checks.append(
+                            AssumptionCheck(
+                                name=f"创新序列自相关_策略{i}",
+                                level=AlertLevel.YELLOW,
+                                statistic=lb_stat,
+                                threshold=self.innovation_ljung_box_threshold,
+                                p_value=lb_p,
+                                description=f"策略{i}Kalman创新序列存在自相关，DLM假设被违反",
+                                recommended_action="增加状态方差或检查模型设定",
+                            )
+                        )
 
         return checks
 
@@ -617,6 +663,7 @@ class BayesianModelMonitor:
 # ============================================================
 # 5. 通用指标监控
 # ============================================================
+
 
 class UniversalMonitor:
     """
@@ -627,9 +674,7 @@ class UniversalMonitor:
     - 瞬时遗憾
     """
 
-    def __init__(self,
-                 regret_window: int = 30,
-                 max_regret_growth_rate: float = 0.001):
+    def __init__(self, regret_window: int = 30, max_regret_growth_rate: float = 0.001):
         """
         Args:
             regret_window: 遗憾计算窗口
@@ -642,9 +687,9 @@ class UniversalMonitor:
         self.regret_history: list[float] = []
         self.best_fixed_return: float = 0.0
 
-    def check(self,
-              returns_history: list[np.ndarray],
-              weights_history: list[np.ndarray]) -> list[AssumptionCheck]:
+    def check(
+        self, returns_history: list[np.ndarray], weights_history: list[np.ndarray]
+    ) -> list[AssumptionCheck]:
         """通用指标检测
 
         Args:
@@ -677,14 +722,16 @@ class UniversalMonitor:
             ) / self.regret_window
 
             if recent_regret_growth > self.max_regret_growth_rate:
-                checks.append(AssumptionCheck(
-                    name="累计遗憾增长",
-                    level=AlertLevel.YELLOW,
-                    statistic=recent_regret_growth,
-                    threshold=self.max_regret_growth_rate,
-                    description=f"最近{self.regret_window}期遗憾增长率{recent_regret_growth:.6f}",
-                    recommended_action="元策略可能失效，考虑回退到等权"
-                ))
+                checks.append(
+                    AssumptionCheck(
+                        name="累计遗憾增长",
+                        level=AlertLevel.YELLOW,
+                        statistic=recent_regret_growth,
+                        threshold=self.max_regret_growth_rate,
+                        description=f"最近{self.regret_window}期遗憾增长率{recent_regret_growth:.6f}",
+                        recommended_action="元策略可能失效，考虑回退到等权",
+                    )
+                )
 
         # 2. 瞬时遗憾
         if len(portfolio_returns) > 0:
@@ -693,14 +740,16 @@ class UniversalMonitor:
             instantaneous_regret = latest_best_ret - latest_portfolio_ret
 
             if instantaneous_regret > 0.02:  # 单日落后2%
-                checks.append(AssumptionCheck(
-                    name="瞬时遗憾过大",
-                    level=AlertLevel.YELLOW,
-                    statistic=instantaneous_regret,
-                    threshold=0.02,
-                    description=f"单日遗憾{instantaneous_regret:.4f}，组合大幅落后最佳策略",
-                    recommended_action="检查是否存在异常权重配置"
-                ))
+                checks.append(
+                    AssumptionCheck(
+                        name="瞬时遗憾过大",
+                        level=AlertLevel.YELLOW,
+                        statistic=instantaneous_regret,
+                        threshold=0.02,
+                        description=f"单日遗憾{instantaneous_regret:.4f}，组合大幅落后最佳策略",
+                        recommended_action="检查是否存在异常权重配置",
+                    )
+                )
 
         return checks
 
@@ -709,6 +758,7 @@ class UniversalMonitor:
 # 6. 假设检验层主控制器
 # ============================================================
 
+
 class AssumptionMonitorLayer:
     """
     假设检验层主控制器
@@ -716,14 +766,16 @@ class AssumptionMonitorLayer:
     整合所有监控模块，当检测到假设被违反时自动触发退化机制。
     """
 
-    def __init__(self,
-                 n_strategies: int,
-                 enable_return_monitor: bool = True,
-                 enable_correlation_monitor: bool = True,
-                 enable_turnover_monitor: bool = True,
-                 enable_bayesian_monitor: bool = True,
-                 enable_universal_monitor: bool = True,
-                 fallback_strategy: str = "equal_weight"):
+    def __init__(
+        self,
+        n_strategies: int,
+        enable_return_monitor: bool = True,
+        enable_correlation_monitor: bool = True,
+        enable_turnover_monitor: bool = True,
+        enable_bayesian_monitor: bool = True,
+        enable_universal_monitor: bool = True,
+        fallback_strategy: str = "equal_weight",
+    ):
         """
         Args:
             n_strategies: 策略数量
@@ -738,7 +790,9 @@ class AssumptionMonitorLayer:
         self.fallback_strategy = fallback_strategy
 
         self.return_monitor = ReturnDistributionMonitor() if enable_return_monitor else None
-        self.correlation_monitor = CorrelationStructureMonitor() if enable_correlation_monitor else None
+        self.correlation_monitor = (
+            CorrelationStructureMonitor() if enable_correlation_monitor else None
+        )
         self.turnover_monitor = TurnoverMonitor() if enable_turnover_monitor else None
         self.bayesian_monitor = BayesianModelMonitor() if enable_bayesian_monitor else None
         self.universal_monitor = UniversalMonitor() if enable_universal_monitor else None
@@ -762,12 +816,14 @@ class AssumptionMonitorLayer:
         else:
             return np.ones(self.n) / self.n
 
-    def monitor(self,
-                current_weights: np.ndarray,
-                strategy_returns: np.ndarray,
-                predicted_means: Optional[np.ndarray] = None,
-                predicted_stds: Optional[np.ndarray] = None,
-                innovations: Optional[dict[int, list[float]]] = None) -> MonitorState:
+    def monitor(
+        self,
+        current_weights: np.ndarray,
+        strategy_returns: np.ndarray,
+        predicted_means: Optional[np.ndarray] = None,
+        predicted_stds: Optional[np.ndarray] = None,
+        innovations: Optional[dict[int, list[float]]] = None,
+    ) -> MonitorState:
         """执行全面监控
 
         Args:
@@ -840,19 +896,15 @@ class AssumptionMonitorLayer:
         if not self.check_history:
             return {}
 
-        red_count = sum(
-            1 for s in self.check_history if s.overall_level == AlertLevel.RED
-        )
-        yellow_count = sum(
-            1 for s in self.check_history if s.overall_level == AlertLevel.YELLOW
-        )
+        red_count = sum(1 for s in self.check_history if s.overall_level == AlertLevel.RED)
+        yellow_count = sum(1 for s in self.check_history if s.overall_level == AlertLevel.YELLOW)
         fallback_count = sum(1 for s in self.check_history if s.should_fallback)
 
         return {
-            'total_checks': len(self.check_history),
-            'red_alerts': red_count,
-            'yellow_alerts': yellow_count,
-            'fallback_triggered': fallback_count,
-            'fallback_ratio': fallback_count / len(self.check_history),
-            'latest_level': self.check_history[-1].overall_level.value,
+            "total_checks": len(self.check_history),
+            "red_alerts": red_count,
+            "yellow_alerts": yellow_count,
+            "fallback_triggered": fallback_count,
+            "fallback_ratio": fallback_count / len(self.check_history),
+            "latest_level": self.check_history[-1].overall_level.value,
         }

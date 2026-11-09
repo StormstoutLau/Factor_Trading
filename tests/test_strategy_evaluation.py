@@ -77,9 +77,27 @@ class TestFactorStatsCalculator:
 class TestStrategyEvaluator:
     def test_rank_strategies(self):
         results = {
-            "s1": {"performance_metrics": {"sharpe_ratio": 1.5, "total_return": 0.2, "max_drawdown": -0.1}},
-            "s2": {"performance_metrics": {"sharpe_ratio": 1.0, "total_return": 0.15, "max_drawdown": -0.05}},
-            "s3": {"performance_metrics": {"sharpe_ratio": 2.0, "total_return": 0.1, "max_drawdown": -0.2}},
+            "s1": {
+                "performance_metrics": {
+                    "sharpe_ratio": 1.5,
+                    "total_return": 0.2,
+                    "max_drawdown": -0.1,
+                }
+            },
+            "s2": {
+                "performance_metrics": {
+                    "sharpe_ratio": 1.0,
+                    "total_return": 0.15,
+                    "max_drawdown": -0.05,
+                }
+            },
+            "s3": {
+                "performance_metrics": {
+                    "sharpe_ratio": 2.0,
+                    "total_return": 0.1,
+                    "max_drawdown": -0.2,
+                }
+            },
         }
         evaluator = StrategyEvaluator(results)
         ranked = evaluator.rank_strategies()
@@ -103,7 +121,13 @@ class TestStrategyEvaluator:
 
     def test_generate_evaluation_report(self):
         results = {
-            "s1": {"performance_metrics": {"sharpe_ratio": 1.5, "total_return": 0.2, "max_drawdown": -0.1}},
+            "s1": {
+                "performance_metrics": {
+                    "sharpe_ratio": 1.5,
+                    "total_return": 0.2,
+                    "max_drawdown": -0.1,
+                }
+            },
         }
         evaluator = StrategyEvaluator(results)
         report = evaluator.generate_evaluation_report()

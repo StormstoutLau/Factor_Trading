@@ -162,7 +162,9 @@ class TWAPStrategy(BaseOrderStrategy):
 
         order.filled_qty += qty_this_time
         order.remaining_qty -= qty_this_time
-        order.avg_price = (order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time) / order.filled_qty
+        order.avg_price = (
+            order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time
+        ) / order.filled_qty
         order.fill_timestamps.append(timestamp)
 
         amount = qty_this_time * trade_price
@@ -241,7 +243,9 @@ class VWAPStrategy(BaseOrderStrategy):
 
         order.filled_qty += qty_this_time
         order.remaining_qty -= qty_this_time
-        order.avg_price = (order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time) / order.filled_qty
+        order.avg_price = (
+            order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time
+        ) / order.filled_qty
         order.fill_timestamps.append(timestamp)
         self.current_idx += 1
 
@@ -310,7 +314,9 @@ class IcebergStrategy(BaseOrderStrategy):
 
         order.filled_qty += qty_this_time
         order.remaining_qty -= qty_this_time
-        order.avg_price = (order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time) / order.filled_qty
+        order.avg_price = (
+            order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time
+        ) / order.filled_qty
         order.fill_timestamps.append(timestamp)
 
         amount = qty_this_time * trade_price
@@ -366,4 +372,3 @@ class MarketImpactModel:
 
         total_impact = temporary_impact + permanent_impact
         return min(total_impact, 0.1)  # 上限 10%
-

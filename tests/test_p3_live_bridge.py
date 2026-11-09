@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-
 # ============================================================================
 # P3.1.1: LiveTradingBridge 抽象基类
 # ============================================================================
@@ -43,27 +42,21 @@ class TestLiveTradingBridgeInterface(unittest.TestCase):
         from core.live_bridge import LiveTradingBridge
 
         self.assertTrue(hasattr(LiveTradingBridge, "place_intents"))
-        self.assertTrue(
-            getattr(LiveTradingBridge.place_intents, "__isabstractmethod__", False)
-        )
+        self.assertTrue(getattr(LiveTradingBridge.place_intents, "__isabstractmethod__", False))
 
     def test_bridge_defines_cancel_orders(self):
         """定义 cancel_orders 抽象方法"""
         from core.live_bridge import LiveTradingBridge
 
         self.assertTrue(hasattr(LiveTradingBridge, "cancel_orders"))
-        self.assertTrue(
-            getattr(LiveTradingBridge.cancel_orders, "__isabstractmethod__", False)
-        )
+        self.assertTrue(getattr(LiveTradingBridge.cancel_orders, "__isabstractmethod__", False))
 
     def test_bridge_defines_sync_positions(self):
         """定义 sync_positions 抽象方法"""
         from core.live_bridge import LiveTradingBridge
 
         self.assertTrue(hasattr(LiveTradingBridge, "sync_positions"))
-        self.assertTrue(
-            getattr(LiveTradingBridge.sync_positions, "__isabstractmethod__", False)
-        )
+        self.assertTrue(getattr(LiveTradingBridge.sync_positions, "__isabstractmethod__", False))
 
     def test_bridge_defines_query_order_status(self):
         """定义 query_order_status 抽象方法"""

@@ -162,6 +162,8 @@ def create_default_engine(config: BacktestConfig) -> 'BacktestEngineV2':
 
 **策略**: 暂不重排，避免让 style 改动混入功能 diff。约束：新增文件必须 black-clean；遗留文件只在专门的 style-only 提交中整体重排（执行前锁定 black 版本，重排后跑全量测试，再考虑加入 CI 阻断项）。触发条件：当前 CRITICAL 修复提交完成后，选择无在途分支的窗口执行。
 
+**TD-9 已完成（2026-11-09，P-003）**: 在独立 style-only 窗口中执行全量重排。实测范围较上文修订——门禁口径 `core tests` 实为 **77 文件**（72 需重排 / 5 合规），全仓 `black .` 范围 **135 文件**（**126 需重排** / 9 合规；上文「79 文件 / 7,872 行」为当时口径，实测改动 **+11145 / −10054**）。执行内容：① `black .` 重排 126 文件；② dev 依赖 `black>=23.0.0` → **`black~=26.0`**（依据 black 官方同年度稳定性政策）；③ 门禁命令 `black --check core tests` → **`black --check .`** 并首次转绿；④ 新增 `.git-blame-ignore-revs` 保持历史 blame 可追溯。**验证**：全量 `507 passed` 零回归；**125/125 文件 AST 等价**（docstring 行尾空白归一化后，唯一差异类型）；mypy `119 errors` 未劣化。**未纳入**：CI 仍无 black step（`[未在 CI 覆盖]`），格式合规由本地门禁守护。详见 [CHECKLIST_td9_black.md](CHECKLIST_td9_black.md)。
+
 ---
 
 ## 3. 外部调研

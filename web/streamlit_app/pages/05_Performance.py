@@ -12,7 +12,9 @@ import numpy as np
 
 
 def render() -> None:
-    st.markdown('<div class="section-header">📈 Performance Analytics</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">📈 Performance Analytics</div>', unsafe_allow_html=True
+    )
 
     # ── Key Metrics ───────────────────────────────────────────────────────────
     col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -28,12 +30,15 @@ def render() -> None:
 
     for col, (label, value, cls) in zip([col1, col2, col3, col4, col5, col6], metrics):
         with col:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="metric-card" style="text-align:center;">
                 <div class="metric-label">{label}</div>
                 <div class="metric-value" style="font-size:20px; color:{'#10b981' if cls == 'positive' else '#ef4444'};">{value}</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
     # ── Equity Curve ──────────────────────────────────────────────────────────
     st.markdown("### 📈 Equity Curve")
@@ -57,9 +62,7 @@ def render() -> None:
     heatmap_df = pd.DataFrame(data, index=years, columns=months)
 
     st.dataframe(
-        heatmap_df.style.background_gradient(
-            cmap="RdYlGn", axis=None
-        ).format("{:.1%}"),
+        heatmap_df.style.background_gradient(cmap="RdYlGn", axis=None).format("{:.1%}"),
         use_container_width=True,
     )
 
@@ -69,21 +72,25 @@ def render() -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        attribution = pd.DataFrame({
-            "Component": ["Industry Allocation", "Stock Selection", "Interaction"],
-            "Contribution": ["+2.3%", "+5.8%", "-0.5%"],
-            "Weight": ["40%", "55%", "5%"],
-        })
+        attribution = pd.DataFrame(
+            {
+                "Component": ["Industry Allocation", "Stock Selection", "Interaction"],
+                "Contribution": ["+2.3%", "+5.8%", "-0.5%"],
+                "Weight": ["40%", "55%", "5%"],
+            }
+        )
         st.dataframe(attribution, use_container_width=True, hide_index=True)
 
     with col2:
         st.markdown("### Drawdown Analysis")
-        dd_data = pd.DataFrame({
-            "Period": ["2022-Q1", "2022-Q3", "2023-Q4"],
-            "Drawdown": ["-12.3%", "-8.5%", "-5.2%"],
-            "Duration": ["45 days", "28 days", "15 days"],
-            "Recovery": ["60 days", "35 days", "20 days"],
-        })
+        dd_data = pd.DataFrame(
+            {
+                "Period": ["2022-Q1", "2022-Q3", "2023-Q4"],
+                "Drawdown": ["-12.3%", "-8.5%", "-5.2%"],
+                "Duration": ["45 days", "28 days", "15 days"],
+                "Recovery": ["60 days", "35 days", "20 days"],
+            }
+        )
         st.dataframe(dd_data, use_container_width=True, hide_index=True)
 
     # ── Performance Over Time ─────────────────────────────────────────────────
@@ -94,10 +101,12 @@ def render() -> None:
     rolling_dates = pd.date_range("2024-04-01", periods=190, freq="B")
     np.random.seed(456)
     rolling_sharpe = np.random.normal(1.5, 0.5, 190)
-    rolling_df = pd.DataFrame({
-        "date": rolling_dates,
-        f"Sharpe ({rolling_window}d)": rolling_sharpe,
-    }).set_index("date")
+    rolling_df = pd.DataFrame(
+        {
+            "date": rolling_dates,
+            f"Sharpe ({rolling_window}d)": rolling_sharpe,
+        }
+    ).set_index("date")
 
     st.line_chart(rolling_df, use_container_width=True, color="#8b5cf6")
 
@@ -107,27 +116,38 @@ def render() -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="metric-card">
             <div class="metric-label">Total Trades</div>
             <div class="metric-value" style="font-size:20px;">1,247</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="metric-card">
             <div class="metric-label">Win Rate</div>
             <div class="metric-value positive" style="font-size:20px;">58.2%</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col3:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="metric-card">
             <div class="metric-label">Avg Holding</div>
             <div class="metric-value" style="font-size:20px;">22 days</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.caption("Performance analytics are computed from backtest results. Run a backtest to populate real data.")
+    st.caption(
+        "Performance analytics are computed from backtest results. Run a backtest to populate real data."
+    )

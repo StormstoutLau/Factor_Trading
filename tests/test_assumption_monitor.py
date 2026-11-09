@@ -32,10 +32,10 @@ from agents.assumption_monitor import (
     AssumptionMonitorLayer,
 )
 
-
 # ============================================================
 # 辅助函数
 # ============================================================
+
 
 def generate_stationary_returns(n_days: int, n_strategies: int, seed: int = 42) -> list[np.ndarray]:
     """生成平稳收益序列"""
@@ -44,21 +44,25 @@ def generate_stationary_returns(n_days: int, n_strategies: int, seed: int = 42) 
     return [r for r in returns]
 
 
-def generate_nonstationary_returns(n_days: int, n_strategies: int, seed: int = 42) -> list[np.ndarray]:
+def generate_nonstationary_returns(
+    n_days: int, n_strategies: int, seed: int = 42
+) -> list[np.ndarray]:
     """生成非平稳收益序列（中期均值突变）"""
     rng = np.random.RandomState(seed)
     returns = np.zeros((n_days, n_strategies))
-    returns[:n_days//2] = rng.normal(0.001, 0.01, (n_days//2, n_strategies))
-    returns[n_days//2:] = rng.normal(0.005, 0.02, (n_days - n_days//2, n_strategies))  # 突变
+    returns[: n_days // 2] = rng.normal(0.001, 0.01, (n_days // 2, n_strategies))
+    returns[n_days // 2 :] = rng.normal(0.005, 0.02, (n_days - n_days // 2, n_strategies))  # 突变
     return [r for r in returns]
 
 
-def generate_correlated_returns(n_days: int, n_strategies: int, correlation: float, seed: int = 42) -> list[np.ndarray]:
+def generate_correlated_returns(
+    n_days: int, n_strategies: int, correlation: float, seed: int = 42
+) -> list[np.ndarray]:
     """生成具有特定相关结构的收益"""
     rng = np.random.RandomState(seed)
     cov = np.eye(n_strategies) * 0.0001
     for i in range(n_strategies):
-        for j in range(i+1, n_strategies):
+        for j in range(i + 1, n_strategies):
             cov[i, j] = cov[j, i] = correlation * 0.0001
     returns = rng.multivariate_normal(np.zeros(n_strategies), cov, n_days)
     return [r for r in returns]
@@ -68,6 +72,7 @@ def generate_correlated_returns(n_days: int, n_strategies: int, correlation: flo
 # 测试 1: ReturnDistributionMonitor
 # ============================================================
 
+
 def test_return_distribution_monitor_stationary():
     """测试平稳数据不应触发警报"""
     print("\n" + "=" * 60)
@@ -75,10 +80,7 @@ def test_return_distribution_monitor_stationary():
     print("=" * 60)
 
     monitor = ReturnDistributionMonitor(
-        cusum_threshold=2.0,
-        window_size=30,
-        t_test_threshold=2.5,
-        kpss_threshold=0.05
+        cusum_threshold=2.0, window_size=30, t_test_threshold=2.5, kpss_threshold=0.05
     )
 
     returns = generate_stationary_returns(100, 3)
@@ -102,10 +104,7 @@ def test_return_distribution_monitor_nonstationary():
     print("=" * 60)
 
     monitor = ReturnDistributionMonitor(
-        cusum_threshold=1.0,
-        window_size=20,
-        t_test_threshold=2.0,
-        kpss_threshold=0.05
+        cusum_threshold=1.0, window_size=20, t_test_threshold=2.0, kpss_threshold=0.05
     )
 
     returns = generate_nonstationary_returns(100, 3)
@@ -165,6 +164,7 @@ def test_cusum_detection():
 # 测试 4: CorrelationStructureMonitor
 # ============================================================
 
+
 def test_correlation_structure_monitor():
     """测试相关结构变化检测"""
     print("\n" + "=" * 60)
@@ -174,7 +174,7 @@ def test_correlation_structure_monitor():
     monitor = CorrelationStructureMonitor(
         window_size=30,
         eigenvalue_change_threshold=1.0,  # 降低阈值便于检测
-        condition_number_threshold=50.0
+        condition_number_threshold=50.0,
     )
 
     # 前80天低相关，后80天高相关（更多数据使变化更明显）
@@ -207,8 +207,7 @@ def test_condition_number_monitor():
     print("=" * 60)
 
     monitor = CorrelationStructureMonitor(
-        window_size=30,
-        condition_number_threshold=10.0  # 较低阈值便于测试
+        window_size=30, condition_number_threshold=10.0  # 较低阈值便于测试
     )
 
     # 高度相关的收益
@@ -229,6 +228,7 @@ def test_condition_number_monitor():
 # 测试 6: TurnoverMonitor
 # ============================================================
 
+
 def test_turnover_monitor():
     """测试换手率异常检测"""
     print("\n" + "=" * 60)
@@ -236,9 +236,7 @@ def test_turnover_monitor():
     print("=" * 60)
 
     monitor = TurnoverMonitor(
-        turnover_percentile=95.0,
-        entropy_drop_threshold=0.3,
-        min_effective_count=1.5
+        turnover_percentile=95.0, entropy_drop_threshold=0.3, min_effective_count=1.5
     )
 
     # 正常权重变化
@@ -254,7 +252,7 @@ def test_turnover_monitor():
 
     checks = []
     for i, w in enumerate(weights_history):
-        prev = weights_history[i-1] if i > 0 else None
+        prev = weights_history[i - 1] if i > 0 else None
         checks.extend(monitor.check(w, prev))
 
     # 检测突然变化
@@ -307,16 +305,14 @@ def test_entropy_drop():
 # 测试 8: BayesianModelMonitor
 # ============================================================
 
+
 def test_bayesian_model_monitor():
     """测试贝叶斯模型监控"""
     print("\n" + "=" * 60)
     print("测试 8: BayesianModelMonitor")
     print("=" * 60)
 
-    monitor = BayesianModelMonitor(
-        ppc_outlier_threshold=0.05,
-        loglikelihood_drop_threshold=1.0
-    )
+    monitor = BayesianModelMonitor(ppc_outlier_threshold=0.05, loglikelihood_drop_threshold=1.0)
 
     # 生成收益和预测
     rng = np.random.RandomState(42)
@@ -354,12 +350,7 @@ def test_innovation_ljung_box():
         innovations[0].append(prev)
 
     returns_history = [np.array([0.0]) for _ in range(100)]
-    checks = monitor.check(
-        returns_history,
-        np.array([0.0]),
-        np.array([0.01]),
-        innovations
-    )
+    checks = monitor.check(returns_history, np.array([0.0]), np.array([0.01]), innovations)
 
     lb_checks = [c for c in checks if "创新序列" in c.name]
     print(f"  Ljung-Box警报数: {len(lb_checks)}")
@@ -375,16 +366,14 @@ def test_innovation_ljung_box():
 # 测试 10: UniversalMonitor
 # ============================================================
 
+
 def test_universal_monitor():
     """测试通用指标监控"""
     print("\n" + "=" * 60)
     print("测试 10: UniversalMonitor")
     print("=" * 60)
 
-    monitor = UniversalMonitor(
-        regret_window=20,
-        max_regret_growth_rate=0.0001
-    )
+    monitor = UniversalMonitor(regret_window=20, max_regret_growth_rate=0.0001)
 
     # 模拟：组合始终落后于最佳策略
     rng = np.random.RandomState(42)
@@ -418,16 +407,14 @@ def test_universal_monitor():
 # 测试 11: AssumptionMonitorLayer 集成
 # ============================================================
 
+
 def test_assumption_monitor_layer():
     """测试假设检验层集成"""
     print("\n" + "=" * 60)
     print("测试 11: AssumptionMonitorLayer 集成")
     print("=" * 60)
 
-    layer = AssumptionMonitorLayer(
-        n_strategies=3,
-        fallback_strategy="equal_weight"
-    )
+    layer = AssumptionMonitorLayer(n_strategies=3, fallback_strategy="equal_weight")
 
     rng = np.random.RandomState(42)
 
@@ -451,12 +438,12 @@ def test_assumption_monitor_layer():
 
     if state.should_fallback:
         print(f"  退化权重: {state.fallback_weights}")
-        assert np.allclose(state.fallback_weights, np.ones(3)/3), "退化应为等权"
+        assert np.allclose(state.fallback_weights, np.ones(3) / 3), "退化应为等权"
 
     # 验证摘要
     summary = layer.get_summary()
     print(f"  监控摘要: {summary}")
-    assert summary['total_checks'] == 40
+    assert summary["total_checks"] == 40
 
     print("  ✓ 集成测试通过")
 
@@ -467,21 +454,20 @@ def test_risk_parity_fallback():
     print("测试 12: 风险平价退化")
     print("=" * 60)
 
-    layer = AssumptionMonitorLayer(
-        n_strategies=3,
-        fallback_strategy="risk_parity"
-    )
+    layer = AssumptionMonitorLayer(n_strategies=3, fallback_strategy="risk_parity")
 
     # 生成不同波动率的收益
     rng = np.random.RandomState(42)
     for _ in range(30):
         # 策略1低波动，策略2高波动
-        ret = np.array([
-            rng.normal(0.001, 0.005),
-            rng.normal(0.001, 0.02),
-            rng.normal(0.001, 0.01),
-        ])
-        layer.monitor(np.ones(3)/3, ret)
+        ret = np.array(
+            [
+                rng.normal(0.001, 0.005),
+                rng.normal(0.001, 0.02),
+                rng.normal(0.001, 0.01),
+            ]
+        )
+        layer.monitor(np.ones(3) / 3, ret)
 
     fallback = layer._get_fallback_weights()
     print(f"  风险平价退化权重: {fallback}")
@@ -496,6 +482,7 @@ def test_risk_parity_fallback():
 # 测试 13: 退化机制触发与恢复
 # ============================================================
 
+
 def test_fallback_and_recovery():
     """测试退化触发后的权重回退"""
     print("\n" + "=" * 60)
@@ -509,7 +496,7 @@ def test_fallback_and_recovery():
         enable_turnover_monitor=True,
         enable_bayesian_monitor=False,
         enable_universal_monitor=False,
-        fallback_strategy="equal_weight"
+        fallback_strategy="equal_weight",
     )
 
     rng = np.random.RandomState(42)
@@ -548,6 +535,7 @@ def test_fallback_and_recovery():
 # ============================================================
 # 主测试入口
 # ============================================================
+
 
 def run_all_tests():
     """运行所有测试"""

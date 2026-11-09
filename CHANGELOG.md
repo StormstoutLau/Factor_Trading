@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README**: Quick Start 增加 `python examples/demo.py` 数据生成步骤；测试统计更新为 503 passed / 49 files
 - **CODE_WIKI**: 数据格式表复权因子文件名改为 `stock_adj.pkl`
 - **仓库卫生**: `memory/` 加入 `.gitignore` 并移出版本跟踪（本地 8 个 JSON 保留）；`conversation/` 7 个文件归档至 `docs/archive/conversation/`，`archive/` 忽略规则收窄为根级 `/archive/`
+- **代码格式基线（TD-9 / P-003）**: `black` 全量重排 **126 个 Python 文件**（`core/`、`tests/`、`examples/`、`agents/`、`filter/`、`web/` 等 14 路径），纯格式变更——125 个文件经 AST 等价性机械验证（唯一差异为 docstring 行尾空白清理，`__doc__` 相关断言均为子串匹配不受影响），全量 `507 passed` 零回归；`black` 版本由 `>=23.0.0` 锁定为 `~=26.0`（black 官方同年度格式稳定性政策）；`black-check` 门禁命令由 `black --check core tests` 扩展为 `black --check .` 并**首次转绿**；新增 `.git-blame-ignore-revs` 保持历史 blame 可追溯（需本地 `git config blame.ignoreRevsFile .git-blame-ignore-revs` 启用）。**已知未覆盖**：CI 仍未加入格式校验步骤
 
 ### Removed
 - **旧版过滤器**: 移除 `filter/universe.py`（生产零引用，`filter/__init__.py` 早已导出 clean 版）；2 个测试的导入迁移至 `filter.universe_filter_clean`
