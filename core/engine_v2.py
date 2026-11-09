@@ -53,7 +53,7 @@ from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
 from core.tracker import PositionTracker
 from filter.limit_rules import RULESET_VERSION
-from filter.universe_filter_clean import UniverseFilter
+from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,9 @@ class BacktestEngineV2:
             logger.info("使用注入的股票池过滤器")
         else:
             logger.info("创建默认股票池过滤器...")
-            self.universe = UniverseFilter(self.dm, self.cfg.universe)
+            self.universe = UniverseFilter(
+                self.dm, UniverseFilterConfig.from_universe_config(self.cfg.universe)
+            )
         self.universe.build_masks()
 
         # 3. 因子处理管道

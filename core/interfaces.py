@@ -48,12 +48,12 @@ class IDataManager(Protocol):
         """收益率矩阵"""
         ...
 
-    def get_adj_price(self, price_type: str, adjustment: str = "forward") -> pd.DataFrame:
+    def get_adj_price(self, price_type: str, adjustment: str = "hfq") -> pd.DataFrame:
         """获取复权价格
 
         Args:
             price_type: 价格类型 ('open' | 'high' | 'low' | 'close')
-            adjustment: 复权类型 ('forward' | 'backward' | 'none')
+            adjustment: 复权类型 ('raw' | 'hfq' | 'qfq'；旧名 forward/backward/none 已弃用)
 
         Returns:
             价格DataFrame (dates x stocks)
@@ -145,10 +145,6 @@ class IFactorPipeline(Protocol):
         """
         ...
 
-    def process_single(self, series: pd.Series) -> pd.Series:
-        """处理单期因子"""
-        ...
-
 
 class IFactorCombiner(Protocol):
     """因子合成器接口
@@ -165,10 +161,6 @@ class IFactorCombiner(Protocol):
         Returns:
             合成信号DataFrame
         """
-        ...
-
-    def combine_single(self, daily_factors: dict[str, pd.Series]) -> pd.Series:
-        """合成单期因子"""
         ...
 
 
@@ -223,8 +215,11 @@ class IExecutionSimulator(Protocol):
         side: Any,  # OrderSide
         quantity: int,
         date: pd.Timestamp,
-        price: float,
-        **kwargs,
+        open_price: float,
+        close_price: Optional[float] = None,
+        high_price: Optional[float] = None,
+        low_price: Optional[float] = None,
+        volume: Optional[float] = None,
     ) -> tuple[bool, Optional[Any]]:  # (success, Trade)
         """执行订单
 
@@ -233,7 +228,11 @@ class IExecutionSimulator(Protocol):
             side: 买卖方向
             quantity: 数量
             date: 交易日期
-            price: 执行价格
+            open_price: 开盘价（作为基准执行价）
+            close_price: 收盘价（可选，用于对比校验）
+            high_price: 最高价（可选，VWAP）
+            low_price: 最低价（可选，VWAP）
+            volume: 成交量（可选，VWAP）
 
         Returns:
             (是否成功, 交易记录)
@@ -442,8 +441,8 @@ class AbstractDataManager(ABC):
     def stock_codes(self) -> list[str]: ...
 
     @abstractmethod
-    def get_adj_price(self, price_type: str, adjustment: str = "forward") -> pd.DataFrame:
-        """获取复权价格 (forward/backward/none)"""
+    def get_adj_price(self, price_type: str, adjustment: str = "hfq") -> pd.DataFrame:
+        """获取复权价格 (raw/hfq/qfq；旧名 forward/backward/none 已弃用)"""
         ...
 
     @abstractmethod
@@ -480,7 +479,16 @@ class AbstractExecutionSimulator(ABC):
 
     @abstractmethod
     def execute_order(
-        self, stock: str, side: Any, quantity: int, date: pd.Timestamp, price: float, **kwargs
+        self,
+        stock: str,
+        side: Any,
+        quantity: int,
+        date: pd.Timestamp,
+        open_price: float,
+        close_price: Optional[float] = None,
+        high_price: Optional[float] = None,
+        low_price: Optional[float] = None,
+        volume: Optional[float] = None,
     ) -> tuple[bool, Optional[Any]]: ...
 
 

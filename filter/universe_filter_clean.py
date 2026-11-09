@@ -58,6 +58,37 @@ class UniverseFilterConfig:
     enable_custom_filters: bool = False
     custom_filter_configs: Dict[str, Any] = field(default_factory=dict)
 
+    @classmethod
+    def from_universe_config(cls, cfg: Any) -> "UniverseFilterConfig":
+        """由 ``core.config.UniverseConfig`` 显式转换 21 字段（D11 / F-I5）。
+
+        禁止 ``asdict`` 盲拷：源 ``exclude_stock_prefixes`` 为 ``list[str]``，
+        目标为 ``bool``（前缀列表在 ``excluded_prefixes``）。
+        """
+        return cls(
+            exclude_suspended=cfg.exclude_suspended,
+            exclude_limit_up=cfg.exclude_limit_up,
+            exclude_limit_down=cfg.exclude_limit_down,
+            exclude_st=cfg.exclude_st,
+            check_next_day_tradable=cfg.check_next_day_tradable,
+            limit_up_threshold=cfg.limit_up_threshold,
+            limit_down_threshold=cfg.limit_down_threshold,
+            st_limit_up_threshold=cfg.st_limit_up_threshold,
+            st_limit_down_threshold=cfg.st_limit_down_threshold,
+            exclude_na_factors=cfg.exclude_na_factors,
+            na_factor_names=list(cfg.na_factor_names),
+            na_threshold=cfg.na_threshold,
+            exclude_stock_prefixes=bool(cfg.exclude_stock_prefixes),
+            excluded_prefixes=list(cfg.excluded_prefixes),
+            exclude_by_market_cap=cfg.exclude_by_market_cap,
+            min_market_cap=cfg.min_market_cap,
+            max_market_cap=cfg.max_market_cap,
+            exclude_industries=cfg.exclude_industries,
+            excluded_industries=list(cfg.excluded_industries),
+            enable_custom_filters=cfg.enable_custom_filters,
+            custom_filter_configs=dict(cfg.custom_filter_configs),
+        )
+
 
 class UniverseFilter:
     """股票池过滤器 - 清理版本"""
