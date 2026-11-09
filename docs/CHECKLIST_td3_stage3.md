@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_td3_stage3
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-09
-> **状态**: 已完成（Step 9 红→绿 + Step 10 ADD 审计 **全过**，2026-11-09；43/43 达成，P1/P2 = 0；已提交 `ccd0c98`）
+> **状态**: 已完成（Step 9 红→绿 + Step 10 ADD 审计 **全过**，2026-11-09；43/43 达成，P1/P2 = 0；提交 `ccd0c98`；远端 CI run `42598775895` 三版本全绿）
 > **上游**: [DESIGN_td3_stage3.md](DESIGN_td3_stage3.md)（Step 4 通过，含 D1-D7） · [IMPL_td3_stage3.md](IMPL_td3_stage3.md)（Step 6 通过）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在远端执行]` / `[未入仓-不可重放]` / `[未取证]`。
 > **解释器**: Python 3.12.10（F-R5）；`MPLBACKEND=Agg`
@@ -40,7 +40,7 @@
 | B5 | 红→绿记录完整：RED ≥6 条、GREEN ≥9 条，逐条读数写入 §10 | §10 表 + session | SPEC_PROCESS Step 9；F5 | ✅ §10：**RED 6 条 + GREEN 9 条**，逐条贴读数 |
 | B6 | 保留的 golden 测试仍通过：`test_g1_engine_v2_liquidates_exited_positions` / `test_g4_no_hidden_leverage` / `test_g5_sells_precede_buys` | pytest 定向输出（`-k 'g1 or g4 or g5'`） | DESIGN D3；R2 | ✅ **`3 passed, 9 deselected in 2.61s`** |
 | B7 | 无新增测试文件、无临时探针残留 | `git status --short` 仅本批目标文件；`%TEMP%` 无 p001 残留 | IMPL §7 | ✅ `git status` 共 **25 项** = 18 M + 3 D + 4 未跟踪（均为本批文档/目标文件，无新增测试）；`%TEMP%` `*p001*` = **0** |
-| B8 | 本地 numba 7 项仍执行；CI 500 passed + 1 skipped 为推演 | 本地 pytest；远端项标 `[未在远端执行]` | DESIGN §1.1；R8 | ✅ `-k numba` = **`7 passed, 500 deselected`**；远端 3.10/3.11/3.12 `500 passed, 1 skipped` **`[未在远端执行]`**（推演） |
+| B8 | 本地 numba 7 项仍执行；CI 500 passed + 1 skipped 为推演 | 本地 pytest；远端项标 `[未在远端执行]` | DESIGN §1.1；R8 | ✅ 本地 `-k numba` = **`7 passed, 500 deselected`**；远端 run `42598775895` 实测 3.10/3.11/3.12 各 **`500 passed, 1 skipped`**（推演转为实测） |
 | B9 | 测试计数算式可复核：全量 collect = 507；`509 − 2 = 507` | 全量 `--collect-only -q` 计数 | DESIGN §5.3 | ✅ 全量执行读数 507 / 509 − g2 − g3 = **507** 一致 |
 
 ## 3. 性能与资源
@@ -115,7 +115,7 @@
 | 静态读码（E3，须绑 commit hash） | A4、A7、F2、F3 | ✅ 绑定 `ccd0c98`：A4 `full_backtest_2020_2026_simple.py:14/87/104`、A7 `test_compatibility.py:48`、F2/F3 门禁读数 |
 | 门禁 session + `replay`（E1） | §7 四行、B5 | ✅ seq 6-9 + `replay: 9 rows OK` |
 | 盲区扫描（E4，范围：全部修改文件 diff + 新增文档） | 无设计外改动 | **发现 1 项**（README L359，已修 → F-9-2）；其余 0 项 |
-| 远端 CI（如执行） | U-007 回归基线 | `[未在远端执行]`（本批不强制） |
+| 远端 CI（如执行） | 全量回归基线 | ✅ 已执行：run [`42598775895`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42598775895) @ `35427f0`，3.10/3.11/3.12 **三 job success**，每版 **`500 passed, 1 skipped`**（与推演逐字一致） |
 
 ## 9. Step 8 一致性 Review（独立校验 pass，2026-11-09）
 
@@ -267,7 +267,8 @@
 | 门禁 verdict | **2 pass + 2 expected-fail**；`replay: 9 rows OK` |
 | U 项 | **U-003 已关闭**（Step 1 实测 10 个导入文件）；无新增 U 项 |
 | P-001 状态 | **done**（2026-11-09；Step 1-10 全通过；已提交 `ccd0c98`，E3 证据已绑该 hash） |
-| 遗留 | 远端 CI 3.10/3.11/3.12 未执行（本批不强制，推演 `500 passed, 1 skipped`）；5 个 examples 运行时依赖 `E:/Ashare_data`，`[未在 CI 执行]` |
+| 远端 CI | ✅ run [`42598775895`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42598775895) @ `35427f0` 三版本全绿，每版 `500 passed, 1 skipped`，与「507 − 7 numba」推演逐字一致 |
+| 遗留 | 5 个 examples 运行时依赖 `E:/Ashare_data`，`[未在 CI 执行]`；`demo.py` 已本地端到端验证 |
 
 ---
 
