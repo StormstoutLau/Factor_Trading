@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_td3_stage3
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-09
-> **状态**: 已完成（Step 9 红→绿 + Step 10 ADD 审计 **全过**，2026-11-09；43/43 达成，P1/P2 = 0；工作区未提交）
+> **状态**: 已完成（Step 9 红→绿 + Step 10 ADD 审计 **全过**，2026-11-09；43/43 达成，P1/P2 = 0；已提交 `ccd0c98`）
 > **上游**: [DESIGN_td3_stage3.md](DESIGN_td3_stage3.md)（Step 4 通过，含 D1-D7） · [IMPL_td3_stage3.md](IMPL_td3_stage3.md)（Step 6 通过）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在远端执行]` / `[未入仓-不可重放]` / `[未取证]`。
 > **解释器**: Python 3.12.10（F-R5）；`MPLBACKEND=Agg`
@@ -112,7 +112,7 @@
 | `git diff --stat` / `git status` / `git ls-files`（E1） | A1-A9、C3、C4、D6、E1、E2、E6、F1、F4、F5 | ✅ 保护路径空 / 历史空 / 净删除 1245 / 未跟踪 4 文档 / stale pyc 0 |
 | `Select-String` / `Grep` 机械检索（E1） | A2-A4、A6、A8、D1、D2、D4 | ✅ 计数逐项贴于实测列（A2=0、A3=5/6/0、A6=0、A8=5、D1=1、D2=0、D4=0/4） |
 | 子进程 exit code（E1） | A10、E3、E4、E5 | ✅ demo 0 / cli 0 / import 1 / py_compile 0 |
-| 静态读码（E3，须绑 commit hash） | A4、A7、F2、F3 | ✅ 工作区 @ `696bd7b` 基线之上（本批未提交 → 待提交后绑 hash） |
+| 静态读码（E3，须绑 commit hash） | A4、A7、F2、F3 | ✅ 绑定 `ccd0c98`：A4 `full_backtest_2020_2026_simple.py:14/87/104`、A7 `test_compatibility.py:48`、F2/F3 门禁读数 |
 | 门禁 session + `replay`（E1） | §7 四行、B5 | ✅ seq 6-9 + `replay: 9 rows OK` |
 | 盲区扫描（E4，范围：全部修改文件 diff + 新增文档） | 无设计外改动 | **发现 1 项**（README L359，已修 → F-9-2）；其余 0 项 |
 | 远端 CI（如执行） | U-007 回归基线 | `[未在远端执行]`（本批不强制） |
@@ -266,7 +266,7 @@
 | 阻断项 | **0**（P1/P2 = 0） |
 | 门禁 verdict | **2 pass + 2 expected-fail**；`replay: 9 rows OK` |
 | U 项 | **U-003 已关闭**（Step 1 实测 10 个导入文件）；无新增 U 项 |
-| P-001 状态 | **done**（2026-11-09；Step 1-10 全通过；**工作区未提交**，提交后需将 §8 E3 行绑定 commit hash） |
+| P-001 状态 | **done**（2026-11-09；Step 1-10 全通过；已提交 `ccd0c98`，E3 证据已绑该 hash） |
 | 遗留 | 远端 CI 3.10/3.11/3.12 未执行（本批不强制，推演 `500 passed, 1 skipped`）；5 个 examples 运行时依赖 `E:/Ashare_data`，`[未在 CI 执行]` |
 
 ---
