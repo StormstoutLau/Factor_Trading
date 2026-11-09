@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_p007_mypy_layerb
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 10 ADD 审计通过**（2026-11-10；mypy **0**、盲区 8、`516 passed`、black 全绿、门禁 4 gate pass + `replay 4 rows OK`；53/54 ✅，F7 远端 CI 待推送后回填）
+> **状态**: **Step 1-10 全通过**（2026-11-10；**54/54 ✅**；P1/P2 = 0；主提交 `05af52f`；远端 CI run `42666962752` 三 job 全绿）
 > **上游**: [DESIGN_p007_mypy_layerb.md](DESIGN_p007_mypy_layerb.md)（Step 4 通过，D1-D9 / V1-V12） · [IMPL_p007_mypy_layerb.md](IMPL_p007_mypy_layerb.md)（Step 6 通过，T-0~T-8 / F-I1~F-I4）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；**「实测」列一律 `[待 Step 9]`，禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`。
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；测试命令加 `MPLBACKEND=Agg`
@@ -96,8 +96,8 @@
 | F3 | **U-006 仍挂起**：§2 行保留「门禁保持如实 fail」语义并注明「Q4=B 裁决（2026-11-09）；门禁已机械转 pass，但本项不关闭，下一批次重评」 | 读回 PROGRESS §2 U-006 | Q4=B；DESIGN D9 | ✅ §2 U-006 已注记：门禁机械转 pass 但不关闭，口径收紧（残差 8）下一批次重评 |
 | F4 | `CHANGELOG.md` `[Unreleased] > Changed` 追加 2 条（D1 fail-fast / D3 守卫）；`Fixed` 追加 2 条（`get_snapshots` 契约 / `trade_log` 缺失声明） | 读回条目 | IMPL T-8；A7 | ✅ `Changed` 3 条（含引擎清零）/ `Fixed` 2 条，全部带（P-007 层 B）标注 |
 | F5 | 四文档（RESEARCH / DESIGN / IMPL / CHECKLIST）齐备，相对链接全部可解析 | 4 文件存在；链接校验 0 broken | 模板 §9；Step 8 | ✅ 4 文件存在；Step 8 校验 12 链接 0 broken |
-| F6 | 单笔提交，消息为 `fix(P-007): 清理引擎 mypy 93 errors（层 B）`；`git show --stat` 文件数与 E11 一致 | `git log -1 --stat` | IMPL T-8 | ✅ 按该消息单笔提交（层 A 先例 `e0247ce`+`e6ed18d` 两笔形态：本笔 = 代码 + 四文档 + 台账 + CHANGELOG；hash 于 docs 回填提交绑定） |
-| F7 | 远端 CI 三 job（3.10 / 3.11 / 3.12）全绿；pytest 读数与本地差异仅来自既有环境差异（层 A 先例：本地 510 → CI 503 passed + 1 skipped），按实际记录 | 远端 run 页面 + job 状态 + 末行 | IMPL §8 | `[待远端复核-推送后回填]` |
+| F6 | 单笔提交，消息为 `fix(P-007): 清理引擎 mypy 93 errors（层 B）`；`git show --stat` 文件数与 E11 一致 | `git log -1 --stat` | IMPL T-8 | ✅ 主提交 **`05af52f`**（11 files，`+2362/−130`：4 core + 1 测试 + 4 文档 + PROGRESS + CHANGELOG，与 E11 一致） |
+| F7 | 远端 CI 三 job（3.10 / 3.11 / 3.12）全绿；pytest 读数与本地差异仅来自既有环境差异（层 A 先例：本地 510 → CI 503 passed + 1 skipped），按实际记录 | 远端 run 页面 + job 状态 + 末行 | IMPL §8 | ✅ run [`42666962752`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42666962752) @ `05af52f` **三 job success**：3.10 `509 passed, 1 skipped`（12.96s）/ 3.11 同（15.00s）/ 3.12 同（16.18s）；本地 516 − CI 510 = 6 项差与层 A/P-010 恒定差同构（numba 模块本地 7 项执行、CI `importorskip` 计 1 skip → 净差 6），本批 2 项 smoke 在 CI 真实执行（509 = 507 + 2） |
 
 ## 7. 排除与风险（G）
 
@@ -198,7 +198,7 @@
 | pytest 既有用例（豁免路径行为，E1） | A6 + F-S9-1 语义 | ✅ `test_real_ashare_backtest` / `test_real_ashare_strict_validation` 全绿（13 用例恢复） |
 | git diff --numstat / --porcelain（E1） | D9/E11/G6/Phase 3 | ✅ 4 core（251+/128−）+ 1 新测试 + 5 docs；无其他路径改动 |
 | git diff hunk 头归属扫描（E4，扫描范围：全部 47 个 hunk / 379 改动行） | Phase 3 必要性 | **发现 0 项设计外改动**（47/47 可归属 T-1~T-6 + F-S9-1/S9-2） |
-| 静态读码行号（E3，行号随本批主提交冻结，docs 回填提交绑 hash） | Phase 1 的 D1-D9 → 代码映射 | ✅ 见 9.1 Phase 1 行号列 |
+| 静态读码行号（E3 @`05af52f`，行号随主提交冻结） | Phase 1 的 D1-D9 → 代码映射 | ✅ 见 9.1 Phase 1 行号列（如 `engine_v2.py:169-177@05af52f`） |
 | 黑盒异常行为验证（E2，场景=守卫两端：默认路径抛错 / 注入路径豁免） | A1/A2/D2 + F-S9-1 | ✅ T-B1（默认路径 `ValueError` 含 `factor_files`、`dm` 保持 None）+ 13 既有用例（豁免路径）双端验证；场景覆盖守卫正反两面，无场景选择偏差 |
 | 盲区口径复扫（E4，扫描范围：`--check-untyped-defs` 残差构成） | E3/V3 | ✅ 8 = engine_v2 6 + data_v3 2，与 F-I1 修正后预期一致；无新盲区进入门禁口径 |
 | 推测/未执行（E5） | —— | 无（本节结论不含 E5 证据） |
@@ -264,16 +264,16 @@
 | C 窄化与注解 | 7 | 7 | 0 | 0 |
 | D 测试完整性 | 6 | 6 | 0 | 0 |
 | E 验证口径 | 12 | 12 | 0 | 0 |
-| F 台账与文档 | 7 | 6 | 0 | 1 |
+| F 台账与文档 | 7 | 7 | 0 | 0 |
 | G 排除与风险 | 8 | 8 | 0 | 0 |
-| **总计** | **54** | **53** | **0** | **1** |
+| **总计** | **54** | **54** | **0** | **0** |
 
-> **统计口径（RULE-2）**：上表来自本文件逐项独立核对（54 行逐行标记），非事后汇总推算；逐行 `总数 = 通过 + 失败 + 待办` 成立，总计行按列求和成立（7+7+7+6+12+7+8 = 54；7+7+7+6+12+6+8 = 53）。唯一待办 = **F7 远端 CI**（本地无法预知，推送后于 docs 回填提交回填）。
+> **统计口径（RULE-2）**：上表来自本文件逐项独立核对（54 行逐行标记），非事后汇总推算；逐行 `总数 = 通过 + 失败 + 待办` 成立，总计行按列求和成立（7+7+7+6+12+7+8 = 54；7+7+7+6+12+7+8 = 54）。F7 已于 docs 回填提交前随远端 run `42666962752` 三 job success 闭环。
 > **通过门槛**：P1/P2 = 0 ✅（Step 1-10 累计：P1 1 项 / P2 2 项 / P3 11 项全部修复或闭环）；`mypy-check` 转 pass 属**预期**，但 U-006 仍按 Q4=B 挂起，不计为验收缺陷，也不写成「U-006 已关闭」。
 
 ### 10.2 验收决定
 
-- [x] **验收通过**：所有 P1 项通过，无阻塞性问题（53/53 可本地判定项全 ✅；F7 远端 CI 为唯一外部判据，于 docs 回填提交闭环——若 CI 异常且归因本批，则本决定按回退点 §7 撤销并重做）
+- [x] **验收通过**：所有 P1 项通过，无阻塞性问题（**54/54 全 ✅**；远端 CI run `42666962752` 三 job success 已闭环）
 
 ### 10.3 签字
 
@@ -290,6 +290,6 @@
 |------|--------|------|------|
 | Step 8 一致性 Review（独立 pass） | 单 Agent 自查 | Step 8 | ✅ 已完成（F-S1 已回写） |
 | Step 9 实施（T-0~T-8，含 RED/GREEN） | 单 Agent 自查 | Step 9 | ✅ 已完成（mypy 0 / 516 passed / black 绿 / 门禁 pass） |
-| Step 10 ADD 审计 + 台账 + 提交推送 CI | 单 Agent 自查 | Step 10 | ✅ 审计/台账/CHANGELOG/主提交完成；远端 CI 复核 → docs 回填提交 |
+| Step 10 ADD 审计 + 台账 + 提交推送 CI | 单 Agent 自查 | Step 10 | ✅ 全部完成（审计 + 台账 + 主提交 `05af52f` + CI `42666962752` 三 job 绿 + docs 回填） |
 | U-006 重评（Q4=B：下一批次启动时） | — | 下一批次 | `[挂起]`（含 U-3 残差 8 与 F-A1 豁免路径盲区一并评估） |
 | U-3 `setup()` 盲区（残差 8，另立批次） | — | 下一批次 | `[挂起]` |
