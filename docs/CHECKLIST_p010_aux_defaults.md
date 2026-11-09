@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_p010_aux_defaults
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-09
-> **状态**: 待执行（Step 8 通过后进入 Step 9）
+> **状态**: **已完成**（2026-11-09；Step 1-10 全通过，**36/36 ✅**；P1/P2 = 0；提交 `ac48a22`；远端 CI run `42620788610` 三 job 全绿）
 > **上游**: [DESIGN_p010_aux_defaults.md](DESIGN_p010_aux_defaults.md)（Step 4 通过，D1-D7 / V1-V8） · [IMPL_p010_aux_defaults.md](IMPL_p010_aux_defaults.md)（Step 6 通过，T-0~T-6 / F-I1~F-I3）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口。
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；`MPLBACKEND=Agg`
@@ -59,8 +59,8 @@
 | D2 | `docs/PROGRESS.md` §3.10 新增批次记录（T1 / 变更面 / 门禁 / 回退点） | 读回 | IMPL T-6 | ✅ §3.10 已新增（Step 1-9 全链 + 范围 + D6 声明 + 回退点） |
 | D3 | `CHANGELOG.md` `Fixed` 新增（幂等 / 类型契约 / 停牌·ST 默认值）+ `Changed` 新增（末日可交易性，D6） | 读回 | DESIGN D6/R1 | ✅ `Fixed` 首条 + `Changed` 首条均已落地 |
 | D4 | 四文档齐备、互引链接可解析 | 文件 + 链接检查 | 模板 | ✅ 4 文件齐备；链接 **11 条 0 broken**（Step 8） |
-| D5 | 单笔提交 `fix(P-010): 辅助数据缺失时提供安全默认值并幂等化加载` | `git log -1 --stat` | IMPL T-6 | [待提交] |
-| D6 | 远端 CI 三 job 全绿（3.12 `507 passed, 1 skipped` = 514 − 7 numba） | 远端 run | IMPL T-6 | [待推送] |
+| D5 | 单笔提交 `fix(P-010): 辅助数据缺失时提供安全默认值并幂等化加载` | `git log -1 --stat` | IMPL T-6 | ✅ `ac48a22`：**8 files changed, +883 −3**（1 core + 1 test + 4 文档 + PROGRESS + CHANGELOG） |
+| D6 | 远端 CI 三 job 全绿（3.12 `507 passed, 1 skipped` = 514 − 7 numba） | 远端 run | IMPL T-6 | ✅ run [`42620788610`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42620788610) @ `ac48a22` 三 job success；3.12 实测 **`507 passed, 1 skipped`**（= 514 − 7 numba） |
 
 ## 5. 排除与风险（E）
 
@@ -121,9 +121,9 @@
 | A 功能完整性 | 9 | 9 | 0 | 0 |
 | B 测试完整性 | 7 | 7 | 0 | 0 |
 | C 验证口径 | 9 | 9 | 0 | 0 |
-| D 台账文档 | 6 | 4 | 0 | 0（D5/D6 待提交与 CI） |
+| D 台账文档 | 6 | 6 | 0 | 0 |
 | E 排除风险 | 5 | 5 | 0 | 0 |
-| **合计** | **36** | **34** | **0** | **0** |
+| **合计** | **36** | **36** | **0** | **0** |
 
 ---
 
@@ -231,5 +231,7 @@
 | 核心交付 | 幂等 guard（`.industry` 3 次访问读盘 **3 → 1**）；停牌/ST 缺失按 `0=正常` 默认；行业/市值保持 `None` + `industry` 注解 Optional；4 项测试（510 → **514 passed**） |
 | 零回归 | 全量 `514 passed`；mypy **93**（不劣化）；`black --check .` **137 unchanged**；消费方 **diff 空** |
 | 行为变更（已披露） | 缺失停牌数据时 next-day 掩码末日 **True → False**（末日无次日） |
-| 门禁 | probe pass / unit-tests pass / black-check pass / **mypy-check fail(93，如实)**；`replay: 4 rows OK` |
+| 门禁 | probe pass / unit-tests pass / black-check pass / **mypy-check fail(93，如实)**；`replay: 4 rows OK`（session `factorv3-p010-aux-defaults-20261109`） |
+| 提交 | `ac48a22`（8 文件，+883 −3） |
+| 远端 CI | run [`42620788610`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42620788610) 三 job success，3.12 `507 passed, 1 skipped` |
 | 遗留 | 层 B（93 errors）另立；U-006 不关闭 |
