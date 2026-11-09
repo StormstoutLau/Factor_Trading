@@ -9,6 +9,9 @@ import numpy as np
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 import logging
+import warnings
+
+from filter.limit_rules import infer_board, resolve_limit
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +90,7 @@ class UniverseFilter:
     def build_masks(self):
         """构建所有过滤掩码"""
         logger.info("开始构建股票池过滤掩码...")
+        self._warn_deprecated_thresholds()
 
         # 预计算基础信息
         self._precompute_basic_info()
@@ -151,30 +155,18 @@ class UniverseFilter:
             )
             return
 
-        # 向量化计算
+        # 向量化计算（P-012 T-4：阈值来源改为规则表；ST 用当日状态）
         returns = self.dm.returns
-        returns_shifted = returns.shift(1)
 
-        # 获取ST状态
+        # 获取ST状态（当日；不再 shift(1)）
         st_data = (
             self.dm.st
             if self.dm.st is not None
             else pd.DataFrame(0, index=returns.index, columns=returns.columns)
         )
-        st_shifted = st_data.shift(1)
 
-        # 向量化计算阈值
-        up_thresholds = np.where(
-            st_shifted == 1, self.cfg.st_limit_up_threshold, self.cfg.limit_up_threshold
-        )
-        down_thresholds = np.where(
-            st_shifted == 1, self.cfg.st_limit_down_threshold, self.cfg.limit_down_threshold
-        )
-
-        # 创建阈值DataFrame
-        up_threshold_df = pd.DataFrame(up_thresholds, index=returns.index, columns=returns.columns)
-        down_threshold_df = pd.DataFrame(
-            down_thresholds, index=returns.index, columns=returns.columns
+        up_threshold_df, down_threshold_df = self._rule_thresholds(
+            returns.index, returns.columns, st_data
         )
 
         # 向量化判断涨跌停
@@ -185,6 +177,40 @@ class UniverseFilter:
         if len(returns) > 0:
             self._limit_up_mask.iloc[0] = True
             self._limit_down_mask.iloc[0] = True
+
+    def _rule_thresholds(
+        self, dates: pd.DatetimeIndex, columns: pd.Index, st_data: pd.DataFrame
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """按规则表生成逐日逐股涨跌停阈值（ST 用当日状态）。"""
+        up = pd.DataFrame(np.nan, index=dates, columns=columns)
+        down = pd.DataFrame(np.nan, index=dates, columns=columns)
+
+        board_columns: Dict[str, List[str]] = {}
+        for code in columns:
+            board_columns.setdefault(infer_board(str(code)), []).append(code)
+
+        for date in dates:
+            st_row = st_data.loc[date] if date in st_data.index else None
+            for board, codes in board_columns.items():
+                normal = resolve_limit(board, False, date)
+                st_rule = resolve_limit(board, True, date)
+                if st_row is not None:
+                    st_mask = (st_row[codes] == 1).to_numpy()
+                else:
+                    st_mask = np.zeros(len(codes), dtype=bool)
+                up.loc[date, codes] = np.where(st_mask, st_rule.up, normal.up)
+                down.loc[date, codes] = np.where(st_mask, st_rule.down, normal.down)
+        return up, down
+
+    def _warn_deprecated_thresholds(self) -> None:
+        """4 个旧阈值字段已弃用（每次 build_masks 一次，不逐行）。"""
+        warnings.warn(
+            "UniverseFilterConfig 的 limit_up_threshold/limit_down_threshold/"
+            "st_limit_up_threshold/st_limit_down_threshold 已弃用；"
+            "涨跌停阈值改由 filter.limit_rules 规则表解析（P-012 D3）",
+            DeprecationWarning,
+            stacklevel=3,
+        )
 
     def _build_st_mask(self):
         """构建ST股票掩码"""
