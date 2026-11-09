@@ -8,6 +8,13 @@
 - 向后兼容: 保留 dataclass 接口
 
 依赖: pydantic >= 2.0
+
+⚠️ FROZEN (TD-2, 2026-11-09): 本模块为冻结的设计资产, 非活跃配置路径.
+- 生产代码零引用, 仅 tests/test_config_v2.py 使用; 全项目事实标准仍为
+  core/config.py (V1 dataclass, BacktestConfig).
+- 冻结期间: 不新增功能, 不接入生产路径, 新模块不得 import 本模块.
+- 再激活条件: 配置层统一迁移立项 (与 TD-1 数据层统一联动) 并经 SPEC
+  流程评审通过后方可重新接入.
 """
 
 from __future__ import annotations

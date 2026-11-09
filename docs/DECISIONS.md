@@ -151,6 +151,16 @@
 
 ---
 
+## ADR-016: TD-1.2 轻量子包化（移除隐式重导出）
+
+- **日期**: 2026-10-24 实施；2026-11-09 补录（P-006 / U-002）
+- **状态**: ✅ 已采纳
+- **背景**: 根 `__init__.py` 与 `core/__init__.py` 此前隐式重导出核心模块，`import` 即触发 cvxpy/ta/tushare/akshare 等重依赖链；pyproject 亦未声明子包。
+- **决策**: ① 两个 `__init__.py` 改为轻量（仅注释与版本元数据），移除全部隐式重导出，改为用户显式导入（如 `from core.config import BacktestConfig`）；② pyproject 最小子包化——仅声明实际依赖的 `Factor_Trading_v3_0` 与 `Factor_Trading_v3_0.core`，其他子包按需追加。
+- **影响**: 全项目导入约定（显式导入）；实施提交 `2848331`（全量 503 passed，仓内无 `from core import ...` 隐式依赖）。编号沿用代码注释既有引用（`__init__.py:3`、`core/__init__.py:3`、`pyproject.toml:79`）；ADR-014/015 未使用（历史编号跳空），不存在对应决策。
+
+---
+
 ## 决策状态说明
 
 | 状态 | 含义 |
