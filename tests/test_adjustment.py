@@ -157,7 +157,9 @@ class TestReturnsConsistency:
     def test_returns_use_adjusted_prices_backward(self, mock_data_dir):
         from core.data import DataManager
 
-        cfg = BacktestConfig(data_dir=mock_data_dir, adjustment_type="backward")
+        cfg = BacktestConfig(
+            data_dir=mock_data_dir, adjustment_type="backward", legacy_adjustment=True
+        )
         dm = DataManager(cfg)
 
         returns = dm.returns
@@ -171,7 +173,7 @@ class TestReturnsConsistency:
     def test_returns_use_raw_prices_none(self, mock_data_dir):
         from core.data import DataManager
 
-        cfg = BacktestConfig(data_dir=mock_data_dir, adjustment_type="none")
+        cfg = BacktestConfig(data_dir=mock_data_dir, adjustment_type="none", legacy_adjustment=True)
         dm = DataManager(cfg)
 
         returns = dm.returns
@@ -187,7 +189,9 @@ class TestReturnsConsistency:
         from core.data import DataManager
 
         # 使用不复权时，除权日应有巨大跳空
-        cfg_none = BacktestConfig(data_dir=mock_data_dir, adjustment_type="none")
+        cfg_none = BacktestConfig(
+            data_dir=mock_data_dir, adjustment_type="none", legacy_adjustment=True
+        )
         dm_none = DataManager(cfg_none)
         returns_none = dm_none.returns
 

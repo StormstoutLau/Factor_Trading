@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 
 class ExecutionPriceType(str, Enum):
@@ -319,6 +319,16 @@ class RebalanceConfig:
 
 
 @dataclass
+class PriceModeConfig:
+    """价格口径（P-012 D2）：成交/估值用 raw，信号/收益用 hfq。"""
+
+    trade: Literal["raw", "hfq", "qfq"] = "raw"
+    valuation: Literal["raw", "hfq", "qfq"] = "raw"
+    signal: Literal["raw", "hfq", "qfq"] = "hfq"
+    returns: Literal["raw", "hfq", "qfq"] = "hfq"
+
+
+@dataclass
 class BacktestConfig:
     """回测系统总配置
 
@@ -337,6 +347,8 @@ class BacktestConfig:
     low_file: str = "low.pkl"
     adj_factor_file: str = "stock_adj.pkl"  # 复权因子
     adjustment_type: str = "forward"  # 复权类型: 'forward'=前复权, 'backward'=后复权, 'none'=不复权
+    price_modes: PriceModeConfig = field(default_factory=PriceModeConfig)
+    legacy_adjustment: bool = False  # True=恢复「复权价成交 + 旧收益口径」（P-012 D2）
     suspend_file: str = "suspend.pkl"  # 停牌状态: 1=停牌, 0=正常
     industry_file: str = "industry.pkl"  # 行业分类
     st_file: str = "st.pkl"  # ST标记: 1=ST, 0=正常

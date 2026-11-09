@@ -327,6 +327,12 @@ class BacktestEngineV2:
 
         return self._generate_results()
 
+    def _exec_price(self, dm: IDataManager, kind: str) -> pd.DataFrame:
+        """成交/估值取价：新口径统一 raw；legacy 开关恢复旧复权口径。"""
+        if self.cfg.legacy_adjustment:
+            return dm.get_adj_price(kind, self.cfg.adjustment_type)
+        return dm.get_adj_price(kind, "raw")
+
     def _process_trading_day(self, date: pd.Timestamp, date_index: int):
         """处理单个交易日"""
         dm = self.dm
@@ -358,7 +364,7 @@ class BacktestEngineV2:
             self._execute_rebalance(date, date_index)
 
         # 更新持仓市值
-        close_prices = dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+        close_prices = self._exec_price(dm, "close").loc[date]
         tracker.update_market_values(date, close_prices)
 
         # 主动盯市 (risk_manager)
@@ -443,7 +449,7 @@ class BacktestEngineV2:
             return
 
         try:
-            close_prices = dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+            close_prices = self._exec_price(dm, "close").loc[date]
         except KeyError:
             logger.warning(f"最后交易日 {date} 无收盘价数据")
             return
@@ -490,11 +496,9 @@ class BacktestEngineV2:
 
         logger.debug(f"处理{len(pending_orders)}个待执行订单")
 
-        open_prices = dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
+        open_prices = self._exec_price(dm, "open").loc[date]
         close_prices = (
-            dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
-            if date_index < len(dm.returns)
-            else None
+            self._exec_price(dm, "close").loc[date] if date_index < len(dm.returns) else None
         )
 
         buyable_mask = universe.buyable.loc[date]
@@ -581,7 +585,7 @@ class BacktestEngineV2:
             if not buyable_mask.get(fallback_stock, False):
                 continue
 
-            open_prices = dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
+            open_prices = self._exec_price(dm, "open").loc[date]
             if fallback_stock not in open_prices:
                 continue
 
@@ -660,7 +664,7 @@ class BacktestEngineV2:
 
         # 计算目标持仓（含调出标的的清仓项）
         try:
-            prices = dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
+            prices = self._exec_price(dm, "close").loc[date]
         except (KeyError, IndexError):
             logger.warning(f"日期 {date} 缺少收盘价数据，跳过本次再平衡")
             return
@@ -723,9 +727,9 @@ class BacktestEngineV2:
 
         # 获取收盘价
         try:
-            adj_close = dm.get_adj_price("close", self.cfg.adjustment_type)
-            if date in adj_close.index:
-                close_prices = adj_close.loc[date]
+            all_close = self._exec_price(dm, "close")
+            if date in all_close.index:
+                close_prices = all_close.loc[date]
             else:
                 return
         except (KeyError, IndexError):
@@ -811,7 +815,7 @@ class BacktestEngineV2:
         logger.info(f"执行次日开盘订单: {len(self._next_day_orders)}个订单, 日期: {date}")
 
         try:
-            open_prices = dm.get_adj_price("open", self.cfg.adjustment_type).loc[date]
+            open_prices = self._exec_price(dm, "open").loc[date]
         except KeyError:
             logger.warning(f"日期 {date} 没有开盘价数据")
             return

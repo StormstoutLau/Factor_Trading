@@ -397,11 +397,14 @@ class DataManager:
     def _calculate_returns(self):
         """计算收益率数据
 
-        使用与交易配置一致的复权价格计算收益率，
-        确保收益计算与回测执行价格完全匹配。
+        新口径用 ``price_modes.returns``（默认 hfq）；``legacy_adjustment=True``
+        时沿用 ``adjustment_type``（经旧名映射），保证与冻结基线逐值相等。
         """
-        # 使用配置的复权类型获取收盘价
-        adj_type = getattr(self.cfg, "adjustment_type", "forward")
+        if getattr(self.cfg, "legacy_adjustment", False):
+            adj_type = getattr(self.cfg, "adjustment_type", "forward")
+        else:
+            price_modes = getattr(self.cfg, "price_modes", None)
+            adj_type = price_modes.returns if price_modes is not None else "hfq"
         close_data = self.get_adj_price("close", adjustment_type=adj_type)
 
         # 计算简单收益率
