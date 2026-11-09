@@ -89,7 +89,7 @@
 | F3 | `mypy --explicit-package-bases core` = `119 errors`（168 − 49，预期 fail，无回归） | 门禁输出 | DESIGN R9；IMPL §2 | ✅ **`Found 119 errors in 19 files (checked 29 source files)`**，exit 1（预期 fail） |
 | F4 | 修改文件无行尾空白、UTF-8 无 BOM；删除文件后无残留 `__pycache__/engine*.pyc` 提交 | `Select-String '  $'` + `git status` | 文档卫生 | ✅ 新增 85 行 **0 行尾空白**；17 文件 **BOM 0**；114 处**既有**行尾空白未触碰（非本批引入）；`core/__pycache__/engine.cpython-31*.pyc` 与 `test_visual_trace*.pyc` 已清理（0 残留、未跟踪） |
 | F5 | 无临时脚本 / 断言脚本入仓；`%TEMP%` 探针已清理 | `git status` + 目录列表 | IMPL §7 | ✅ 未跟踪项仅 4 份本批文档；`%TEMP%` `*p001*` = **0** |
-| F6 | 门禁 expected-fail 如实标注（black/mypy 不得写成 ✅）；无 `[未取证]` 被写成 ✅ | §7/§8 逐行核对 | RULE-6 | ✅ §7 中 black-check / mypy-check 以 ⚠️ **fail** 记录（基线 72 / 119），未写成 ✅；§8 全部 ✅ 行均绑定 E1/E3 读数；远端 CI 与 5 个 examples 运行明确标 `[未在远端执行]` / `[未在 CI 执行]` |
+| F6 | 门禁 expected-fail 如实标注（black/mypy 不得写成 ✅）；无 `[未取证]` 被写成 ✅ | §7/§8 逐行核对 | RULE-6 | ✅ §7 中 black-check / mypy-check 以 ⚠️ **fail** 记录（基线 72 / 119），未写成 ✅；§8 全部 ✅ 行均绑定 E1/E3 读数；审计时点远端 CI 标 `[未在远端执行]`，推送后 run `42598775895` 实测三版本全绿（§8 末行已更新）；5 个 examples 运行保持 `[未在 CI 执行]` 限定 |
 
 ## 7. 门禁链验收（Step 10）
 
@@ -237,7 +237,7 @@
 
 - [x] 目标未降级：不是「`507 passed`」本身，而是「V1 不可达（E3）+ 6 examples 全迁移 + 文档一致 + 无 shim」四层同时成立
 - [x] Iron Law 核对：测试绿 ≠ 设计落地——以 §8 十类取证 + Phase 1/2 双向映射补足；A1/A3/A5/A6 用文件存在性与文本计数，而非测试结果
-- [x] 已知 fail 未伪装：black 72 / mypy 119 于门禁 seq 8/9 复跑仍 fail；远端 CI 与 5 个 examples 运行分别标 `[未在远端执行]` / `[未在 CI 执行]`
+- [x] 已知 fail 未伪装：black 72 / mypy 119 于门禁 seq 8/9 复跑仍 fail；审计时点远端 CI 标 `[未在远端执行]`，推送后 run `42598775895` 实测三版本 `500 passed, 1 skipped`；5 个 examples 运行保持 `[未在 CI 执行]`
 - [x] 行为语义：`demo.py` 改由 V2 执行 `FactorPipeline`（数值变化）已在 CHANGELOG 注明；`full_backtest_2020_2026_simple.py` 的 D7 修复使原本 ImportError 的脚本首次可导入（`py_compile` 通过）
 - [x] 审计时点不变式复跑：`507 passed, 82 warnings in 29.52s`；V1 import 边界化计数 **0**
 
@@ -256,7 +256,33 @@
 | Phase 0-4 | **全过**（0 项退回重写 / 0 项静默偏离 / 0 项无依据行为 / 0 项意图错位） |
 | P1 阻断 / P2 应修 / P3 提示 | **0 / 0 / 1**（F-A1，判据边界，非实现缺陷）+ F-9 系列 5 项已处置 |
 | 门禁链 | probe **pass** / unit-tests **pass** / black-check **fail(72)** / mypy-check **fail(119)**——与 §7 预期逐项一致 |
-| 证据绑定 | §8 矩阵 9 类手段覆盖全部 43 项；无 E5 进入结论；远端项均带限定标注 |
+| 证据绑定 | §8 矩阵 9 类手段覆盖全部 43 项；无 E5 进入结论；残余限定项仅 examples 运行时（`[未在 CI 执行]`） |
+
+### 11.3 RULE-5 异构第二会话复审（2026-11-09）
+
+- **复审者**：GLM-5.3-Flash（**异构基座**，与前序实现/自查会话 DeepSeek-V4.1-Flash 不同模型家族，满足 RULE-5 异质性约束）
+- **复审输入**（RULE-1 补取证清单）：session `factorv3-p001-td3-stage3-20261109`（`replay: 9 rows OK`）+ `git show ccd0c98:<file>` 行号回溯 + 关键命令独立重跑
+- **抽查重点**（RULE-5 指引）：「高等级可得却绑低等级」行（静默降级）与 E4 行（盲区声明）
+
+| # | 复审项 | 独立重跑 / 回溯 | 结果 |
+|---|--------|-----------------|------|
+| 1 | 不变式：`core/engine.py` 不存在 / V1 import 边界化 **0** / 测试文件 **48** | 重跑 | 命中 |
+| 2 | 全量测试 | `507 passed, 82 warnings in 20.90s` | 命中 |
+| 3 | black / mypy 基线 | `72 files would be reformatted` / `119 errors in 19 files` | 命中 |
+| 4 | 行号证据 @`ccd0c98`：simple L14/L87/L104、compat L48、`__init__:11` 历史注记 | `git show` 回溯 | 全部命中 |
+| 5 | 盲区扫描复核（E4 行）：`ccd0c98~1..c62eada` 全 diff 独立重扫 | README 5 hunk + 代码 31 插入行全部可归属 | **确认「发现 1 项」无漏报** |
+| 6 | 静默降级抽查：E3 行已绑 `ccd0c98`、§8 远端行已升级为实测 run | 读回 | 无降级 |
+| 7 | 远端 CI 读数 | run `42598775895` / `42599168755` 三 job success，各 `500 passed, 1 skipped` | 命中 |
+
+**复审发现（3 项 P3，均于本次修正）**：
+
+| ID | 发现 | 处置 |
+|----|------|------|
+| F-5-1 | CHECKLIST F6 实测列仍写「远端 CI … `[未在远端执行]`」，与推送后实测状态过期不一致 | 已更新（保留审计时点语境），§11.2 证据绑定行同步 |
+| F-5-2 | CHECKLIST §11 Phase 4 同一过期限定表述 | 已更新 |
+| F-5-3 | RESEARCH §6.1 缺 RULE-4「单 Agent 自查（单视角）」标注（其余 4 处 Review 均有，仅此处缺） | 已补 |
+
+- **复审结论**：**pass**——抽查 7 项全部命中，无静默降级、无盲区漏报；**0 P1 / 0 P2**；3 项 P3 文档残留已修正
 
 ## 12. 结论（Step 10 回填）
 

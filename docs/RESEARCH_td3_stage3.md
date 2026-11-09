@@ -237,7 +237,7 @@ def create_default_engine(config: BacktestConfig) -> 'BacktestEngineV2':
 
 ### 6.1 独立复核 pass
 
-> 本节由 Step 2 独立执行并单独写入（RULE-1：Review 与正文分离）；不复用 Step 1 的中间输出，命令全部重跑。
+> 本节由 Step 2 独立执行并单独写入（RULE-1：Review 与正文分离）；不复用 Step 1 的中间输出，命令全部重跑。**审查者**：单 Agent 自查（单视角）（RULE-4）；已于 2026-11-09 经 RULE-5 异构基座第二会话复审确认（GLM-5.3-Flash，与前序实现会话不同模型家族），结论维持 pass，见 [CHECKLIST_td3_stage3.md](CHECKLIST_td3_stage3.md) §11.3。
 
 #### 6.1.1 E1 复核表（@ `696bd7b`，工作区仅新增本文档）
 
