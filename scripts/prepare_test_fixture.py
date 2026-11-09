@@ -197,6 +197,7 @@ def generate_biased_fixture(out_dir: Path, seed: int = 42, start: str = "2024-01
         digest.update(path.read_bytes())
     manifest = {
         "source": "fixture",
+        "fetched_at": "2026-11-10T00:00:00",
         "rows": int(n_days * n_stocks),
         "sha256": digest.hexdigest(),
         "schema_version": "1.0",
