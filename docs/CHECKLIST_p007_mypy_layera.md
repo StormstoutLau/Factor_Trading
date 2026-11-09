@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_p007_mypy_layera
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-09
-> **状态**: Step 9 完成（2026-11-09；**47/49 ✅**，E6/F6 待提交与 CI 回填）；Step 10 ADD 审计 0 项阻断
+> **状态**: **已完成**（2026-11-09；Step 1-10 全通过，**49/49 ✅**；P1/P2 = 0；提交 `e0247ce`；远端 CI run `42614740925` 三 job 全绿）
 > **上游**: [DESIGN_p007_mypy_layera.md](DESIGN_p007_mypy_layera.md)（Step 4 通过，D1-D9 / V1-V10） · [IMPL_p007_mypy_layera.md](IMPL_p007_mypy_layera.md)（Step 6 通过，T-0~T-9 / F-I1~F-I7）
 > **填写规则**: 本清单在 Step 7 只定义「怎么算做完」；「实测」列一律 `[待 Step 9]`，**禁止实现前预填**（RULE-1）。每条 ✅ 必须绑定证据出口；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`。
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；`MPLBACKEND=Agg`
@@ -84,7 +84,7 @@
 | E3 | `docs/PROGRESS.md` §3.9 新增批次记录（T1、16 文件、26→0、507→510、门禁 fail 如实） | 读回 §3.9 | IMPL T-9 | ✅ §3.9 已新增（Step 1-9 全链 + 范围 + 验收口径 + 回退点） |
 | E4 | `CHANGELOG.md` `[Unreleased] > Fixed` 追加 4 条（A-1 `NameError` / A-2 `AttributeError` / A-3 `TypeError` / A-4 重复定义移除且注明「行为不变」）；**P-010 行为退化只登记在 PROGRESS，不写成已修复** | 读回条目 | IMPL T-9 / F-S3 | ✅ 4 条已追加；A-4 条明确「行为不变 + 另立 P-010」 |
 | E5 | 四文档齐备且互相链接可解析（RESEARCH / DESIGN / IMPL / CHECKLIST） | 4 个文件存在 + 相对链接指向正确文件名 | 模板要求 | ✅ 4 文件齐备；链接 **11 条 0 broken** |
-| E6 | 单笔提交，消息为 `fix(P-007): 清理非引擎 mypy 错误并修复 4 处缺陷（层 A）`；`git show --stat` 文件数与预期一致 | `git log -1 --stat` | IMPL T-9 | [待提交] |
+| E6 | 单笔提交，消息为 `fix(P-007): 清理非引擎 mypy 错误并修复 4 处缺陷（层 A）`；`git show --stat` 文件数与预期一致 | `git log -1 --stat` | IMPL T-9 | ✅ `e0247ce`：**23 files changed, +1211 −88**（16 core + 1 test + 4 文档 + PROGRESS + CHANGELOG） |
 | E7 | U-006 **不关闭**：台账明确「mypy 仍 fail(93)，层 B 另立」 | 读回 PROGRESS | DESIGN D9；IMPL §8 | ✅ PROGRESS P-007 行与 §3.9 均写明「仍如实 fail(93)，U-006 不关闭」 |
 
 ## 6. 排除与风险（F）
@@ -96,7 +96,7 @@
 | F3 | 未合并 `data.py` 安全默认值（行为变更留给 P-010） | `git diff core/data.py` 仅删除 48 行 | 排除表；DESIGN D1 | ✅ numstat **`0 48`**（纯删除） |
 | F4 | 未做 opportunistic 重构：16 文件之外零改动；16 文件内 diff 行数与 IMPL 预估数量级一致（±25 行与 +40 行两档） | `git diff --numstat` 汇总 | 排除表 | ✅ 16 文件 / **+36 −87**（其中 −48 为死代码）；新测试 +40 行 |
 | F5 | `assert` 的 `-O` 失效风险已书面记录（不视为缺陷，属已声明限制） | DESIGN R1 引用 | DESIGN D5/R1 | ✅ DESIGN D5 表「限制：`assert` 在 `-O` 下失效（DESIGN R1）」 |
-| F6 | CI 三 job（probe / unit-tests / black-check）全绿；`mypy-check` 如实 fail(93) | 远端 run 页面 + job 状态 | IMPL §8 | [待推送] |
+| F6 | CI 三 job（probe / unit-tests / black-check）全绿；`mypy-check` 如实 fail(93) | 远端 run 页面 + job 状态 | IMPL §8 | ✅ run [`42614740925`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42614740925) @ `e0247ce` 三 job success（3.12 **1m06s** / 3.11 **1m04s** / 3.10 **53s**）；3.12 实测 **`503 passed, 1 skipped`**（= 510 − 7 numba）。**边界**：CI 仅跑 pytest，`black-check`/`mypy-check` 不在 CI；mypy 如实 fail(93) 由本地门禁记录 |
 
 ---
 
@@ -151,9 +151,9 @@
 | B 注解清理 | 10 | 10 | 0 | 0 |
 | C 测试 | 6 | 6 | 0 | 0 |
 | D 验证口径 | 10 | 10 | 0 | 0 |
-| E 台账文档 | 7 | 6 | 0 | 0（E6 待提交） |
-| F 排除风险 | 6 | 5 | 0 | 0（F6 待推送） |
-| **合计** | **49** | **47** | **0** | **0** |
+| E 台账文档 | 7 | 7 | 0 | 0 |
+| F 排除风险 | 6 | 6 | 0 | 0 |
+| **合计** | **49** | **49** | **0** | **0** |
 
 > P1/P2 缺陷必须为 0 才可判定通过；`mypy-check` 的 fail 属**预期如实**（U-006 不关闭），不计为验收缺陷。
 
@@ -273,10 +273,11 @@
 
 | 维度 | 结果 |
 |------|------|
-| 验收项 | **49/49**（47 ✅ + E6/F6 于提交与 CI 后回填） |
+| 验收项 | **49/49** |
 | 缺陷 | **P1 = 0 / P2 = 0**（4 项 P2 均在实施前拦截）；P3 = 11 项全部处置 |
 | 核心交付 | 非引擎 mypy **26 → 0**；修复 **3 处运行时崩溃**（`NameError` / `AttributeError` / `TypeError`）+ 1 处重复定义；4 处 Optional 防御；新增 3 项正向 smoke |
 | 零回归 | 全量 **`510 passed`**（507 + 3）；`black --check .` **136 unchanged**；引擎三件套 **diff 空**；`type: ignore` 未扩张 |
-| 门禁 | probe pass / unit-tests pass / black-check pass / **mypy-check fail(93，如实)**；`replay: 4 rows OK` |
-| 提交 | 单笔 `fix(P-007): 清理非引擎 mypy 错误并修复 4 处缺陷（层 A）` |
+| 门禁 | probe pass / unit-tests pass / black-check pass / **mypy-check fail(93，如实)**；`replay: 4 rows OK`（session `factorv3-p007-mypy-layera-20261109`） |
+| 提交 | `e0247ce`（23 文件，+1211 −88） |
+| 远端 CI | run [`42614740925`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42614740925) 三 job success，3.12 `503 passed, 1 skipped` |
 | 遗留 | 层 B **93 errors**（engine_v2 54 / v3_vector 26 / factory 13）另立；**P-010**（`data.py` 辅助数据无安全默认值，P2）新登记；**U-006 不关闭** |
