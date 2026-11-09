@@ -1,0 +1,19 @@
+# git blame 时忽略的修订（格式与元数据类提交，不含语义改动）
+#
+# 格式同 fsck.skipList：每行一个完整 40 位 hash，# 开头为注释。
+# 启用方式（该配置不随仓库分发，需本地执行一次）：
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub 的 Web blame 视图会自动识别本文件名。
+#
+# 用途：TD-9（P-003）black 全量重排使 126 个文件的行归属全部指向格式提交，
+# 忽略后可继续追溯真实语义变更。
+#
+# 已知限制（git 机制固有，非配置问题）：
+# black 会把单行拆成多行或反之，这类结构性重写的行无法 un-diff 回原提交，
+# git 会保留格式提交作为归属并标为 "unblamable"。可显式查看这些行：
+#     git -c blame.markUnblamableLines=true blame --ignore-revs-file .git-blame-ignore-revs <file>
+# 实测 core/factory.py：76 行指向格式提交 -> 忽略后 44 行仍指向并以 * 标记；
+# core/portfolio.py：134 -> 81 行。即忽略机制部分生效，其余行为 git 官方预期行为。
+
+# style(TD-9): black 全量重排 126 文件并锁定 black~=26.0（P-003）
+4098629ca61b615681d9baacbdf0062d0f7c9bd1

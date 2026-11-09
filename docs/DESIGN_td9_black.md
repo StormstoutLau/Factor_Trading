@@ -158,7 +158,7 @@
 | V5 | 类型不劣化 | `mypy --explicit-package-bases core` | `119 errors in 19 files`（与基线逐字一致，不得增加） |
 | V6 | 语义零变更 | `git diff --numstat` + 抽样读码 | 无标识符/字符串/逻辑改动 |
 | V7 | 版本锁定生效 | `pip install ".[dev]"` 解析 + 读回 pyproject | `black~=26.0` |
-| V8 | blame 可追溯 | `git blame --ignore-revs-file .git-blame-ignore-revs <抽样文件>` | 历史归属跳过重排提交 |
+| V8 | blame 可追溯（**尽力回退**） | `git blame --ignore-revs-file .git-blame-ignore-revs <抽样文件>`，对照不加参数的同文件 | 部分行回退至原提交；black 结构性换行导致的行保留格式提交归属并被 git 标为 unblamable（`*`）——见 **F-9-2**，属 git 机制固有行为 |
 | V9 | 单测计数不变 | `pytest --collect-only -q` | `507` 收集（tests 48 文件） |
 | V10 | CI 范围零改动（D5） | `git diff --stat -- .github/` | **输出空** |
 | V11 | 保护路径核查 | `.github/` diff 为空 + 读回 `[tool.black]`/`[tool.isort]` 逐字不变 + `git diff --name-only -- core/engine_v2.py core/factory.py`（**允许格式 diff**） | `.github/` 空、两配置块不变；engine_v2/factory 的语义等价由 **V12** 保证，**不要求零 diff** |

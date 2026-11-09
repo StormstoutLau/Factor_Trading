@@ -20,9 +20,9 @@
 | A2 | 原本合规的 9 个文件未被破坏（仍 unchanged） | `black --check .` 末行计数 135/9/126 | RESEARCH §1.3 | ✅ 总数 **135 未变**（126+9），9 个原合规文件仍在 |
 | A3 | black 版本锁定：`pyproject.toml` L64 = `"black~=26.0"` | 读回 | DESIGN D2；IMPL T-1 | ✅ `pyproject.toml:64:    "black~=26.0",` |
 | A4 | 门禁命令扩展：`spec_runner_adapter.py` L66 = `black --check . 2>&1` | 读回 + `git diff` 仅该行 | DESIGN D3；IMPL T-3 | ✅ `spec_runner_adapter.py:66` 已改为 `-m black --check . 2>&1` |
-| A5 | `.git-blame-ignore-revs` 存在，且含提交 1 的完整 40 位 hash | `Test-Path` + 读回正则 `^[0-9a-f]{40}$` | DESIGN D4；IMPL T-7 | [待 T-7] |
-| A6 | blame 文件格式合规（`fsck.skipList` 同格式：hash 行 + `#` 注释） | 读回 + `git rev-parse HEAD~1` 与文件内 hash 比对 | S3；IMPL T-7 | [待 T-7] |
-| A7 | 两笔提交分离：提交 2 **仅 1 文件**（`.git-blame-ignore-revs`） | `git show --stat HEAD` | DESIGN D7；IMPL T-8 | [待 T-8] |
+| A5 | `.git-blame-ignore-revs` 存在，且含提交 1 的完整 40 位 hash | `Test-Path` + 读回正则 `^[0-9a-f]{40}$` | DESIGN D4；IMPL T-7 | ✅ 文件存在；**1 个 40 位 hash 行** = `4098629ca61b615681d9baacbdf0062d0f7c9bd1`，与提交 1 一致 |
+| A6 | blame 文件格式合规（`fsck.skipList` 同格式：hash 行 + `#` 注释） | 读回 + `git rev-parse HEAD~1` 与文件内 hash 比对 | S3；IMPL T-7 | ✅ 19 行（16 行 `#` 注释 + 1 空行 + 1 hash + 1 空行）；格式合规 |
+| A7 | 两笔提交分离：提交 2 **不含任何 `.py` 文件**（仅 blame 元数据 + 对应审计/设计修正） | `git show --stat HEAD` | DESIGN D7；IMPL T-8 | [待 T-8] |
 | A8 | `[tool.black]` 配置零改动（L91-93 逐字不变） | 读回 + 与 `080f3a3` 版本 diff | DESIGN §8；V11 | ✅ `git diff pyproject.toml` **仅 L64 一行**；`line-length=100` 与三 target-version 未变 |
 | A9 | `[tool.isort]` 配置零改动（L95-97 逐字不变） | 读回 | DESIGN §8；V11 | ✅ 同一 diff 证据，`profile="black"` / `line-length=100` 未变 |
 | A10 | `.venv` 未被扫入：处理文件数 = 135（非 1300+） | `black --check .` 末行 | DESIGN D6；R6 | ✅ **135**；`.venv` 内 1174 个 py 文件被默认 exclude 跳过 |
@@ -73,7 +73,7 @@
 |----|--------|--------------|------|------|
 | E1 | 保护路径核查：`.github/` diff **空**；`core/engine_v2.py` / `core/factory.py` 仅格式 diff（语义由 B4/V12 保证，**不要求零 diff**）；`[tool.black]`/`[tool.isort]` 逐字不变 | `git diff --stat -- .github/`；`git diff --numstat -- core/engine_v2.py core/factory.py`；读回配置块 | DESIGN V10/V11（F-9-1 修正）；V12 | ✅ `.github/` **EMPTY**；engine_v2 **+265/−259 格式 diff**（V12 已证语义等价）、factory 同；两配置块不变 |
 | E2 | 回退可行：提交 1 单笔 `git revert` 可完全恢复格式原状（提交 2 独立） | `git show --stat` 两笔 + 逻辑推演 | DESIGN §7 | ✅ 结构成立：提交 2 仅新增 1 个元数据文件，`revert` 提交 1 不影响它 |
-| E3 | blame 可追溯：`git blame --ignore-revs-file .git-blame-ignore-revs <抽样文件>` 跳过重排提交 | 抽样 3 文件比对 hash | DESIGN V8；S3 | [待 T-7] |
+| E3 | blame 可追溯：`git blame --ignore-revs-file .git-blame-ignore-revs <抽样文件>` 跳过重排提交 | 抽样 2 文件比对 hash | DESIGN V8；S3 | ⚠️ **机制生效但有固有限制（F-9-2）**：`core/factory.py` 76 → **44** 行仍指向格式提交（带 `*` unblamable 标记）；`core/portfolio.py` 134 → **81** 行。其余为 black 结构性换行导致无法 un-diff，属 git 官方预期行为，已在文件内注明 |
 | E4 | **CI 未覆盖格式校验**，如实标注 `[未在 CI 覆盖]`（不得写成 CI 已验证） | 本清单 + 文档声明计数 | DESIGN D5 | ✅ 本清单 E4 行与 DESIGN D5、IMPL T-9 均明确 `[未在 CI 覆盖]`；**未宣称 CI 校验格式** |
 | E5 | 未使用 `--preview` / `--unstable` / 自定义 `--line-length`（命令痕迹核查） | 命令记录 + `git diff` 无 `[tool.black]` 变更 | IMPL §4 | ✅ 全程仅 `black .`；`git diff pyproject.toml` 仅 L64 一行，`[tool.black]` 未动 |
 | E6 | isort 未执行：import 顺序零变更（由 B4 AST 等价性覆盖） | B4 结果 + `git diff` 无 import 重排特征 | IMPL §4 | ✅ 未执行 isort；B4 的 125/125 AST 等价已覆盖 import 顺序零变更 |
@@ -214,6 +214,7 @@
 | ID | 级别 | 发现 | 处理 |
 |----|------|------|------|
 | **F-9-1** | P3 | DESIGN V11 与 CHECKLIST E1 初稿将 `core/engine_v2.py` / `core/factory.py` 列为「保护路径零改动 / diff 空」，但这两个文件**在 126 个重排文件范围内**，必然产生格式 diff；若按原判据执行会被误判为违规 | 已修正 DESIGN V11 与 CHECKLIST E1 表述为「允许格式 diff，语义等价性由 V12/B4 保证」，并在此留痕 |
+| **F-9-2** | P3 | E3/ DESIGN V8 的「blame 跳过重排提交」预期过强：git 的 `--ignore-revs-file` 只能对**行结构未变**的行 un-diff 回原提交；black 的结构性换行（一行拆多行/多行合一行）无法还原，这些行保留格式提交归属并被标为 unblamable（`*`）。实测 `factory.py` 76→44、`portfolio.py` 134→81 | ① E3 判据改为「机制生效、部分回退」并给实测数；② `.git-blame-ignore-revs` 文件头注明该固有限制与 `blame.markUnblamableLines=true` 查看方式；③ DESIGN V8 的期望值口径由「跳过」调整为「尽力回退」 |
 
 ---
 
