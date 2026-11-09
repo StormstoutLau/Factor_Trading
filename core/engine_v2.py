@@ -146,6 +146,10 @@ class BacktestEngineV2:
         self._last_target_stocks: set[str] = set()
         self._unclosed_positions: dict[str, int] = {}
 
+        # 退市结算（P-012 D5 / T-9）
+        self._delist_return_source: dict[str, str] = {}
+        self._n_delisted_closed: int = 0
+
         # 实际使用的组件（setup后填充）
         self.dm: Optional[IDataManager] = None
         self.universe: Optional[IUniverseFilter] = None
@@ -345,6 +349,9 @@ class BacktestEngineV2:
 
         logger.debug(f"处理交易日: {date}")
 
+        # 退市结算（P-012 T-9）：先于订单处理
+        self._settle_delisted(date)
+
         # 执行次日订单
         if hasattr(self, "_next_day_orders") and self._next_day_orders:
             self._execute_next_day_orders(date, date_index)
@@ -435,8 +442,24 @@ class BacktestEngineV2:
         else:
             logger.info("调仓残留检查完成：无残留持仓")
 
-    def _force_liquidation(self, date: pd.Timestamp, date_index: int):
-        """最后交易日强制平仓"""
+    def _force_liquidation(
+        self,
+        date: pd.Timestamp,
+        date_index: int,
+        stocks: Optional[dict[str, str]] = None,
+        price_override: Optional[dict[str, float]] = None,
+        update_market_values: bool = True,
+    ) -> int:
+        """强制平仓 / 退市结算共用路径（P-012 T-9）。
+
+        Args:
+            stocks: 限定平仓标的 ``{stock: reason}``；None=全部持仓
+            price_override: 逐股结算价；缺省用当日收盘价
+            update_market_values: 结算路径传 False，避免重复盯市（F-I9）
+
+        Returns:
+            平仓成功只数
+        """
         dm = self.dm
         executor = self.executor
         tracker = self.tracker
@@ -445,39 +468,140 @@ class BacktestEngineV2:
         logger.info(f"最后交易日强制平仓: {date}")
 
         positions = tracker.get_all_positions()
+        if stocks is not None:
+            positions = {stock: pos for stock, pos in positions.items() if stock in stocks}
         if not positions:
             logger.info("无持仓需要平仓")
-            return
+            return 0
 
-        try:
-            close_prices = self._exec_price(dm, "close").loc[date]
-        except KeyError:
-            logger.warning(f"最后交易日 {date} 无收盘价数据")
-            return
+        close_prices = None
+        if update_market_values or price_override is None:
+            try:
+                close_prices = self._exec_price(dm, "close").loc[date]
+            except KeyError:
+                logger.warning(f"最后交易日 {date} 无收盘价数据")
+                if price_override is None:
+                    return 0
 
         liquidated_count = 0
         for stock, position in list(positions.items()):
             if position.quantity <= 0:
                 continue
 
-            if stock not in close_prices:
+            if price_override is not None and stock in price_override:
+                price = price_override[stock]
+            elif close_prices is not None and stock in close_prices:
+                price = close_prices[stock]
+            else:
                 continue
 
-            close_price = close_prices[stock]
-            if pd.isna(close_price) or close_price <= 0:
+            if pd.isna(price) or price <= 0:
                 continue
 
             success, trade = executor.execute_order(
-                stock, OrderSide.SELL, position.quantity, date, close_price
+                stock, OrderSide.SELL, position.quantity, date, float(price)
             )
 
             if success and trade:
                 tracker.execute_trade(trade)
                 liquidated_count += 1
-                logger.info(f"强制平仓: {stock} {position.quantity}股 @ {close_price:.2f}")
+                logger.info(f"强制平仓: {stock} {position.quantity}股 @ {float(price):.2f}")
 
-        tracker.update_market_values(date, close_prices)
+        if update_market_values and close_prices is not None:
+            tracker.update_market_values(date, close_prices)
         logger.info(f"强制平仓完成: {liquidated_count}只股票")
+        return liquidated_count
+
+    def _settle_delisted(self, date: pd.Timestamp) -> None:
+        """退市日结算（P-012 T-9）：先于订单处理，按 last_close×(1+delist_return)。"""
+        dm = self.dm
+        tracker = self.tracker
+        if dm is None or tracker is None:
+            return
+
+        snap = getattr(dm, "universe", None)
+        if snap is None or snap.delist is None or snap.delist.empty:
+            return
+
+        positions = tracker.get_all_positions()
+        if not positions:
+            return
+
+        try:
+            close = getattr(dm, "close", None)
+        except (FileNotFoundError, KeyError):
+            close = None
+
+        stocks: dict[str, str] = {}
+        prices: dict[str, float] = {}
+        for _, row in snap.delist.iterrows():
+            stock = str(row["stock"])
+            delist_date = pd.to_datetime(row.get("delist_date"), errors="coerce")
+            if pd.isna(delist_date) or pd.Timestamp(delist_date) != date:
+                continue
+
+            position = positions.get(stock)
+            if position is None or position.quantity <= 0:
+                continue
+
+            last_close = self._last_close(close, stock, date)
+            if last_close is None:
+                self._unclosed_positions[stock] = int(position.quantity)
+                logger.warning(f"退市日 {date} 无 {stock} 可用行情且无结算价，跳过")
+                continue
+
+            delist_return = row.get("delist_return")
+            if pd.notna(delist_return):
+                prices[stock] = float(last_close) * (1 + float(delist_return))
+                self._delist_return_source[stock] = "delist_return"
+            else:
+                prices[stock] = float(last_close)
+                self._delist_return_source[stock] = "last_close"
+            stocks[stock] = "delisted"
+
+        if not prices:
+            return
+
+        closed = self._force_liquidation(
+            date,
+            0,
+            stocks=stocks,
+            price_override=prices,
+            update_market_values=False,
+        )
+        self._n_delisted_closed += closed
+
+    def _last_close(self, close: Optional[pd.DataFrame], stock: str, date: pd.Timestamp):
+        """取 ``date`` 及之前最后一个有效收盘价。"""
+        if close is None or stock not in close.columns:
+            return None
+        series = close[stock].loc[:date].dropna()
+        if series.empty:
+            return None
+        return float(series.iloc[-1])
+
+    def _universe_report(self) -> dict[str, Any]:
+        """股票池快照与退市结算报告字段（E4 / V11 / V18）。"""
+        status = getattr(self.dm, "universe_status", {}) or {}
+        sources = set(self._delist_return_source.values())
+        if not sources:
+            delist_source = None
+        elif len(sources) == 1:
+            delist_source = sources.pop()
+        else:
+            delist_source = "mixed"
+
+        return {
+            "survivorship": status.get("survivorship", "uncorrected"),
+            "n_unknown_list": status.get("n_unknown_list", 0),
+            "n_unknown_delist": status.get("n_unknown_delist", 0),
+            "n_listed": status.get("n_listed", 0),
+            "n_delisted": status.get("n_delisted", 0),
+            "data_version": status.get("data_version", "unknown"),
+            "delist_period_handled": status.get("delist_period_handled", False),
+            "delist_return_source": delist_source,
+            "n_delisted_closed": self._n_delisted_closed,
+        }
 
     def _process_pending_orders(self, date: pd.Timestamp, date_index: int):
         """处理待执行订单"""
@@ -901,6 +1025,7 @@ class BacktestEngineV2:
                 "ruleset_version": RULESET_VERSION,
             },
             "data_info": self.dm.get_data_info() if self.dm else {},
+            "universe": self._universe_report(),
             "universe_summary": self.universe.get_mask_summary() if self.universe else {},
             "pending_order_stats": (
                 self.pending_queue.get_order_stats() if self.pending_queue else {}

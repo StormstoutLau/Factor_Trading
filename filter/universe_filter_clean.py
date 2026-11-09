@@ -12,6 +12,7 @@ import logging
 import warnings
 
 from filter.limit_rules import build_limit_prices, special_no_limit_mask
+from core.universe_data import listing_mask as build_listing_mask
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ class UniverseFilter:
         self._limit_up_mask: Optional[pd.DataFrame] = None
         self._limit_down_mask: Optional[pd.DataFrame] = None
         self._st_mask: Optional[pd.DataFrame] = None
+        self._listing_mask: Optional[pd.DataFrame] = None
         self._next_day_tradable_mask: Optional[pd.DataFrame] = None
         self._na_factor_mask: Optional[pd.DataFrame] = None
         self._stock_prefix_mask: Optional[pd.DataFrame] = None
@@ -107,6 +109,7 @@ class UniverseFilter:
         self._build_suspend_mask()
         self._build_limit_masks()
         self._build_st_mask()
+        self._build_listing_mask()
 
         # 构建扩展掩码
         if self._next_day_mode == "oracle":
@@ -230,6 +233,16 @@ class UniverseFilter:
             self._st_mask = pd.DataFrame(
                 True, index=self.dm.trade_dates, columns=self.dm.stock_codes, dtype=bool
             )
+
+    def _build_listing_mask(self):
+        """上市/退市掩码（P-012 D5 / T-9）：上市前与退市后不可交易。"""
+        snap = getattr(self.dm, "universe", None)
+        if snap is None:
+            self._listing_mask = pd.DataFrame(
+                True, index=self.dm.trade_dates, columns=self.dm.stock_codes, dtype=bool
+            )
+            return
+        self._listing_mask = build_listing_mask(self.dm.trade_dates, self.dm.stock_codes, snap)
 
     def _build_next_day_tradable_mask(self):
         """构建下一交易日可交易性掩码"""
@@ -362,6 +375,9 @@ class UniverseFilter:
         if self.cfg.exclude_st and self._st_mask is not None:
             buyable_masks.append(self._st_mask)
 
+        if self._listing_mask is not None:
+            buyable_masks.append(self._listing_mask)
+
         if self.cfg.exclude_na_factors and self._na_factor_mask is not None:
             buyable_masks.append(self._na_factor_mask)
 
@@ -399,6 +415,9 @@ class UniverseFilter:
 
         if self.cfg.exclude_st and self._st_mask is not None:
             sellable_masks.append(self._st_mask)
+
+        if self._listing_mask is not None:
+            sellable_masks.append(self._listing_mask)
 
         if self.cfg.exclude_na_factors and self._na_factor_mask is not None:
             sellable_masks.append(self._na_factor_mask)

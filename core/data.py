@@ -67,6 +67,10 @@ class DataManager:
         # 资产信息 (P3.2)
         self._asset_info: dict[str, AssetInfo] = {}
 
+        # 股票池快照（P-012 D5 / T-8；懒加载 + 幂等 guard）
+        self._universe = None
+        self._universe_status: dict[str, Any] = {}
+
         logger.info("数据管理器初始化完成")
 
     @property
@@ -156,6 +160,49 @@ class DataManager:
         if self._returns is None:
             self._calculate_returns()
         return self._returns
+
+    @property
+    def universe(self):
+        """获取股票池快照（P-012 D5；缺失时降级不中断）。"""
+        if self._universe is None:
+            from core.universe_data import load_universe_snapshot
+
+            self._universe = load_universe_snapshot(
+                self.data_dir, getattr(self.cfg, "universe_dir", None)
+            )
+            self._universe_status = self._build_universe_status(self._universe)
+        return self._universe
+
+    @property
+    def universe_status(self) -> dict[str, Any]:
+        """股票池快照状态（报告字段；V11 降级口径）。"""
+        if self._universe is None:
+            _ = self.universe
+        return self._universe_status
+
+    def _build_universe_status(self, snap) -> dict[str, Any]:
+        """由快照派生报告状态；缺失字段按「不限制」并显式计数。"""
+        codes = list(self.stock_codes)
+        if snap.status != "corrected":
+            n_unknown_list = len(codes)
+            n_unknown_delist = len(codes)
+        else:
+            known_list = set(snap.list_date.index.astype(str))
+            known_delist = set(snap.delist["stock"].astype(str)) if not snap.delist.empty else set()
+            n_unknown_list = sum(1 for code in codes if str(code) not in known_list)
+            n_unknown_delist = sum(1 for code in codes if str(code) not in known_delist)
+
+        manifest = snap.manifest or {}
+        return {
+            "survivorship": snap.status,
+            "n_unknown_list": n_unknown_list,
+            "n_unknown_delist": n_unknown_delist,
+            "n_listed": int(len(snap.list_date)) if snap.status == "corrected" else 0,
+            "n_delisted": int(len(snap.delist)) if snap.status == "corrected" else 0,
+            "data_version": str(manifest.get("sha256", "unknown")),
+            # U-D2：delist_start_date 字段未提供，整理期规则未处理
+            "delist_period_handled": False,
+        }
 
     def _load_basic_data(self):
         """加载基础数据以获取元数据"""
