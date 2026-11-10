@@ -61,7 +61,9 @@
 | P-005 | TD-4：Factor_DB 存储迁移 / 文档对齐（DuckDB 为规划方向） | `docs/RESEARCH_tech_debt_cleanup.md` TD-4；2026-11-10 复核代码仍零 `import duckdb`（仅 docs 提及）；**宜排 P-004 之后**——接口未统一前迁移会波及两套实现；无外部触发 | pending | P3（维持） |
 | U-006-R | mypy 盲区残差重评（`mypy core --check-untyped-defs` 现存 4 errors 2 files） | P-007 Q4=B 裁决挂起（§3.13）；**重评前置已满足**——§3.14 硬约束 4「U-006 在 L5 之后重评」的 L5 接口治理已随 P-012 B6 完成；残差实测 8 → 4 errors 2 files（P-012/P-011 实施后）；**T3**（评估决策 + 可选小修，零行为） | pending（前置解除） | P3 |
 | F-A1(P-012) | 注入式工作流未注入信号 → 静默空回测（空因子/空信号时引擎无输出无告警） | P-012 CHECKLIST §11 P3 发现；期望 fail-fast 或显式 warning；注意 P-007 层 B 已有「空因子 fail-fast」行为（`05af52f`），需核对是否已覆盖该场景后再定修法；**T3**（小修 + 1 测试） | pending | P3 |
-| U-D1(P-011) | golden 全局基线固化（L4 判据） | P-011 U-D1 设计裁决挂起（[AUDIT_SUMMARY §7.1](AUDIT_SUMMARY_backtest_validation.md)）；**硬约束「先改口径、后固 golden」已满足**——复权三口径/掩码/退市均已随 P-012 落地且 RULE-5 复审确认无未归因行为；触发=下一次引擎行为变更**前**必须固化，或对外发布回测结论前；**T1**（基线固化 + manifest 绑定） | pending（条件触发，宜主动） | **P2** |
+| U-D1(P-011) | golden 全局基线固化（L4 判据） | P-011 U-D1 设计裁决挂起；**硬约束「先改口径、后固 golden」已满足**——复权三口径/掩码/退市均已随 P-012 落地且 RULE-5 复审确认无未归因行为；**T1**（基线固化 + manifest 绑定） | **done（2026-11-10 由 P-013 承接**，见下） | **P2** |
+| P-013 | Golden 基线固化（L4 判据落地） | P-011 U-D1 升格；6 条基线（V2/V3 × baseline·cost·mask·delisting）× 分字段容差 × CI 三版本；**T1** | done（2026-11-10，Step 1-10 全通过：四文档 + B1/B2 两批；**626 passed**（609+17）/ black 171 / mypy 0 / 盲区不劣化 / 6 份基线**逐字节可重现**；`tests/golden/*.json` + `scripts/record_golden.py` + `tests/_golden_cases.py` 单一构造器；实施期发现 **F-S9-G1（P1 停牌账目缺陷）** + F-S9-G2~G7） | P2 |
+| **P-014** | **V2 停牌路径账目缺陷（P-013 实施期发现）** | 停牌日仍发生买入（`2024-01-17 BUY 108800`）；停牌恢复日同一卖出重复记账（`SELL 326500`×2 + `SELL 109500`，实际执行 436000 但 trade_log 记 762500）→ **负持仓 -109500** + 5 项 I2 违规；E2 证据见 [IMPL_golden_baseline §8.3](IMPL_golden_baseline.md) | pending（**P1，建议下一批优先**） | **P1** |
 | U-D2(P-011) | V2 同日收盘模式（跨引擎逐日净值一致） | P-011 U-D2 挂起（倾向不做）；触发=第三方要求 V2/V3 逐日净值一致 | pending（倾向不做） | P3 |
 | U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
 | U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
@@ -457,7 +459,26 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 | 技术债挂起 ×4 | U-006 重评前置（L5）已满足 → 升格 §1.4（P3）；F-A1(P-012) → 升格 §1.4（P3）；**P-004 前置（L5 端口定型）已满足 → §1.4 上调 P2**；P-005 → §1.4 维持 P3 |
 | 条件触发项 | U-D2 / U-D3 / U-2(P-011 DSR/PBO) → 升格 §1.4（P3） |
 
-> 残余可启动项汇总：**P2 = P-004（数据层统一）、U-D1（golden 基线，下一批引擎行为变更前必做）**；P3 = U-006-R / F-A1(P-012) / P-005 / U-D2 / U-D3 / U-2。原执行顺序 P0→P7 全部完成，仅余 P8 清尾组。
+> 残余可启动项汇总：**P1 = P-014（V2 停牌账目缺陷，P-013 实施期发现）**；**P2 = P-004（数据层统一）**；P3 = U-006-R / F-A1(P-012) / P-005 / U-D2 / U-D3 / U-2。原执行顺序 P0→P7 全部完成；**U-D1（golden 基线）已由 P-013 于 2026-11-10 落地**。
+
+### 3.15 P-013（Golden 基线固化 · L4 判据）执行记录（2026-11-10，done）
+
+- **立项**: P-011 U-D1 升格（L4 golden 从挂起转实施）；前置条件核查 5 项全部满足（复权三口径 / 掩码时点 / 退市动态池 / 指标单一口径 / RULE-5 复审 pass），此时录制不会把已知缺陷焊死
+- **Step 1 调研**: [RESEARCH_golden_baseline.md](RESEARCH_golden_baseline.md)——复用 P-011 锚点 A20（Golden Master 只锁行为、不证正确性）/ A21（分层回归）/ A25（可复现契约）/ A26（记录 commit+配置+环境）；本仓事实 P1-P10（关键：`data/` 被 gitignore → golden 必须用合成夹具；`_synth_fixture` 的 open/high/low 复用 close）
+- **Step 2 Review（同基座自查）**: 4 项待核 3 命中 + **F-R-G1（P2）**：原写「仅 3.10 无 numba」，实为 **CI 三版本 dev 依赖均未声明 numba** → CI 全程 `py_func`、本地 `@njit`，容差设计据此升级
+- **Step 3 DESIGN**: [DESIGN_golden_baseline.md](DESIGN_golden_baseline.md)——D1-D11（I1-I6 / JSON schema v1.0 / 分字段容差 / 6 case / 夹具扩展 / 录制脚本 / 测试 / CI / 批次 / 范围 / 风险）
+- **Step 4 Review**: 5 项设计假设全部证实（涨跌停可触发 `EPS_PRICE=0.005` / 退市走 `data_dir/universe` 懒加载 / V2 入口 / 夹具向后兼容 / `limit_check_price="open"`）；**F-D-G1（P3）** 限价公式未写明
+- **Step 5 IMPL**: [IMPL_golden_baseline.md](IMPL_golden_baseline.md)——T-0~T-7 / R1-R9 / V1-V12
+- **Step 6 Review**: **F-I-G1（P2）** case 构造器无单一来源（录制与断言各建夹具会漂移）→ 新增 `tests/_golden_cases.py`；F-I-G2（P3）测试文件计数
+- **Step 7 CHECKLIST**: [CHECKLIST_golden_baseline.md](CHECKLIST_golden_baseline.md)——**36 项**（A6/B5/C6/D4/E7/F3/G5），实测列零预填
+- **Step 8 一致性 Review**: 四文档 7 链接 0 broken、G1-G6 = 6 处、623/14 引用自洽；P1=P2=0 通过
+- **Step 9 实施**: `tests/_synth_fixture.py` 扩展 + `tests/_golden_cases.py` + `scripts/record_golden.py` + `tests/golden/G1..G6.json` + 2 个测试文件；**626 passed** / black 171 / mypy 0（36） / 盲区 4 errors 2 files 不劣化 / `core/`·`filter/` **零改动**
+  - **V3 可重现**：连续两次录制 6 份 JSON SHA256 完全一致
+  - **V6 涨停**：涨停日 `2024-01-16` 对 `000001` 买入 0 笔、`limit_up_mask=False`
+  - **V7 退市**：退市日 `2024-01-22` 起无 BUY，仅 1 笔清仓 SELL，持仓归零
+  - **V10 防护**：脏工作区 / `CI=true` 均拒绝录制（exit=1）
+  - **实施期发现 7 项**：**F-S9-G1（P1，停牌路径账目缺陷 → 另立 P-014）**、F-S9-G2（P2，涨停构造污染价格序列）、F-S9-G5（P2，`recorded_at` 破坏可重现）、F-S9-G3/G4/G6/G7（P3）
+- **Step 10 ADD 审计**: Phase 0-4 全过（措辞 0 命中 / D1-D11 逐项落地 / numstat 对账 / 盲区无无依据行为 / Iron Law 以 F-S9-G1 为反例）——**P1=1（不在本批修复）/ P2=2（已修）/ P3=4（已回写）**；CHECKLIST **36/36**；RULE-5 异构复审留待独立会话
 
 ---
 
