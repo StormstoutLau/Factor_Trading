@@ -20,7 +20,7 @@
 
 ### 1.2 测试状态
 
-> **2026-11-10 终态基线（P-013 收口实测）**: `626 passed` / black 171 unchanged / mypy 0（36 files）/ 盲区 4 errors 2 files / **70 测试文件** / 远端 CI run `42786173151` 三版本（3.10/3.11/3.12）各 `619 passed, 1 skipped`（= 本地 626 − 7 项 numba `importorskip`）；P-011 收口时为 `609 passed` / 68 文件 / CI `602 passed, 1 skipped`。U-001/U-005 已由 P-008/P-009 关闭，下表为 P-0 时代历史快照存档。
+> **2026-11-10 终态基线（P-014 收口实测）**: `635 passed` / black 172 unchanged / mypy 0（36 files）/ 盲区 4 errors 2 files / **71 测试文件**（`tests/*.py` 74 = 71 测试 + 3 辅助）/ **golden 7 条** / 远端 CI run `[待回填]` 三版本（3.10/3.11/3.12）；P-013 收口时为 `626 passed` / 70 文件 / CI `619 passed, 1 skipped`；P-011 收口时为 `609 passed` / 68 文件。U-001/U-005 已由 P-008/P-009 关闭，下表为 P-0 时代历史快照存档。
 
 | 场景 | 结果 | 证据 |
 |------|------|------|
@@ -63,7 +63,7 @@
 | F-A1(P-012) | 注入式工作流未注入信号 → 静默空回测（空因子/空信号时引擎无输出无告警） | P-012 CHECKLIST §11 P3 发现；期望 fail-fast 或显式 warning；注意 P-007 层 B 已有「空因子 fail-fast」行为（`05af52f`），需核对是否已覆盖该场景后再定修法；**T3**（小修 + 1 测试） | pending | P3 |
 | U-D1(P-011) | golden 全局基线固化（L4 判据） | P-011 U-D1 设计裁决挂起；**硬约束「先改口径、后固 golden」已满足**——复权三口径/掩码/退市均已随 P-012 落地且 RULE-5 复审确认无未归因行为；**T1**（基线固化 + manifest 绑定） | **done（2026-11-10 由 P-013 承接**，见下） | **P2** |
 | P-013 | Golden 基线固化（L4 判据落地） | P-011 U-D1 升格；6 条基线（V2/V3 × baseline·cost·mask·delisting）× 分字段容差 × CI 三版本；**T1** | done（2026-11-10，Step 1-10 全通过：四文档 + B1/B2 两批；**626 passed**（609+17）/ black 171 / mypy 0 / 盲区不劣化 / 6 份基线**逐字节可重现**；`tests/golden/*.json` + `scripts/record_golden.py` + `tests/_golden_cases.py` 单一构造器；实施期发现 **F-S9-G1（P1 停牌账目缺陷）** + F-S9-G2~G7） | P2 |
-| **P-014** | **V2 停牌路径账目缺陷（P-013 实施期发现）** | 停牌日仍发生买入（`2024-01-17 BUY 108800`）；停牌恢复日同一卖出重复记账（`SELL 326500`×2 + `SELL 109500`，实际执行 436000 但 trade_log 记 762500）→ **负持仓 -109500** + 5 项 I2 违规；E2 证据见 [IMPL_golden_baseline §8.3](IMPL_golden_baseline.md) | pending（**P1，建议下一批优先**） | **P1** |
+| **P-014** | **V2 停牌路径账目缺陷（P-013 实施期发现）** | 次日开盘路径（`enable_pending_orders=False`）在停牌期重复生成清仓单，恢复日一次性成交 → 负持仓 + 5 项 I2 违规；E2 复现见 [RESEARCH_p014 §4](RESEARCH_p014_suspension_accounting.md)；**症状订正**：原登记「停牌日仍成交」未复现（掩码生效），详见该文 §4.3；**T1** | **done（2026-11-10，Step 1-10）**：三层防线（执行侧持仓夹紧 / 再平衡刷新订单簿 / 次日订单过期）+ 8 项性质测试 + golden **G7**；**635 passed** / black 172 / mypy 0（36）/ 盲区不劣化；G1/G2/G4/G5/G6 基线**数值不变**，G3 行为变更重录（56→55 笔，NAV rel 1.11e-6，理由见 [IMPL §9.3](IMPL_p014_suspension_accounting.md)）；四文档 [RESEARCH](RESEARCH_p014_suspension_accounting.md) / [DESIGN](DESIGN_p014_suspension_accounting.md) / [IMPL](IMPL_p014_suspension_accounting.md) / [CHECKLIST](CHECKLIST_p014_suspension_accounting.md) | **P1** |
 | U-D2(P-011) | V2 同日收盘模式（跨引擎逐日净值一致） | P-011 U-D2 挂起（倾向不做）；触发=第三方要求 V2/V3 逐日净值一致 | pending（倾向不做） | P3 |
 | U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
 | U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
@@ -459,7 +459,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 | 技术债挂起 ×4 | U-006 重评前置（L5）已满足 → 升格 §1.4（P3）；F-A1(P-012) → 升格 §1.4（P3）；**P-004 前置（L5 端口定型）已满足 → §1.4 上调 P2**；P-005 → §1.4 维持 P3 |
 | 条件触发项 | U-D2 / U-D3 / U-2(P-011 DSR/PBO) → 升格 §1.4（P3） |
 
-> 残余可启动项汇总：**P1 = P-014（V2 停牌账目缺陷，P-013 实施期发现）**；**P2 = P-004（数据层统一）**；P3 = U-006-R / F-A1(P-012) / P-005 / U-D2 / U-D3 / U-2。原执行顺序 P0→P7 全部完成；**U-D1（golden 基线）已由 P-013 于 2026-11-10 落地**。
+> 残余可启动项汇总：**P1 = 无**（P-014 已于 2026-11-10 关闭）；**P2 = P-004（数据层统一）**；P3 = U-006-R / F-A1(P-012) / P-005 / U-D2 / U-D3 / U-2 / U-P014-1 / U-P014-3。原执行顺序 P0→P7 全部完成；**U-D1（golden 基线）已由 P-013 落地**；**P-014（停牌账目）已由本批关闭**。
 
 ### 3.15 P-013（Golden 基线固化 · L4 判据）执行记录（2026-11-10，done）
 
@@ -480,6 +480,21 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **实施期发现 7 项**：**F-S9-G1（P1，停牌路径账目缺陷 → 另立 P-014）**、F-S9-G2（P2，涨停构造污染价格序列）、F-S9-G5（P2，`recorded_at` 破坏可重现）、F-S9-G3/G4/G6/G7（P3）
 - **Step 10 ADD 审计**: Phase 0-4 全过（措辞 0 命中 / D1-D11 逐项落地 / numstat 对账 / 盲区无无依据行为 / Iron Law 以 F-S9-G1 为反例）——**P1=1（不在本批修复）/ P2=2（已修）/ P3=4（已回写）**；CHECKLIST **36/36**；RULE-5 异构复审留待独立会话
 - **CI 回收**: run `42786173151`（commit `77b110b`）三 job `success`，3.10/3.11/3.12 各 `619 passed, 1 skipped`（= 本地 626 − 7 项 numba `importorskip`）→ 6 条 golden 在无 numba 的 `py_func` 路径全部通过，分字段容差有效；**既有观察**：CI `Type check (mypy)` 为 `|| true` 不阻断且报 `Source file found twice`（CI 目录 + 已安装包命名冲突，非本批引入；本地 `Success: 36 source files`）
+
+### 3.16 P-014（V2 停牌路径账目缺陷修复 · P1）执行记录（2026-11-10，done）
+
+- **立项**: P-013 F-S9-G1 升格；复现脚本 E2 证实：次日路径（`enable_pending_orders=False`）停牌期重复生成清仓单 → 恢复日 `SELL 113600 + SELL 338600 ×2` → 持仓 **-113600** + **5 项 I2 违规**；队列路径（生产默认）无此问题
+- **症状订正（E1）**: 原登记「停牌日仍发生买入」**未复现**（掩码两路径均生效），已在 [RESEARCH §4.3](RESEARCH_p014_suspension_accounting.md) 保留原值并标注处置
+- **Step 1-2 调研 + Review**: [RESEARCH_p014](RESEARCH_p014_suspension_accounting.md)——P1-P12 事实 + 方案矩阵 U-A~U-E（拒绝 U-B 在途感知 / U-E 持仓层截断）；F-R-P014-1（P2 数值口径）/ F-R-P014-2（P3 漏列 U-E）
+- **Step 3-4 设计 + Review**: [DESIGN_p014](DESIGN_p014_suspension_accounting.md)——D1-D10（三层防线：语义对齐 / 生命周期 / 执行兜底）+ I1-I5；F-D-P014-1（P2 单因归因修正）
+- **Step 5-6 实施规划 + Review**: [IMPL_p014](IMPL_p014_suspension_accounting.md)——T-1~T-7 / V1-V13；F-I-P014-1（P2 用例数预测）/ F-I-P014-2（P3 夹紧顺序）
+- **Step 7-8 验收清单 + 一致性**: [CHECKLIST_p014](CHECKLIST_p014_suspension_accounting.md)——31 项；链接 0 broken、I1-I5 与 T-1~T-7 全映射
+- **Step 9 实施**: `core/engine_v2.py`（`_clamp_sell_quantity` / `_cancel_next_day_orders` / `_expire_next_day_orders` + 三处接入）、`core/pending.py`（`cancel_order`）、`core/interfaces.py`（协议声明）；测试 `tests/test_p014_suspension_accounting.py`（8 项）；golden **G7** 新增、**G3 重录**
+  - **F5 红→绿**: 红 `7 failed, 1 passed`（@`29cd6fa`，含 `I2 违规 5 项` / `assert 'EXECUTED' == 'CANCELLED'` / 两路径净值 13.19M vs 9.93M）→ 绿 `8 passed`
+  - **门禁**: `635 passed` / black **172** unchanged / mypy 0（36）/ 盲区 4 errors 2 files 不劣化 / `tests/*.py` **74**
+  - **基线影响**: G1/G2/G4/G5/G6 数值 `IDENTICAL`；G3 `56→55` 笔、NAV `rel 1.11e-6`（涨停日被阻断买单不再跨日重试，与队列路径语义对齐）
+  - **实施期发现 5 项**: F-S9-P014-1（P2 mock 签名与协议不一致）/ F-S9-P014-2（P2 协议缺 `cancel_order`）/ F-S9-P014-3~5（P3：`--out-dir` 仓外崩溃未修、G3 描述残留停牌、用例数预测）
+- **Step 10 ADD 审计**: 见 CHECKLIST §9（Phase 0-4 + 取证矩阵 E1-E5）；RULE-5 异构复审留待独立会话
 
 ---
 
