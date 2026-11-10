@@ -29,8 +29,8 @@
     "total_amount": 25669347.07289398,
     "total_cost": 46122.06883932736
   },
-  "git_commit": "677c041",
+  "git_commit": "036b26b",
   "python_version": "3.12.10",
-  "dirty": true,
+  "dirty": false,
   "numba_available": true
 }
