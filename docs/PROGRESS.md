@@ -555,6 +555,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **终态**: `28 断言（失败 0）+ 豁免 1` ×4 复放；`pytest` **635 passed**（47.26s）/ black 5 unchanged / 项目解释器无 vectorbt；占位真实残留 **0**
   - **环境取证说明**：本终端 `python` 默认解析到 Anaconda 3.13.5（自带 vectorbt 0.28.4），全部读数改用项目解释器 `…Python312\python.exe`（3.12.10）复跑
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×8 + E3×1 + E4 零发现；**13/13 ✅**；RULE-5 未执行（P3 小修批）
+- **CI 回收**: 远端 run `42819919916`（@`319c450`）**success**
 
 ---
 
