@@ -103,6 +103,13 @@ def _run(root: Path, *, enable_pending: bool) -> tuple[BacktestEngineV2, dict]:
     return engine, engine.run()
 
 
+def _setup(root: Path, *, enable_pending: bool) -> BacktestEngineV2:
+    """只 setup 不 run：单测用，避免全量回测留下在途订单干扰。"""
+    engine = BacktestEngineV2(_config(root, enable_pending=enable_pending))
+    engine.setup()
+    return engine
+
+
 @pytest.mark.parametrize("enable_pending", [False, True], ids=["next_day", "queue"])
 def test_accounting_properties(tmp_path: Path, enable_pending: bool) -> None:
     """I1-I4：两条执行路径在停牌场景下账目自洽。"""
@@ -141,10 +148,57 @@ def test_accounting_properties(tmp_path: Path, enable_pending: bool) -> None:
     assert not duplicated, f"同日同向同量重复成交: {sorted(duplicated)[:3]}"
 
 
+def test_queue_sell_without_position_is_cancelled(tmp_path: Path) -> None:
+    """D1 L3（队列路径）：无持仓卖单被作废，不产生成交。"""
+    _write_fixture(tmp_path)
+    engine = _setup(tmp_path, enable_pending=True)
+    assert engine.pending_queue is not None and engine.executor is not None
+
+    order = create_pending_order("600000", OrderSide.SELL, 100, DATES[0])
+    engine.pending_queue.add_order(order)
+    before = len(engine.executor.trade_log.get_trades())
+
+    engine._process_pending_orders(DATES[0], 0)
+
+    assert order.status.name == "CANCELLED"
+    assert len(engine.executor.trade_log.get_trades()) == before
+
+
+def test_next_day_sell_without_position_is_dropped(tmp_path: Path) -> None:
+    """D1 L3（次日路径）：无持仓卖单被丢弃，不产生成交。"""
+    _write_fixture(tmp_path)
+    engine = _setup(tmp_path, enable_pending=False)
+    assert engine.executor is not None
+
+    order = create_pending_order("600000", OrderSide.SELL, 100, DATES[0])
+    engine._next_day_orders = [{"order": order, "create_date": DATES[0], "create_date_index": 0}]
+    before = len(engine.executor.trade_log.get_trades())
+
+    engine._execute_next_day_orders(DATES[0], 0)
+
+    assert len(engine.executor.trade_log.get_trades()) == before
+    assert getattr(engine, "_next_day_orders") == []
+
+
+def test_two_paths_final_value_close(tmp_path: Path) -> None:
+    """U-P014-2：两条路径的最终净值差异 < 5%（不要求逐笔一致）。"""
+    next_day_root = tmp_path / "next_day"
+    queue_root = tmp_path / "queue"
+    _write_fixture(next_day_root)
+    _write_fixture(queue_root)
+
+    _, next_day = _run(next_day_root, enable_pending=False)
+    _, queue = _run(queue_root, enable_pending=True)
+
+    v1 = float(np.asarray(next_day["portfolio_value"], dtype=float)[-1])
+    v2 = float(np.asarray(queue["portfolio_value"], dtype=float)[-1])
+    assert abs(v1 - v2) / max(abs(v2), 1.0) < 0.05, f"两路径净值差异过大: {v1} vs {v2}"
+
+
 def test_clamp_sell_quantity(tmp_path: Path) -> None:
     """D6：SELL 按可卖持仓夹紧；BUY 原样返回。"""
     _write_fixture(tmp_path)
-    engine, _ = _run(tmp_path, enable_pending=False)
+    engine = _setup(tmp_path, enable_pending=False)
     assert engine.tracker is not None
 
     engine.tracker.execute_trade(
@@ -174,7 +228,7 @@ def test_clamp_sell_quantity(tmp_path: Path) -> None:
 def test_cancel_next_day_orders_scoped(tmp_path: Path) -> None:
     """D5：撤单只作用于指定标的，返回撤销数。"""
     _write_fixture(tmp_path)
-    engine, _ = _run(tmp_path, enable_pending=False)
+    engine = _setup(tmp_path, enable_pending=False)
 
     in_scope = create_pending_order("600000", OrderSide.SELL, 100, DATES[0])
     out_scope = create_pending_order("000001", OrderSide.SELL, 100, DATES[0])
@@ -193,7 +247,7 @@ def test_cancel_next_day_orders_scoped(tmp_path: Path) -> None:
 def test_expire_next_day_orders(tmp_path: Path) -> None:
     """D7：次日订单按 max_pending_days_* 过期（买 5 / 卖 10 自然日）。"""
     _write_fixture(tmp_path)
-    engine, _ = _run(tmp_path, enable_pending=False)
+    engine = _setup(tmp_path, enable_pending=False)
 
     stale_buy = create_pending_order("000001", OrderSide.BUY, 100, DATES[0])
     fresh_buy = create_pending_order("000002", OrderSide.BUY, 100, DATES[7])
