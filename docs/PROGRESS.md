@@ -576,6 +576,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **终态**: `28 断言（失败 0）+ 豁免 1` exit 0；`635 passed`（`MPLBACKEND=Agg`，64.62s）/ black 5 unchanged
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×7 + E3×1 + E4「发现 1 项」（`a.generated.bak` 形态属命名契约内后果，不阻断）；**10/10 ✅**；RULE-5 未执行（P3 小修批）
 - **CI 回收**: 远端 run `42837224919`（@`0410505`）**success**
+- **RULE-5 异构复审（2026-11-10）**: **pass（0 P1 / 0 P2 / 1 P3 登记 + 1 观察）**——[CHECKLIST_p018 §9.4](CHECKLIST_p018_p017_review_fixes.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 八项（pytest Agg **635 passed** / 占位扫描真实残留 0 / 代码零位移核对）；E2 十一项读数全 PASS（全链 + 命中矩阵四形态 + **幂等形态 `X.generated.generated` 不膨胀** + B5 负路径 + P-016 守卫未回归 + **worktree @`97b71b2` 红读数重放复现无扩展名级联**）；E3 锚点全命中（`:268` 并判判定 ↔ DESIGN §4 逐字 / 零位移达成——P-017 行号漂移观察项未复发 / 两处归因更正落位）；**P3×1 登记**：F-R5-P018-1（分支 1「父目录不存在」形态 `write_text` 抛 `FileNotFoundError` 实测 exit 1，IMPL §6.2 探针 ⑥「含不存在的父目录」覆盖声明失实——**F-R5-P017-2 归因失实模式复发**）；观察：`endswith` 大小写敏感（无现实触发面）
 
 ---
 
