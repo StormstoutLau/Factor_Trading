@@ -1135,36 +1135,39 @@ class BacktestEngineV2:
         ]
         if self.cfg.mktcap_file:
             data_files.append(self.cfg.mktcap_file)
-        try:
-            finished_at = datetime.now()
-            manifest = build_manifest(
-                self.cfg,
-                data_dir=self.cfg.data_dir,
-                data_files=data_files,
-                caliber={
-                    "ruleset_version": RULESET_VERSION,
-                    "price_modes": self.cfg.price_modes,
-                    "next_day_tradable_mode": getattr(
-                        self.universe, "next_day_tradable_mode", None
-                    ),
-                    "api_version": __api_version__,
-                },
-                started_at=self._run_started_at or finished_at,
-                finished_at=finished_at,
-                outputs={
-                    "trades": "trades.csv",
-                    "snapshots": "portfolio_snapshots.csv",
-                    "metrics": "performance_metrics.csv",
-                },
-                benchmark=self.cfg.benchmark,
-            )
-            targets = [output_dir]
-            if self.cfg.dump_layers_dir is not None:
-                targets.append(Path(self.cfg.dump_layers_dir))
-            write_manifest(manifest, targets)
+        finished_at = datetime.now()
+        manifest = None
+        if self.cfg.write_manifest:
+            try:
+                manifest = build_manifest(
+                    self.cfg,
+                    data_dir=self.cfg.data_dir,
+                    data_files=data_files,
+                    caliber={
+                        "ruleset_version": RULESET_VERSION,
+                        "price_modes": self.cfg.price_modes,
+                        "next_day_tradable_mode": getattr(
+                            self.universe, "next_day_tradable_mode", None
+                        ),
+                        "api_version": __api_version__,
+                    },
+                    started_at=self._run_started_at or finished_at,
+                    finished_at=finished_at,
+                    outputs={
+                        "trades": "trades.csv",
+                        "snapshots": "portfolio_snapshots.csv",
+                        "metrics": "performance_metrics.csv",
+                    },
+                    benchmark=self.cfg.benchmark,
+                )
+                targets = [output_dir]
+                if self.cfg.dump_layers_dir is not None:
+                    targets.append(Path(self.cfg.dump_layers_dir))
+                write_manifest(manifest, targets)
+            except OSError as exc:
+                logger.warning("manifest 写入失败（不影响回测结果）: %s", exc)
+        if manifest is not None:
             additional_info["input_fingerprint"] = manifest["input_fingerprint"]
-        except OSError as exc:
-            logger.warning("manifest 写入失败（不影响回测结果）: %s", exc)
 
         logger.info("回测结果生成完成")
         return results

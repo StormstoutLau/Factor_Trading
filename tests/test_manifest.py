@@ -142,3 +142,26 @@ def test_callable_serialized(tmp_path):
     paths = write_manifest(manifest, [tmp_path / "a", tmp_path / "b"])
     assert [path.name for path in paths] == ["manifest.json", "manifest.json"]
     assert all(isinstance(path, Path) and path.is_file() for path in paths)
+
+
+def test_write_manifest_flag_disables(tmp_path):
+    """``write_manifest=False`` → 不写文件、结果不含指纹（零 I/O）。"""
+    _fixture(tmp_path)
+    engine = BacktestEngineV2(_config(tmp_path, write_manifest=False))
+    engine.setup()
+    results = engine.run()
+
+    assert not (tmp_path / "out" / "manifest.json").exists()
+    assert "input_fingerprint" not in results["additional_info"]
+
+
+def test_git_unavailable_returns_null(tmp_path, monkeypatch):
+    """git 不可用（非仓库/超时）→ commit/dirty 均为 null，不抛异常。"""
+
+    def _boom(*args, **kwargs):
+        raise OSError("git not found")
+
+    monkeypatch.setattr("core.manifest.subprocess.run", _boom)
+    manifest = _manifest(tmp_path)
+    assert manifest["git"] == {"commit": None, "dirty": None}
+    assert manifest["input_fingerprint"].startswith("sha256:")

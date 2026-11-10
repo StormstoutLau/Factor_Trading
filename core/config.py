@@ -343,6 +343,7 @@ class BacktestConfig:
     dump_layers_dir: Path | None = None  # 六层归因 dump 目录；None=关闭（零 I/O）
     invariant_mode: Literal["off", "report", "raise"] = "report"  # 不变量校验（P-011 D2）
     risk_free_rate: float = 0.03  # 年化无风险利率（P-011 D5，两引擎共享）
+    write_manifest: bool = True  # 是否写 run manifest（P-011 D7）
 
     # 数据文件配置（pkl格式）
     close_file: str = "close.pkl"
