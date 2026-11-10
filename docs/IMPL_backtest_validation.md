@@ -636,6 +636,7 @@ def write_manifest(manifest, paths) -> list[Path]: ...
 | B5 | `beaa3a1` | `core/manifest.py`（序列化 / sha256 / 指纹）、引擎落盘 | 零数值（仅增 `manifest.json`） |
 | B6 | `b6bcee3` | `cli.py --trace-dir`、`test_trace_completeness.py`（4） | 零数值 |
 | 补丁 | `d270511` | manifest 补 `write_manifest=False`（E1）与 git `OSError`（E7）用例 | 零数值 |
+| 补丁 | `7bcdd57` | 参考差分主用例兼容无 numba 环境（F-S9-2 远端补正） | 零数值 |
 
 ### 9.2 用例数与末态读数（覆盖 §5 的 52/602 预测）
 
@@ -703,7 +704,7 @@ def write_manifest(manifest, paths) -> list[Path]: ...
 | V13 | `python cli.py run --help` 含 `--trace-dir`，exit 0 | ✅ |
 | V14 | `test_trace_completeness` 4 passed；自差分 residual 1.16e-10 < 1e-8（F-S9-5） | ✅ |
 | V15 | worktree 演练：B3 提交 8 文件回退，`config.py` 1 处行相邻冲突（保留 B5 行即解）→ 净 7 文件；主工作区零影响 | ✅（含 F-S9-6） |
-| V16 | 本地提交后工作区干净；远端 CI 随文档提交推送后回收（CHECKLIST G7） | 待远端 |
+| V16 | 本地工作区干净；远端 CI run [`42768525717`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42768525717) @ `7bcdd57`：3.10/3.11/3.12 **三 job 全 success**（3.10 `602 passed, 1 skipped`；本地 609 − 7 为 numba 相关 `importorskip`） | ✅ |
 
 ### 9.7 与计划的差异汇总
 

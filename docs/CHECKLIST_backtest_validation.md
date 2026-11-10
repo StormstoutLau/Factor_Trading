@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_backtest_validation
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 9 实施完成**（2026-11-10；六批 + 1 补丁 `cd6d619`/`26929c6`/`9ec9f7d`/`e59dee2`/`beaa3a1`/`b6bcee3`/`d270511`；**609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**；B3 Δ 表 + `change_report residual 0.0` 双证；实测列 76 项已回填，仅 G7 远端 CI 待 Step 10 回收）；Step 10 ADD 审计 **未开始**
+> **状态**: **Step 9 实施完成**（2026-11-10；六批 + 2 补丁 `cd6d619`/`26929c6`/`9ec9f7d`/`e59dee2`/`beaa3a1`/`b6bcee3`/`d270511`/`7bcdd57`；**609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**；B3 Δ 表 + `change_report residual 0.0` 双证；远端 CI run `42768525717` 三 job 全绿；实测列 **76/76 已回填**）；Step 10 ADD 审计 **未开始**
 > **上游**: [DESIGN_backtest_validation.md](DESIGN_backtest_validation.md)（Step 4 通过；D1-D9 / 不变式 I1-I10；F-R1~F-R4 已回写；Step 9 回写 F-S9-2~F-S9-4） · [IMPL_backtest_validation.md](IMPL_backtest_validation.md)（Step 6 通过；T-0~T-14 / V1-V16；F-I1~F-I5 已回写；**§9 Step 9 实施记录已追加**）
 > **填写规则**: 「实测」列只写 Step 9 实施后的实测证据（RULE-1，禁止预填）；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；测试命令加 `MPLBACKEND=Agg`
@@ -123,7 +123,7 @@
 | G4 | `mypy --check-untyped-defs core` → `4 errors in 2 files`（**不劣化**；4 个新 core 模块 0 error） | mypy 输出 + `--show-error-codes` | V4 | ✅ `Found 4 errors in 2 files (checked 36 source files)` |
 | G5 | `--collect-only -q` == `609 tests collected` | collect 输出 | V5 | ✅ `609 tests collected in 3.18s` |
 | G6 | 分文件绿：`test_reference_diff` 9 / `test_v2_components` 8 / `test_cross_engine_equivalence` 5 / `test_metrics_single_source` 9 / `test_validation_declaration` 4 / `test_manifest` 9 / `test_trace_completeness` 4 / `test_invariants` 11 | 8 次 `pytest <file> -q` 末行 | V6/V7/V8/V14 | ✅ 9 / 8 / 5 / 9 / 4 / 9 / 4 / 11（原预测 9/5/5/8/4/7/4/10，偏差见 IMPL §9.2） |
-| G7 | 远端 CI：`.github/workflows/tests.yml` 三 job（3.10/3.11/3.12）全绿，记录 run id | `gh run view <id>` / Actions 页面 | V16 | ⏳ 待 Step 10 回填（文档提交推送后回收 run id） |
+| G7 | 远端 CI：`.github/workflows/tests.yml` 三 job（3.10/3.11/3.12）全绿，记录 run id | `gh run view <id>` / Actions 页面 | V16 | ✅ run [`42768525717`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/42768525717) @ `7bcdd57`：3.10/3.11/3.12 **全 success**；3.10 `602 passed, 1 skipped`（本地 609 − 7 为 numba 相关 `importorskip`，与既有基线同构；首跑 `42768109104` 的 1 失败已由 `7bcdd57` 修复） |
 | G8 | 无新运行时依赖（`git diff pyproject.toml` 空；`pyarrow\|hypothesis\|pandera` 新增代码 0 命中）；8 个新测试文件 `data/test_ashare` 0 命中 | `git diff` + `Grep` 双检 | V12 | ✅ `git diff pyproject.toml` 空；新增 14 文件 4 关键词 0 命中 |
 
 ### 7.2 INV 不变式（DESIGN §6，I1-I10）— 10 项
@@ -163,7 +163,7 @@
 | DOC2 | PROGRESS §1.4 P-011 行、§3.12 记录、§3.14 状态更新行同步至最终状态 | 读回 | IMPL T-14 | ✅ 三处均已更新至 Step 9 完成（六批 hash + 609/167/0 + F-S9-*） |
 | DOC3 | CHANGELOG：B3 行为变更（V2 vol/sharpe、V3 sharpe/mdd）+ B5 新增 `manifest.json` 已明示 | 读回 | DESIGN §10.1-2 | ✅ `[Unreleased]` 三节：Added（P-011 全套）/ Changed（B3 口径）/ Fixed（F-S9-1 等） |
 | DOC4 | DECISIONS：本批不新增 ADR（口径决策属 DESIGN D5），如需登记则说明理由 | 读回 | DESIGN §2.2 | ✅ 无新增 ADR；口径决策记录于 DESIGN §4.2/§5.4 与 CHANGELOG |
-| DOC5 | 提交链与 CI run id 记录在 §10.0 与 PROGRESS | `git log` + Actions | IMPL T-14 | ✅ 提交链 7 个 hash 已记 §10.0 与 PROGRESS §3.12；CI run id 待 Step 10 回填（G7） |
+| DOC5 | 提交链与 CI run id 记录在 §10.0 与 PROGRESS | `git log` + Actions | IMPL T-14 | ✅ 提交链 8 个 hash 已记 §10.0 与 PROGRESS §3.12；CI run `42768525717` 已回填（G7） |
 
 ### 7.5 错误处理映射（DESIGN §8，8 场景；验收以对应功能项为准，不重复计数）
 
@@ -240,6 +240,7 @@
 | B5 | `beaa3a1` | 零数值 | `test_manifest` 7→9（补丁后）；`manifest.json` 落盘 |
 | B6 | `b6bcee3` | 零数值 | `test_trace_completeness` 4；`--trace-dir` exit 0 |
 | 补丁 | `d270511` | 零数值 | E1 `write_manifest=False` + E7 git `OSError` |
+| 补丁 | `7bcdd57` | 零数值 | 参考差分主用例兼容无 numba 环境（F-S9-2 远端补正） |
 
 **B3 Δ（31 股 × 60 日，before `@cd6d619`）**：V2 `annual_volatility 0.08122845→0.08189931`、`sharpe −1.45492→−1.44300`、`total_return` 1 ulp；V3 `max_drawdown −0.02965091→+0.02965091`、`sharpe 0.93900→0.59117`（== rf/vol）；其余字段 0；NAV / trades / 六层逐值不变。完整表见 [IMPL §9.3](IMPL_backtest_validation.md)。
 
@@ -252,7 +253,7 @@
 - **F-S9-6（P3）**：B3 单提交回退在 `config.py` 1 处行相邻冲突（保留 B5 行即解），净回退 7 文件
 - **F-S9-7（P3）**：V3 三个 `check_*` 为公共诊断 API，无直接单测；I5-I7 由参考差分覆盖
 
-**机械验证 V1-V16**：V1 609 passed / V2 167 unchanged / V3 Success 36 files / V4 4 errors 2 files / V5 609 collected / V6 9 / V7 5 / V8 9 / V9 Δ 表 / V10 residual 0.0 / V11 指纹稳定 / V12 零新依赖 / V13 CLI exit 0 / V14 4 passed（residual 1.16e-10 < 1e-8）/ V15 净 7 文件回退 / V16 本地干净，远端 CI 待 Step 10。
+**机械验证 V1-V16**：V1 609 passed / V2 167 unchanged / V3 Success 36 files / V4 4 errors 2 files / V5 609 collected / V6 9（JIT 与 `NUMBA_DISABLE_JIT=1` 双跑）/ V7 5 / V8 9 / V9 Δ 表 / V10 residual 0.0 / V11 指纹稳定 / V12 零新依赖 / V13 CLI exit 0 / V14 4 passed（residual 1.16e-10 < 1e-8）/ V15 净 7 文件回退 / V16 本地干净 + 远端 run `42768525717` 三 job 全绿。
 
 ### 10.1 验收统计
 
@@ -264,19 +265,19 @@
 | D 偏差声明（B4） | 5 | 5 | 0 | 0 |
 | E 运行清单（B5） | 7 | 7 | 0 | 0 |
 | F 逐日 trace（B6） | 4 | 4 | 0 | 0 |
-| G 测试与验证 | 8 | 7 | 0 | 1（G7 远端 CI） |
+| G 测试与验证 | 8 | 8 | 0 | 0 |
 | INV 不变式 | 10 | 10 | 0 | 0 |
 | RL 排除与红线 | 9 | 9 | 0 | 0 |
 | DOC 台账与文档 | 5 | 5 | 0 | 0 |
-| **总计** | **76** | **75** | **0** | **1** |
+| **总计** | **76** | **76** | **0** | **0** |
 
-> **统计口径（RULE-2）**：逐行回填，每行 `总数 = 通过 + 失败 + 待办` 成立；总计行按列求和成立（8+10+10+5+7+4+8+10+9+5 = 76；75+0+1 = 76）。§7.5 为锚点表，不重复计数。
+> **统计口径（RULE-2）**：逐行回填，每行 `总数 = 通过 + 失败 + 待办` 成立；总计行按列求和成立（8+10+10+5+7+4+8+10+9+5 = 76；76+0+0 = 76）。§7.5 为锚点表，不重复计数。
 > **通过门槛**：P1/P2 = 0；B3 附 `change_report.json` 且 residual / attribution 双门通过；60 → 68 测试文件；G7 以远端实测为准（Step 10）。
 
 ### 10.2 验收决定
 
-- [ ] **验收通过**：所有 P1 项通过，无阻塞性问题
-- [x] **有条件通过**：本地 75/76 通过（P1=0；F-S9-1 已修复）；唯一条件 = **G7 远端 CI 三 job 全绿**，随 Step 10 提交推送后回收
+- [x] **验收通过**：76/76 通过；P1=0（实施期唯一 P1 F-S9-1 已修复并披露）；远端 CI run `42768525717` 三 job 全绿
+- [ ] **有条件通过**：<条件>
 - [ ] **验收失败**：<原因>
 
 ### 10.3 签字
@@ -293,5 +294,5 @@
 | 行动 | 责任人 | 期限 | 状态 |
 |------|--------|------|------|
 | Step 8 一致性 Review（独立 pass；5 项预登记核对点 + 机械校验） | 单 Agent 自查（RULE-4） | Step 8 | done（2026-11-10，§8） |
-| Step 9 实施（B1→B2→B3→B4→B5→B6 六提交 + T-14） | 单 Agent 自查 | Step 9 | done（2026-11-10，7 提交；76 项回填 75/76） |
+| Step 9 实施（B1→B2→B3→B4→B5→B6 六提交 + T-14） | 单 Agent 自查 | Step 9 | done（2026-11-10，8 提交；76/76，远端 CI `42768525717` 全绿） |
 | Step 10 ADD 审计 + 提交推送 + 远端 CI（G7 回填） | 单 Agent 自查 | Step 10 | pending |
