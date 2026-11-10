@@ -8,18 +8,21 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
 
+from core import __api_version__
 from core.analytics import generate_report
 from core.change_report import LayerDumper
 from core.config import BacktestConfig
 from core.data import DataManager
 from core.execution import ExecutionSimulator
 from core.invariants import InvariantViolationError, check_all
+from core.manifest import build_manifest, write_manifest
 from core.execution_policy import (
     ExecutionPolicy,
     SignalTranslator,
@@ -151,6 +154,9 @@ class BacktestEngineV2:
         # 退市结算（P-012 D5 / T-9）
         self._delist_return_source: dict[str, str] = {}
         self._n_delisted_closed: int = 0
+
+        # 运行清单（P-011 D7）：run() 起点时间戳，setup() 不记
+        self._run_started_at: Optional[datetime] = None
 
         # 实际使用的组件（setup后填充）
         self.dm: Optional[IDataManager] = None
@@ -305,6 +311,7 @@ class BacktestEngineV2:
             raise RuntimeError("请先调用setup()方法")
 
         t0 = time.perf_counter()
+        self._run_started_at = datetime.now()
         logger.info("开始回测...")
 
         last_date_index = len(self.dm.trade_dates) - 1
@@ -1113,6 +1120,51 @@ class BacktestEngineV2:
             "additional_info": additional_info,
             "unclosed_positions": self._unclosed_positions,
         }
+
+        # 运行清单（P-011 D7）：写 output_dir + trace 目录；写失败不影响回测结果
+        data_files = [
+            self.cfg.close_file,
+            self.cfg.open_file,
+            self.cfg.high_file,
+            self.cfg.low_file,
+            self.cfg.adj_factor_file,
+            self.cfg.suspend_file,
+            self.cfg.industry_file,
+            self.cfg.st_file,
+            *self.cfg.factor_files,
+        ]
+        if self.cfg.mktcap_file:
+            data_files.append(self.cfg.mktcap_file)
+        try:
+            finished_at = datetime.now()
+            manifest = build_manifest(
+                self.cfg,
+                data_dir=self.cfg.data_dir,
+                data_files=data_files,
+                caliber={
+                    "ruleset_version": RULESET_VERSION,
+                    "price_modes": self.cfg.price_modes,
+                    "next_day_tradable_mode": getattr(
+                        self.universe, "next_day_tradable_mode", None
+                    ),
+                    "api_version": __api_version__,
+                },
+                started_at=self._run_started_at or finished_at,
+                finished_at=finished_at,
+                outputs={
+                    "trades": "trades.csv",
+                    "snapshots": "portfolio_snapshots.csv",
+                    "metrics": "performance_metrics.csv",
+                },
+                benchmark=self.cfg.benchmark,
+            )
+            targets = [output_dir]
+            if self.cfg.dump_layers_dir is not None:
+                targets.append(Path(self.cfg.dump_layers_dir))
+            write_manifest(manifest, targets)
+            additional_info["input_fingerprint"] = manifest["input_fingerprint"]
+        except OSError as exc:
+            logger.warning("manifest 写入失败（不影响回测结果）: %s", exc)
 
         logger.info("回测结果生成完成")
         return results
