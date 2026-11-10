@@ -68,6 +68,7 @@
 | **P-016** | **P-015 复审 P3 修正（F-R5-P015-1~3 + F-S9-P016-1）** | RULE-5 复审 §9.4 输出 3 项 P3；改动落 `scripts/external_benchmark/`（Layer-1）→ **T1**（判档规则 1 + 规则 3 fail-closed；本仓无 T2 本地先例）；实施前取证新发现 F-S9-P016-1（报告覆盖**已真实发生**，P2） | **done（2026-11-10，Step 1-10）**：三态词表（pass/fail/waiver，豁免不计断言）/ 报告人工章节保护（命中即改写 `.generated.md`）/ `simulate_vbt_spec` rate>0 fail-fast / I2a↔G1 命名映射三处文档注；**重新回填** APPENDIX §1/§3/§4（P-015 会话内已被覆盖为占位）；**18/18**；**28 断言 + 1 豁免，exit 0**；`635 passed` / black 0 / 主环境零污染；发现 P2×1 + P3×1（F-S9-P016-2 复审漏检项，登记）；四文档 [RESEARCH](RESEARCH_p016_p015_review_fixes.md) / [DESIGN](DESIGN_p016_p015_review_fixes.md) / [IMPL](IMPL_p016_p015_review_fixes.md) / [CHECKLIST](CHECKLIST_p016_p015_review_fixes.md) | **P3** |
 | **P-017** | **P-016 复审 E4 四项 P3 修正** | P-016 RULE-5 复审 §9.4 E4 输出 4 项 P3（F-R5-P016-1~4）；改动落 `scripts/external_benchmark/verify_p015.py`（Layer-1）→ **T1**（判档规则 1；无 T2 本地先例） | **done（2026-11-10，Step 1-10）**：① PROGRESS §3.17.1 + §1.4 两处「29 项断言」补 P-017 口径注（原句保留，不改冻结读数）；② IMPL_p015 §8.5 占位回填为读数表 + 「T-4 原始读数未保全」声明；③ `_resolve_report_target` 增 `GENERATED_SUFFIX` 命名空间守卫（生成物原地重写，消除 `.generated.generated.md` 级联）；④ CHECKLIST_p016 E-1 计数更正为 12 文件 + B-3 分支精确化。**13/13 ✅**；四分支探针全 PASS；**28 断言 + 1 豁免，exit 0**；`635 passed` / black 0；占位真实残留 0；四文档 [RESEARCH](RESEARCH_p017_p016_review_fixes.md) / [DESIGN](DESIGN_p017_p016_review_fixes.md) / [IMPL](IMPL_p017_p016_review_fixes.md) / [CHECKLIST](CHECKLIST_p017_p016_review_fixes.md) | **P3** |
 | **P-018** | **P-017 复审 E4 两项 P3 修正** | P-017 RULE-5 复审 §9.4 E4 输出 F-R5-P017-1（无扩展名目标守卫失效）/ -2（分支 1 覆盖归因失实）；改动落 `scripts/external_benchmark/verify_p015.py`（Layer-1）→ **T1** | **done（2026-11-10，Step 1-10）**：① 守卫改为并判 `path.name` 与 `path.stem`（单行 1:1，零行号位移）——`X.generated` 二次运行不再级联；② IMPL_p017 §6.2 + CHECKLIST_p017 C-4 追加 P-018 更正注（原句保留）+ 探针 ⑥ 真实覆盖分支 1。**10/10 ✅**；8 探针全 PASS；**28 断言 + 1 豁免，exit 0**；`635 passed`（Agg）/ black 5 unchanged；四文档 [RESEARCH](RESEARCH_p018_p017_review_fixes.md) / [DESIGN](DESIGN_p018_p017_review_fixes.md) / [IMPL](IMPL_p018_p017_review_fixes.md) / [CHECKLIST](CHECKLIST_p018_p017_review_fixes.md) | **P3** |
+| **P-019** | **报告写入父目录缺失修正（F-R5-P018-1）** | P-018 RULE-5 复审 §9.4 E4 发现：`--report` 父目录不存在时抛未捕获 `FileNotFoundError`（exit 1），且 P-018 探针 ⑥ 声称覆盖该形态（失实）；改动落 `scripts/external_benchmark/verify_p015.py`（Layer-1）→ **T1** | **done（2026-11-10，Step 1-10）**：① `write_report` 增 `target.parent.mkdir(parents=True, exist_ok=True)`（+1 行，`:254/:268/:272` 锚点零位移）——父目录缺失/多级父目录均可写；② IMPL_p018 §6.2 + CHECKLIST_p018 B-3 追加 P-019 更正注（原句保留）+ 真探针。**10/10 ✅**；7 探针全 PASS；**28 断言 + 1 豁免，exit 0**；`635 passed`（Agg）/ black 5 unchanged；四文档 [RESEARCH](RESEARCH_p019_report_parent_dir.md) / [DESIGN](DESIGN_p019_report_parent_dir.md) / [IMPL](IMPL_p019_report_parent_dir.md) / [CHECKLIST](CHECKLIST_p019_report_parent_dir.md) | **P3** |
 | U-D2(P-011) | V2 同日收盘模式（跨引擎逐日净值一致） | P-011 U-D2 挂起（倾向不做）；触发=第三方要求 V2/V3 逐日净值一致 | pending（倾向不做） | P3 |
 | U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
 | U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
@@ -577,6 +578,24 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×7 + E3×1 + E4「发现 1 项」（`a.generated.bak` 形态属命名契约内后果，不阻断）；**10/10 ✅**；RULE-5 未执行（P3 小修批）
 - **CI 回收**: 远端 run `42837224919`（@`0410505`）**success**
 - **RULE-5 异构复审（2026-11-10）**: **pass（0 P1 / 0 P2 / 1 P3 登记 + 1 观察）**——[CHECKLIST_p018 §9.4](CHECKLIST_p018_p017_review_fixes.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 八项（pytest Agg **635 passed** / 占位扫描真实残留 0 / 代码零位移核对）；E2 十一项读数全 PASS（全链 + 命中矩阵四形态 + **幂等形态 `X.generated.generated` 不膨胀** + B5 负路径 + P-016 守卫未回归 + **worktree @`97b71b2` 红读数重放复现无扩展名级联**）；E3 锚点全命中（`:268` 并判判定 ↔ DESIGN §4 逐字 / 零位移达成——P-017 行号漂移观察项未复发 / 两处归因更正落位）；**P3×1 登记**：F-R5-P018-1（分支 1「父目录不存在」形态 `write_text` 抛 `FileNotFoundError` 实测 exit 1，IMPL §6.2 探针 ⑥「含不存在的父目录」覆盖声明失实——**F-R5-P017-2 归因失实模式复发**）；观察：`endswith` 大小写敏感（无现实触发面）
+
+---
+
+### 3.21 P-019（报告写入父目录缺失修正）执行记录（2026-11-10，done）
+
+- **立项**: F-R5-P018-1；档位 **T1**（Layer-1：`scripts/external_benchmark/verify_p015.py`）
+- **Step 1-2**: [RESEARCH_p019](RESEARCH_p019_report_parent_dir.md)——P1-P4 事实（E3 @`6149cc6`）+ E1 红读数（`FileNotFoundError` traceback / exit 1）+ 写入点唯一性；方案矩阵 M-A；M-B/C/D 被拒理由；F1-F4 = N/A
+- **Step 3-4**: [DESIGN_p019](DESIGN_p019_report_parent_dir.md)——D1 写入前 mkdir / D2 归因注 + 真探针；I1-I4；实现规格
+- **Step 5-6**: [IMPL_p019](IMPL_p019_report_parent_dir.md)——T-1~T-3 / V1-V5 / 三项风险预案
+- **Step 7-8**: [CHECKLIST_p019](CHECKLIST_p019_report_parent_dir.md)——10 项零预填；机械校验 8 链接 0 broken / ID 闭环；一致性 0 发现
+- **Step 9 实施**:
+  - `verify_p015.py`：`:324` 增 `target.parent.mkdir(parents=True, exist_ok=True)`（+1 行，`:254/:268/:272` 零位移）
+  - 文档：IMPL_p018 §6.2 / CHECKLIST_p018 B-3 追加 P-019 更正注（原句保留）
+  - **F5 红→绿**：红 = `FileNotFoundError` traceback / exit 1；绿 = `EXIT=0 EXISTS=True`
+  - **7 探针全 PASS**：父目录缺失 / 多级父目录 / 父目录已存在 / 全链 / 分支 3 SHA / 无扩展名无级联 / 锚点零位移
+  - **探针首轮误判**：仅传 B1 时 I5 跨 case 阴性对照未齐 → exit 1（非父目录缺陷），改传五 case 后全 exit 0
+  - **终态**: `28 断言（失败 0）+ 豁免 1` exit 0；`635 passed`（`MPLBACKEND=Agg`，64.29s）/ black 5 unchanged
+- **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×6 + E3×1 + E4 零未登记发现；**10/10 ✅**；RULE-5 未执行（P3 小修批）
 
 ---
 

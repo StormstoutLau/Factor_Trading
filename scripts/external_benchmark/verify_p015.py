@@ -320,6 +320,8 @@ def write_report(path: Path, checks: Checks) -> None:
             f"[verify] [保护] {path.name} 含人工章节（§1/§3），改写 {target.name}；"
             "请人工比对 §2 读数后再合并"
         )
+    # 父目录缺失时自动创建（P-019 D1 / F-R5-P018-1）；权限类失败仍照常抛出
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("\n".join(lines), encoding="utf-8")
     print(f"[verify] 报告已写入 {target}")
 

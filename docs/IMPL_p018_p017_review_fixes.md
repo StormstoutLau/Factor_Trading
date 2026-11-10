@@ -98,7 +98,7 @@
 | ③ `X.generated.md`（P-017 不回归） | 指向生成物复放 | 原地写入、无 `[保护]`、无二次级联 |
 | ④ 分支 3（I1） | 策展版副本 | 改名 `.generated.md` + `SHA` 不变 |
 | ⑤ 分支 4（I1） | 存在无标记 | 原地覆盖（内容替换为模板） |
-| ⑥ **分支 1（F-R5-P017-2 补覆盖）** | 目标不存在（含不存在的父目录） | `FRESH_EXISTS=True`，内容含「恒等式逐条读数」 |
+| ⑥ **分支 1（F-R5-P017-2 补覆盖）** | 目标不存在（含不存在的父目录） | `FRESH_EXISTS=True`，内容含「恒等式逐条读数」 —— **P-019 更正（F-R5-P018-1）**：本探针实际**预建了父目录**（`fresh.parent.mkdir`），「父目录不存在」形态在 P-018 时点会抛 `FileNotFoundError`（exit 1），并非 `FRESH_EXISTS=True`；P-019 已在 `write_report` 增 `target.parent.mkdir(parents=True, exist_ok=True)` 并补真探针（见 [P-019 IMPL §6.2](IMPL_p019_report_parent_dir.md) 探针 ①） |
 | ⑦ 行号锚点 | `:254/:268/:272` 语义 | PASS（零位移，P-017 C-1 引用仍有效） |
 
 ### 6.3 终态读数

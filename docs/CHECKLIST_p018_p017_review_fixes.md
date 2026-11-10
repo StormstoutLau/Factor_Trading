@@ -24,7 +24,7 @@
 |----|--------|-----|------|
 | B-1 | 原句逐字保留（I4） | IMPL_p017 §6.2 仍含「由 A① 产生成物时的首次写入与探针 C/D 的新建路径覆盖」 | ✅ E1：[IMPL_p017 §6.2](IMPL_p017_p016_review_fixes.md#L119) 原句逐字保留，更正注为追加段 |
 | B-2 | 追加 P-018 更正注 | IMPL_p017 §6.2 与 CHECKLIST_p017 C-4 均含「P-018 更正」 | ✅ E1：两处均含「P-018 更正」（IMPL L121 / CHECKLIST L33） |
-| B-3 | 分支 1 真实覆盖（V3） | 目标不存在 → 原地新建、`FRESH_EXISTS=True` 读数入档 | ✅ E1：探针 ⑥（含不存在的父目录）→ `FRESH_EXISTS=True`，内容含「恒等式逐条读数」，读数已入 [IMPL_p018 §6.2](IMPL_p018_p017_review_fixes.md#L101) |
+| B-3 | 分支 1 真实覆盖（V3） | 目标不存在 → 原地新建、`FRESH_EXISTS=True` 读数入档 | ✅ E1：探针 ⑥（含不存在的父目录）→ `FRESH_EXISTS=True`，内容含「恒等式逐条读数」，读数已入 [IMPL_p018 §6.2](IMPL_p018_p017_review_fixes.md#L101) —— **P-019 更正**：该探针实际预建了父目录；「父目录不存在」形态在 P-018 时点会抛 `FileNotFoundError`（F-R5-P018-1），P-019 已修复并补真探针（见 [P-019 §6.2](IMPL_p019_report_parent_dir.md)） |
 
 ### C 组：纪律面与回归
 
