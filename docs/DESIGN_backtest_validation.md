@@ -377,6 +377,8 @@ def build_manifest(
     started_at: datetime,
     finished_at: datetime,
     outputs: Mapping[str, str] | None = None,
+    benchmark: str | None = None,     # Step 10 补注（F-A2）：登记 cfg.benchmark 原值
+    repo_root: Path | None = None,    # Step 10 补注（F-A2）：默认仓根，测试可注入
 ) -> dict[str, Any]:
     """构造运行清单。
 
@@ -446,9 +448,12 @@ python cli.py run --data-dir ... --trace-dir ./output/trace
   "environment": {"python": "3.12.10", "platform": "Windows-...", "numpy": "...", "pandas": "...", "numba": "..."},
   "caliber": {"ruleset_version": "cn_a_2026_07", "price_modes": {}, "next_day_tradable_mode": "ignored", "api_version": "3.1.0"},
   "timestamps": {"started_at": "...", "finished_at": "..."},
-  "outputs": {"trades": "trades.csv", "snapshots": "portfolio_snapshots.csv"}
+  "outputs": {"trades": "trades.csv", "snapshots": "portfolio_snapshots.csv"},
+  "benchmark": null
 }
 ```
+
+> **Step 10 补注（F-A2）**：实际实现含 `benchmark` 键（登记 `cfg.benchmark` 原值，未配置为 `null`）——D6 的 `benchmark.configured` 之外，manifest 层保留原始配置便于复现；`repo_root` 为 `build_manifest` 可选参数（默认仓根），不出现在输出中。
 
 **确定性**：`input_fingerprint` 只覆盖 `git.commit`、数据 sha256、配置（不含时间戳/uuid）；同一输入两次运行指纹必须相同，`run_id` 允许不同。
 

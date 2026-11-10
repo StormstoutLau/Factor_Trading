@@ -684,6 +684,9 @@ def write_manifest(manifest, paths) -> list[Path]: ...
 | F-S9-5 | P3 | trace 自差分 residual = 1.16e-10（CSV round-trip 浮点噪声），非 0 | 断言改 `< RESIDUAL_TOL(1e-8)`，与 P-012 契约一致 |
 | F-S9-6 | P3 | B3 单提交回退在 `config.py` 与 B5 相邻新增行产生 1 处机械冲突；且 B4 声明引用 `cfg.risk_free_rate` | 回退时保留 `risk_free_rate` 字段（§6 已注记）；净回退 7 文件 |
 | F-S9-7 | P3 | `check_v3_{nav_identity,static_positions,cost_identity}` 为 DESIGN §4.1 公共诊断 API，当前无调用方与直接单测；I5-I7 由参考差分（B2/B9）覆盖 | 保留并披露（不新增测试，防凑数） |
+| **F-A1** | **P2**（Step 10 审计） | D5/DESIGN §5.4 承诺的 `additional_info["metrics_method"]` **未落地**（实现遗漏，CHECKLIST 无对应验收行，Step 6/8 未拦截）——Iron Law 反例：测试全绿仍有设计交付物缺失 | `a754a2d` 修复：`core.metrics.METRICS_METHOD` 常量 + V2/V3 接线；断言并入 `test_declaration_present` / `test_v3_results_use_config_rf`，609 不变 |
+| F-A2 | P3（Step 10 审计） | `build_manifest` 实际签名含 `benchmark`/`repo_root` 可选参数、输出含 `"benchmark"` 键，DESIGN §4.4/§5.2 未列 | DESIGN 已补注 |
+| F-A3 | P3（Step 10 审计） | `analytics.calculate_performance_metrics` 对 `len(total_values)<2` 由「算出部分指标」改为返回 `{}`（配合 compute_metrics N>=2 契约），T-8 未预登记 | 代码注释 + `test_compute_metrics_empty_and_single` 固化 |
 
 ### 9.6 V1-V16 实测读数
 
