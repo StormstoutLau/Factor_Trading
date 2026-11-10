@@ -37,7 +37,7 @@
 | B2 | L1 规模语义 | from_signals + targetpercent（sin 变动价，T=6） | I2a/I2b/I2c（DESIGN §3.2 闭式） |
 | B3 | L2 费用 | from_orders，cost_rate=0.001，T=4（i=1..3 逐日再平衡） | I3 闭式费用 + 首日 pv |
 | B4 | L3 多期累积 | 4 标的 top_n=2，翻转日 i=3，T=6，cost_rate=0 | I4 逐日三量恒等 |
-| B5 | 阴性对照 | B3 case，vbt 侧 fees += 0.001 | I5 偏移量精确等于声明值 |
+| B5 | 阴性对照 | B1 数据（常量价单笔建仓），cost_rate=0.001 双侧基线 + vbt 侧 fees_perturb=0.001 | I5 偏移量精确等于 −1e7×0.001 |
 
 ### T-4 报告与口径映射回写（同提交纪律）
 
@@ -101,8 +101,42 @@
 
 ---
 
-## 8. Step 9 实施记录（回填区）
+## 8. Step 9 实施记录（2026-11-10 回填）
 
-> 实施时逐项回填：F5 红→绿两读数、门禁实测、发现登记 F-S9-P015-*。
+### 8.1 T-1 venv 与签名核验
 
-（待 Step 9 回填）
+- `.venv-vbt` 建立（Python 3.12.10）；`pip install vectorbt==1.2.0`：PyPI 官方源两次 `ReadTimeoutError`（网络超时）→ **降级链**：切清华镜像（`-i https://pypi.tuna.tsinghua.edu.cn/simple`）安装成功
+- 钉版回填（T-1.3）：`requirements-vectorbt.txt`——**vectorbt==1.2.0 / pandas==3.1.1 / numba==0.68.1 / numpy==2.5.4 / llvmlite==0.50.0** 等全量传递依赖
+- 签名核验（T-1.4，`audit_signatures.py` E1 读数）：settings defaults `fees=0.0 / slippage=0.0 / init_cash=100 / size=inf / call_seq='default'`；**from_signals 不支持 TargetPercent**（nb.py:1771）；**无 allow_negative**；无 `asset_qty` API（→ `cumsum(asset_flow)`）；`pf.cash` 是方法。**U-P015-3 关闭**（A5 T2 → E1）
+- `.gitignore` 追加 `.venv-vbt/`（T-1.5）
+
+### 8.2 F5 红→绿两读数
+
+- **红**：`python scripts/external_benchmark/verify_p015.py --case-dir .tmp_p015_cases\B1` → **exit 1**，关键失败行 `[verify] G2 [B1] FAIL — vbt_results.csv 缺失（venv 侧未运行）`（同轮 G1 三项已 PASS：V3==规格 max|Δ|=0.000e+00，规格翻译先证正确）
+- **绿**：修复 `pf.cash()` 方法调用 + `asset_flow` 累计持仓后重跑 → **exit 0，7 项断言 0 失败**（B1：G1×3 + G2×3 + I3.fees，全零残差）
+
+### 8.3 实施期发现 5 项（全部回写）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S9-P015-1 | P2 | vectorbt 1.2.0 免费版 `from_signals` **不支持 TargetPercent**（ValueError: Only Amount/Value/Percent supported，nb.py:1771） | B2 改 `from_orders(targetpercent)`（venv 探针实测支持）；DESIGN §5 回写 |
+| F-S9-P015-2 | P1→已修 | B4 初版（变动价）出现**负持仓**（-1564/-1319）：V3 内核无现金约束（`:151` 净额扣减），规格在 01-04 产生超现金补仓；vectorbt 现金不足拒单 → 次日卖单超实际持仓。`allow_negative` 不存在 → 语义无法参数化对齐 | B4 重构为**常量价翻转**（消除病理，保留多期+翻转覆盖）；DESIGN §3.3/§5 回写；语义差异登记口径映射（M4） |
+| F-S9-P015-3 | P3 | 1.2.0 API 漂移：`pf.cash` 为方法非属性；无 `asset_qty`（0.x 时代 API） | `pf.cash()` + `cumsum(pf.asset_flow())` |
+| F-S9-P015-4 | P2 | **I2c 闭式缺陷**：原推导隐含「两侧路径重合」，分叉后现金抵消不成立（初测 max\|Δ\|=25.8） | 闭式一般式：`Δ_j[i] = (V_cur_vbt[i] − pv_v3[i-1])/(n·P[i,j])`；修正后 max\|Δ\|=2.0e-10；DESIGN §3.2 回写 |
+| F-S9-P015-5 | P2 | **B3/B5 fees>0 时 vbt↔spec 全等结构性不可达**（V3 费用透支 vs vbt 部分成交；B3 实测 fees_vbt=10033.87 < 闭式 10072.53） | B3 断言重定义为「vbt 费用模型一致性 Σ\|executed\|×P×rate == ΣFees」+ 缺口登记 38658.94；B5 阴性对照移至 **V3 侧**（cost_rate 0.001→0.002）；DESIGN §3.3/§3.5 回写 |
+
+### 8.4 终态恒等式读数（29 项断言 0 失败，exit 0）
+
+| 层 | case | 关键读数 |
+|----|------|----------|
+| I1 记账 | B1 | 两侧 vs 规格全零残差；pv==1e7 |
+| I2 规模语义 | B2 | I2b/I2c 闭式差 max\|Δ\|=2.0e-10；G1 ≤ 2.6e-9 |
+| I3 费用 | B3 | vbt 费用模型一致性 PASS；缺口 38658.94 登记 |
+| I4 多期翻转 | B4 | 全等（含现金过桥）max\|Δ\|=5.8e-11；qty 终态 [625000, 416666.67, 0, 0] |
+| I5 阴性对照 | B3×B5 | offset = **−10000.000000** == expected（灵敏度自证） |
+
+详见 [APPENDIX_p015_external_calibration.md](APPENDIX_p015_external_calibration.md)。
+
+### 8.5 门禁实测（T-4 时点）
+
+（E-2 门禁读数回填区——black / pytest / 主环境 pip list）

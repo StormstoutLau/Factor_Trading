@@ -64,7 +64,7 @@
 | U-D1(P-011) | golden 全局基线固化（L4 判据） | P-011 U-D1 设计裁决挂起；**硬约束「先改口径、后固 golden」已满足**——复权三口径/掩码/退市均已随 P-012 落地且 RULE-5 复审确认无未归因行为；**T1**（基线固化 + manifest 绑定） | **done（2026-11-10 由 P-013 承接**，见下） | **P2** |
 | P-013 | Golden 基线固化（L4 判据落地） | P-011 U-D1 升格；6 条基线（V2/V3 × baseline·cost·mask·delisting）× 分字段容差 × CI 三版本；**T1** | done（2026-11-10，Step 1-10 全通过：四文档 + B1/B2 两批；**626 passed**（609+17）/ black 171 / mypy 0 / 盲区不劣化 / 6 份基线**逐字节可重现**；`tests/golden/*.json` + `scripts/record_golden.py` + `tests/_golden_cases.py` 单一构造器；实施期发现 **F-S9-G1（P1 停牌账目缺陷）** + F-S9-G2~G7） | P2 |
 | **P-014** | **V2 停牌路径账目缺陷（P-013 实施期发现）** | 次日开盘路径（`enable_pending_orders=False`）在停牌期重复生成清仓单，恢复日一次性成交 → 负持仓 + 5 项 I2 违规；E2 复现见 [RESEARCH_p014 §4](RESEARCH_p014_suspension_accounting.md)；**症状订正**：原登记「停牌日仍成交」未复现（掩码生效），详见该文 §4.3；**T1** | **done（2026-11-10，Step 1-10）**：三层防线（执行侧持仓夹紧 / 再平衡刷新订单簿 / 次日订单过期）+ 8 项性质测试 + golden **G7**；**635 passed** / black 172 / mypy 0（36）/ 盲区不劣化；G1/G2/G4/G5/G6 基线**数值不变**，G3 行为变更重录（56→55 笔，NAV rel 1.11e-6，理由见 [IMPL §9.3](IMPL_p014_suspension_accounting.md)）；四文档 [RESEARCH](RESEARCH_p014_suspension_accounting.md) / [DESIGN](DESIGN_p014_suspension_accounting.md) / [IMPL](IMPL_p014_suspension_accounting.md) / [CHECKLIST](CHECKLIST_p014_suspension_accounting.md) | **P1** |
-| **P-015** | **外部框架对拍校准（U-4 触发 · 单框架打通）** | U-4 触发条件「用户/评审要求第三方框架对照时」由用户 2026-11-10 说明构成——目的=**准确性基准**（验证「准确计算 + 回测机制设计意图落地」），非对外声明一致；用户裁决：① 正式立项 ② 先一个框架打通；推荐 **VectorBT↔V3 首例**（残差项最少）+ **隔离 venv**（vectorbt 1.2.0 依赖 pandas>=3.0.3 / numba>=0.66，与主环境 2.2.3/0.65.1 冲突）；Backtrader↔V2、Qlib 登记后续（U-P015-1）；**T1**（Layer-1：`scripts/external_benchmark/`） | **in-progress（2026-11-10，Step 1-2 完稿）**：[RESEARCH_p015_external_benchmark.md](RESEARCH_p015_external_benchmark.md)——本仓事实 P1-P8 / 外部证据 A1-A6（降级链 F3 留痕）/ 框架矩阵 / 方案 V-A+O-A / 未决项 U-P015-1~3 / 引用验证表 F4；执行序见 §3.17 | P2 |
+| **P-015** | **外部框架对拍校准（U-4 触发 · 单框架打通）** | U-4 触发条件「用户/评审要求第三方框架对照时」由用户 2026-11-10 说明构成——目的=**准确性基准**（验证「准确计算 + 回测机制设计意图落地」），非对外声明一致；用户裁决：① 正式立项 ② 先一个框架打通；**VectorBT↔V3 首例 + 隔离 venv**（vectorbt 1.2.0 依赖 pandas>=3.0.3 / numba>=0.66，与主环境冲突，清华镜像安装）；Backtrader↔V2、Qlib 登记后续（U-P015-1）；**T1**（Layer-1：`scripts/external_benchmark/`） | **done（2026-11-10，Step 1-10）**：四文档 + 规格层/三脚本 + **隔离 venv**（.gitignore 豁免）+ [校准报告](APPENDIX_p015_external_calibration.md)；**29 项恒等式断言 0 失败**（I1 全零残差 / I2c 闭式一般式 2.0e-10 / I3 费用模型一致性 + 缺口 38658.94 登记 / I4 翻转全等 5.8e-11 / I5 阴性对照 −10000.000000 精确命中）；**两处结构性语义差异实锤**（V3 last_pv 规模参考值 vs vbt current-NAV；V3 费用透支现金 vs vbt 部分成交——已写恒等式/缺口）；**635 passed / black 0 / 主环境零污染**；mapping §2.2 获首个实测列；执行序 §3.17；四文档 [RESEARCH](RESEARCH_p015_external_benchmark.md) / [DESIGN](DESIGN_p015_external_benchmark.md) / [IMPL](IMPL_p015_external_benchmark.md) / [CHECKLIST](CHECKLIST_p015_external_benchmark.md) | P2 |
 | U-D2(P-011) | V2 同日收盘模式（跨引擎逐日净值一致） | P-011 U-D2 挂起（倾向不做）；触发=第三方要求 V2/V3 逐日净值一致 | pending（倾向不做） | P3 |
 | U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
 | U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
@@ -502,7 +502,19 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 
 - **立项**: U-4 触发（用户 2026-11-10 说明外部框架作准确性基准的目的与理由）；用户裁决 ① 正式立项 spec 流程 ② 先一个框架打通再扩展
 - **Step 1 调研 + Step 2 Review**: [RESEARCH_p015_external_benchmark.md](RESEARCH_p015_external_benchmark.md) 完稿——本仓事实 P1-P8（E1/E3 @`607f1c3`）；外部证据 A1-A6（vectorbt 1.2.0 / backtrader 1.9.78.123 / pyqlib 0.9.7 PyPI T1 元数据 + F1-F3 降级链留痕：vectorbt.dev JS 渲染 → raw 源码截断 → docs rst 缺路径 → WebSearch T2 片段，权威默认值核验移交 U-P015-3）；框架选择矩阵（**推荐 V-A：VectorBT↔V3 首例**——残差项最少 + 语义同构）与产物形态（**推荐 O-A：隔离 venv + CSV 文件交换**——vectorbt 1.2.0 依赖 pandas>=3.0.3/numba>=0.66 与主环境冲突实锤 A1+A2 双源）；未决项 U-P015-1~3 四元块；引用验证表 F4（4 T1 命中 + 2 部分验证/T2 已标注）；Step 2 门禁四项通过（F2 断言双源满足；F5 默认费用为单源 T2 已标 [单源-待二核]）
-- **当前状态**: 待用户确认框架选择（V-A + O-A）→ Step 3 DESIGN
+- **当前状态**: done（Step 1-10 全通过，2026-11-10）
+
+### 3.17.1 P-015 Step 3-10 执行序（2026-11-10）
+
+- **Step 3-4 设计 + Review**: [DESIGN_p015](DESIGN_p015_external_benchmark.md)——D1-D6（含被拒方案）/ B1-B5 分层恒等式 / I1-I5 / 产物形态 O-A（隔离 venv + CSV 交换）；Step 4 门禁五项通过
+- **Step 5-6 实施规划 + Review**: [IMPL_p015](IMPL_p015_external_benchmark.md)——T-1~T-4 / V1-V10 / 风险预案 / F5 形态预注册；Step 6 六项通过
+- **Step 7-8 验收清单 + 一致性**: [CHECKLIST_p015](CHECKLIST_p015_external_benchmark.md)——19 项零预填；机械校验 6 链接 0 broken / ID 闭环；P3×2（ID 撞名改连字符形态、B3 措辞）当场回写
+- **Step 9 实施**（提交 `5da0c29` 后）:
+  - **T-1 venv**: PyPI 官方源两次 ReadTimeout → 清华镜像降级；钉版 vectorbt==1.2.0 / pandas==3.1.1 / numba==0.68.1 / numpy==2.5.4；`audit_signatures.py` 权威读数 → **U-P015-3 关闭**（A5 T2→E1）
+  - **T-2/T-3**: `_spec.py` 规格层 + export/run/verify 三脚本；**F5 红→绿**（红 exit 1 缺 vbt 侧 → 绿 exit 0 七项 0 失败）
+  - **实施期发现 5 项**（F-S9-P015-1~5，全回写）：① from_signals 不支持 TargetPercent → B2 改 from_orders(targetpercent)；② **V3 无现金约束 vs vbt 部分成交**（B4 初版负持仓实锤，`allow_negative` 不存在）→ B4 重构常量价翻转 + 语义差登记 M4；③ API 漂移（cash 方法 / 无 asset_qty）；④ I2c 闭式一般化（路径分叉后现金项不抵消）；⑤ B3/B5 fees>0 全等结构性不可达 → 断言重定义 + 阴性对照移 V3 侧
+  - **终态**: 29 项断言 0 失败（I1 全零 / I2c 2.0e-10 / I3 一致性+缺口 38658.94 / I4 5.8e-11 / I5 −10000.000000 精确）
+- **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过 / 取证矩阵 E1-E5 / **19/19 ✅** / P1=P2=P3=0 / E4 零发现（降级重扫确认）；门禁 **635 passed / black 0 / 主环境 pip list 零污染**；[BACKTEST_CALIBER_MAPPING §2.2](BACKTEST_CALIBER_MAPPING.md) 获首个实测列（同提交）；报告 [APPENDIX_p015](APPENDIX_p015_external_calibration.md)（M1-M5：**零不可解释残差，准确性校准通过**）；RULE-5 异构复审留待独立会话
 
 ---
 

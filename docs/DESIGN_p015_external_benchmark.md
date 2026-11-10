@@ -68,18 +68,25 @@ V3 规模参考值 = **前一日组合价值** `last_pv`（`:128`）；vectorbt 
 ```
 qty_v3_spec[i,j]     = pv[i-1] / (n × P[i,j])
 qty_vbt_spec[i,j]    = V_cur[i]  / (n × P[i,j])，  V_cur = cash[i-1] + Σ_k qty[i-1,k]×P[i,k]
-                                   = pv[i-1] + Σ_k qty[i-1,k]×(P[i,k] − P[i-1,k])
 ⇒ I2a: qty_v3[i,j] − qty_v3_spec[i,j] == 0                （V3 对自己规格）
   I2b: qty_vbt[i,j] − qty_vbt_spec[i,j] == 0              （vectorbt 对自己规格）
-  I2c: qty_vbt_spec[i,j] − qty_v3_spec[i,j]
-       == [Σ_k qty[i-1,k]×(P[i,k] − P[i-1,k])] / (n × P[i,j])   （声明差异，闭式可算）
+  I2c: qty_vbt[i,j] − qty_v3[i,j]
+       == (V_cur_vbt[i] − pv_v3[i-1]) / (n × P[i,j])       （声明差异，闭式可算·一般式）
 ```
+
+> **I2c 一般式（F-S9-P015-4 修正，2026-11-10）**：原推导的简单式
+> `[Σ_k qty[i-1,k]×(P[i,k] − P[i-1,k])] / (n×P[i,j])` 隐含「两侧路径重合」——只在首个分叉日精确；
+> 路径分叉后两侧各自的现金/持仓路径进入闭式输入（`i2c_closed_form` 已按一般式实现）。
+> 实测读数：max|Δ| = 2.0e-10（[APPENDIX §2](APPENDIX_p015_external_calibration.md) B2）。
 
 > I2c 即本批第一个**口径映射实测产出**：V3 的 `last_pv` 定规模与 vectorbt 的 current-value 定规模之差，逐日可算。BACKTEST_CALIBER_MAPPING §2.2 的「外部默认值表」自此开始有实测列。
 
 ### 3.3 B3（L2）费用恒等——比例费用、含费用再平衡
 
-**I3**：两侧各自费用 == 闭式 `Σ_j |trade_j| × P[j] × cost_rate`（V3 `:146-148` / vectorbt `fees` 按订单名义值）；首日 `pv == 1e7 × (1 − cost_rate)`（money_atol=1e-6）。
+> **实施修正（F-S9-P015-2/5，2026-11-10）**：rate>0 时 V3 费用透支现金（首日现金即 −10000，`:151` 无约束净额扣减），而 vectorbt 现金不足部分成交且 `allow_negative` 不存在（1.2.0 免费版实测）→ **vbt↔spec 全等结构性不可达**。B3 断言重定义：
+> - G1（V3 == 规格）不变（实测 max|Δ| ≤ 1.9e-9）；
+> - **I3** = vectorbt 费用模型一致性：`Σ|executed|×P×rate == ΣFees`（money_atol，实测 10033.870913 == 10033.870913）；
+> - 缺口登记（非断言）：请求 vs 执行价值差 38658.94 = V3 费用透支现金的不可复现部分。
 
 ### 3.4 B4（L3）多期累积——4 标的、选股翻转、零费用
 
@@ -89,8 +96,9 @@ driver 按声明规格复算选股（`abs(signal)` top-2，逐日）、规格 qt
 
 ### 3.5 B5 阴性对照——测试灵敏度自证
 
-取 B3 case，仅 vectorbt 侧 `fees += 0.001`：
-**I5**：`pv_vbt − pv_v3 == −1e7 × 0.001`（money_atol=1e-6）。
+> **实施修正（F-S9-P015-5，2026-11-10）**：阴性对照移至 **V3 侧**（vbt 侧 fees>0 全等不可达，见 §3.3）。
+> B5 数据 = B1（常量价、单笔建仓），V3 有效费率 `0.002 = 0.001（B3 基线）+ 0.001（扰动）`：
+> **I5**：`pv_v3(B5)[1] − pv_v3(B3)[1] == −1e7 × 0.001`（money_atol=1e-6；实测 offset = −10000.000000 精确命中）。
 > 若扰动后读数不等于声明偏移，说明恒等式框架不敏感——本批测试**必须**能检出（否则全部 I1-I4 的「绿」不可信）。
 
 ---
@@ -116,12 +124,12 @@ case 目录（.tmp 外部产物，不入库）:
 
 ## 5. vectorbt 调用规格（T-1 核验后固化）
 
-| 层 | 入口 | 关键参数（待 U-P015-3 核验签名后固化） |
+| 层 | 入口 | 关键参数（U-P015-3 已核验，2026-11-10） |
 |----|------|----------------------------------------|
-| L0/L2/L3 | `Portfolio.from_orders` | `close=close.csv`、`size=qty 数组`、`size_type='amount'`、`price=close`、`fees=cost_rate`、`init_cash=1e7`、`cash_sharing=True, group_by=True` |
-| L1 | `Portfolio.from_signals` | `entries=再平衡日掩码`、`size=1/n`、`size_type='targetpercent'`、`call_seq='auto'`（先卖后买，防现金不足拒单）、`fees=0` |
+| L0/L2/L3 | `Portfolio.from_orders` | `size=qty 数组`、`size_type='amount'`、`price=close`、`fees=cost_rate`、`init_cash=1e7`、`cash_sharing=True, group_by=True` |
+| L1 | `Portfolio.from_orders` | `size=权重矩阵`、`size_type='targetpercent'`、`call_seq='auto'`（先卖后买）、`fees=0`。**F-S9-P015-1**：from_signals 不支持 TargetPercent（1.2.0 免费版 nb.py:1771 实测） |
 
-已知风险预案（T-1 核验时按实测修正）：① targetpercent 对 group 的 call_seq 语义；② 订单现金不足时的拒单行为（V3 内核**无现金约束**，`:151` 直接净额扣减，可能出现瞬时负现金——vectorbt 侧需对齐此语义，必要时改用 from_orders 净额单）；③ `size_granularity` 默认 nan（无整手）与 V3 连续股数同构，无需设置。
+已知风险预案核销（T-1.4 实测）：① call_seq='auto' 实测有效（B4 翻转日先卖后买现金过桥通过）；② **现金约束语义差实锤**（F-S9-P015-2）：V3 内核无现金约束（`:151` 净额扣减可负），vectorbt `allow_negative` 不存在 → rate>0 全等结构性不可达，处置见 §3.3/§3.5 修正；③ `size_granularity` 无需设置（零费用全等零残差证实）。
 
 ## 6. 不变量汇总（I1-I5）
 

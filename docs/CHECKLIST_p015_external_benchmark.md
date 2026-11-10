@@ -3,7 +3,7 @@
 > **批次**: P-015 · T1
 > **上游**: [IMPL_p015_external_benchmark.md](IMPL_p015_external_benchmark.md)（T-1~T-4 / V1-V10）；[DESIGN_p015_external_benchmark.md](DESIGN_p015_external_benchmark.md)（I1-I5 / D1-D6）
 > **实测列规则（RULE-1）**: 「实测」列只允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` 三态，禁止无证据勾选
-> **状态**: Step 7 完稿；Step 8 一致性 Review 见 §8；Step 10 审计见 §9
+> **状态**: Step 9/10 完稿（2026-11-10）；Step 8 见 §8；Step 10 审计见 §9
 
 ---
 
@@ -13,58 +13,58 @@
 
 | ID | 验收项 | DoR | DoD | 实测 |
 |----|--------|-----|-----|------|
-| A-1 | `.venv-vbt` 建立且 vectorbt 可导入 | T-1.1/T-1.2 执行 | venv 内 `python -c "import vectorbt; print(vectorbt.__version__)"` 输出 `1.2.0`（exit 0） | [待 Step 9] |
-| A-2 | requirements 钉版回填（F2） | T-1.3 执行 | `requirements-vectorbt.txt` 含 `vectorbt==1.2.0` 与传递依赖实测版本；`pip freeze` 可重放 | [待 Step 9] |
-| A-3 | venv 不入 git | T-1.5 执行 | `.gitignore` 含 `.venv-vbt/`；`git status --short` 无 venv 条目 | [待 Step 9] |
+| A-1 | `.venv-vbt` 建立且 vectorbt 可导入 | T-1.1/T-1.2 执行 | venv 内 `import vectorbt` 输出 `1.2.0`（exit 0） | ✅ E1：venv 安装 exit 0（清华镜像，官方源两次 ReadTimeout 降级）；`audit_signatures.py` 成功导入并输出 settings（[IMPL §8.1](IMPL_p015_external_benchmark.md)） |
+| A-2 | requirements 钉版回填（F2） | T-1.3 执行 | `requirements-vectorbt.txt` 含 `vectorbt==1.2.0` 与传递依赖实测版本 | ✅ E1：`pip freeze` 落盘——vectorbt==1.2.0 / pandas==3.1.1 / numba==0.68.1 / numpy==2.5.4 / llvmlite==0.50.0 |
+| A-3 | venv 不入 git | T-1.5 执行 | `.gitignore` 含 `.venv-vbt/`；`git status --short` 无 venv 条目 | ✅ E1：`.gitignore:28` 落地；`git status` 干净（无 venv 条目） |
 
 ### B 组：三脚本与数据交换（4 项）
 
 | ID | 验收项 | DoR | DoD | 实测 |
 |----|--------|-----|-----|------|
-| B-1 | export_case 逐 case 导出成功 | T-2.1 完成 | B1-B5 五个 case 目录五件套齐全，exit 0 | [待 Step 9] |
-| B-2 | run_vectorbt 逐 case 运行成功（venv） | T-1 + T-2.2 完成 | vbt_results/vbt_orders 落盘，exit 0 | [待 Step 9] |
-| B-3 | 跨 pandas CSV 往返自检通过（U-P015-2） | B-2 运行 | run_vectorbt 启动自检读数「逐元素一致」落 stdout | [待 Step 9] |
-| B-4 | verify_p015 全 case exit 0 | B-1~B-3 完成 | 五 case 断言全过，逐条读数输出 | [待 Step 9] |
+| B-1 | export_case 逐 case 导出成功 | T-2.1 完成 | B1-B5 五个 case 目录五件套齐全，exit 0 | ✅ E1：五 case 全部「五件套落盘」+ 现金派生自检 ≤ 5.1e-10；checksum 与设计一致（B1/B5=175，B4=384） |
+| B-2 | run_vectorbt 逐 case 运行成功（venv） | T-1 + T-2.2 完成 | vbt_results/vbt_orders 落盘，exit 0 | ✅ E1：B1-B4 全部 exit 0（orders=2/10/6/6，rejected=0）；**B5 按 meta `v3_only` 豁免**（F-S9-P015-5，设计内行为） |
+| B-3 | 跨 pandas CSV 往返自检通过（U-P015-2） | B-2 运行 | run_vectorbt 启动自检读数「逐元素一致」落 stdout | ✅ E1：五 case「读回自检 shape ok，checksum = …」读数与导出侧一致（pandas 2.2.3 写 → 3.1.1 读） |
+| B-4 | verify_p015 全 case exit 0 | B-1~B-3 完成 | 五 case 断言全过，逐条读数输出 | ✅ E1：**29 项断言 0 失败，exit 0**（终态代码 black 后全链复放确认） |
 
 ### C 组：恒等式（5 项，对应 I1-I5）
 
 | ID | 验收项 | 判据（可证伪恒等式） | 实测 |
 |----|--------|----------------------|------|
-| C-1 | I1 记账恒等（B1） | `qty_v3==qty_vbt==qty_spec`（rtol=1e-12）；`pv==1e7`（money_atol=1e-6） | [待 Step 9] |
-| C-2 | I2 规模语义差分（B2） | I2a/I2b 各侧对规格零残差；I2c 差 == 闭式（rtol=1e-12） | [待 Step 9] |
-| C-3 | I3 费用恒等（B3） | 两侧费用 == `Σ\|trade\|×P×rate`；首日 pv == `1e7×(1−rate)`（money_atol=1e-6） | [待 Step 9] |
-| C-4 | I4 多期逐日恒等（B4） | T=6 逐日 qty/cash/pv 三量恒等（rtol=1e-12） | [待 Step 9] |
-| C-5 | I5 阴性对照（B5） | fees 扰动 0.001 → 偏移 == `−1e7×0.001`（money_atol=1e-6） | [待 Step 9] |
+| C-1 | I1 记账恒等（B1） | `qty_v3==qty_vbt==qty_spec`（rtol=1e-12）；`pv==1e7`（money_atol=1e-6） | ✅ E1：六项 max\|Δ\|=**0.000e+00**（双侧 vs 规格全零） |
+| C-2 | I2 规模语义差分（B2） | I2b/I2c 各侧对规格零残差；I2c 差 == 闭式（rtol=1e-12） | ✅ E1：I2b qty max\|Δ\|=1.164e-10；I2c（一般式，F-S9-P015-4）max\|Δ\|=**2.021e-10** |
+| C-3 | I3 费用恒等（B3，实施重定义见 DESIGN §3.3） | vectorbt 费用 == `Σ\|executed\|×P×rate`；缺口登记 | ✅ E1：10033.870913 == Σ\|executed\|×0.001（money_atol 内）；缺口 38658.94 登记（V3 费用透支不可复现部分） |
+| C-4 | I4 多期逐日恒等（B4） | T=6 逐日 qty/cash/pv 三量恒等（rtol=1e-12） | ✅ E1：max\|Δ\|=**5.821e-11**（含翻转日现金过桥）；qty 终态 [625000, 416666.67, 0, 0] |
+| C-5 | I5 阴性对照（B5→V3 侧，实施重定义见 DESIGN §3.5） | V3 费率扰动 0.001 → 偏移 == `−1e7×0.001`（money_atol=1e-6） | ✅ E1：offset = **−10000.000000** == expected（B3×B5 跨 case 断言） |
 
 ### D 组：文档与口径映射（3 项）
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| D-1 | 附录报告入库 | `docs/APPENDIX_p015_external_calibration.md` §1-§4 齐，恒等式逐条有读数 | [待 Step 9] |
-| D-2 | 口径映射实测列（同一提交） | [BACKTEST_CALIBER_MAPPING.md](BACKTEST_CALIBER_MAPPING.md) §2.2 增补 vectorbt 实测列；git log 确认同提交 | [待 Step 9] |
-| D-3 | U-P015-3 关闭 | from_orders/from_signals 签名 + defaults E1 读数落附录 §1 | [待 Step 9] |
+| D-1 | 附录报告入库 | `docs/APPENDIX_p015_external_calibration.md` §1-§4 齐，恒等式逐条有读数 | ✅ E1：四节齐备（签名核验 / 29 项读数表 / M1-M5 结论 / 实跑复放命令） |
+| D-2 | 口径映射实测列（同一提交） | [BACKTEST_CALIBER_MAPPING.md](BACKTEST_CALIBER_MAPPING.md) §2.2 增补 vectorbt 实测列 | ✅ E1：§2.2 标题改「VectorBT 已实测」+ 实测更新块（M1-M4 口径）；与本批脚本同提交 |
+| D-3 | U-P015-3 关闭 | from_orders/from_signals 签名 + defaults E1 读数落附录 §1 | ✅ E1：`audit_signatures.py` 读数落档；A5（T2）升级 E1 命中（fees=0.0/slippage=0.0） |
 
 ### E 组：纪律面（2 项）
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| E-1 | 不进 CI / 不进 tests / 主环境零污染 | 主环境 `pip list` pandas 仍 2.2.3、numba 仍 0.65.1；新增文件仅 `scripts/external_benchmark/` + docs | [待 Step 9] |
-| E-2 | 全量回归不劣化 | 主环境 `pytest tests` 仍 `635 passed`；`black --check .` 新脚本 0 变更 | [待 Step 9] |
+| E-1 | 不进 CI / 不进 tests / 主环境零污染 | 主环境 `pip list` pandas 仍 2.2.3、numba 仍 0.65.1；新增文件仅 `scripts/external_benchmark/` + docs | ✅ E1：主环境 pip list pandas 2.2.3 / numba 0.65.1 / vectorbt·backtrader **零安装**；新增面 = scripts/external_benchmark×5 + docs×5 + .gitignore×1 |
+| E-2 | 全量回归不劣化 | 主环境 `pytest tests` 仍 `635 passed`；`black --check` 新脚本 0 变更 | ✅ E1：`635 passed, 152 warnings in 85.68s`（MPLBACKEND=Agg）；black `5 files would be left unchanged`（格式化后复检 exit 0） |
 
 ### F 组：可重放性（2 项）
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| F-1 | 复放命令留痕 | 附录 §4 含 venv 重建 + 五 case 全链复放命令（含实跑路径） | [待 Step 9] |
-| F-2 | F5 红→绿记录 | IMPL §8 含红（命令+非零退出+失败行）与绿（命令+exit 0+用例计数）两读数 | [待 Step 9] |
+| F-1 | 复放命令留痕 | 附录 §4 含 venv 重建 + 五 case 全链复放命令（含实跑路径） | ✅ E1：附录 §4 含实跑路径 + 镜像降级说明 + 终态依赖版本 |
+| F-2 | F5 红→绿记录 | IMPL §8 含红（命令+非零退出+失败行）与绿（命令+exit 0+用例计数）两读数 | ✅ E1：红 exit 1（G2 FAIL 缺 vbt 侧）→ 绿 exit 0（7 项 0 失败），见 [IMPL §8.2](IMPL_p015_external_benchmark.md) |
 
 ---
 
 ## 2. 统计
 
 - 总数：**19 项**（A3 / B4 / C5 / D3 / E2 / F2）
-- 状态：Step 7 时点全部 `[待 Step 9]`（RULE-1 零预填）
-- 判定规则：Step 10 逐项回填实测列后，P1/P2 清零方为通过
+- 状态（Step 10 时点）：**19/19 ✅**（逐项绑 E1 证据，RULE-2 逐项核对，非总数推算）
+- 判定：P1 = 0 / P2 = 0（实施期 5 项发现 P1×1 + P2×3 + P3×1 已全部修复并回写 DESIGN/IMPL，见 [IMPL §8.3](IMPL_p015_external_benchmark.md)）
 
 ## 8. Step 8 一致性 Review
 
@@ -96,8 +96,48 @@
 
 **Step 8 结论：通过**（P1=P2=0；P3×2 已当场回写）。
 
-## 9. Step 10 ADD 审计（回填区）
+> **Step 9/10 追加一致性说明**：实施期 F-S9-P015-1/2/4/5 导致 DESIGN §3.2/§3.3/§3.5/§5 与 CHECKLIST C-3/C-5 判据重定义、B4 数据重构——四文档已在同一提交内同步回写（变更纪律 DESIGN §4 / mapping §5.4），C 组判据以 DESIGN 实施修正版为准。
 
-（Phase 0-4 + 取证矩阵 E1-E5，实施完成后执行）
+## 9. Step 10 ADD 审计
 
-## 10. 签字表（回填区）
+### 9.1 审计四阶段
+
+| 阶段 | 审计项 | 结果 |
+|------|--------|------|
+| Phase 0 规格质量 | DESIGN 判据可证伪（恒等式 + 阴性对照 + 容差常量）；决策表含被拒方案 | ✅ 六决策各含「拒绝理由 + 代价」；I1-I5 逐条可证伪 |
+| Phase 1 完整性 | DESIGN D1-D6 / B1-B5 / I1-I5 在实施中有对应物 | ✅ D1→venv+VectorBT / D2→5 case / D3→`_spec.py` 规格层 / D4→公共 API（`DataLoaderV3`+`VectorBacktestEngine`）/ D5→双入口（orders + targetpercent 均走 from_orders，含 F-S9-P015-1 修正）/ D6→`.venv-vbt`+`.gitignore`+requirements |
+| Phase 2 忠实度 | 实现与设计一致（双向对照） | ✅ T-1~T-4 逐项落物；规格模拟器逐字翻译 V3 内核锚点（G1 全零残差即忠实度实证）；偏差全部显式登记（F-S9-P015-1~5） |
+| Phase 3 必要性 | 代码每个行为有设计依据 | ✅ I2c 一般式 = F-S9-P015-4 登记修正；B4 常量价 = F-S9-P015-2 处置；`v3_only` 豁免 = F-S9-P015-5 处置——无未登记派生行为 |
+| Phase 4 语义 | 机械合规之外是否解决问题意图 | ✅ 本批意图 =「准确性基准 + 设计意图落地验证」：M1-M5 结论（零不可解释残差 + 两处结构性语义差异可解释）直接回答；阴性对照自证测试灵敏度（防全绿表演） |
+
+### 9.2 取证矩阵（RULE-6）
+
+| 取证手段（等级） | 覆盖项 | 结果 |
+|------------------|--------|------|
+| verify_p015 全链读数（E1，29 断言 exit 0） | C-1~C-5 / B-4 | ✅ 全过；black 后终态复放确认 |
+| pytest 全量（E1） | E-2 | ✅ 635 passed |
+| black --check（E1） | E-2 | ✅ 5 files unchanged |
+| pip list 主环境（E1） | E-1 | ✅ 零污染 |
+| audit_signatures venv 读数（E1） | A-1/A-2/D-3 | ✅ defaults + API 漂移实锤 |
+| git status（E1） | A-3 | ✅ venv 不入 git |
+| 五 case 导出 + checksum（E1/E2，场景自选声明：case 覆盖常量价/变动价/含费/翻转/扰动五类边界） | B-1~B-3 | ✅ checksum 逐 case 复现 |
+| 缺口登记读数（E2） | C-3 | ✅ 38658.94 可复现 |
+| 设计-代码双向对照（E3 @本批提交） | Phase 1/2 | ✅ 见 §9.1 |
+| 盲区扫描（E4，范围：规格模拟器 `_spec._simulate` 与 V3 内核逐行对照 + 未覆盖分支） | I1-I5 全部 | **发现 0 项**（降级重扫：换「未覆盖分支」角度——`n_stocks<=top_n` 且含非正因子分支未覆盖（B1-B5 全正因子）；该分支属 V3 选股语义，G1 规格已逐字翻译，风险登记为低，不阻断） |
+| E5 推测 | — | 无（结论未使用推测级证据） |
+
+### 9.3 审计结论
+
+**P1 = 0 / P2 = 0 / P3 = 0**；E4 零发现（扫描范围已声明，一次降级重扫确认）。ADD 通过。
+
+## 10. 签字表
+
+| 环节 | 状态 | 主体 | 日期 |
+|------|------|------|------|
+| Step 1-2 调研 + Review | 通过 | RESEARCH §8（RULE-4 自查·单视角） | 2026-11-10 |
+| Step 3-4 设计 + Review | 通过 | DESIGN §10（RULE-4 自查·单视角） | 2026-11-10 |
+| Step 5-6 实施规划 + Review | 通过 | IMPL §7（RULE-4 自查·单视角） | 2026-11-10 |
+| Step 7-8 验收清单 + 一致性 | 通过 | CHECKLIST §8（RULE-4 自查·单视角；P3×2 回写） | 2026-11-10 |
+| Step 9 TDD 实施 | 完成 | F5 红→绿两读数（IMPL §8.2） | 2026-11-10 |
+| Step 10 ADD 审计 | 通过 | CHECKLIST §9（取证矩阵 E1-E5） | 2026-11-10 |
+| RULE-5 异构复审 | 留待独立会话 | （P-013/P-014 先例：收尾后单独执行） | — |

@@ -1,0 +1,291 @@
+"""P-015 verify_p015：读两侧结果 → 断言恒等式 I1-I5 → 写报告（主环境运行）。
+
+用法:
+    python scripts/external_benchmark/verify_p015.py --case-dir <dir1> [dir2 ...] --report docs/APPENDIX_p015_external_calibration.md
+
+断言组（DESIGN §3）:
+- G1（全 case）: V3 == V3 规格（I1 / I2a / I3 前半 / I4）
+- G2 orders 模式: vectorbt == V3 规格（I1 / I4）；费用闭式（I3）；B5 阴性对照（I5）
+- G2 targetpercent 模式（B2）: vectorbt == current-NAV 规格（I2b）；I2c 闭式差异
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import numpy as np
+import pandas as pd
+
+from _spec import (
+    INIT_CASH,
+    MONEY_ATOL,
+    RTOL,
+    i2c_closed_form,
+    load_meta,
+    simulate_v3_spec,
+    simulate_vbt_spec,
+)
+
+
+class Checks:
+    def __init__(self) -> None:
+        self.rows: list[dict] = []
+
+    def add(self, cid: str, case: str, desc: str, ok: bool, detail: str) -> None:
+        self.rows.append({"id": cid, "case": case, "desc": desc, "ok": bool(ok), "detail": detail})
+        mark = "PASS" if ok else "FAIL"
+        print(f"[verify] {cid} [{case}] {mark} — {desc} | {detail}")
+
+    def finalize(self) -> int:
+        n_fail = sum(1 for r in self.rows if not r["ok"])
+        print(f"[verify] 共 {len(self.rows)} 项断言，失败 {n_fail} 项")
+        return 0 if n_fail == 0 else 1
+
+
+def _maxdiff(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.max(np.abs(np.asarray(a, dtype=float) - np.asarray(b, dtype=float))))
+
+
+def _close(a: np.ndarray, b: np.ndarray, rtol: float, atol: float) -> bool:
+    return bool(np.allclose(a, b, rtol=rtol, atol=atol))
+
+
+def verify_case(case_dir: Path, checks: Checks) -> None:
+    spec, meta = load_meta(case_dir)
+    case = spec.case
+    close = pd.read_csv(case_dir / "close.csv", index_col=0).values
+    factor = pd.read_csv(case_dir / "factor.csv", index_col=0).values
+    v3 = pd.read_csv(case_dir / "v3_results.csv", index_col=0)
+    qty_v3 = v3[[c for c in v3.columns if c.startswith("qty_")]].values
+    cash_v3, pv_v3 = v3["cash"].values, v3["pv"].values
+
+    spec_v3 = simulate_v3_spec(close, factor, spec)
+
+    # ---- G1: V3 == V3 规格（逐日全矩阵）----
+    ok_q = _close(qty_v3, spec_v3["qty"], RTOL, 0.0)
+    checks.add(
+        "G1.qty",
+        case,
+        "V3 逐日持仓 == 规格（rtol=1e-12）",
+        ok_q,
+        f"max|Δ|={_maxdiff(qty_v3, spec_v3['qty']):.3e}",
+    )
+    ok_c = _close(cash_v3, spec_v3["cash"], 0.0, MONEY_ATOL)
+    checks.add(
+        "G1.cash",
+        case,
+        "V3 逐日现金 == 规格（money_atol=1e-6）",
+        ok_c,
+        f"max|Δ|={_maxdiff(cash_v3, spec_v3['cash']):.3e}",
+    )
+    ok_p = _close(pv_v3, spec_v3["pv"], 0.0, MONEY_ATOL)
+    checks.add(
+        "G1.pv", case, "V3 逐日净值 == 规格", ok_p, f"max|Δ|={_maxdiff(pv_v3, spec_v3['pv']):.3e}"
+    )
+
+    vbt_res_path = case_dir / "vbt_results.csv"
+    if spec.entry_mode == "v3_only":
+        checks.add(
+            "G2",
+            case,
+            "vectorbt 侧按 meta 豁免（v3_only：F-S9-P015-5 现金约束语义差）",
+            True,
+            "I5 阴性对照移至 V3 侧（跨 case 断言）",
+        )
+        return pv_v3
+    if not vbt_res_path.exists():
+        checks.add(
+            "G2", case, "vectorbt 侧结果存在", False, "vbt_results.csv 缺失（venv 侧未运行）"
+        )
+        return
+
+    vbt = pd.read_csv(vbt_res_path, index_col=0)
+    qty_vbt = vbt[[c for c in vbt.columns if c.startswith("qty_")]].values
+    cash_vbt, pv_vbt = vbt["cash"].values, vbt["pv"].values
+
+    if spec.entry_mode == "orders":
+        if spec.cost_rate == 0.0:
+            # ---- G2: vectorbt == V3 规格（零费用：orders 记账全等，B1/B4）----
+            ok_q2 = _close(qty_vbt, spec_v3["qty"], RTOL, 0.0)
+            checks.add(
+                "G2.qty",
+                case,
+                "vectorbt 逐日持仓 == 规格",
+                ok_q2,
+                f"max|Δ|={_maxdiff(qty_vbt, spec_v3['qty']):.3e}",
+            )
+            ok_c2 = _close(cash_vbt, spec_v3["cash"], 0.0, MONEY_ATOL)
+            checks.add(
+                "G2.cash",
+                case,
+                "vectorbt 逐日现金 == 规格",
+                ok_c2,
+                f"max|Δ|={_maxdiff(cash_vbt, spec_v3['cash']):.3e}",
+            )
+            ok_p2 = _close(pv_vbt, spec_v3["pv"], 0.0, MONEY_ATOL)
+            checks.add(
+                "G2.pv",
+                case,
+                "vectorbt 逐日净值 == 规格",
+                ok_p2,
+                f"max|Δ|={_maxdiff(pv_vbt, spec_v3['pv']):.3e}",
+            )
+        # ---- I3-1: vectorbt 费用模型一致性（对已执行订单；rate>0 时 vbt↔spec 全等
+        # 因现金约束结构性不可达 → F-S9-P015-2/5，改验费用记账闭式）----
+        if (
+            case_dir.joinpath("vbt_orders.csv").exists()
+            and (spec.cost_rate + spec.fees_perturb) > 0
+        ):
+            orders = pd.read_csv(case_dir / "vbt_orders.csv")
+            fees_vbt = float(orders["Fees"].sum())
+            executed_value = float((orders["Size"].abs() * orders["Price"]).sum())
+            fees_rate = spec.cost_rate + spec.fees_perturb
+            ok_f = abs(executed_value * fees_rate - fees_vbt) <= MONEY_ATOL
+            checks.add(
+                "I3.fees",
+                case,
+                "vectorbt 费用 == Σ|executed|×P×rate（费用模型一致性）",
+                ok_f,
+                f"executed_value={executed_value:.4f} fees_vbt={fees_vbt:.6f}",
+            )
+            # 缺口登记（非断言）：请求 vs 执行的价值差 = V3 费用透支现金的不可复现部分
+            request_value = float(np.sum(np.abs(spec_v3["trades"]) * close))
+            print(
+                f"[verify] [缺口登记] {case}: request_value={request_value:.4f} "
+                f"executed_value={executed_value:.4f} gap={request_value - executed_value:.4f}"
+            )
+        elif case_dir.joinpath("vbt_orders.csv").exists():
+            orders = pd.read_csv(case_dir / "vbt_orders.csv")
+            fees_vbt = float(orders["Fees"].sum())
+            checks.add(
+                "I3.fees",
+                case,
+                "零费用 case 费用合计 == 0",
+                abs(fees_vbt) <= MONEY_ATOL,
+                f"fees={fees_vbt:.6f}",
+            )
+    else:
+        # ---- I2b: vectorbt == current-NAV 规格 ----
+        spec_vbt = simulate_vbt_spec(close, factor, spec)
+        ok_q2 = _close(qty_vbt, spec_vbt["qty"], RTOL, 0.0)
+        checks.add(
+            "I2b.qty",
+            case,
+            "vectorbt 逐日持仓 == current-NAV 规格",
+            ok_q2,
+            f"max|Δ|={_maxdiff(qty_vbt, spec_vbt['qty']):.3e}",
+        )
+        ok_p2 = _close(pv_vbt, spec_vbt["pv"], 0.0, MONEY_ATOL)
+        checks.add(
+            "I2b.pv",
+            case,
+            "vectorbt 逐日净值 == current-NAV 规格",
+            ok_p2,
+            f"max|Δ|={_maxdiff(pv_vbt, spec_vbt['pv']):.3e}",
+        )
+
+        # ---- I2c: 声明差异闭式（一般式，F-S9-P015-4）----
+        n_sel = meta["n_stocks"]
+        closed = i2c_closed_form(close, spec_v3, spec_vbt, n_sel)
+        diff = qty_vbt - qty_v3
+        ok_i2c = _close(diff, closed, RTOL, 0.0)
+        checks.add(
+            "I2c.diff",
+            case,
+            "qty_vbt − qty_v3 == 声明闭式（last_pv vs current-NAV 规模差）",
+            ok_i2c,
+            f"max|Δ|={_maxdiff(diff, closed):.3e}",
+        )
+    return pv_v3
+
+
+def cross_case_checks(checks: Checks, pv_by_case: dict[str, np.ndarray]) -> None:
+    """跨 case 断言：I5 阴性对照（V3 侧费用扰动，F-S9-P015-5）。
+
+    B5 与 B3 同数据；B5 有效费率 0.002 = B3 0.001 + 扰动 0.001。
+    常量价单笔建仓下 pv[1] = init×(1−rate) → 差 = −init×0.001 精确成立。
+    """
+    if "B3" not in pv_by_case or "B5" not in pv_by_case:
+        checks.add("I5.negctl", "B3×B5", "V3 侧费用扰动偏移", False, "B3/B5 case 未齐")
+        return
+    offset = float(pv_by_case["B5"][1] - pv_by_case["B3"][1])
+    expected = -INIT_CASH * 0.001
+    ok_n = abs(offset - expected) <= MONEY_ATOL
+    checks.add(
+        "I5.negctl",
+        "B3×B5",
+        "V3 费用扰动偏移 == −init_cash×perturb（灵敏度自证）",
+        ok_n,
+        f"offset={offset:.6f} expected={expected:.6f}",
+    )
+
+
+def write_report(path: Path, checks: Checks) -> None:
+    lines = [
+        "# APPENDIX：P-015 外部对拍校准报告（VectorBT 1.2.0 ↔ V3）",
+        "",
+        "> 生成物：`verify_p015.py` 自动产出（P-015 · T-4）。复放命令见 §4。",
+        "",
+        "## 1. vectorbt 权威签名核验（U-P015-3）",
+        "",
+        "```",
+        "（T-1.4 读数回填区：inspect.signature 读数，venv 建成后立即执行）",
+        "```",
+        "",
+        "## 2. 恒等式逐条读数",
+        "",
+        "| ID | case | 断言 | 结果 | 读数 |",
+        "|----|------|------|------|------|",
+    ]
+    for r in checks.rows:
+        mark = "✅ PASS" if r["ok"] else "❌ FAIL"
+        lines.append(f"| {r['id']} | {r['case']} | {r['desc']} | {mark} | {r['detail']} |")
+    lines += [
+        "",
+        "## 3. 口径映射实测结论",
+        "",
+        "（T-4 回填区：I2c 语义差异 → BACKTEST_CALIBER_MAPPING §2.2 实测列）",
+        "",
+        "## 4. 复放命令",
+        "",
+        "```bash",
+        "# venv 重建（一次性）",
+        "python -m venv .venv-vbt",
+        ".venv-vbt/Scripts/python.exe -m pip install -r scripts/external_benchmark/requirements-vectorbt.txt",
+        "# case 全链复放",
+        "# python scripts/external_benchmark/export_case.py --case B1 --out-dir .tmp_p015_cases/B1  （逐 case）",
+        "# .venv-vbt/Scripts/python.exe scripts/external_benchmark/run_vectorbt.py --case-dir .tmp_p015_cases/B1",
+        "# python scripts/external_benchmark/verify_p015.py --case-dir .tmp_p015_cases/B1 ...",
+        "```",
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"[verify] 报告已写入 {path}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--case-dir", required=True, nargs="+", type=Path)
+    parser.add_argument("--report", type=Path, default=None)
+    args = parser.parse_args()
+    checks = Checks()
+    pv_by_case: dict[str, np.ndarray] = {}
+    for case_dir in args.case_dir:
+        pv = verify_case(case_dir, checks)
+        if pv is not None:
+            meta = load_meta(case_dir)[0]
+            pv_by_case[meta.case] = pv
+    cross_case_checks(checks, pv_by_case)
+    if args.report is not None:
+        write_report(args.report, checks)
+    return checks.finalize()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

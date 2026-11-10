@@ -39,9 +39,11 @@
 | **强平** | 末日强制平仓并追加同日第二次快照 | 无（持仓跨末日持有） | `engine_v2.py:314-317`、`:461-529` |
 | **输出** | `snapshots` / `trades` / 绩效指标 / `additional_info` | `portfolio_value` / `returns` / 6 项指标 | `engine_v2.py:1019-1100`；`engine_v3_vector.py:387-410` |
 
-### 2.2 外部框架默认值（**仅作对照，本仓未实测**）
+### 2.2 外部框架默认值（Qlib / Backtrader 未实测；**VectorBT 已实测**）
 
-> 下表不是本仓的验证结论，而是"若要跨框架对拍，必须先钉死的旋钮"。外部默认值按其官方文档/实测文章口径列出，**未在本仓复核**（U-4 = X-A，见 §5）。
+> 下表不是本仓的验证结论，而是"若要跨框架对拍，必须先钉死的旋钮"。外部默认值按其官方文档/实测文章口径列出。
+>
+> **P-015 实测更新（2026-11-10，E1 @隔离 venv）**：VectorBT 列关键旋钮已在隔离 venv（`.venv-vbt`，vectorbt 1.2.0 / pandas 3.1.1）实测钉死——`fees=0.0`、`slippage=0.0`、`init_cash=100`（settings defaults，`audit_signatures.py` 读数）；费用模型 = 名义值比例制（Σ|executed|×P×rate == ΣFees，money_atol 内）；`from_signals` 不支持 TargetPercent（仅 Amount/Value/Percent）；`allow_negative` 不存在（现金约束不可参数化关闭）。对拍恒等式读数与两处结构性语义差异（V3 `last_pv` 规模参考值 vs vectorbt current-NAV；V3 费用透支现金 vs vectorbt 部分成交）见 [APPENDIX_p015_external_calibration.md](APPENDIX_p015_external_calibration.md)。**Qlib / Backtrader 列仍未实测**（Backtrader↔V2 = U-P015-1 登记后续）。
 
 | 维度 | Qlib | Backtrader | VectorBT |
 |------|------|-----------|----------|
