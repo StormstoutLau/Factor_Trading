@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_p012_bias_interface
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 9 实施 + Step 10 推送/远端 CI 完成**（2026-11-10）：**74/74 通过**（G7 = run `42694945888`，3.10/3.11/3.12 三 job `543 passed, 1 skipped`），实测列已按命令输出逐项回填（§10.0）
+> **状态**: **Step 10 完成（P-012 收官）**（2026-11-10）：Step 9 实施 74/74 + 推送/CI（run `42694945888`）+ **ADD 审计全过**（§9：Phase 0-4 全过，P1/P2=0，P3×2 已修正；RULE-5 异构复审留待独立会话，见 §9.4）
 > **审查记录**: §8 一致性 Review（机械校验 11 链接 0 broken / 74 项 0 预填 / A1-A41 缺号 0 / 断言链 10 条贯通 / 术语 7 组一致）；F-S8-1~F-S8-4 已回写 DESIGN / RESEARCH / CHECKLIST / PROGRESS
 > **上游**: [DESIGN_p012_bias_interface.md](DESIGN_p012_bias_interface.md)（Step 4 通过 + Step 6 回写；D1-D11 / 不变式 I1-I9） · [IMPL_p012_bias_interface.md](IMPL_p012_bias_interface.md)（Step 6 通过；T-0~T-13 / F-I1~F-I10 / Step 7 补记 F-S7-1/F-S7-2）
 > **填写规则**: 每条 ✅ 必须绑定证据出口；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`
@@ -143,7 +143,7 @@
 | RL-9 | 零新增运行时依赖（`pyarrow` 未声明 → 全部 CSV+JSON，F-I3）；`git diff pyproject.toml` 为空 | diff + `Grep parquet` 新代码 = 0 | ✅ pyproject 无 diff；新代码 parquet Grep=0 |
 | RL-10 | 旧字段只弃用不删除（4 阈值 + `adjustment_type` + `check_next_day_tradable`） | Grep 字段仍在 + 弃用告警 | ✅ 旧字段保留（17 处命中）+ 弃用告警 |
 | RL-11 | 零 opportunistic 重构：不动 V3 取价与掩码、不动 `config_v2.py`、不改 CI 矩阵 | `git diff` 范围核对（变更面 = IMPL §2.3 清单） | ✅ 变更面 = IMPL §2.3 清单（git diff --stat 核对） |
-| RL-12 | 提交纪律：B1/B2/B3a/B3b/B4/B5/B6 七个代码提交 + 1 个 docs 提交；消息经临时文件 `git commit -F`（PowerShell 5 无 heredoc）；无 `--no-verify`；行为批次（B2/B3b/B4/B5）各附 `change_report.json` | `git log` + 提交物核对 | ✅ 7 批次提交 + 6 修正提交 + 1 docs 提交（-F 提交，无 --no-verify）；行为批次各附 JSON |
+| RL-12 | 提交纪律：B1/B2/B3a/B3b/B4/B5/B6 七个代码提交 + 1 个 docs 提交；消息经临时文件 `git commit -F`（PowerShell 5 无 heredoc）；无 `--no-verify`；行为批次（B2/B3b/B4/B5）各附 `change_report.json` | `git log` + 提交物核对 | ✅ `2c34283..HEAD` 共 **15** 提交 = 7 批次 + 6 修正（`-F` 提交，无 `--no-verify`）+ 2 docs（回填 Step 9 与 V17，F-A2）；行为批次各附 JSON |
 
 ### 7.4 DOC 台账与文档 — 6 项
 
@@ -250,9 +250,90 @@
 - 链接 0 broken、零预填合规（Step 7 提交时点 74 行 0 个 ✅；Step 8 执行后回填 DOC-4/DOC-5）、断言延续链 10/10 贯通、术语 7/7 一致
 - **Step 8 通过，可进入 Step 9 实施（B1→B6 七提交 + T-13）**
 
-## 9. ADD 审计（Step 10，待执行）
+## 9. ADD 审计（Step 10，已执行 2026-11-10）
 
-（待 Step 10 独立 pass 回填：Phase 0 Spec 质量门 → Phase 1 完整性 → Phase 2 忠实度 → Phase 3 忠实度逆查 → Phase 4 语义 + 取证矩阵（RULE-6）+ Iron Law 对账。）
+- **时点**: 2026-11-10，实施（Step 9）与推送/CI 完成后独立执行（RULE-1）
+- **审查者**: 单 Agent 自查（单视角）（RULE-4）；**同基座限定**：审计会话与实施会话同为 GLM-5.3-Flash，RULE-5 异构第二会话复审**未执行**，留待异构复审（见 §9.4 限定项）
+- **取证方式**: 门禁链（session `factorv3-p012-bias-20261110`，`replay: 16 rows OK`）+ `git diff 2c34283..HEAD` 全文盲区扫描 + E3 读码绑 `@a17ebce` + 审计时点复跑；证据绑 §9.3 矩阵
+
+### 9.1 四阶段
+
+#### Phase 0: Spec 质量门
+
+- [x] DESIGN/IMPL 无「合理处理 / 适当时机 / 酌情 / 视情况 / 尽量 / 按需 / 尽可能 / 大概 / 大约 / 等等 / 必要时」类不可审计措辞——两文档逐词扫描 **0 命中**
+- [x] D1-D11 → 验收出口可追溯（Step 8 §8.4 断言链 10/10 贯通；V1-V20 全部有 CHECKLIST 行）
+
+#### Phase 1: 完整性（design → code，E3 @`a17ebce`）
+
+- [x] **D1 批次切分**: `git log 2c34283..HEAD` = 7 行为/零行为批次提交 + 6 修正 + 2 docs，与 §1.2 映射一致
+- [x] **D2 三口径**: `get_adj_price` @`core/data.py:465-511`（raw/hfq/qfq + 3 旧名 `DeprecationWarning` + `ValueError 未知复权口径`）；`PriceModeConfig` @`core/config.py`；`_exec_price` @`core/engine_v2.py:338-342`（8 次/7 位置收口）
+- [x] **D3 规则表**: `filter/limit_rules.py` 199 行——`LimitRule` frozen、`RULES` 11 条、`resolve_limit` 命中数 ≠1 抛 `LimitRuleError`、`RULESET_VERSION="cn_a_2026_07"`
+- [x] **D4 价格法**: `EPS_PRICE=0.005` + `_build_limit_masks` 判定 `open >= limit_up - EPS` @`filter/universe_filter_clean.py`；`_resolve_next_day_mode` 旧 bool 优先 + 弃用告警
+- [x] **D5 退市/动态池**: `core/universe_data.py` 96 行（`load_universe_snapshot` 降级 + `listing_mask`）；`_settle_delisted` @`core/engine_v2.py:530`（`delist_return → last_close → unclosed`，F-I9 不重复盯市）；`_build_listing_mask` AND 进 buyable/sellable
+- [x] **D6 归因**: `core/change_report.py` 465 行（残差 < 1e-8 + `attribution_complete` 链）；`_dump_layers` @`engine_v2:393`；`scripts/change_report.py` CLI 退出码双门
+- [x] **D7 接口**: `execute_order` 新签名 @`core/interfaces.py:212-234`；`process_single`/`combine_single` 全仓 **0** 命中；`core/data_provider.py` 76 行（零接线）
+- [x] **D8 夹具**: `--profile {baseline,biased}`；baseline 分支零改动（diff 仅 biased 函数 + docstring）
+- [x] **D9 范围边界**: `pyproject.toml` / `.github` / `core/config_v2.py` diff **0**；`core/data_v3.py` 仅 1 行（C3 预登记）
+- [x] **D10 字段**: 报告 `adjustment_mode`(5键)/`next_day_tradable_mode`/`ruleset_version`/`unknown_board_codes` + `universe` 9 键 @`engine_v2:1026-1049`
+- [x] **D11 转换**: `from_universe_config` 21 字段显式映射 @`universe_filter_clean.py`；`test_config_conversion` 3/3
+
+#### Phase 2: 忠实度（双向对照）
+
+- [x] numstat 对账：代码/测试 **24 文件 +2731/−146**，与 IMPL §2.3 的 23 文件清单 + F-S7-1（`tests/test_adjustment.py` +7/−3）逐文件吻合；9 个新测试文件行数（2+3+7+4+2+3+6+4+3 项）与 §2.3 计数一致
+- [x] 关键公式逐字对照：`hfq = price×adj` / `qfq = price×adj/adj[-1]`（DESIGN §4.1）；`ref(t)=close(t-1)×adj(t-1)/adj(t)`、`limit = ref×(1±ratio)`（§4.2）；结算价 `last_close×(1+delist_return)`（U-D1）——实现与条文一致
+- [x] 归因链实现（L6→L5、L5→L4、L3→L2、L2→L1，无 L4→L3）与 DESIGN §6.2 Step 9 回写注记一致（F-S9-4）
+- [x] 偏差登记闭环：F-S9-1~F-S9-9 全部回写 IMPL §9 + CHECKLIST §10.0-4，无未登记静默偏离
+
+#### Phase 3: 必要性（code → design，盲区扫描）
+
+- [x] **扫描范围（E4）**: 24 个代码/测试文件 `2c34283..HEAD` diff 全文 + 7 个既有文档 diff + 2 个新文档 + `docs/dev-log/p012/`——**发现 2 项**（均为文档粒度，见 §9.2 F-A1/F-A2），**0 项无依据代码行为**
+- [x] 新增行归属抽查：`engine_v2.py` +239 行全归属 D2/D5/D6/D10/D11；`universe_filter_clean.py` +156 行全归属 D3/D4/D5/D11；`data.py` +85 行全归属 D2/D5（含 F-S9-9 标注）；`config.py` +17 行归属 D2/D4/D6/D10；夹具脚本 +148 行归属 D8 + F-S9-6/F-S9-8
+- [x] 既有测试仅 `test_adjustment.py` 3 处构造补 `legacy_adjustment=True`（F-S7-1 预登记，非弱化断言）；27 项数据测试与引擎集成测试零改动
+- [x] 保护路径：`pyproject.toml` / `.github/` / `core/config_v2.py` / `core/data_v3.py`（除 1 行）/ baseline 夹具 7 pkl（sha256 全同）——diff 均符合预期
+
+#### Phase 4: 语义 + Iron Law
+
+- [x] **Iron Law 核对**: `550 passed` ≠ 设计落地——以 V1-V20 双门（change_report 残差/attribution、legacy `rtol=0`、28 边界日唯一命中、dump 零影响、契约 4/4）+ Phase 1 D1-D11 映射 + Phase 2 numstat 对账补足；A1/A2 用 sha256 而非测试结果，A6 用人为残差样本验证退出码
+- [x] B2 全零 change_report 的诚实解释保留（夹具日收益裁剪 ±4% 未触阈值；规则表由 7 项单测覆盖）——未把「无差异」粉饰为「已验证行为」
+- [x] 行为语义披露：CHANGELOG [Unreleased] 四项行为变更明示（成交/估值切 raw、ST 10% 新规、价格法、动态池），非「仅重构」
+- [x] 语义抽查：`_settle_delisted` 用 `iterrows()` 逐行仅遍历**当日退市股**（通常 0~数行），非 RL-1 约束的热路径（规则表解析无 apply 已由 Grep=0 证实）；`limit_check_price` 默认 `open` 严格为设计口径，`"close"` 分支不进默认路径
+- [x] 门禁复跑（审计时点）: 4/4 pass + `replay 16 rows OK`；远端 run `42694945888` / `42695386497` 三 job success
+
+### 9.2 审计发现
+
+| ID | 等级 | 发现 | 处置 |
+|----|------|------|------|
+| F-A1 | P3 | `limit_check_price` 字段在 IMPL T-7 要点 2 有登记，但 DESIGN D10 字段清单未列名（被「等」字兜底），验收者按 D10 核对会漏 | DESIGN D10 已补列名与「`"close"` 仅诊断」限定 |
+| F-A2 | P3 | CHECKLIST RL-12 实测列写「1 docs 提交」，与实际 2 docs 提交不符（`a17ebce` G7 回填发生于该行首次回填之后） | RL-12 实测列已改为 15 提交全口径 |
+
+### 9.3 取证矩阵（E1-E5）
+
+| 手段 | 证据（节选） | 覆盖 |
+|------|--------------|------|
+| E1 可重放命令 | `pytest 550 passed` / `black 153 unchanged` / `mypy 0` / `--collect-only 34` / `Get-FileHash` 7 文件 / `replay 16 rows OK` / `git diff --numstat` / Grep 计数（F1/F4/RL-1/RL-8/RL-9） | G1-G6、A1-A3、C6、F1/F4、RL-1/8/9/11/12、DOC-4/6 |
+| E2 运行时脚本 | `%TEMP%\p012_runs\`：`run_dump.py`（7 worktree 逐批 dump）、`run_legacy.py`（V7 对拍）、`verify_t13.py`（V6/V8/V11/V13/V18）、`mech_checks.py`（C2/B6/D3/F1/F2/A6 退出码）——`[未入仓-不可重放]`；场景选择理由：biased 夹具含复权/ST/板块/退市/停牌 + 除权日与涨停开盘**对抗性事件** | A4-A6、B6、C1/C2/C4、C8(V7)、D3-D5、E1/E4-E6、F2/F3/F5、G8、INV-1~9 |
+| E3 静态读码 | `@a17ebce`：`data.py:465-511`（三口径）、`engine_v2:338/393/430/460/530/598`（六钩子）、`interfaces:212-234`（新签名）、`data_v3:109`（hfq）、`limit_rules:47-64`（11 规则） | C1/C3/C5/C7、D1/D2、F1/F2/F6、INV-3 |
+| E4 盲区扫描/判断 | 24 文件 diff 全文「发现 2 项」；B2 全零诚实解释；RULE-5 同基座限定声明；`iterrows()` 语义评估 | Phase 0/3/4、G6 注记 |
+| E5 推测/未执行 | `fetch_universe --refresh` 联网路径、`limit_check_price="close"` 诊断分支 | **仅列于 §9.4 未覆盖项，不进结论** |
+
+### 9.4 未覆盖项与限定
+
+| 项 | 状态 | 说明 |
+|----|------|------|
+| `fetch_universe --refresh` 联网（Tushare/AKShare） | `[未取证]` | 无 token/网络凭证；离线分支（exit 0、不写空文件）已实测（E5 项） |
+| `limit_check_price="close"` 诊断分支 | `[未在 CI 覆盖]` | 默认路径外的诊断能力，无行为承诺（IMPL T-7） |
+| RULE-5 异构第二会话复审 | `待执行` | 审计与实施同基座（GLM-5.3-Flash），异质性不满足；建议下一批次或独立会话执行 |
+| 残余真实数据语义 | `[未在 CI 覆盖]` | 全部验证基于合成夹具；真实行情下的规则表/退市数据质量归 P-011/后续数据接入批次 |
+
+### 9.5 审计结论
+
+| 项 | 结论 |
+|----|------|
+| Phase 0-4 | **全过**（0 项退回重写 / 0 项静默偏离 / 0 项无依据行为 / 0 项意图错位） |
+| P1 阻断 / P2 应修 / P3 提示 | **0 / 0 / 2**（F-A1/F-A2，均文档粒度，已当场修正） |
+| 门禁链 | probe / unit-tests / black-check / mypy-check **4 pass**；`replay 16 rows OK` |
+| 证据绑定 | §9.3 矩阵五类手段覆盖 74 项；无 E5 进入结论；4 项限定已声明 |
+| Iron Law | 通过——行为归因（4 份 change_report 双门）+ 设计映射（D1-D11）+ 变更面对账（numstat）三层补足 |
 
 ---
 
@@ -398,7 +479,7 @@ GREEN：`550 passed, 124 warnings in 19.73s`（最终态 125 warnings，+1 为�
 | 角色 | 签字 | 日期 |
 |------|------|------|
 | 实施者 | 单 Agent 自查（RULE-4） | 2026-11-10 |
-| 审查者 | （Step 10 独立 pass 待填） | |
+| 审查者 | 单 Agent 自查（RULE-4；Step 10 ADD 审计 §9，同基座限定见 §9.4） | 2026-11-10 |
 
 ---
 
@@ -408,7 +489,7 @@ GREEN：`550 passed, 124 warnings in 19.73s`（最终态 125 warnings，+1 为�
 |------|--------|------|------|
 | Step 8 一致性 Review（独立 pass；5 项预登记核对点 + 机械校验） | 单 Agent 自查 | Step 8 | ✅ 已完成（P1/P2 = 0，P3 = 4 全部回写，见 §8） |
 | Step 9 实施（B1→B2→B3a→B3b→B4→B5→B6 七提交 + T-13） | 单 Agent 自查 | Step 9 | ✅ 已完成（2026-11-10，74/74，见 §10.0） |
-| Step 10 ADD 审计 + 提交推送 + 远端 CI（V17 回填 G7） | 单 Agent 自查 | Step 10 | 部分完成：推送 + CI 已完成（74/74，run `42694945888`）；ADD 审计待执行 |
+| Step 10 ADD 审计 + 提交推送 + 远端 CI（V17 回填 G7） | 单 Agent 自查 | Step 10 | ✅ 已完成（2026-11-10：推送 + CI run `42694945888`；ADD 审计 §9 全过，P1/P2=0） |
 | P-011 Step 3 DESIGN（待 P-012 L2/L4 落地后启动） | 单 Agent 自查 | P-012 Step 9 后 | pending |
 | U-D1~U-D4 未决项按触发条件回收 | 单 Agent 自查 | 实施期 | pending |
 

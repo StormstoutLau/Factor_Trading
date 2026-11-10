@@ -25,7 +25,7 @@
 | **D7** | 接口治理 | 协议**收窄**（删零消费方成员 `process_single`/`combine_single`）+ `execute_order` 形参对齐（**方向：以实现签名为准修订协议**——协议是契约，须命名真实形参 `open_price`/`close_price` 等，删除 `**kwargs`）+ 契约符合性测试 + `__api_version__`；新增 `DataProvider` 端口 + `PklDataProvider`（不接线） | U-5a / U-5b（B-A） |
 | **D8** | 夹具与测试网 | `prepare_test_fixture.py` 增 `--profile {baseline,biased}`；baseline 不变（保 27 项既有数据测试），biased 提供非 1 复权/ST/板块/退市/停牌样本 | P22 |
 | **D9** | 范围边界 | **不做** P-011 的 golden/统计规范/外部对拍；**不做** P-004 的消费方迁移；**不改** V3 引擎取价与掩码（V3 不使用 `UniverseFilter`）；**不引入** 网络依赖 | — |
-| **D10** | 配置与报告字段 | 新增字段一律带默认值；4 个旧阈值字段保留但 `DeprecationWarning`；报告新增 `adjustment_mode`/`survivorship`/`ruleset_version`/`next_day_tradable_mode` 等 | — |
+| **D10** | 配置与报告字段 | 新增字段一律带默认值；4 个旧阈值字段保留但 `DeprecationWarning`；报告新增 `adjustment_mode`/`survivorship`/`ruleset_version`/`next_day_tradable_mode` 等（含 `unknown_board_codes`，Step 9 F-S9-7 补）；配置含 `limit_check_price: Literal["open","close"]="open"`（IMPL T-7；`"close"` 仅诊断，不进默认路径，F-A1 补列名） | — |
 | **D11** | 配置双定义（Step 4 补录） | 新增 `UniverseFilterConfig.from_universe_config(cfg: UniverseConfig) -> UniverseFilterConfig` 类方法：21 字段逐字段映射 + 字段级单测断言无默认值漂移；`exclude_stock_prefixes` 须 `bool(cfg.exclude_stock_prefixes)`（源 `list[str]` vs 目标 `bool`，前缀列表在 `excluded_prefixes`）；`engine_v2.py:195` 改为经转换传入 | §11.5 P0 / P15 |
 
 **总量核对**：行为变更批次 = **B2 / B3b / B4 / B5**（4 个，各自独立 `change_report.json`）；零行为批次 = **B1 / B3a / B6**。与 §3.14「每次行为变更单独批次」逐条对应，无一批含两类变更。D11 归入 B6（接口治理，零行为——仅转换函数 + 单测）。
