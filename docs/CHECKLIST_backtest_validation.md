@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_backtest_validation
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 1-10 全部通过**（2026-11-10；Step 9 实测 **609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**，B3 Δ 表 + `change_report residual 0.0` 双证，远端 CI run `42768525717` 三 job 全绿；Step 10 ADD 审计全过——CHECKLIST §9：Phase 0-4 全过、**P1=0 / P2=1 F-A1 已修复 `a754a2d`** / P3=2 已回写、`replay: 10 rows OK`、实测列 **76/76**；RULE-5 异构复审留待独立会话）
+> **状态**: **Step 1-10 全部通过**（2026-11-10；Step 9 实测 **609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**，B3 Δ 表 + `change_report residual 0.0` 双证，远端 CI run `42768525717` 三 job 全绿；Step 10 ADD 审计全过——CHECKLIST §9：Phase 0-4 全过、**P1=0 / P2=1 F-A1 已修复 `a754a2d`** / P3=2 已回写、`replay: 10 rows OK`、实测列 **76/76**、终态远端 run `42771058634` 三 job success；RULE-5 异构复审留待独立会话）
 > **上游**: [DESIGN_backtest_validation.md](DESIGN_backtest_validation.md)（Step 4 通过；D1-D9 / 不变式 I1-I10；F-R1~F-R4 已回写；Step 9 回写 F-S9-2~F-S9-4） · [IMPL_backtest_validation.md](IMPL_backtest_validation.md)（Step 6 通过；T-0~T-14 / V1-V16；F-I1~F-I5 已回写；**§9 Step 9 实施记录已追加**）
 > **填写规则**: 「实测」列只写 Step 9 实施后的实测证据（RULE-1，禁止预填）；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；测试命令加 `MPLBACKEND=Agg`
@@ -265,7 +265,7 @@
 - [x] **Iron Law 核对**: `609 passed` ≠ 设计落地——以 B3 双门（Δ 表逐字段 + `change_report residual 0.0`）+ D1-D9 映射 + numstat 对账 + 门禁链 replay 补足；**F-A1 即反例**：测试全绿但 D5 交付物缺失，由审计而非测试捕获——审计必要性实证
 - [x] B3 行为变更已披露：CHANGELOG [Unreleased] Changed 节明示 V2/V3 受影响字段与数值；非「仅重构」
 - [x] 语义抽查：`check_all` 仅 `invariant_mode != "off" and snapshots` 时执行（`engine_v2:1066`，零数值路径）；manifest 失败 `except OSError` 仅 warning 不阻断回测（`engine_v2:1174`）；`_fingerprint` 输入经 `_canonical_json` 排序键（确定性）
-- [x] 门禁复跑（审计时点，修复 `a754a2d` 后）: unit-tests / black-check / mypy-check **3 pass** + 修复前 probe **4/4**；`replay: 10 rows OK`；远端 run `42768525717` 三 job success（`7bcdd57`）
+- [x] 门禁复跑（审计时点，修复 `a754a2d` 后）: unit-tests / black-check / mypy-check **3 pass** + 修复前 probe **4/4**；`replay: 10 rows OK`；远端 run `42768525717`（`7bcdd57`）与 `42771058634`（`955f06a`，含 F-A1 修复远端首跑）**各三 job success**
 
 ### 9.2 审计发现
 
