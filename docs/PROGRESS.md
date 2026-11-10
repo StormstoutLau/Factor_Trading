@@ -596,6 +596,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **探针首轮误判**：仅传 B1 时 I5 跨 case 阴性对照未齐 → exit 1（非父目录缺陷），改传五 case 后全 exit 0
   - **终态**: `28 断言（失败 0）+ 豁免 1` exit 0；`635 passed`（`MPLBACKEND=Agg`，64.29s）/ black 5 unchanged
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×6 + E3×1 + E4 零未登记发现；**10/10 ✅**；RULE-5 未执行（P3 小修批）
+- **CI 回收**: 远端 run `42844710498`（@`d17eb62`）**success**
 
 ---
 
