@@ -19,6 +19,7 @@ from core.change_report import LayerDumper
 from core.config import BacktestConfig
 from core.data import DataManager
 from core.execution import ExecutionSimulator
+from core.invariants import InvariantViolationError, check_all
 from core.execution_policy import (
     ExecutionPolicy,
     SignalTranslator,
@@ -1048,6 +1049,20 @@ class BacktestEngineV2:
             ),
             "execution_stats": executor.get_execution_stats(),
         }
+
+        # 不变量校验（P-011 D2）：默认 report 仅附诊断字段，不中断回测
+        invariant_mode = self.cfg.invariant_mode
+        if invariant_mode != "off" and snapshots:
+            invariant_report = check_all(
+                snapshots,
+                executor.trade_log.get_trades(),
+                executor.get_execution_stats(),
+                initial_capital=self.cfg.initial_capital,
+                mode=invariant_mode,
+            )
+            additional_info["invariant_report"] = invariant_report.to_dict()
+            if invariant_mode == "raise" and not invariant_report.ok:
+                raise InvariantViolationError(invariant_report.violations[0])
 
         if not trades_df.empty:
             trades_path = output_dir / "trades.csv"

@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Optional
 
 import numpy as np
@@ -252,12 +252,13 @@ class PositionTracker:
         # 计算累计收益
         self._cumulative_return = (total_value - self.initial_capital) / self.initial_capital
 
-        # 创建快照
+        # 创建快照（P-011 F-S9-1）：逐 Position 复制，避免快照与实时持仓共享可变对象，
+        # 否则快照的 market_value/quantity 会被后续调仓、行情更新与强制平仓改写。
         snapshot = PortfolioSnapshot(
             date=date,
             cash=self._cash,
             total_value=total_value,
-            positions=self._positions.copy(),
+            positions={stock: replace(position) for stock, position in self._positions.items()},
             daily_return=daily_return,
             cumulative_return=self._cumulative_return,
         )

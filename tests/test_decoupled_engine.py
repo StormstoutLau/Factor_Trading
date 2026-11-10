@@ -149,6 +149,7 @@ class MockExecutionSimulator:
 
     def execute_order(self, stock, side, quantity, date, price, **kwargs):
         # 创建模拟交易
+        amount = quantity * price
         trade = type(
             "Trade",
             (),
@@ -158,6 +159,9 @@ class MockExecutionSimulator:
                 "quantity": quantity,
                 "price": price,
                 "date": date,
+                "amount": amount,
+                "cost": 0.0,
+                "net_amount": amount,
             },
         )()
         self.trades.append(trade)
@@ -168,6 +172,9 @@ class MockExecutionSimulator:
 
     def get_execution_stats(self) -> dict:
         return {"total_trades": len(self.trades)}
+
+    def get_trades(self):
+        return list(self.trades)
 
     def get_trades_df(self):
         if not self.trades:

@@ -198,6 +198,10 @@ class IOptimizer(Protocol):
 class ITradeLog(Protocol):
     """交易日志最小契约（结果生成所需）"""
 
+    def get_trades(self) -> list[Any]:
+        """获取交易记录列表（P-011 不变量校验所需）"""
+        ...
+
     def get_trades_df(self) -> pd.DataFrame:
         """获取交易记录 DataFrame"""
         ...
