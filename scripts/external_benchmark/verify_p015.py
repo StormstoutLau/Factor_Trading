@@ -258,14 +258,14 @@ def _resolve_report_target(path: Path) -> Path:
     """解析报告写入目标（四分支）。
 
     1. 目标不存在 → 原地写入；
-    2. 目标本身是生成物（stem 以 ``.generated`` 结尾）→ **原地重写**，不再级联改名
+    2. 目标本身是生成物（**name 或 stem** 以 ``.generated`` 结尾——无扩展名时 stem 会剥离后缀）→ **原地重写**，不再级联改名
        （P-017 / F-R5-P016-3：旧行为会产出 ``.generated.generated.md``）；
     3. 目标含人工章节标记（策展版）→ 改名 ``<stem>.generated<suffix>``，原文件不动；
     4. 存在但无人工标记的外部文件 → 原地覆盖。
     """
     if not path.exists():
         return path
-    if path.stem.endswith(GENERATED_SUFFIX):
+    if path.name.endswith(GENERATED_SUFFIX) or path.stem.endswith(GENERATED_SUFFIX):
         return path
     text = path.read_text(encoding="utf-8")
     if any(marker in text for marker in MANUAL_MARKERS):

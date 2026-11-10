@@ -30,7 +30,7 @@
 | C-1 | `GENERATED_SUFFIX` 常量与两处使用 | 静态读码：常量定义 + `endswith` 守卫 + 改名表达式同源 | ✅ E3：[verify_p015.py](../scripts/external_benchmark/verify_p015.py#L252-L273) `:254` 常量 / `:268` 守卫 / `:272` 改名同源 |
 | C-2 | 级联消除（I2 分支 2，V1） | 指向 `.generated.md` 复放 → 无 `*.generated.generated.md`；生成物被原地更新 | ✅ E1：探针 A② → `报告已写入 …generated.md`（无 `[保护]` 行）、`CASCADE_EXISTS=False`、`A_EXIT=0,0 -> PASS` |
 | C-3 | 策展版仍受保护（I2 分支 3，V3） | 副本复放 → 改名 `.generated.md` 且原文件 SHA256 不变 | ✅ E1：探针 C → `ORIG_UNCHANGED=True`、`APPENDIX_copy.generated.md` 存在、`C_EXIT=0 -> PASS` |
-| C-4 | 分支 1 / 分支 4（V3） | 不存在路径 → 原地；存在无标记文件 → 原地覆盖 | ✅ E1：探针 D → `OVERWRITTEN=True` + 覆盖后含「恒等式逐条读数」、`D_EXIT=0 -> PASS`；分支 1 由 A① 首次生成覆盖 |
+| C-4 | 分支 1 / 分支 4（V3） | 不存在路径 → 原地；存在无标记文件 → 原地覆盖 | ✅ E1：探针 D → `OVERWRITTEN=True` + 覆盖后含「恒等式逐条读数」、`D_EXIT=0 -> PASS`；分支 1 由 A① 首次生成覆盖 —— **P-018 更正**：A① 传入目标为已存在的策展版主文件（分支 3），分支 1 未被 A①/C/D 覆盖；由 P-018 探针 ⑥ 直接覆盖（`FRESH_EXISTS=True`，见 [P-018 IMPL §6.2](IMPL_p018_p017_review_fixes.md)）（F-R5-P017-2） |
 
 ### D 组：验收计数更正（F-R5-P016-4）
 
