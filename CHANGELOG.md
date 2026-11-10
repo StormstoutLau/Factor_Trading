@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **P-011 回测准确性验证与可复现（不变量 / 参考差分 / 声明 / manifest / trace）**: 新增 `core/invariants.py`（I1-I7 纯函数 + `check_all`，`BacktestConfig.invariant_mode` 默认 `"report"`，结果落 `additional_info.invariant_report`，`"off"` 零计算）；新增 `tests/_reference_impl.py` 四参考函数 + `tests/_synth_fixture.py` 合成夹具，覆盖 V3 内核 / V2 目标持仓 / 成本 / NAV 四组差分（njit 路径比特一致，`py_func` 回退末位 ≤1 ulp）；新增 [BACKTEST_CALIBER_MAPPING.md](docs/BACKTEST_CALIBER_MAPPING.md)（与 Qlib / Backtrader / VectorBT 的口径映射与残差恒等式，仅声明「可解释差异」）；新增 `core/metrics.py` 指标单一实现；新增 `core/validation.py` 偏差声明（PIT / 多重检验 / benchmark / walk-forward 能力常量 + 5 条 `known_limitations`）；新增 `core/manifest.py` run manifest（git commit/dirty、config 全字段、数据 sha256、环境、`input_fingerprint`，落 `output_dir/manifest.json`，`write_manifest=False` 可关闭）；`python cli.py run --trace-dir` 输出六层逐日快照 + `manifest.json`；测试 **550 → 609 passed**、测试文件 **60 → 68**
 - **P-012 偏差防护与接口锁定（观测网 / 规则表 / 动态池）**: 新增 `core/change_report.py`（六层归因 dump + 两次运行差分，`residual < 1e-8` 与 `attribution_complete` 双门）与 `scripts/change_report.py`；新增 `filter/limit_rules.py` A 股涨跌停规则表（`RULESET_VERSION="cn_a_2026_07"`，11 条规则，`(board,is_st,t)` 恰好 1 条 fail-fast，未知前缀一次性告警 + `unknown_board_codes`）；新增 `core/universe_data.py` 动态股票池（`list_date`/`delist`/`manifest`，缺失显式降级 `survivorship="uncorrected"`）；新增 `scripts/fetch_universe.py`（默认离线，`--refresh` 才联网）；新增 `core/data_provider.py` `DataProvider` 端口（零接线）；夹具支持 `--profile {baseline,biased}`（baseline 逐字节不变）；测试 **516 → 550 passed**、测试文件 51 → 60；`__api_version__="3.1.0"`
 - **Spec_Runner 接入**: 新增 `scripts/spec_runner_adapter.py`（官方模板 v1.0 + 本项目配置：`PREFIX=factorv3`，门禁 `probe / unit-tests / black-check / mypy-check`）与 `tests/test_spec_runner_adapter.py`（6 项）；门禁 verdict/exit/stdout_tail 以 append-only JSONL 落在 `F:\Spec_Runner\sessions\`，可用 `replay` 重放。全量测试 503 → 509 passed；`black-check`（75 files）与 `mypy-check`（168 errors）已登记为已知基线
 
 ### Fixed
+- **P-011 不变量观测网实施期发现（Step 9）**: `PositionTracker._take_snapshot` 浅拷贝导致历史快照与实时持仓共享 `Position` 对象（后续调仓/盯市/强平改写历史），引擎实跑报 **53 项 I1/I2 违规**；改为逐 Position `replace()`（NAV 标量序列与指标零影响）。I2 对「同日多快照」日期跳过（末日强平在收盘快照后追加第二快照，配对存在歧义），并补 ambiguous 用例；参考实现按 numba 顺序累加语义显式 `_seq_sum`；trace 自差分容差统一为 `RESIDUAL_TOL=1e-8`
 - **P-012 归因链与夹具修正（T-13 取证）**: L6 末行在末日强平后刷新为终值；L1 纳入 listing（上市状态）；删除 L4→L3 硬链（L3 仅记目标集合，订单量随净值变化）；`_cash_flow` 首日现金流去重；层 CSV 的股票代码按字符串读取（避免 `000001`→`1`）；biased 夹具除权日 OHLC 缩放到除权后尺度并新增真实涨停开盘样本（`2024-02-27:000001`）；manifest 补 `fetched_at`
 - **`IPositionTracker.get_snapshots` 契约失实（P-007 层 B）**: 协议声明 `list[dict]` 与 `PositionTracker` 实际返回 `list[PortfolioSnapshot]` 不符，改为真实类型（`TYPE_CHECKING` 导入，零运行时开销）
 - **`IExecutionSimulator` 缺失 `trade_log` 声明（P-007 层 B）**: 引擎在结果生成中访问 `executor.trade_log.get_trades_df()`，协议未声明该成员；新增 `ITradeLog` 最小协议（仅 `get_trades_df`）并以只读 `@property` 暴露（PEP 544 协议属性不变性要求）
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo_data 复权文件缺失**: `examples/demo.py` 生成器改为输出 `stock_adj.pkl`（与配置默认一致），修复旧布局导入与硬编码路径；本地补齐 `demo_data/stock_adj.pkl`
 
 ### Changed
+- **P-011 B3 指标口径统一（行为变更，仅报告层）**: 新增 `core/metrics.py` 单一口径（年化 `252/N`；`Sharpe=(annual_return-rf)/annual_vol`，默认 `rf=0.03`；`max_drawdown` 统一非负量级）；V2 `annual_volatility` 改用 N−1 个差分收益（31×60 夹具 `0.08122845 → 0.08189931`）、`sharpe_ratio` 随 vol 变化（`−1.45492 → −1.44300`）；V3 `sharpe_ratio` 由 rf=0 改为 `cfg.risk_free_rate`（`0.93900 → 0.59117`）、`max_drawdown` 补初始锚点并输出正值量级（`−0.02965 → +0.02965`）、结果新增 `risk_free_rate` 键；NAV / trades / 六层 dump **逐值不变**（`change_report residual 0.0`）
 - **P-012 四项行为变更（各自独立批次 + `change_report.json` 双门）**:
   - **B3b 成交/估值切 raw（行为变更）**: 新口径 `PriceModeConfig(trade=raw, valuation=raw, signal=hfq, returns=hfq)`；`legacy_adjustment=True` 恢复旧路径并与改前基线 `rtol=0` 逐值相等；change_report `1,155,172.33 → 832,682.77`
   - **B4 涨跌停价格法 + next-day 默认 ignored（行为变更）**: 判定改为「当日开盘价 vs 除权参考价 `×(1±ratio)`」（EPS=0.005），ST 用当日状态；旧 `check_next_day_tradable` True→`oracle` / False→`ignored` 并弃用；change_report `832,682.77 → 831,073.02`
