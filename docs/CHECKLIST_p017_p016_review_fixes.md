@@ -127,6 +127,63 @@ Step 8 一致性 Review（§8）、Step 10 ADD 审计（§9）、签字表（§1
 
 ---
 
+## 9.4 RULE-5 异构复审（用户指派 2026-11-10；P-016 §9.4 先例）
+
+**复审基座声明**：复审方 GLM-5.3-Flash ≠ 本批作者基座 DeepSeek-V4.1-Flash（异构性成立）。复审权限单向：只标记问题，不改判作者结论。复审对象 = P-017 四文档 + `verify_p015.py` 改动 @`84dedc8`（HEAD = origin/master，工作区干净）。
+
+### E1 独立重放（10 项）
+
+| # | 项 | 读数 |
+|---|----|------|
+| 1 | git 状态 | HEAD = origin/master = `84dedc8`，工作区干净 |
+| 2 | CI | `42819919916`（@`319c450`）success；`42820534465`（@`84dedc8`）success（独立重查） |
+| 3 | 变更面 | `319c450` = scripts 1 + docs 7 + CHANGELOG 1（9 文件）；无 tests/、.github/（与 E-1 实测一致） |
+| 4 | 项目解释器 | Python 3.12.10；pandas 2.2.3 / numba 0.65.1 / **无 vectorbt**（主环境零污染；默认 `python` 解析到 Anaconda 3.13.5 的事实已在 IMPL §6.3 声明，复审沿用项目解释器） |
+| 5 | black | `5 files would be left unchanged` |
+| 6 | pytest | 默认后端**间歇** `TclError: not enough free memory for image buffer`（3 次全量读数 1F/634 → 1F+3E/631 → 2F/633，失败用例与 P-017 改动零交集）；**`MPLBACKEND=Agg` → `635 passed, 152 warnings in 44.63s`** —— 判定环境态（Tk 资源耗尽），CI 干净环境双 run success 佐证；E1 读数以 Agg 形态出具 |
+| 7 | 占位扫描（沿用建议） | `回填区` 命中 **12 行，全部为历史记录引用 / DoD 措辞 / 自述**（作者记 11；+1 为 CHECKLIST_p017 B-1 行自述提及）；真实占位残留 **0** |
+| 8 | E2 九探针 | 全 PASS（见下表） |
+| 9 | worktree 红读数重放 @`4a34c49` | 旧代码二次运行产出 `…generated.generated.md`（True）——**IMPL §6.1 红 A 级联复现** |
+| 10 | 无扩展名边界 | 二次运行 `bar.generated` 仍级联（见 E4 F-R5-P017-1） |
+
+### E2 运行时取证（9 探针，全部 PASS）
+
+| 探针 | 场景 | 读数 |
+|------|------|------|
+| ① 全链复放（I1） | 五 case → 策展版主文件 | `28 断言（失败 0）+ 豁免 1`，exit 0；分支 3 `[保护]` 触发 |
+| ② 分支 2（V1） | 指向 `.generated.md` | 原地写入（3913B → 3913B）、`CASCADE_EXISTS=False`、无 `[保护]` 行 |
+| ③ 分支 3 + SHA（V3） | 策展版副本 | 改名 `.generated.md` + `ORIG_UNCHANGED=True` |
+| ④ 分支 4（V3） | 存在且无人工标记 | 原地覆盖（内容被替换为模板） |
+| ⑤ **分支 1（复审补覆盖）** | 目标不存在 → 原地新建 | `FRESH_EXISTS=True`（作者取证未直接覆盖该分支，见 E4 F-R5-P017-2） |
+| ⑥ B5 单跑（I3） | 负路径 | `WAIVER(非断言)` + `共 4 项断言（失败 1 项）+ 豁免登记 1 项`，exit 1 |
+| ⑦ P-016 守卫未回归 | rate>0 / rate=0 | `NotImplementedError`（文案含 U-P016-1）/ 正常返回 len(pv)=6 |
+| ⑧ 红读数重放 | worktree @`4a34c49` 旧代码 | 二次运行 → `.generated.generated.md` 产生（True），与新代码 ② 形成红→绿对照 |
+| ⑨ 无扩展名边界 | `bar.generated` 二次运行 | 级联产生（True）——P-017 守卫残余缺陷（E4 F-R5-P017-1） |
+
+### E3 静态锚点（@`84dedc8`，逐字核对）
+
+| 锚点 | 实现 | 规格 |
+|------|------|------|
+| 守卫三件 | `verify_p015.py:254`（`GENERATED_SUFFIX`）/ `:268`（`endswith` 守卫）/ `:272`（改名表达式同源） | CHECKLIST_p017 C-1 行号声明**准确**；DESIGN §4 四分支逐字一致 |
+| PROGRESS 口径注 | §3.17.1 原句「29 项断言…」逐字保留 + P-017 注（28+1）；§1.4 同 | D1/I4 落位 |
+| IMPL_p015 §8.5 | 三行读数表 + 「T-4 原始读数未保全」 | D2 落位；占位已消 |
+| CHECKLIST_p016 E-1 / B-3 | 「12 文件 + P-017 更正」/「P-017 精确化 + 探针 D 补覆盖」 | D4 落位 |
+| 行号漂移（观察） | CHECKLIST_p017 A-1 引「PROGRESS L517」实际现为 L518（后续提交插入所致）；内容锚点有效 | 观察项，不单列 ID |
+
+### E4 盲区扫描（2 项 P3 + 1 项环境观察，均不阻断）
+
+| ID | 级别 | 发现 | 处置建议 |
+|----|------|------|----------|
+| F-R5-P017-1 | P3 | **无扩展名目标仍级联**：`Path("bar.generated").stem = "bar"`（`.generated` 被当作后缀剥离）→ `endswith` 守卫不命中；生成模板自身含标记 → 二次运行改名 `bar.generated.generated`（E2 ⑨ 实测 True）。正常 `.md` 用法不受影响（`X.generated.md` 的 stem 命中守卫） | 后续批次将守卫改为 `path.name.endswith(GENERATED_SUFFIX + path.suffix)` 或并判 `path.suffix == GENERATED_SUFFIX` |
+| F-R5-P017-2 | P3 | **分支 1 覆盖归因失实**：IMPL §6.2 与 CHECKLIST C-4 称分支 1「由 A① 产生成物时的首次写入与探针 C/D 的新建路径覆盖」——实际 A① 目标为主文件（分支 3）、C 副本与 D 目标在运行前均已存在（分支 3/4），分支 1 在作者取证中**未被直接覆盖**；行为本身正确（复审探针 ⑤ 补覆盖 PASS） | 后续批次更正覆盖归因表述；探针清单补「目标不存在」用例 |
+| （观察） | — | 本地默认 TkAgg 后端全量 pytest 间歇 TclError（环境态，见 E1 #6）；建议本地全量跑固定 `MPLBACKEND=Agg` | 不属本批代码缺陷，登记备查 |
+
+### 复审结论
+
+**pass（0 P1 / 0 P2 / 2 P3 登记 + 1 观察项）**。四项决策（D1-D4）实现与规格逐字一致；四分支行为全部独立证实；F5 红读数经 worktree 旧代码重放复现（级联），修复真实性成立；三处文档更正落位。E4 两项 P3 为守卫的边界残余与覆盖归因表述问题，不阻断验收。
+
+---
+
 ## 10. 签字表
 
 | 环节 | 状态 | 主体 | 日期 |
@@ -137,4 +194,4 @@ Step 8 一致性 Review（§8）、Step 10 ADD 审计（§9）、签字表（§1
 | Step 7-8 验收清单 + 一致性 | 通过 | §8（RULE-4 自查·单视角；P3×1 回写） | 2026-11-10 |
 | Step 9 TDD 实施 | 完成 | IMPL §6（F5 红→绿 + 四分支探针） | 2026-11-10 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵） | 2026-11-10 |
-| RULE-5 异构复审 | 未执行 | P3 小修批；如需按 P-014/P-016 先例单独发起 | — |
+| RULE-5 异构复审 | pass | §9.4（复审基座 GLM-5.3-Flash ≠ 作者基座；0 P1/P2，2 P3 登记） | 2026-11-10 |

@@ -556,6 +556,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **环境取证说明**：本终端 `python` 默认解析到 Anaconda 3.13.5（自带 vectorbt 0.28.4），全部读数改用项目解释器 `…Python312\python.exe`（3.12.10）复跑
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×8 + E3×1 + E4 零发现；**13/13 ✅**；RULE-5 未执行（P3 小修批）
 - **CI 回收**: 远端 run `42819919916`（@`319c450`）**success**
+- **RULE-5 异构复审（2026-11-10）**: **pass（0 P1 / 0 P2 / 2 P3 登记 + 1 观察）**——[CHECKLIST_p017 §9.4](CHECKLIST_p017_p016_review_fixes.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 十项（pytest 以 `MPLBACKEND=Agg` 出具 **635 passed**——默认 TkAgg 全量间歇 `TclError` 为本地环境态；占位扫描 12 命中全为引用、真实残留 0）；E2 九探针全 PASS（四分支 + I1 + I3 + P-016 守卫未回归 + **worktree @`4a34c49` 红读数重放复现级联** + 复审补覆盖分支 1）；E3 锚点全命中（`:254/:268/:272` ↔ DESIGN §4 逐字）；**P3×2 登记**：F-R5-P017-1（无扩展名目标 `bar.generated` 二次运行仍级联——`stem` 剥离后缀致守卫不命中；正常 `.md` 用法不受影响）/ F-R5-P017-2（分支 1 覆盖归因失实——作者探针 A①/C/D 目标运行前均存在，分支 1 未被直接覆盖；行为本身正确，复审探针补覆盖 PASS）；观察：本地全量跑建议固定 `MPLBACKEND=Agg`
 
 ---
 
