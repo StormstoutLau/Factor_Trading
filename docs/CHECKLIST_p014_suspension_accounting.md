@@ -69,7 +69,7 @@
 | F2 | mypy `Success`（36 files） | `mypy --explicit-package-bases core` | V2 | ✅ `Success: no issues found in 36 source files` |
 | F3 | 盲区 `4 errors 2 files` 不劣化 | `mypy ... --check-untyped-defs` | V2 | ✅ `Found 4 errors in 2 files (checked 36 source files)` |
 | F4 | 生产代码改动仅 `core/engine_v2.py` + `core/pending.py`（+ `interfaces.py` 协议声明） | `git diff --stat` | V12 | ✅ `engine_v2.py` / `pending.py` / `interfaces.py` 三文件（DR-1） |
-| F5 | CI 三版本全绿 | `gh run watch` | V13 | ✅ run `[待回填 run 号]`，三 job success |
+| F5 | CI 三版本全绿 | `gh run watch` | V13 | ✅ run `42791704254`（@`6ad7678`）三 job `success`，3.10/3.11/3.12 各 `628 passed, 1 skipped`（= 本地 635 − 7 项 numba `importorskip`）→ G7 与 8 项性质测试在 `py_func` 路径全部通过 |
 | F6 | F5 红→绿记录齐备（红 = 修复前失败读数；绿 = 修复后通过读数） | IMPL §9.1 | F5 形态 | ✅ 红 `7 failed, 1 passed`（exit=1）→ 绿 `8 passed`（exit=0） |
 
 ## 7. 分母统计与签字
@@ -81,8 +81,8 @@
 | C 双路径与语义 | 4 | 4 |
 | D 基线与回归 | 4 | 4 |
 | E 文档与声明 | 3 | 3 |
-| F 门禁 | 6 | 5（F5 待 CI 回填） |
-| **合计** | **31** | **30** |
+| F 门禁 | 6 | 6 |
+| **合计** | **31** | **31** |
 
 ## 8. Step 8 一致性 Review（四文档对齐）
 
@@ -127,7 +127,7 @@
 
 ### 9.3 审计结论
 
-**P1 = 0 / P2 = 2（F-S9-P014-1 / -2，均已修复）/ P3 = 3（F-S9-P014-3 未修并登记；-4 / -5 已修）**；CHECKLIST **30/31**（F5 待远端 CI）。审计者与实施者为同一 Agent（RULE-4 自查声明），RULE-5 异构复审留待独立会话。
+**P1 = 0 / P2 = 2（F-S9-P014-1 / -2，均已修复）/ P3 = 3（F-S9-P014-3 未修并登记；-4 / -5 已修）**；CHECKLIST **31/31**（F5 已由 CI run 42791704254 回收）。审计者与实施者为同一 Agent（RULE-4 自查声明），RULE-5 异构复审留待独立会话。
 
 ## 10. 签字
 
