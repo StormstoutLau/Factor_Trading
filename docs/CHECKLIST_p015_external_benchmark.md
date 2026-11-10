@@ -130,6 +130,61 @@
 
 **P1 = 0 / P2 = 0 / P3 = 0**；E4 零发现（扫描范围已声明，一次降级重扫确认）。ADD 通过。
 
+### 9.4 RULE-5 异构复审（2026-11-10，独立会话）
+
+> **复审基座**: GLM-5.3-Flash（≠ 作者基座 DeepSeek-V4.1-Flash，异构性成立）
+> **复审纪律**: 不信任作者结论、E1-E5 独立重放、输出只标记问题（单向权限）、P1/P2/P3 分级
+> **复审对象**: P-015 全链（RESEARCH/DESIGN/IMPL/CHECKLIST 四文档 + `scripts/external_benchmark/` 五脚本 + 校准报告 @`eab4594`）
+
+#### E1 可重放命令（独立重放 9 项）
+
+| # | 命令 | 作者声明 | 复审实测 |
+|---|------|----------|----------|
+| 1 | `git rev-parse HEAD origin/master` | 同步 | ✅ 均 `eab4594`，工作区干净 |
+| 2 | `pytest tests -q`（MPLBACKEND=Agg） | 635 passed | ✅ `635 passed, 152 warnings in 38.80s` |
+| 3 | `black --check scripts/external_benchmark/` | 0 变更 | ✅ `5 files would be left unchanged` |
+| 4 | 主环境 `pip list` | pandas 2.2.3 / numba 0.65.1 / 无 vectorbt | ✅ 同读数，零污染 |
+| 5 | `git status --ignored` | venv/tmp 被豁免 | ✅ `!! .tmp_p015_cases/`、`!! .venv-vbt/` |
+| 6 | `gh run list` | 两 run success | ✅ `42809038823`/`42809138807` 均 completed success |
+| 7 | F5 红读数构造性重放（复制 B1 case 删 vbt 产物 → verify） | 红 exit 1 | ✅ exit 1 + `G2 [B1] FAIL — vbt_results.csv 缺失` 同形态 |
+| 8 | E2-1 全链独立复放（export×5 → run×4 → verify） | 29 断言 0 失败 | ✅ `REPLAY_EXIT=0`，I5 offset −10000.000000 |
+| 9 | E2-2 对抗探针 A：B5 单跑 verify | 豁免后跨 case 断言应 FAIL | ✅ `I5.negctl FAIL — B3/B5 case 未齐`，exit 1 |
+
+#### E2 运行时取证（场景自选理由：覆盖「豁免逻辑负路径」与「规格翻译独立性」两个作者未自证的角度）
+
+| # | 探针 | 结果 |
+|---|------|------|
+| 1 | 全链复放（上表 #8） | ✅ |
+| 2 | 探针 A：B5 单跑 → I5 应 FAIL（case 未齐） | ✅ FAIL + exit 1——豁免登记不掩盖跨 case 断言（非恒真） |
+| 3 | 探针 B：**独立重写规格模拟器**（不复用 `_spec.py`，按 DESIGN §3.2 手写 last_pv/current-NAV 两模拟 + I2c 一般式）核算 B2 | ✅ G1/G2 pv maxdiff = 1.86e-9；I2c maxdiff = **2.021e-10**（与作者读数一致）——规格翻译与闭式独立复核命中 |
+
+#### E3 静态读码（绑 @`eab4594`，6 组锚点）
+
+| # | 锚点 | 核对 |
+|---|------|------|
+| 1 | `_spec.py:97-103` select_top（`s>0` :101 / argpartition `:103`）↔ 内核 `engine_v3_vector.py:112-118` | ✅ 逐字翻译 |
+| 2 | `_spec.py:129`（last_pv 规模）↔ 内核 `:128` | ✅ |
+| 3 | `_spec.py:138-139`（`Σ|trade|×P×rate` + 现金净额）↔ 内核 `:146-151` | ✅（含无现金约束语义） |
+| 4 | `run_vectorbt.py:47/62/66/68/79/83/85`（fees=rate+perturb、amount、cash_sharing、call_seq='auto'、targetpercent）↔ DESIGN §5 表 | ✅ 一致（含 F-S9-P015-1 修正后形态） |
+| 5 | `_spec.py:157-172` i2c 一般式 ↔ DESIGN §3.2 修正公式 | ✅ 一致 |
+| 6 | `requirements-vectorbt.txt` 钉版（vectorbt==1.2.0/pandas==3.1.1/numba==0.68.1/numpy==2.5.4）↔ IMPL §8.1 | ✅ |
+
+#### E4 盲区扫描（发现 3 项，均 P3；按单向权限仅标记）
+
+| ID | 级别 | 发现 | 建议处置 |
+|----|------|------|----------|
+| F-R5-P015-1 | P3 | CHECKLIST C-2 判据列写「I2a/I2b/I2c」三断言，但 verify 输出中 I2a 由 G1 组覆盖、无独立命名行——判据与读数行的命名映射未在文档写明 | C-2 判据列补注「I2a = G1 组三行」 |
+| F-R5-P015-2 | P3 | B5 的 G2 豁免行（`checks.add(..., True, ...)`）形式上是**恒真行**——虽语义为豁免登记且探针 A 证明负路径真实存在（单跑即 FAIL），但与「禁止恒真断言」的纪律在形式上有张力 | 注释或报告标注「豁免登记，非断言」 |
+| F-R5-P015-3 | P3 | `simulate_vbt_spec`（current-NAV 规格）的 cost 交互仅在 rate=0 下验证（B2）；未来若扩展 rate>0 的 targetpercent case，规格侧费用语义未定义 | U-P015-1（Backtrader 第二例）立项时顺带定义 |
+
+#### E5 核查
+
+复审结论未使用推测级证据；「作者基座 DeepSeek-V4.1-Flash」表述沿 P-013/P-014 复审先例引用（本仓台账登记），非本会话可直接重放项。
+
+#### 复审结论
+
+**P1 = 0 / P2 = 0 / P3 = 3（F-R5-P015-1~3，均不阻断验收，登记待后续批次）**。E1 九项、E2 三探针、E3 六组锚点全部独立命中，作者声明与实测**零偏差**；RULE-5 异构复审 **pass**。
+
 ## 10. 签字表
 
 | 环节 | 状态 | 主体 | 日期 |
@@ -140,4 +195,4 @@
 | Step 7-8 验收清单 + 一致性 | 通过 | CHECKLIST §8（RULE-4 自查·单视角；P3×2 回写） | 2026-11-10 |
 | Step 9 TDD 实施 | 完成 | F5 红→绿两读数（IMPL §8.2） | 2026-11-10 |
 | Step 10 ADD 审计 | 通过 | CHECKLIST §9（取证矩阵 E1-E5） | 2026-11-10 |
-| RULE-5 异构复审 | 留待独立会话 | （P-013/P-014 先例：收尾后单独执行） | — |
+| RULE-5 异构复审 | **pass** | **GLM-5.3-Flash**（≠ 作者基座，§9.4：E1 九项 / E2 三探针 / E3 六组锚点独立命中，P3×3 登记） | 2026-11-10 |

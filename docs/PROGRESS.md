@@ -514,7 +514,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **T-2/T-3**: `_spec.py` 规格层 + export/run/verify 三脚本；**F5 红→绿**（红 exit 1 缺 vbt 侧 → 绿 exit 0 七项 0 失败）
   - **实施期发现 5 项**（F-S9-P015-1~5，全回写）：① from_signals 不支持 TargetPercent → B2 改 from_orders(targetpercent)；② **V3 无现金约束 vs vbt 部分成交**（B4 初版负持仓实锤，`allow_negative` 不存在）→ B4 重构常量价翻转 + 语义差登记 M4；③ API 漂移（cash 方法 / 无 asset_qty）；④ I2c 闭式一般化（路径分叉后现金项不抵消）；⑤ B3/B5 fees>0 全等结构性不可达 → 断言重定义 + 阴性对照移 V3 侧
   - **终态**: 29 项断言 0 失败（I1 全零 / I2c 2.0e-10 / I3 一致性+缺口 38658.94 / I4 5.8e-11 / I5 −10000.000000 精确）
-- **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过 / 取证矩阵 E1-E5 / **19/19 ✅** / P1=P2=P3=0 / E4 零发现（降级重扫确认）；门禁 **635 passed / black 0 / 主环境 pip list 零污染**；[BACKTEST_CALIBER_MAPPING §2.2](BACKTEST_CALIBER_MAPPING.md) 获首个实测列（同提交）；报告 [APPENDIX_p015](APPENDIX_p015_external_calibration.md)（M1-M5：**零不可解释残差，准确性校准通过**）；RULE-5 异构复审留待独立会话
+- **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过 / 取证矩阵 E1-E5 / **19/19 ✅** / P1=P2=P3=0 / E4 零发现（降级重扫确认）；门禁 **635 passed / black 0 / 主环境 pip list 零污染**；[BACKTEST_CALIBER_MAPPING §2.2](BACKTEST_CALIBER_MAPPING.md) 获首个实测列（同提交）；报告 [APPENDIX_p015](APPENDIX_p015_external_calibration.md)（M1-M5：**零不可解释残差，准确性校准通过**）；**RULE-5 异构复审 pass**（CHECKLIST §9.4：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash，E1 九项 / E2 三探针（含 B5 单跑负路径 + 独立重写规格核算 I2c=2.02e-10）/ E3 六组锚点独立重放全命中，P1=P2=0，P3×3 F-R5-P015-1~3 登记待后续批次）；CI run `42809038823`（@`07ddeb3`）+ `42809138807`（@`eab4594`）双 success
 
 ---
 
