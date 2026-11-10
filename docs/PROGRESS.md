@@ -1,24 +1,26 @@
 # PROGRESS 待办登记与进度分析
 
 > **规范依据**: `F:\Spec_Workflow\SPEC_PROCESS.md` v1.7.1（10 步 Spec 流程 + RULE-1~6 + E1-E5 取证分级 + T1/T3 批次档位）
-> **登记日期**: 2026-11-04
+> **登记日期**: 2026-11-04（**2026-11-10 终态盘点更新**：P-011/P-012 收口后重排待办优先级，见 §1.4 / §3.14⑥）
 > **状态词表**: `pending / in-progress / blocked / done`（DC2.1；执行态与决策态同一位点单来源）
 > **证据分级**: E1 可重放命令 / E2 运行时脚本 / E3 静态读码（须绑定 commit hash）/ E4 盲区扫描 / E5 推测（禁止用于结论）
 > **编号口径**: 本仓 P 编号为独立命名空间，不与 `Spec_Workflow` 的 P 编号复用
 
 ---
 
-## 1. 当前进度快照（2026-11-04）
+## 1. 当前进度快照（2026-11-10 终态盘点）
 
 ### 1.1 仓库状态
 
 | 项 | 值 | 证据 |
 |----|----|------|
-| HEAD | `df652f9e3595dbbb2b1dfc1d7dccc016851c84c5` | `git rev-parse HEAD`（E1，2026-11-04 更新） |
-| 分支同步 | `master` 与 `origin/master` 指向同一提交（`df652f9`）；远端已切换 SSH | `git rev-parse HEAD origin/master`（E1） |
+| HEAD | `6f583fc006649905df68e3b7cf452fc3cac57fa7`（P-011 审计总结终态） | `git rev-parse HEAD`（E1，2026-11-10 更新） |
+| 分支同步 | `master` 与 `origin/master` 指向同一提交（`6f583fc`）；远端 SSH；CI run `42781237815` 三 job success | `git rev-parse HEAD origin/master`（E1） |
 | 工作区（本批开始前） | 干净（无已跟踪修改、无未跟踪文件） | `git status --short` 空输出（E1） |
 
 ### 1.2 测试状态
+
+> **2026-11-10 终态基线（P-011 收口实测）**: `609 passed` / black 167 unchanged / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件 / 远端 CI 3.10 `602 passed, 1 skipped`（详见 [AUDIT_SUMMARY §5](AUDIT_SUMMARY_backtest_validation.md)）；U-001/U-005 已由 P-008/P-009 关闭，下表为 P-0 时代历史快照存档。
 
 | 场景 | 结果 | 证据 |
 |------|------|------|
@@ -45,6 +47,8 @@
 | TD-1.2 轻量子包化；历史文档存档标注；LLM 风险文档扩充；Web 主题统一；DECISIONS/SPEC_STANDARD 入库 | `2848331`、`c14cab6`、`1321a8e`、`8607c82`、`1058cbb` | done |
 | 进度台账 + Spec 搜索锚点/方案对比矩阵规则 | `400394e` | done |
 | Spec_Runner 接入（adapter + 4 门禁 + 四文档） | `df652f9` | done |
+| P-012 偏差防护与接口锁定（观测网/ST 规则表/复权三口径/掩码/退市动态池/接口治理，七批实施） | `a5ae5cc..a17ebce`（15 提交） | done（2026-11-10） |
+| P-011 回测准确性验证（不变量/参考差分/口径统一/偏差声明/manifest/trace，六批实施 + 审计 + RULE-5 异构复审） | `cd6d619..6f583fc`（17 提交） | done（2026-11-10） |
 
 ### 1.4 未完成事项
 
@@ -53,8 +57,14 @@
 | P-001 | TD-3 Stage 3：移除 `core/engine.py` | `docs/RESEARCH_tech_debt_cleanup.md` TD-3；实测 10 个实际导入文件（6 examples + 4 tests），`core/__init__.py` 仅注释提及；**T1**（Layer-1：删除 `core/engine.py` 并迁移 `tests/`、`examples/`） | done（2026-11-09，Step 1-10 全通过；本地 `507 passed`、black 72 / mypy 119 新基线；`ccd0c98`；远端 CI run `42598775895` 三版本 `500 passed, 1 skipped`） | P2 |
 | P-002 | TD-2：`core/config_v2.py` 冻结标注 | `docs/RESEARCH_tech_debt_cleanup.md` TD-2；当前文件无 `冻结/frozen/TD-2` 标注；**T3**（docstring-only，零运行时行为；路径不落在 scripts/tests/tools/workflows） | done（2026-11-09，T3 轻批：module docstring 落地 ⚠️ FROZEN/TD-2 冻结声明 + 冻结期间约束 + 再激活条件，口径对齐 ARCHITECTURE「⚠️ 冻结（零生产引用）」；`py_compile` exit 0，全量 507 passed，零代码行变更） | P2 |
 | P-003 | TD-9：black 全量重排 | `docs/RESEARCH_tech_debt_cleanup.md` TD-9；实测 `75 files would be reformatted, 5 unchanged`（black 26.5.0；2026-11-04 复核，新增测试已格式化）；**T1**（改动覆盖 `core/` 与 `tests/`，虽 style-only 但属批量重写） | done（2026-11-09，Step 1-10 全通过；**126 文件重排**、`black~=26.0` 锁定、门禁扩展 `black --check .` 并首转绿、`.git-blame-ignore-revs` 落地；全量 `507 passed`、AST 125/125 等价、mypy 119 无劣化；提交 `4098629` + `17fc69d`；远端 CI run `42609336249` 三版本 `500 passed, 1 skipped`） | P3 |
-| P-004 | TD-1：数据层统一（DataManager → DataLoaderV3 / Provider） | `docs/RESEARCH_tech_debt_cleanup.md` TD-1；两套实现仍并存；**T1**（数据层接口与生产消费方变更） | pending | P3 |
-| P-005 | TD-4：Factor_DB 存储迁移 / 文档对齐（DuckDB 为规划方向） | `docs/RESEARCH_tech_debt_cleanup.md` TD-4；全仓仍无 `import duckdb`；**T1**（存储层接口变更） | pending | P3 |
+| P-004 | TD-1：数据层统一（DataManager → DataLoaderV3 / Provider；消费方迁移 + 旧实现删除，边界见 P-012 U-9 B-A） | `docs/RESEARCH_tech_debt_cleanup.md` TD-1；两套实现仍并存；**硬前置已满足**——P-012 B6 已落地 `DataProvider` 端口 + `PklDataProvider` + 契约测试（零接线），Protocol 先定型约束解除；数据层自 P-010（安全默认值）/P-012（复权三口径、掩码时点、退市动态池）连续叠加变更，双轨维护面扩大；**T1**（数据层接口与生产消费方变更） | pending（前置解除，可启动） | **P2**（原 P3，2026-11-10 盘点上调） |
+| P-005 | TD-4：Factor_DB 存储迁移 / 文档对齐（DuckDB 为规划方向） | `docs/RESEARCH_tech_debt_cleanup.md` TD-4；2026-11-10 复核代码仍零 `import duckdb`（仅 docs 提及）；**宜排 P-004 之后**——接口未统一前迁移会波及两套实现；无外部触发 | pending | P3（维持） |
+| U-006-R | mypy 盲区残差重评（`mypy core --check-untyped-defs` 现存 4 errors 2 files） | P-007 Q4=B 裁决挂起（§3.13）；**重评前置已满足**——§3.14 硬约束 4「U-006 在 L5 之后重评」的 L5 接口治理已随 P-012 B6 完成；残差实测 8 → 4 errors 2 files（P-012/P-011 实施后）；**T3**（评估决策 + 可选小修，零行为） | pending（前置解除） | P3 |
+| F-A1(P-012) | 注入式工作流未注入信号 → 静默空回测（空因子/空信号时引擎无输出无告警） | P-012 CHECKLIST §11 P3 发现；期望 fail-fast 或显式 warning；注意 P-007 层 B 已有「空因子 fail-fast」行为（`05af52f`），需核对是否已覆盖该场景后再定修法；**T3**（小修 + 1 测试） | pending | P3 |
+| U-D1(P-011) | golden 全局基线固化（L4 判据） | P-011 U-D1 设计裁决挂起（[AUDIT_SUMMARY §7.1](AUDIT_SUMMARY_backtest_validation.md)）；**硬约束「先改口径、后固 golden」已满足**——复权三口径/掩码/退市均已随 P-012 落地且 RULE-5 复审确认无未归因行为；触发=下一次引擎行为变更**前**必须固化，或对外发布回测结论前；**T1**（基线固化 + manifest 绑定） | pending（条件触发，宜主动） | **P2** |
+| U-D2(P-011) | V2 同日收盘模式（跨引擎逐日净值一致） | P-011 U-D2 挂起（倾向不做）；触发=第三方要求 V2/V3 逐日净值一致 | pending（倾向不做） | P3 |
+| U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
+| U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
 | P-006 | ADR-016 补录或引用修正 | `__init__.py:3@1058cbb`、`core/__init__.py:3@1058cbb`、`pyproject.toml:79@1058cbb` 引用 ADR-016；`docs/DECISIONS.md` 当前仅 ADR-001~013；**T3**（纯文档一致性，零代码） | done（2026-11-09，T3 轻批：DECISIONS.md 补录 ADR-016（TD-1.2 轻量子包化，实施提交 `2848331`；ADR-014/015 编号跳空已注明）；三处代码引用保留；U-002 关闭） | P3 |
 | P-007 | mypy 基线清理（`core` 168 errors / 20 files） | `python312 -m mypy --explicit-package-bases core`（E1，2026-11-04）；`mypy-check` 门禁当前预期 fail | done（2026-11-09 **层 A**：16 个非引擎文件 **26 → 0**；mypy **119 → 93**；修复 **4 处真实缺陷**（A-1 `remove_monitor` NameError / A-2 `analyze_market_contagion` AttributeError / A-3 `create_trigger` TypeError / A-4 `_load_auxiliary_data` 重复定义）+ 4 处 B 类防御；新增 3 项 smoke（507 → 510 passed）；`e0247ce`）。**2026-11-10 层 B 完成**：引擎三件套 `93 → 0`（engine_v2 54 / engine_v3_vector 26 / factory 13）+ 盲区口径 **102 → 8**（engine_v2 6 / data_v3 2，Q3=A 未打开）；协议真实化（`get_snapshots -> list[PortfolioSnapshot]`、`ITradeLog` 最小协议 + `trade_log` 只读 property）；2 项行为变更（空因子 fail-fast、`_generate_results` 未 setup 守卫）；新增 2 项 smoke（**514 → 516 passed**）；`mypy-check` 门禁 verdict=pass(0)，**U-006 按 Q4=B 保持挂起**，下一批次重评；主提交 `05af52f`，远端 CI run `42666962752` 三 job `509 passed, 1 skipped`） | P3 |
 | P-008 | P0 环境规范化：U-001 + U-005 | 默认后端全量 `1 failed, 508 passed`，栈 `engine_v2 → analytics.generate_report → plt.figure → _backend_tk → tk.Tk`；默认 `python`=Anaconda 3.13.5 缺 `cvxpy`；CI 已存在 `.github/workflows/tests.yml`（未设 `MPLBACKEND`）；**T1**（Layer-1：`.github/workflows/` + README） | done（2026-11-05，Step 1-10 全通过；`06e9e11`；本地 U-001 达成、远端红为既有环境缺失见 P-009） | P1 |
@@ -436,6 +446,18 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 > 关联：复权实施决策已登记 **ADR-017**（✅ 已实施，见 [DECISIONS.md](DECISIONS.md)）。
 >
 > **状态更新（2026-11-10）**: P0 决策门 **5/5 已闭合**；**P-012 done（Step 1-10 全通过）**——Step 9 七批次实施 + T-13 验证 74/74，远端 CI run `42694945888` 三 job `543 passed, 1 skipped`，Step 10 ADD 审计全过（CHECKLIST §9，P1/P2=0）；**P-011 Step 3-8 全部完稿**（DESIGN / Step 4 Review / IMPL / Step 6 Review / CHECKLIST 76 项 / Step 8 一致性 Review；F-D1~F-D6 + F-R1~F-R4 + F-I1~F-I5 + F-S8-1~3 全部回写）；**P-011 Step 9 实施已完成**（六批 + 补丁 `cd6d619`..`d270511`；**609 passed** / black 167 / mypy 0 / 盲区 4 errors 2 files；B3 Δ 表 + `change_report residual 0.0` 双证；F-S9-1 P1 快照共享缺陷已修；远端 CI run `42768525717` 三 job 全绿）；**P-011 Step 10 ADD 审计已通过**（CHECKLIST §9：P1=0 / P2=1 F-A1 已修复 `a754a2d` / P3=2；门禁 `replay: 10 rows OK`）——**P-011 done（Step 1-10 全通过 + RULE-5 异构复审 pass，2026-11-10，CHECKLIST §9.6：0 P1/P2 + 2 项 P3 文档修正）**；终态远端 CI run `42771058634` 三 job success。
+
+**⑥ 终态盘点（2026-11-10，P-011/P-012 收口后）**: 原 ①-④ 规划的执行情况——
+
+| 原计划组 | 状态 |
+|----------|------|
+| 决策门 ×5（P0） | ✅ 全部闭合（5/5 裁决） |
+| P-012 实施包 ×6（L0 证实 / L1 测试网 / L3 ST 规则表 / L2 复权+掩码 / L4 退市 / L5 接口治理） | ✅ 全部完成（B1-B6 七批次，74/74） |
+| P-011 实施包 ×3 | L2 统计规范 ✅（偏差声明 D 组 + 指标口径统一）、L3 trace/manifest ✅（F 组 + E 组）；**L1 golden 挂起 → 升格为 [§1.4 U-D1(P-011)](#14-未完成事项)（P2 条件触发）** |
+| 技术债挂起 ×4 | U-006 重评前置（L5）已满足 → 升格 §1.4（P3）；F-A1(P-012) → 升格 §1.4（P3）；**P-004 前置（L5 端口定型）已满足 → §1.4 上调 P2**；P-005 → §1.4 维持 P3 |
+| 条件触发项 | U-D2 / U-D3 / U-2(P-011 DSR/PBO) → 升格 §1.4（P3） |
+
+> 残余可启动项汇总：**P2 = P-004（数据层统一）、U-D1（golden 基线，下一批引擎行为变更前必做）**；P3 = U-006-R / F-A1(P-012) / P-005 / U-D2 / U-D3 / U-2。原执行顺序 P0→P7 全部完成，仅余 P8 清尾组。
 
 ---
 
