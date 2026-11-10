@@ -68,6 +68,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             initial_capital=args.capital,
             start_date=args.start_date,
             end_date=args.end_date,
+            dump_layers_dir=Path(args.trace_dir) if args.trace_dir else None,
         )
 
         print(f"\n  Data Dir:    {data_dir}")
@@ -311,6 +312,9 @@ Examples:
     )
     run_parser.add_argument("--commission", type=float, default=0.0003, help="Commission rate")
     run_parser.add_argument("--output", help="Save results to CSV")
+    run_parser.add_argument(
+        "--trace-dir", help="输出六层逐日快照目录（默认关闭；含 manifest.json）"
+    )
 
     # ── `test` command ────────────────────────────────────────────────────────
     test_parser = subparsers.add_parser("test", help="Run test suite")
