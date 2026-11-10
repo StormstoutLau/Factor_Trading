@@ -1022,7 +1022,9 @@ class BacktestEngineV2:
         output_dir = self.cfg.output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        report_data = generate_report(snapshots, trades_df, output_dir)
+        report_data = generate_report(
+            snapshots, trades_df, output_dir, risk_free_rate=self.cfg.risk_free_rate
+        )
 
         additional_info = {
             "config": {

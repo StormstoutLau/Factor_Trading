@@ -153,15 +153,17 @@ def _rebalance_kernel(
 
 
 @njit
-def _metrics_kernel(portfolio_value: np.ndarray):
+def _metrics_kernel(portfolio_value: np.ndarray, risk_free_rate: float = 0.03):
     """@njit 编译的指标计算内核
 
     Args:
         portfolio_value: 组合价值序列 (1D)
+        risk_free_rate: 年化无风险利率（P-011 D5，与 core.metrics 同口径）
 
     Returns:
         (total_return, annual_return, volatility, sharpe_ratio,
-         max_drawdown, final_value)
+         max_drawdown, final_value)；``max_drawdown`` 为**负值原语**，
+        结果层取量级（``_generate_results``）。
     """
     n = len(portfolio_value)
     if n < 2:
@@ -171,14 +173,19 @@ def _metrics_kernel(portfolio_value: np.ndarray):
     total_return = (portfolio_value[-1] / portfolio_value[0]) - 1.0
     annual_return = (1.0 + total_return) ** (252.0 / n) - 1.0
     volatility = np.std(returns) * np.sqrt(252.0)
-    sharpe_ratio = annual_return / volatility if volatility > 0 else 0.0
+    sharpe_ratio = (annual_return - risk_free_rate) / volatility if volatility > 0 else 0.0
 
-    # 最大回撤 - 手动实现 cummax (numba 不支持 np.maximum.accumulate)
-    cumulative = np.cumprod(1.0 + returns)
-    running_max = np.empty(len(cumulative), dtype=np.float64)
+    # 回撤：显式构造含初始锚点 1.0 的净值曲线（P-011 F-R1：原 cumprod 缺 pv[0]，
+    # 会漏掉"从初始净值下跌"的整段回撤），running_max 手写（numba 不支持
+    # np.maximum.accumulate）。
+    cumulative = np.empty(n, dtype=np.float64)
+    cumulative[0] = 1.0
+    for t in range(1, n):
+        cumulative[t] = cumulative[t - 1] * (1.0 + returns[t - 1])
+    running_max = np.empty(n, dtype=np.float64)
     running_max[0] = cumulative[0]
-    for i in range(1, len(cumulative)):
-        running_max[i] = max(running_max[i - 1], cumulative[i])
+    for t in range(1, n):
+        running_max[t] = max(running_max[t - 1], cumulative[t])
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = np.min(drawdown)
 
@@ -389,9 +396,10 @@ class VectorBacktestEngine:
         if self._portfolio_value is None or len(self._portfolio_value) == 0:
             return {}
 
-        # 调用 @njit 内核计算指标
+        # 调用 @njit 内核计算指标（rf 与 V2 同源：P-011 D5）
+        risk_free_rate = float(self.cfg.get("risk_free_rate", 0.03))
         total_return, annual_return, volatility, sharpe_ratio, max_drawdown, final_value = (
-            _metrics_kernel(self._portfolio_value)
+            _metrics_kernel(self._portfolio_value, risk_free_rate)
         )
 
         # 计算 returns 序列 (用于后续分析)
@@ -404,7 +412,9 @@ class VectorBacktestEngine:
             "annual_return": annual_return,
             "volatility": volatility,
             "sharpe_ratio": sharpe_ratio,
-            "max_drawdown": max_drawdown,
+            # 量级约定（P-011 D5）：kernel 保持负值原语，结果层统一为 >= 0
+            "max_drawdown": -float(max_drawdown),
+            "risk_free_rate": risk_free_rate,
             "final_value": final_value,
             "initial_value": self._portfolio_value[0],
         }

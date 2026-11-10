@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from core.metrics import DEFAULT_RISK_FREE_RATE, compute_metrics
 from core.tracker import PortfolioSnapshot
 
 logger = logging.getLogger(__name__)
@@ -34,10 +35,15 @@ class PerformanceAnalyzer:
     负责计算和分析回测的各项性能指标。
     """
 
-    def __init__(self):
-        """初始化性能分析器"""
+    def __init__(self, risk_free_rate: float = DEFAULT_RISK_FREE_RATE):
+        """初始化性能分析器
+
+        Args:
+            risk_free_rate: 年化无风险利率（P-011 D5；原硬编码 0.03）
+        """
         self.snapshots: list[PortfolioSnapshot] = []
         self.trades_df: Optional[pd.DataFrame] = None
+        self.risk_free_rate = float(risk_free_rate)
         logger.info("性能分析器初始化完成")
 
     def set_data(self, snapshots: list[PortfolioSnapshot], trades_df: pd.DataFrame):
@@ -69,42 +75,32 @@ class PerformanceAnalyzer:
         if not daily_returns:
             return {}
 
-        # 基础指标
-        total_return = cumulative_returns[-1] if cumulative_returns else 0
-        n_days = len(daily_returns)
+        # compute_metrics 的契约要求 N >= 2；单点序列无统计意义，按"无指标"处理
+        if len(total_values) < 2:
+            return {}
 
-        # 年化收益率（假设252个交易日）
-        # 【修复E13】负收益保护：当total_return <= -1时，使用对数收益率近似
-        if total_return <= -1:
-            annual_return = -1.0  # 全部亏损
-        elif n_days > 0:
-            annual_return = (1 + total_return) ** (252 / n_days) - 1
-        else:
-            annual_return = 0
+        # 单一口径（P-011 D5）：收益/波动/夏普/最大回撤由 core.metrics 唯一定义。
+        # 差异说明：波动改为 N-1 个差分收益（原含首日 0 收益会低估）；回撤统一非负量级。
+        metrics = compute_metrics(total_values, risk_free_rate=self.risk_free_rate)
+        total_return = metrics.total_return
+        annual_return = metrics.annual_return
+        annual_volatility = metrics.annual_volatility
+        risk_free_rate = metrics.risk_free_rate
+        sharpe_ratio = metrics.sharpe_ratio
+        max_drawdown = metrics.max_drawdown
+        n_days = metrics.n_periods
 
-        # 年化波动率
-        annual_volatility = np.std(daily_returns) * np.sqrt(252) if daily_returns else 0
-
-        # 夏普比率（假设无风险利率为3%）
-        risk_free_rate = 0.03
-        sharpe_ratio = (
-            (annual_return - risk_free_rate) / annual_volatility if annual_volatility > 0 else 0
-        )
-
-        # 索提诺比率（下行风险）
+        # 索提诺比率（下行风险，快照口径）
         downside_returns = [r for r in daily_returns if r < 0]
         downside_volatility = np.std(downside_returns) * np.sqrt(252) if downside_returns else 0
         sortino_ratio = (
             (annual_return - risk_free_rate) / downside_volatility if downside_volatility > 0 else 0
         )
 
-        # 最大回撤
+        # 最大回撤持续期（快照口径，仅用于 duration 统计）
         cumulative_values = [1 + r for r in cumulative_returns]
         peak = np.maximum.accumulate(cumulative_values)
         drawdown = (peak - cumulative_values) / peak
-        max_drawdown = np.max(drawdown) if drawdown.size > 0 else 0
-
-        # 最大回撤持续期
         drawdown_periods = self._calculate_drawdown_periods(drawdown)
         max_drawdown_duration = np.max(drawdown_periods) if drawdown_periods.size > 0 else 0
 
@@ -140,6 +136,7 @@ class PerformanceAnalyzer:
             "sharpe_ratio": sharpe_ratio,
             "sortino_ratio": sortino_ratio,
             "calmar_ratio": calmar_ratio,
+            "risk_free_rate": risk_free_rate,
             # 其他指标
             "win_rate": win_rate,
             "win_loss_ratio": win_loss_ratio,
@@ -466,7 +463,11 @@ class PerformanceAnalyzer:
 
 
 def generate_report(
-    snapshots: list[PortfolioSnapshot], trades_df: pd.DataFrame, output_dir: Path
+    snapshots: list[PortfolioSnapshot],
+    trades_df: pd.DataFrame,
+    output_dir: Path,
+    *,
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
 ) -> dict[str, Any]:
     """生成回测报告
 
@@ -474,10 +475,11 @@ def generate_report(
         snapshots: 组合快照列表
         trades_df: 交易记录DataFrame
         output_dir: 输出目录
+        risk_free_rate: 年化无风险利率（P-011 D5）
 
     Returns:
         报告数据
     """
-    analyzer = PerformanceAnalyzer()
+    analyzer = PerformanceAnalyzer(risk_free_rate)
     analyzer.set_data(snapshots, trades_df)
     return analyzer.generate_report(output_dir)

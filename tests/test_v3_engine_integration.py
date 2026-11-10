@@ -214,7 +214,8 @@ def test_v3_engine_results_structure():
     # 基本合理性检查
     assert results["initial_value"] == 10_000_000
     assert results["final_value"] > 0
-    assert -1.0 <= results["max_drawdown"] <= 0.0
+    # 量级约定（P-011 D5）：max_drawdown 统一为非负量级
+    assert 0.0 <= results["max_drawdown"] <= 1.0
     print(f"  ✓ 数值合理性检查通过")
 
     return True

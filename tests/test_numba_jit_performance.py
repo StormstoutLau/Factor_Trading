@@ -277,7 +277,8 @@ def test_v3_engine_jit_integration():
     # 验证数值合理性
     assert results["initial_value"] == 10_000_000
     assert results["final_value"] > 0
-    assert -1.0 <= results["max_drawdown"] <= 0.0
+    # 量级约定（P-011 D5）：引擎结果层 max_drawdown 为非负量级
+    assert 0.0 <= results["max_drawdown"] <= 1.0
     assert not np.isnan(results["sharpe_ratio"])
     print(
         f"  ✓ 数值合理性: Sharpe={results['sharpe_ratio']:.3f}, "
