@@ -53,6 +53,7 @@ from core.portfolio import build_optimizer
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
 from core.tracker import PositionTracker
+from core.validation import build_validation_declaration
 from filter.limit_rules import RULESET_VERSION, unknown_board_count
 from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
 
@@ -1065,6 +1066,19 @@ class BacktestEngineV2:
             additional_info["invariant_report"] = invariant_report.to_dict()
             if invariant_mode == "raise" and not invariant_report.ok:
                 raise InvariantViolationError(invariant_report.violations[0])
+
+        # 偏差声明（P-011 D6）：字段全部来自运行时状态或能力常量
+        execution_timing = (
+            self._execution_policy.timing.value
+            if self._execution_policy is not None
+            else "next_open"
+        )
+        additional_info["validation_declaration"] = build_validation_declaration(
+            risk_free_rate=self.cfg.risk_free_rate,
+            universe_report=self._universe_report(),
+            execution_timing=execution_timing,
+            benchmark_configured=self.cfg.benchmark is not None,
+        )
 
         if not trades_df.empty:
             trades_path = output_dir / "trades.csv"
