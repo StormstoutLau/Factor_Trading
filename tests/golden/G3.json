@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "case_id": "G3",
+  "engine": "v2",
+  "scenario": "mask",
+  "description": "V2 掩码：涨停（开盘价触及限幅）+ 停牌",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "total_return": 0.028648693133166647,
+    "annual_return": 0.40347584992028995,
+    "annual_volatility": 0.12411909157596952,
+    "sharpe_ratio": 3.0090121123042275,
+    "max_drawdown": 0.011232609485602896,
+    "final_value": 10286486.931331666
+  },
+  "nav": {
+    "length": 21,
+    "first": 10000000.0,
+    "last": 10286486.931331666,
+    "min": 9887673.90514397,
+    "max": 10317071.907036366
+  },
+  "trades": {
+    "count": 56,
+    "total_amount": 34446504.12211445,
+    "total_cost": 62267.82927753209
+  },
+  "git_commit": "677c041",
+  "python_version": "3.12.10",
+  "dirty": true,
+  "numba_available": true
+}

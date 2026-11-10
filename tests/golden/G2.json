@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "case_id": "G2",
+  "engine": "v2",
+  "scenario": "cost",
+  "description": "V2 费用：真实波动 + 佣金/印花税/滑点 + 整手",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "total_return": -0.0056008582468811685,
+    "annual_return": -0.06517807501494022,
+    "annual_volatility": 0.05365448953398048,
+    "sharpe_ratio": -1.773907008371816,
+    "max_drawdown": 0.012297034501454474,
+    "final_value": 9943991.417531189
+  },
+  "nav": {
+    "length": 21,
+    "first": 10000000.0,
+    "last": 9943991.417531189,
+    "min": 9877029.654985456,
+    "max": 10000000.0
+  },
+  "trades": {
+    "count": 57,
+    "total_amount": 20239628.005346257,
+    "total_cost": 36526.96218729344
+  },
+  "git_commit": "677c041",
+  "python_version": "3.12.10",
+  "dirty": true,
+  "numba_available": true
+}

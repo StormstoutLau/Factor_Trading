@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "case_id": "G6",
+  "engine": "v2",
+  "scenario": "delisting",
+  "description": "V2 退市：universe 动态池在第 15 日移除标的",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "total_return": -0.039937452585838695,
+    "annual_return": -0.38681102833371794,
+    "annual_volatility": 0.1295853478038122,
+    "sharpe_ratio": -3.2164981257352925,
+    "max_drawdown": 0.048238018807882255,
+    "final_value": 9600625.474141613
+  },
+  "nav": {
+    "length": 21,
+    "first": 10000000.0,
+    "last": 9600625.474141613,
+    "min": 9517619.811921177,
+    "max": 10000000.0
+  },
+  "trades": {
+    "count": 53,
+    "total_amount": 25669347.07289398,
+    "total_cost": 46122.06883932736
+  },
+  "git_commit": "677c041",
+  "python_version": "3.12.10",
+  "dirty": true,
+  "numba_available": true
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "case_id": "G5",
+  "engine": "v3",
+  "scenario": "cost",
+  "description": "V3 费用：真实波动 + cost_rate=0.001",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "total_return": -0.0022088102494270956,
+    "annual_return": -0.02747723127027779,
+    "annual_volatility": 0.05485795285272154,
+    "sharpe_ratio": -1.0477465578161163,
+    "max_drawdown": 0.011137106948531539,
+    "final_value": 9977911.897505729
+  },
+  "nav": {
+    "length": 20,
+    "first": 10000000.0,
+    "last": 9977911.897505729,
+    "min": 9888628.930514684,
+    "max": 10000000.0
+  },
+  "trades": {
+    "count": 0,
+    "total_amount": 0.0,
+    "total_cost": 0.0
+  },
+  "git_commit": "677c041",
+  "python_version": "3.12.10",
+  "dirty": true,
+  "numba_available": true
+}
