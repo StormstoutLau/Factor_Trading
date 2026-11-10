@@ -24,7 +24,7 @@
 |----|--------|-----|------|
 | B-1 | 含人工标记的目标 → 改名写入 | 对副本执行 `--report`，生成 `<stem>.generated.md` | ✅ E1：`[保护] APPENDIX.md 含人工章节（§1/§3），改写 APPENDIX.generated.md`；文件存在 |
 | B-2 | 原文件零改动（I5） | 执行前后 SHA256 相同 | ✅ E1：`ORIG_UNCHANGED=True`（副本场景）；真实路径复放同样只写 `.generated.md` |
-| B-3 | 无标记目标 → 原路径写入 | 临时空路径执行后文件存在 | ✅ E1：`.tmp_p015_report/*.md`（无标记）按原路径写入（红 C 场景） |
+| B-3 | 无标记目标 → 原路径写入 | 临时空路径执行后文件存在 | ✅ E1：`.tmp_p015_report/*.md`（无标记）按原路径写入（红 C 场景）——**P-017 精确化**：该证据覆盖的是「目标不存在 → 原地」分支；「存在且无人工标记 → 原地覆盖」分支由 P-017 探针 D 补覆盖（F-R5-P016-3） |
 
 ### C 组：current-NAV 规格 fail-fast（F-R5-P015-3）
 
@@ -46,7 +46,7 @@
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| E-1 | 不进 tests/、不进 CI | `git status` 无 `tests/`、`.github/` 变更 | ✅ E1：变更面 = `scripts/external_benchmark/`（2 文件）+ `docs/`（6 文件） |
+| E-1 | 不进 tests/、不进 CI | `git status` 无 `tests/`、`.github/` 变更 | ✅ E1：变更面 = scripts 2 + docs 9 + CHANGELOG 1（**12 文件**，`git show --stat 4a1cdb4`）；无 tests/、无 .github/ —— **P-017 更正**：原记 `docs/`（6 文件）失实（F-R5-P016-4） |
 | E-2 | 主环境回归不劣化 | `pytest tests` 仍 635 passed | ✅ E1：`635 passed, 152 warnings in 76.89s` |
 | E-3 | 新脚本格式 | `black --check scripts/external_benchmark/` 0 变更 | ✅ E1：`5 files would be left unchanged` |
 

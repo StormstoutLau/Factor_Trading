@@ -249,14 +249,27 @@ _REPORT_MARK = {"pass": "✅ PASS", "fail": "❌ FAIL", "waiver": "— 豁免（
 # 人工回填章节标记（P-016 D2 / F-S9-P016-1）：命中即视为「策展报告」，生成器改名写入
 MANUAL_MARKERS = ("## 1. vectorbt 权威签名核验", "## 3. 口径映射实测结论")
 
+# 生成物命名空间（P-017 D3 / F-R5-P016-3）：``<stem>.generated<suffix>`` 归生成器独占，
+# 该路径内容随时可被原地重写；人工策展须合并回主文件，不得直接编辑生成物。
+GENERATED_SUFFIX = ".generated"
+
 
 def _resolve_report_target(path: Path) -> Path:
-    """含人工章节的已入库报告不得被覆盖：改写 ``<stem>.generated<ext>``。"""
+    """解析报告写入目标（四分支）。
+
+    1. 目标不存在 → 原地写入；
+    2. 目标本身是生成物（stem 以 ``.generated`` 结尾）→ **原地重写**，不再级联改名
+       （P-017 / F-R5-P016-3：旧行为会产出 ``.generated.generated.md``）；
+    3. 目标含人工章节标记（策展版）→ 改名 ``<stem>.generated<suffix>``，原文件不动；
+    4. 存在但无人工标记的外部文件 → 原地覆盖。
+    """
     if not path.exists():
+        return path
+    if path.stem.endswith(GENERATED_SUFFIX):
         return path
     text = path.read_text(encoding="utf-8")
     if any(marker in text for marker in MANUAL_MARKERS):
-        return path.with_name(f"{path.stem}.generated{path.suffix}")
+        return path.with_name(f"{path.stem}{GENERATED_SUFFIX}{path.suffix}")
     return path
 
 

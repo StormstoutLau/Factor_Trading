@@ -139,4 +139,10 @@
 
 ### 8.5 门禁实测（T-4 时点）
 
-（E-2 门禁读数回填区——black / pytest / 主环境 pip list）
+| 项 | 读数 | 出口 |
+|----|------|------|
+| `pytest tests` | `635 passed` | CHECKLIST_p015 E-2 |
+| `black --check scripts/external_benchmark/` | `5 files would be left unchanged` | CHECKLIST_p015 E-3 |
+| 主环境 pip list | pandas 2.2.3 / numba 0.65.1，无 vectorbt | CHECKLIST_p015 E-1；PROGRESS §3.17.1 Step 10 |
+
+> **P-017 说明（F-R5-P016-2）**：T-4 时点（本批 Step 9）的原始门禁读数未单独保全，上表为同批终态口径的读数出口指向，不冒称 T-4 时点证据。此前本节为「回填区」占位，已按 P-017 D2 回填。
