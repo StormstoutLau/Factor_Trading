@@ -199,7 +199,7 @@ def _expire_next_day_orders(self, date: pd.Timestamp) -> int:
 | black | `172 files would be left unchanged` | 171 + 1 新测试文件 ✅ |
 | mypy | `Success: no issues found in 36 source files` | 0 ✅ |
 | 盲区 | `Found 4 errors in 2 files (checked 36 source files)` | 不劣化 ✅ |
-| `tests/*.py` | **74** | 73 + 1 ✅ |
+| `tests/*.py` | **74**（71 测试 + 3 辅助） | 73 + 1 ✅ |
 | 生产代码范围 | `core/engine_v2.py` / `core/pending.py` / `core/interfaces.py` | 协议补声明属必要派生（DR-1） |
 
 ### 9.3 golden 基线影响（A20/D10）

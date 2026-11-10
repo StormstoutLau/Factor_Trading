@@ -72,7 +72,7 @@
 | F5 | CI 三版本全绿 | `gh run watch` | V13 | ✅ run `42791704254`（@`6ad7678`）三 job `success`，3.10/3.11/3.12 各 `628 passed, 1 skipped`（= 本地 635 − 7 项 numba `importorskip`）→ G7 与 8 项性质测试在 `py_func` 路径全部通过 |
 | F6 | F5 红→绿记录齐备（红 = 修复前失败读数；绿 = 修复后通过读数） | IMPL §9.1 | F5 形态 | ✅ 红 `7 failed, 1 passed`（exit=1）→ 绿 `8 passed`（exit=0） |
 
-## 7. 分母统计与签字
+## 7. 分母统计
 
 | 组 | 项数 | 通过 |
 |----|------|------|

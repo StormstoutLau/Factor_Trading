@@ -14,7 +14,7 @@
 
 | 项 | 值 | 证据 |
 |----|----|------|
-| HEAD | `6ad7678`（P-014 基线元数据重录） | `git rev-parse HEAD`（E1，2026-11-10 更新） |
+| HEAD（代码+基线终态） | `6ad7678`（P-014 基线元数据重录；后续为纯文档提交） | `git rev-parse HEAD`（E1，2026-11-10 更新） |
 | 分支同步 | `master` 与 `origin/master` 指向同一提交（`6ad7678`）；远端 SSH；CI run `42791704254` 三 job success | `git rev-parse HEAD origin/master`（E1） |
 | 工作区（本批开始前） | 干净（无已跟踪修改、无未跟踪文件） | `git status --short` 空输出（E1） |
 
