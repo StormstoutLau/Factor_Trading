@@ -3,7 +3,7 @@
 > **文档编号**: AUDIT_SUMMARY_backtest_validation
 > **阶段**: Phase 3 - 收口（SPEC_PROCESS 十步之外的用户指令扩展步：对 Step 1-10 全流程做交叉总结）
 > **日期**: 2026-11-10
-> **状态**: **P-011 done（Step 1-10 全通过）**；本总结为 Step 11 交叉复核产物，不改变任何 Step 10 结论
+> **状态**: **P-011 done（Step 1-10 全通过 + RULE-5 异构复审 pass）**；本总结为 Step 11 交叉复核产物，不改变任何 Step 10 结论（Step 12 RULE-5 复审见时间线）
 > **上游**: [RESEARCH](RESEARCH_backtest_validation.md) · [DESIGN](DESIGN_backtest_validation.md) · [IMPL](IMPL_backtest_validation.md) · [CHECKLIST](CHECKLIST_backtest_validation.md)（§9 ADD 审计 / §10 验收结论）
 > **台账**: [PROGRESS §3.12](PROGRESS.md) · [CHANGELOG](../CHANGELOG.md)
 > **解释器 / 门禁**: Python 3.12.10；session `factorv3-p011-backtest-validation-20261110`（`replay: 10 rows OK`）
@@ -37,6 +37,7 @@
 | 9 实施 | 6 批 + 3 补丁（§4）；**609 passed / black 167 / mypy 0 / 68 测试文件**；B3 双证 | 验收通过 | DeepSeek-V4.1-Flash |
 | 10 ADD 审计 | 四阶段全过；F-A1（P2）修复 `a754a2d`；门禁 `replay: 10 rows OK` | P1=0 / P2=1（已修复）/ P3=2 | DeepSeek-V4.1-Flash（**同基座限定**） |
 | **11 审计总结（本档）** | 交叉复核 + 台账归并 | 无新发现（§3 注记 2 项 P3 归并） | DeepSeek-V4.1-Flash |
+| **12 RULE-5 异构复审（用户指令，收口步）** | 按 CHECKLIST §9.3 取证矩阵独立重放 E1-E5（[CHECKLIST §9.6](CHECKLIST_backtest_validation.md)） | **pass**——7/7 命中，0 P1/P2，2 项 P3 文档修正（F-R5-1/F-R5-2），审计结论维持 | GLM-5.3-Flash（**异构**） |
 
 > 流程有效性观察：**异构 Review（Step 2/4/6/8）全部命中实质问题**（含 1 项 P1 F-R1）；实施期发现（F-S9-1 P1）由不变量观测网自身暴露——观测网在接入首日即兑现设计价值；Step 10 审计捕获的 F-A1 是唯一逃过前 8 步的 P2，根因为「设计交付物无对应验收行」（§7.3 教训）。
 
@@ -102,7 +103,7 @@
 
 | 项 | 状态 | 触发条件 |
 |----|------|----------|
-| RULE-5 异构第二会话复审（Step 9/10） | **待执行** | 实施与审计同基座（DeepSeek-V4.1-Flash）；建议独立会话按 CHECKLIST §9 取证矩阵重放 |
+| RULE-5 异构第二会话复审（Step 9/10） | **已闭合**（2026-11-10，[CHECKLIST §9.6](CHECKLIST_backtest_validation.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash，E1-E5 独立重放 7/7 命中，0 P1/P2，2 项 P3 文档修正 F-R5-1/F-R5-2） | — |
 | U-D1 golden 回归（L4） | 挂起（设计裁决） | 下一次引擎行为变更前，或需对外发布回测结论 |
 | U-D2 V2 同日收盘模式 | 挂起（倾向不做） | 第三方要求逐日净值一致 |
 | U-D3 trace 采样/保留策略 | 挂起 | 长区间/全市场 trace（体积 > 500 MB） |

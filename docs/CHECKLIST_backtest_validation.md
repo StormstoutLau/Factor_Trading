@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_backtest_validation
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 1-10 全部通过；Step 11 审计总结完成**（2026-11-10；Step 9 实测 **609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**，B3 Δ 表 + `change_report residual 0.0` 双证，远端 CI run `42768525717` 三 job 全绿；Step 10 ADD 审计全过——CHECKLIST §9：Phase 0-4 全过、**P1=0 / P2=1 F-A1 已修复 `a754a2d`** / P3=2 已回写、`replay: 10 rows OK`、实测列 **76/76**、终态远端 run `42771058634` 三 job success；Step 11 交叉总结见 [AUDIT_SUMMARY_backtest_validation.md](AUDIT_SUMMARY_backtest_validation.md)，无新发现；RULE-5 异构复审留待独立会话）
+> **状态**: **Step 1-10 全部通过；Step 11 审计总结完成**（2026-11-10；Step 9 实测 **609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**，B3 Δ 表 + `change_report residual 0.0` 双证，远端 CI run `42768525717` 三 job 全绿；Step 10 ADD 审计全过——CHECKLIST §9：Phase 0-4 全过、**P1=0 / P2=1 F-A1 已修复 `a754a2d`** / P3=2 已回写、`replay: 10 rows OK`、实测列 **76/76**、终态远端 run `42771058634` 三 job success；Step 11 交叉总结见 [AUDIT_SUMMARY_backtest_validation.md](AUDIT_SUMMARY_backtest_validation.md)，无新发现；**RULE-5 异构复审已执行并 pass**（2026-11-10，§9.6：复审基座 GLM-5.3-Flash ≠ 作者基座 DeepSeek-V4.1-Flash，E1-E5 独立重放 7/7 命中，0 P1/P2，2 P3 文档修正））
 > **上游**: [DESIGN_backtest_validation.md](DESIGN_backtest_validation.md)（Step 4 通过；D1-D9 / 不变式 I1-I10；F-R1~F-R4 已回写；Step 9 回写 F-S9-2~F-S9-4） · [IMPL_backtest_validation.md](IMPL_backtest_validation.md)（Step 6 通过；T-0~T-14 / V1-V16；F-I1~F-I5 已回写；**§9 Step 9 实施记录已追加**）
 > **填写规则**: 「实测」列只写 Step 9 实施后的实测证据（RULE-1，禁止预填）；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；测试命令加 `MPLBACKEND=Agg`
@@ -224,7 +224,7 @@
 ## 9. ADD 审计（Step 10，已执行 2026-11-10）
 
 - **时点**: 2026-11-10，实施（Step 9）与推送/CI 完成后独立执行（RULE-1）
-- **审查者**: 单 Agent 自查（RULE-4）；**同基座限定**：审计与实施会话同为 DeepSeek-V4.1-Flash，RULE-5 异构第二会话复审**未执行**（Step 4/6/8 文档 Review 为 GLM-5.3-Flash），留待独立会话（见 §9.4）
+- **审查者**: 单 Agent 自查（RULE-4）；**同基座限定已闭合**：审计与实施会话同为 DeepSeek-V4.1-Flash，RULE-5 异构第二会话复审**已于 2026-11-10 执行并 pass**（复审基座 GLM-5.3-Flash，见 §9.6）
 - **取证方式**: 门禁链（session `factorv3-p011-backtest-validation-20261110`，终态 `replay: 10 rows OK`）+ `git diff dc71c1a..b9c7d75` 24 个代码/测试文件全文盲区扫描 + E3 读码绑 `@a754a2d` + 审计时点复跑
 
 ### 9.1 四阶段
@@ -240,7 +240,7 @@
 - [x] **D2 不变量**: 七个 `check_*` + `check_all` @`core/invariants.py:88/113/170/216/254/281/305/336`；`invariant_mode` @`config.py:344`；接线 @`engine_v2:1066-1076`（`"off"` 分支整体跳过）
 - [x] **D3 参考差分**: `tests/_reference_impl.py` 4 函数（`_seq_sum` 顺序累加对齐 njit）；4 组差分 @`test_reference_diff.py`（267 行）
 - [x] **D4 事件级等价**: `test_cross_engine_equivalence.py` 158 行——五断言 + 阴性对照 `[7_500.0, 3_000.0]` @`:158`
-- [x] **D5 口径统一**: `core/metrics.py:16-18/22-29/46`（常量 + `METRICS_METHOD` + `compute_metrics`）；analytics 委托 @`analytics.py:84`；V3 kernel rf @`engine_v3:156`、锚点 @`:178-183`、量级 @`:416`；`metrics_method` V2 @`engine_v2:1092` / V3 @`engine_v3:419`（F-A1 补）
+- [x] **D5 口径统一**: `core/metrics.py:16-18/22-29/57`（常量 + `METRICS_METHOD` + `compute_metrics`；:57 为 `a754a2d` 后行号，F-R5-1 修正）；analytics 委托 @`analytics.py:84`；V3 kernel rf @`engine_v3:156`、锚点 @`:178-183`、量级 @`:416`；`metrics_method` V2 @`engine_v2:1092` / V3 @`engine_v3:420`（F-A1 补）
 - [x] **D6 偏差声明**: `core/validation.py:13-21/30`；接线 @`engine_v2:1084-1089`
 - [x] **D7 manifest**: `core/manifest.py:29-186`（`_fingerprint:119-125` 只含 git/数据 sha256/config）；接线 @`engine_v2:1121-1166`（`write_manifest:1140` 开关、`OSError` 仅 warning）
 - [x] **D8 trace**: `--trace-dir` @`cli.py:316/:71`；复用 `LayerDumper`（`core/change_report.py` diff **0**）
@@ -256,7 +256,7 @@
 #### Phase 3: 必要性（code → design，盲区扫描）
 
 - [x] **扫描范围（E4）**: 24 个代码/测试文件 `dc71c1a..b9c7d75` diff 全文（核心 7 文件逐 hunk）+ 3 个新文档 + 2 个台账 diff——**发现 3 项**（§9.2 F-A1/F-A2/F-A3），**0 项无依据代码行为**
-- [x] 新增行归属：`engine_v2.py` +96 行全归属 D2/D5/D6/D7；`analytics.py` 32/30 全归属 D5；`engine_v3_vector.py` 22/12 全归属 D5；`tracker.py` 4/3 = F-S9-1；`interfaces.py` +4 = F-I1；`cli.py` +4 = D8；`config.py` +3 = D2/D5/D7
+- [x] 新增行归属：`engine_v2.py` +94 行（实测 `git diff --numstat dc71c1a..a754a2d`；b9c7d75 扫描范围 +87，F-R5-2 修正原「+96」）全归属 D2/D5/D6/D7；`analytics.py` 32/30 全归属 D5；`engine_v3_vector.py` 22/12 全归属 D5；`tracker.py` 4/3 = F-S9-1；`interfaces.py` +4 = F-I1；`cli.py` +4 = D8；`config.py` +3 = D2/D5/D7
 - [x] 既有测试仅 3 处修改且均有归属（Phase 2 对账）；既有 27 项数据测试与 P-012 层测试零改动（全量 609 绿佐证）
 - [x] 保护路径：`pyproject.toml` / `.github/` / `core/change_report.py` / `core/execution.py` / `core/data.py` / `filter/` / baseline 夹具（`data/` gitignore 不入 diff）——diff 均符合预期
 
@@ -281,7 +281,7 @@
 |------|--------------|------|
 | E1 可重放命令 | `pytest 609 passed`（审计时点复跑）/ `black 167 unchanged` / `mypy Success 36 files` / `--collect-only 609` / 门禁 session `10 rows OK` / `git log dc71c1a..HEAD` / `git diff --numstat`（24 文件）/ Grep 计数（不可审计措辞 0、`metrics_method` 修复前后 0→9、保护路径 diff 0）/ `gh run view 42768525717` 三 job success | G1-G8、A1-A8 证据出口、RL5/RL6/RL8、D9、Phase 0 |
 | E2 运行时脚本 | Step 9 期 `%TEMP%\p011_b3_delta.py`（Δ 表）+ `p011_v10\` before/after dump + `scripts/change_report.py`（residual 0.0）——`[未入仓-不可重放]`；场景选择理由：R7 夹具 31 股×60 日含停牌/ST/整手边界事件 | C4/C9、RL1/RL2、§10.0 Δ 表 |
-| E3 静态读码 | `@a754a2d`：`invariants.py:88/113/170/216/254/281/305/336`（I1-I7+check_all）、`metrics.py:16-29/46`、`validation.py:13-30`、`manifest.py:119-186`、`engine_v2:1066-1095/1121-1167`、`engine_v3:156/178-183/400-419`、`analytics:84`、`cli:71/316`、`tracker:261`、`interfaces:201` | D2-D8 全部、INV1-INV10、A2/A8、C1/C3/C5/C7、E5/E6 |
+| E3 静态读码 | `@a754a2d`：`invariants.py:88/113/170/216/254/281/305/336`（I1-I7+check_all）、`metrics.py:16-29/57`、`validation.py:13-30`、`manifest.py:119-186`、`engine_v2:1066-1095/1121-1167`、`engine_v3:156/178-183/400-419`、`analytics:84`、`cli:71/316`、`tracker:261`、`interfaces:201` | D2-D8 全部、INV1-INV10、A2/A8、C1/C3/C5/C7、E5/E6 |
 | E4 盲区扫描/判断 | 24 文件 diff 全文「发现 3 项」；Iron Law 反例（F-A1）；RULE-5 同基座限定声明；`check_all`/manifest 失败语义评估 | Phase 0/3/4、§9.2 |
 | E5 推测/未执行 | trace 目录不可写 OSError 场景、`check_v3_*` 直接单测 | **仅列于 §9.4，不进结论** |
 
@@ -289,7 +289,7 @@
 
 | 项 | 状态 | 说明 |
 |----|------|------|
-| RULE-5 异构第二会话复审 | `待执行` | 本审计与实施同基座（DeepSeek-V4.1-Flash）；Step 4/6/8 文档 Review 为 GLM-5.3-Flash；Step 9/10 的实施+审计异构复审留待独立会话（P-012 同款限定） |
+| RULE-5 异构第二会话复审 | **done**（2026-11-10，§9.6） | 复审基座 GLM-5.3-Flash ≠ 作者基座 DeepSeek-V4.1-Flash；E1-E5 独立重放 7/7 命中，0 P1/P2，2 项 P3 文档修正（F-R5-1/F-R5-2，已就地修正） |
 | trace 目录不可写 → `OSError` fail-fast | `[未在 CI 覆盖]` | CHECKLIST §7.5 场景 7 的设计预期（P-012 LayerDumper 既有语义），本批未构造取证 |
 | `check_v3_{nav_identity,static_positions,cost_identity}` 直接单测 | `[未在 CI 覆盖]` | F-S9-7 已披露：公共诊断 API，I5-I7 由参考差分覆盖（B2/B9） |
 | CI 无 numba ≡ `NUMBA_DISABLE_JIT=1` 的完全等效性 | `[未取证]` | 本地双跑 9 passed + CI 3.10 无 numba 实测（run `42768525717`）覆盖主路径；其他 numba 相关 7 项 skip 的 CI 语义与既有基线同构 |
@@ -303,6 +303,32 @@
 | 门禁链 | unit-tests / black-check / mypy-check + probe **4 pass**；`replay: 10 rows OK` |
 | 证据绑定 | §9.3 矩阵五类手段覆盖 76 项；无 E5 进入结论；4 项限定已声明 |
 | Iron Law | 通过——B3 双门 + D1-D9 映射 + numstat 对账三层补足；**F-A1 反例实证审计价值**（测试全绿仍有设计交付物缺失） |
+
+### 9.6 RULE-5 异构第二会话复审（执行于 2026-11-10）
+
+- **复审者**：GLM-5.3-Flash（**异构基座**，与实施/审计会话 DeepSeek-V4.1-Flash 不同模型家族，满足 RULE-5 异质性约束；复审会话上下文已经压缩，近似独立会话）
+- **复审输入**（RULE-1 补取证清单）：门禁 session `factorv3-p011-backtest-validation-20261110`（`replay: 10 rows OK`）+ `git show` 行号回溯（`9ec9f7d` 修复前 / `a754a2d` 审计时点双对照）+ E1 命令独立重跑（复审时点 HEAD `025b412`）
+- **抽查重点**（RULE-5 指引）：§9.3 取证矩阵 E1-E5 **不信任既有结论、全量独立重放**；「高等级可得却绑低等级」行（静默降级）与 E4 盲区声明行
+
+| # | 复审项 | 独立重跑 / 回溯 | 结果 |
+|---|--------|-----------------|------|
+| 1 | 全量测试 | `609 passed, 138 warnings in 54.28s`（MPLBACKEND=Agg） | 命中 |
+| 2 | black / mypy / 盲区基线 | `167 files would be left unchanged` / `Success: no issues found in 36 source files` / 盲区 `Found 4 errors in 2 files (checked 36 source files)`（不劣化） | 命中 |
+| 3 | collect-only / 门禁 replay | `609 tests collected` / `replay: 10 rows OK (seq monotonic, schema parseable)` | 命中 |
+| 4 | 提交链与 numstat 对账 | `git log dc71c1a..HEAD` = **14**（6 批 + 3 修复 + 5 docs）；`--numstat dc71c1a..b9c7d75 -- core tests cli.py` = **24 文件**逐文件吻合；保护路径（pyproject/.github/execution.py/data.py/change_report.py/filter/）diff = 0 | 命中 |
+| 5 | E3 行号锚点 @`025b412` | `invariants.py` 8 函数 @88/113/170/216/254/281/305/336；`manifest._fingerprint` @119-125；`engine_v2:1066/1084-1095/1147-1177`（invariant 守卫+raise / declaration / metrics_method / manifest `except OSError` 仅 warning）；`engine_v3:156-157/178-183/416-417`；`validation.py:13-30`；`analytics:84`；`tracker:261`；`interfaces:201`；`cli:71/316` | 除 2 处漂移（F-R5-1）全部命中 |
+| 6 | E4 盲区重扫 | `engine_v2` 全部 9 hunk 归属扫描（hunk 7 = `generate_report` 补 rf 传参 → D5；其余 imports/init 小接线）；`config.py` +3 行逐行归属 D2/D5/D7；analytics 32/30 numstat 精确 | **确认「发现 3 项」无漏报**（本复审新增 2 项均为文档级 P3，无代码行为发现） |
+| 7 | E2/E5 诚实性核对 | E2 `[未入仓-不可重放]` 成立（`Glob **/p011_*` = 0 文件）；E5 两项仍仅列 §9.4（`check_v3_` 于 tests/ Grep = 0 命中，诚实） | 命中 |
+
+**复审发现（2 项 P3 文档残留，均于本次就地修正）**：
+
+| ID | 发现 | 处置 |
+|----|------|------|
+| F-R5-1 | E3 行号锚点两处漂移（F-A1 修复插入行的副作用）：§9.1 D5 与 §9.3 E3 写 `compute_metrics` @`metrics.py:46`——实为修复前（`9ec9f7d`）行号，`a754a2d` 插入 `METRICS_METHOD` 块（+11 行）后移至 **:57**（metrics.py 自 a754a2d 无 diff）；另 `metrics_method` V3 @`engine_v3:419` 为注释行、键在 :420 | D5 行与 E3 行已就地修正（:57 / :420）；无代码影响 |
+| F-R5-2 | Phase 3 新增行归属写 `engine_v2.py +96 行`——与两处实测均不符（+87 @b9c7d75 扫描范围 / +94 @a754a2d 审计时点），无对应口径 | 已修正为 +94 并标注双口径实测 |
+
+- **口径注记**（非缺陷）：「`metrics_method` 修复前后 0→9」为 PowerShell 行计数口径（9 行）；rg 匹配计数为 10 处（`engine_v3:420` 单行含 2 处匹配）——两口径各自自洽。
+- **复审结论**：**pass**——抽查 7 项全部命中，无静默降级、无盲区漏报；**0 P1 / 0 P2**；2 项 P3 文档残留已就地修正；§9.5 审计结论（Phase 0-4 全过、P2=1 已修复、P3=2）**维持不变**。
 
 ---
 
@@ -367,7 +393,7 @@
 | 角色 | 签字 | 日期 |
 |------|------|------|
 | 实施者 | 单 Agent 自查（DeepSeek-V4.1-Flash） | 2026-11-10 |
-| 审查者 | ADD 审计单 Agent 自查（DeepSeek-V4.1-Flash，同基座限定见 §9.4）；异构复审待独立会话 | 2026-11-10 |
+| 审查者 | ADD 审计单 Agent 自查（DeepSeek-V4.1-Flash）+ RULE-5 异构复审（GLM-5.3-Flash，§9.6） | 2026-11-10 |
 
 ---
 
@@ -379,3 +405,4 @@
 | Step 9 实施（B1→B2→B3→B4→B5→B6 六提交 + T-14） | 单 Agent 自查 | Step 9 | done（2026-11-10，8 提交；76/76，远端 CI `42768525717` 全绿） |
 | Step 10 ADD 审计 + 提交推送 + 远端 CI（G7 回填） | 单 Agent 自查 | Step 10 | done（2026-11-10，§9 四阶段全过；P1=0/P2=1 F-A1 已修复 `a754a2d`/P3=2；RULE-5 异构复审留待独立会话） |
 | Step 11 审计总结（用户指令扩展步，SPEC_PROCESS 十步之外） | 单 Agent 自查 | Step 11 | done（2026-11-10，[AUDIT_SUMMARY_backtest_validation.md](AUDIT_SUMMARY_backtest_validation.md)；28 项发现归并、U-D4 标注实际闭合、2 项 P3 注记，无新发现） |
+| RULE-5 异构第二会话复审（用户指令，Step 9/10 审计取证重放） | GLM-5.3-Flash（异构基座） | 复审时点 | done（2026-11-10，§9.6；E1-E5 独立重放 7/7 命中，0 P1/P2，F-R5-1/F-R5-2 两项 P3 文档修正） |
