@@ -17,6 +17,17 @@ DEFAULT_RISK_FREE_RATE = 0.03
 ANNUALIZATION_DAYS = 252
 SHARPE_METHOD = "annual_return_minus_rf_over_annual_vol"
 
+# 指标口径声明（P-011 D5 / DESIGN §5.4）：随结果落 additional_info/results，
+# 让报告消费者无需读码即可复核公式与常量；引擎侧用运行时 rf 覆盖默认值。
+METRICS_METHOD: dict[str, object] = {
+    "annualization_days": ANNUALIZATION_DAYS,
+    "risk_free_rate": DEFAULT_RISK_FREE_RATE,
+    "annual_return": "(1+total_return)**(252/N)-1, N=len(portfolio_value)",
+    "annual_volatility": "std(diff_returns,ddof=0)*sqrt(252)",
+    "sharpe_ratio": "(annual_return-risk_free_rate)/annual_volatility",
+    "max_drawdown": "max((cummax(pv/pv0)-pv/pv0)/cummax(pv/pv0)), >=0 量级约定（F-R1）",
+}
+
 
 @dataclass(frozen=True)
 class MetricsResult:

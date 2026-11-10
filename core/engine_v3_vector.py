@@ -65,6 +65,7 @@ except ImportError:
 
 
 from core.data_v3 import DataLoaderV3
+from core.metrics import METRICS_METHOD
 
 logger = logging.getLogger(__name__)
 
@@ -415,6 +416,8 @@ class VectorBacktestEngine:
             # 量级约定（P-011 D5）：kernel 保持负值原语，结果层统一为 >= 0
             "max_drawdown": -float(max_drawdown),
             "risk_free_rate": risk_free_rate,
+            # 指标口径声明（P-011 D5 / DESIGN §5.4）：rf 用运行时值覆盖默认
+            "metrics_method": {**METRICS_METHOD, "risk_free_rate": risk_free_rate},
             "final_value": final_value,
             "initial_value": self._portfolio_value[0],
         }

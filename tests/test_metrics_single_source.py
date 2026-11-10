@@ -95,7 +95,7 @@ def test_v3_kernel_matches_compute_metrics():
 
 
 def test_v3_results_use_config_rf():
-    """V3 结果层 rf 来自 cfg；Sharpe 差 == rf/vol。"""
+    """V3 结果层 rf 来自 cfg；Sharpe 差 == rf/vol；metrics_method 声明齐备。"""
     close = np.array([[10.0], [10.5], [10.2]])
     with_rf = _v3_engine(close, risk_free_rate=0.03)
     without_rf = _v3_engine(close, risk_free_rate=0.0)
@@ -104,6 +104,19 @@ def test_v3_results_use_config_rf():
     assert without_rf["risk_free_rate"] == pytest.approx(0.0)
     delta = without_rf["sharpe_ratio"] - with_rf["sharpe_ratio"]
     assert delta == pytest.approx(0.03 / with_rf["volatility"])
+
+    # 指标口径声明（P-011 D5 / DESIGN §5.4）：键集与常量随结果落盘，rf 为运行时值
+    method = with_rf["metrics_method"]
+    assert set(method) == {
+        "annualization_days",
+        "risk_free_rate",
+        "annual_return",
+        "annual_volatility",
+        "sharpe_ratio",
+        "max_drawdown",
+    }
+    assert method["annualization_days"] == 252
+    assert method["risk_free_rate"] == pytest.approx(0.03)
 
 
 def test_v3_drawdown_includes_initial_anchor():

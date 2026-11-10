@@ -23,6 +23,7 @@ from core.data import DataManager
 from core.execution import ExecutionSimulator
 from core.invariants import InvariantViolationError, check_all
 from core.manifest import build_manifest, write_manifest
+from core.metrics import METRICS_METHOD
 from core.execution_policy import (
     ExecutionPolicy,
     SignalTranslator,
@@ -1086,6 +1087,12 @@ class BacktestEngineV2:
             execution_timing=execution_timing,
             benchmark_configured=self.cfg.benchmark is not None,
         )
+
+        # 指标口径声明（P-011 D5 / DESIGN §5.4）：rf 用运行时值覆盖默认
+        additional_info["metrics_method"] = {
+            **METRICS_METHOD,
+            "risk_free_rate": self.cfg.risk_free_rate,
+        }
 
         if not trades_df.empty:
             trades_path = output_dir / "trades.csv"

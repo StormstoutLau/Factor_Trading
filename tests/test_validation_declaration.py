@@ -58,6 +58,19 @@ def test_declaration_present(tmp_path):
     assert declaration["schema_version"] == "1.0"
     assert len(declaration["known_limitations"]) == 5
 
+    # 指标口径声明（P-011 D5 / DESIGN §5.4）与声明同挂 additional_info
+    method = results["additional_info"]["metrics_method"]
+    assert set(method) == {
+        "annualization_days",
+        "risk_free_rate",
+        "annual_return",
+        "annual_volatility",
+        "sharpe_ratio",
+        "max_drawdown",
+    }
+    assert method["annualization_days"] == 252
+    assert method["risk_free_rate"] == 0.03
+
 
 def test_capability_flags_are_false(tmp_path):
     """未实现的能力一律 false；walk_forward 仅声明可用、不代表本次使用。"""
