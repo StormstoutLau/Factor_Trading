@@ -127,7 +127,63 @@
 
 ### 9.3 审计结论
 
-**P1 = 0 / P2 = 2（F-S9-P014-1 / -2，均已修复）/ P3 = 3（F-S9-P014-3 未修并登记；-4 / -5 已修）**；CHECKLIST **31/31**（F5 已由 CI run 42791704254 回收）。审计者与实施者为同一 Agent（RULE-4 自查声明），RULE-5 异构复审留待独立会话。
+**P1 = 0 / P2 = 2（F-S9-P014-1 / -2，均已修复）/ P3 = 3（F-S9-P014-3 未修并登记；-4 / -5 已修）**；CHECKLIST **31/31**（F5 已由 CI run 42791704254 回收）。审计者与实施者为同一 Agent（RULE-4 自查声明），RULE-5 异构复审见 §9.4。
+
+### 9.4 RULE-5 异构复审（2026-11-10，pass）
+
+> **复审基座**: **GLM-5.3-Flash ≠ 作者基座 DeepSeek-V4.1-Flash**（异构性成立）
+> **复审方式**: 不信任既有结论，E1-E5 独立重放；复审输出只标记问题（单向权限），不改写实现
+> **复审会话**: 独立会话执行，仅携带四文档与待验证声明清单
+
+#### E1 可重放命令重放（7/7 命中）
+
+| # | 命令 | 作者声明 | 复审实测 | 结论 |
+|---|------|----------|----------|------|
+| 1 | `git rev-parse HEAD` + `git status --short` | HEAD=`a2b50f2`，干净 | `a2b50f2c838…`，空输出 | ✅ |
+| 2 | `pytest tests -q`（Agg） | `635 passed` | **`635 passed, 152 warnings in 45.17s`** | ✅ |
+| 3 | `black --check .` | `172 unchanged` | **`172 files would be left unchanged`** | ✅ |
+| 4 | `mypy --explicit-package-bases core` | `0（36 files）` | **`Success: no issues found in 36 source files`** | ✅ |
+| 5 | `mypy … --check-untyped-defs core` | `4 errors 2 files` | **`Found 4 errors in 2 files`** | ✅ |
+| 6 | `gh run view 42791704254` | 三 job success | **3.10/3.11/3.12 全 `✓`**（另 `42792162974` / `42792500049` 亦 success） | ✅ |
+| 7 | worktree @`29cd6fa` + 当前测试集 | 红 `7 failed, 1 passed` | **`7 failed, 1 passed`**，失败签名逐项一致（I2×5 项 / `EXECUTED≠CANCELLED` / `1==0` / 净值 13.19M vs 9.93M / 3×AttributeError） | ✅ |
+
+#### E2 运行时取证（复审自建夹具，未复用作者构造器）
+
+| 场景 | 复审实测 | 结论 |
+|------|----------|------|
+| 双路径停牌（suspend[12:14,1]=1，独立生成价格/因子） | 两路径恢复日均**仅 1 笔** 600000 卖单、`invariant ok=True`、违规 0、无负持仓 | ✅ 修复性质独立成立 |
+| 队列订单簿探针 | `EXECUTED` 且 `_filled_qty != quantity` 的订单 = **0**，PARTIAL = 0 | ✅ 本场景无错配（见 F-R5-P014-1 潜在分支） |
+| 7 case 全量复录比对（@`a2b50f2` vs 仓内 @`d1a1cc2`） | **G1-G7 全部 IDENTICAL**（metrics/nav/trades 逐值） | ✅ D2/D3 声明成立 |
+
+#### E3 静态锚点（绑定 `@a2b50f2`）
+
+| 锚点 | 行号 | 结论 |
+|------|------|------|
+| `_clamp_sell_quantity` | engine_v2.py:631 | ✅ |
+| `_cancel_next_day_orders` | engine_v2.py:650 | ✅ |
+| `_expire_next_day_orders` | engine_v2.py:679 | ✅ |
+| 队列路径接入（clamp / cancel / mark_executed） | engine_v2.py:752 / 755 / 781 | ✅ |
+| 再平衡接入（elif 分支） | engine_v2.py:877 | ✅ |
+| 次日路径接入（expire / clamp） | engine_v2.py:1063 / 1109 | ✅ |
+| `cancel_order` 实现 + 协议声明 | pending.py:355 / interfaces.py:357 | ✅ |
+| 不变量 fail-fast 守卫（G7 录制侧） | _golden_cases.py:131-135 | ✅ |
+
+#### E4 盲区重扫（发现 3 项，均为 P3；已按单向权限仅标记）
+
+| ID | 等级 | 发现 | 建议 |
+|----|------|------|------|
+| **F-R5-P014-1** | P3 | 队列路径「部分夹紧」分支（`0 < qty < 订单量`，engine_v2.py:770-781）成交后仍调 `mark_executed`，`_filled_qty` 被置为**全量**（pending.py:145-155）——订单簿记录与实际成交量不一致。账目（现金/持仓）不受影响、订单不重试（剩余量本不应再卖），且 E2 探针证实当前场景未触发（0 mismatch）；但该分支无端到端测试覆盖 | 后续批次改用 `mark_partial(qty, …)` + `mark_executed_full` 语义，或补 1 条端到端部分夹紧用例 |
+| **F-R5-P014-2** | P3 | RESEARCH §4.3 处置列的推断（「原描述**可能**来自当时价格污染…」）未加显式证据等级标注；Step 2 Review L139 声称「已标注为推断」略有夸大（仅有「可能」措辞，无「推断/E5」标签） | 行内补「（推断，E5 级，不作为结论）」 |
+| **F-R5-P014-3** | P3 | CHECKLIST F5 引用 run `42791704254` @`6ad7678` 准确，但终态 HEAD 为 `a2b50f2`——基线与代码的最后变更提交确为 `6ad7678`，其后均为纯文档提交且 CI 亦绿；声明无误但终态读者需自行推断 | F5 补注「其后两次纯文档提交 CI（`42792162974` / `42792500049`）亦 success」 |
+
+#### E5 诚实性核查
+
+- 作者声明中未发现 E5 级断言被用作结论；红→绿两读数、CI run 号、IDENTICAL 声明均可重放。
+- 「G3 行为变更合理性」属解释性论证（A20 允许），数值证据（56→55、rel 1.11e-6）已由 E2 复录独立确认。
+
+#### 复审结论
+
+**P1 = 0 / P2 = 0 / P3 = 3（F-R5-P014-1 ~ -3，均不阻断验收，登记待后续批次）**。E1 七项、E2 三项、E3 八项全部独立命中，作者声明与实测**零偏差**；RULE-5 复审 **pass**。
 
 ## 10. 签字
 
@@ -135,4 +191,4 @@
 |------|------|------|
 | 实施 | DeepSeek-V4.1-Flash | 2026-11-10 |
 | Step 10 审计（单 Agent 自查） | DeepSeek-V4.1-Flash（同基座限定） | 2026-11-10 |
-| RULE-5 异构复审 | 待独立会话 | — |
+| RULE-5 异构复审 | **GLM-5.3-Flash**（≠ 作者基座，§9.4 pass） | 2026-11-10 |
