@@ -596,7 +596,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **探针首轮误判**：仅传 B1 时 I5 跨 case 阴性对照未齐 → exit 1（非父目录缺陷），改传五 case 后全 exit 0
   - **终态**: `28 断言（失败 0）+ 豁免 1` exit 0；`635 passed`（`MPLBACKEND=Agg`，64.29s）/ black 5 unchanged
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×6 + E3×1 + E4 零未登记发现；**10/10 ✅**；RULE-5 未执行（P3 小修批）
-- **CI 回收**: 远端 run `42844710498`（@`d17eb62`）**success**
+- **CI 回收**: 远端 run `42844710498`（@`d17eb62`）+ `42845513267`（@`59afb6a`）+ `42865666688`（@`77abe41` 复审回写）均 **success**
 - **RULE-5 异构复审（2026-11-11）**: **pass（0 P1 / 0 P2 / 0 P3 登记 + 2 观察）**——[CHECKLIST_p019 §9.4](CHECKLIST_p019_report_parent_dir.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 八项（HEAD=origin/master=`59afb6a` 干净 / CI `42844710498`+`42845513267` 双 success / 变更面 9 文件 / 解释器 3.12.10 无 vectorbt / pytest Agg **635 passed** / 占位扫描真实残留 0 / 代码零位移 `:254/:268/:324`）；E2 十一项读数全 PASS（父目录缺失 `EXIT=0` / 四分支与无扩展名守卫不回归 / 全链 `28 断言（失败 0）+ 豁免 1` exit 0 / B5 负路径 exit 1 / P-016 守卫 / 边界父路径为文件 `FileExistsError` 不吞异常 / **worktree @`6149cc6` 旧代码红重放 FileNotFoundError 复现——红绿对照成立**）；E3 锚点全命中（`:324` mkdir ↔ DESIGN D1 逐字 / 零位移达成——P-017 行号漂移观察项未复发 / IMPL_p018 L101 + CHECKLIST_p018 L27 两处更正注落位）；E4：**0 P3 登记 + 2 观察**（① 父路径被文件占用抛 `FileExistsError`——DESIGN §1 声明边界 OSError 同族，作者 E4 只点名 `PermissionError`，复审补登记；② 复审探针 ⑨ 自身断言缺陷——初判只查 stdout 漏 stderr，修正后 PASS，如实登记）
 
 ---
