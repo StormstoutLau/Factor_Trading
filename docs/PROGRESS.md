@@ -575,6 +575,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **8 探针全 PASS**：全链 / 无扩展名 ×2 / `X.generated.md` 原地 / 分支 3 SHA / 分支 4 覆盖 / **分支 1 真实覆盖（`FRESH_EXISTS=True`）** / 行号锚点 `:254/:268/:272`
   - **终态**: `28 断言（失败 0）+ 豁免 1` exit 0；`635 passed`（`MPLBACKEND=Agg`，64.62s）/ black 5 unchanged
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×7 + E3×1 + E4「发现 1 项」（`a.generated.bak` 形态属命名契约内后果，不阻断）；**10/10 ✅**；RULE-5 未执行（P3 小修批）
+- **CI 回收**: 远端 run `42837224919`（@`0410505`）**success**
 
 ---
 
