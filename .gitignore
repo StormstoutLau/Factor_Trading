@@ -25,8 +25,10 @@ ENV/
 env.bak/
 venv.bak/
 .venv/
-.venv-vbt/  # P-015 外部对拍隔离 venv（vectorbt 1.2.0，依赖 pandas 3.x 与主环境冲突）
-.tmp_p015_cases/  # P-015 对拍 case 产物（可由 export_case.py 重放生成）
+# P-015 外部对拍隔离 venv（vectorbt 1.2.0，依赖 pandas 3.x 与主环境冲突）
+.venv-vbt/
+# P-015 对拍 case 产物（可由 export_case.py 重放生成）
+.tmp_p015_cases/
 
 # ============================================
 # IDE
