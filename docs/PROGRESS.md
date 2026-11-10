@@ -601,6 +601,19 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 
 ---
 
+### 3.22 P-004（数据层统一）执行记录（2026-11-11 起，进行中）
+
+- **立项**: [PROGRESS §1.4](#14-未完成事项) 唯一 P2（2026-11-10 盘点上调）；档位 **T1**（Layer-1：`core/data*.py`、`core/interfaces.py`、`core/engine_v2.py`、`core/factory.py`、`filter/`）
+- **前置**: 已满足——P-012 B6 已交付 `DataProvider` 端口 + `PklDataProvider` + 契约测试（U-9 B-A 边界，消费方迁移归本批）
+- **Step 1-2**: [RESEARCH_p004](RESEARCH_p004_data_layer_unification.md)——P1-P9 事实（E3 @`3af285a`）+ E1 五读数（DataManager 170 处/35 文件 = 生产 62/16 + 测试 108/19；DataLoaderV3 72/14；构造点 6；`635 passed`（Agg 64.22s）；死 API 零调用）+ 成员级消费方图 + 7 维方案矩阵
+- **关键发现（FALSIFIED）**: TD-1「`DataLoaderV3` 是按 V1 替代品设计、接口兼容已就位」不成立——`from_data_manager` 外部调用 **0**、V3 仅 10 个公开成员且无因子/复权/辅助数据能力（24 vs 10）；**合并到 V3 不可达**
+- **方案判定**: **M-A**（`DataManager` 保留门面 + 注入 `DataProvider` 统一 I/O，删 V3 死 API）为首批；M-B（端口扩全 + 消费方迁移）后置独立批次；M-C 证伪；M-D 否决。建议 B1（端口注入，零行为）→ B2（删死 API + agents 直读改端口）→ B3（协议对齐）→ B4（可选扩全）
+- **Step 2 Review**: 通过（1 项 FALSIFIED 表述更正 + 1 项边界方向细化；不阻断）；未决项 U-P004-1~4 已登记
+- **RULE-5 异构复审（2026-11-11）**: **pass（0 P1 / 0 P2 / 3 P3 登记并已回写 + 3 观察）**——[RESEARCH_p004 §9](RESEARCH_p004_data_layer_unification.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 八项重放（170/35、62/16+108/19、72/14、死 API 零调用、pytest Agg **635 passed**（78.45s）六项复现；测试构造点与 filter 计数两项更正）；E2/E3 补扫：**F-R5-P004-2**（协议 `get_adj_price` 形参 `adjustment` ≠ 实现 `adjustment_type`，关键字调用 TypeError——契约测试只锁成员不锁签名，转入 B3 以实现签名为准修订 + 锁签名）+ `AbstractDataManager` 零消费方死代码（观察 1，转入 B2 清单）+ web docstring 词元澄清 + filter 非 clean 模块疑似孤儿（TD-5 范畴不并入）；F-R5-P004-1（测试构造点实测 **37 处/13 文件**）/ F-R5-P004-3（filter 38 行/53 匹配、辅助字段 15 处）均已回写；三大主结论（FALSIFIED / M-C 证伪 / M-A 路线）独立重放全部成立
+- **待办**: Step 3 DESIGN（须吸收复审两项转入项：B2 清单 + `AbstractDataManager`；B3 契约测试升级为「成员 + 签名」）
+
+---
+
 ## 4. 审查记录
 
 ### 4.1 独立 pass（2026-11-04）
