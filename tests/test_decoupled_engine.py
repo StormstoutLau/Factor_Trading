@@ -147,7 +147,9 @@ class MockExecutionSimulator:
         self.trades = []
         self.trade_log = self  # 兼容接口
 
-    def execute_order(self, stock, side, quantity, date, price, **kwargs):
+    def execute_order(self, stock, side, quantity, date, open_price, close_price=None, **kwargs):
+        # 与 IExecutionSimulator.execute_order 签名对齐（P-014：引擎按协议传入 6 个位置参数）
+        price = open_price
         # 创建模拟交易
         amount = quantity * price
         trade = type(

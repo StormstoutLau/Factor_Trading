@@ -354,6 +354,10 @@ class IPendingOrderQueue(Protocol):
         """取消股票的所有订单"""
         ...
 
+    def cancel_order(self, order: Any, date: pd.Timestamp) -> bool:
+        """取消单个待执行订单（P-014 D4）；非 PENDING 返回 False"""
+        ...
+
     def get_order_stats(self) -> dict[str, Any]:
         """获取订单统计"""
         ...

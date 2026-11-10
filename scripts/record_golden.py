@@ -2,7 +2,7 @@
 
 用法::
 
-    python scripts/record_golden.py                # 录制全部 6 个 case
+    python scripts/record_golden.py                # 录制全部 7 个 case
     python scripts/record_golden.py --case G1 G3   # 只录制指定 case
     python scripts/record_golden.py --force        # 允许脏工作区（JSON 记 dirty=true）
 

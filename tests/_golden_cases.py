@@ -33,7 +33,7 @@ from core.engine_v3_vector import VectorBacktestEngine
 SCHEMA_VERSION = "1.0"
 TOLERANCE = {"rtol": 1e-9, "atol": 1e-12, "money_atol": 1e-6}
 INITIAL_CAPITAL = 10_000_000.0
-CASE_IDS = ("G1", "G2", "G3", "G4", "G5", "G6")
+CASE_IDS = ("G1", "G2", "G3", "G4", "G5", "G6", "G7")
 
 _BASE_DATES = pd.bdate_range("2024-01-02", periods=5)
 _BASE_CODES = ["000001", "600000"]
@@ -52,10 +52,11 @@ class CaseMeta:
 CASES: dict[str, CaseMeta] = {
     "G1": CaseMeta("G1", "v2", "baseline", "V2 基础：常量价、零费用、5 日 × 2 股"),
     "G2": CaseMeta("G2", "v2", "cost", "V2 费用：真实波动 + 佣金/印花税/滑点 + 整手"),
-    "G3": CaseMeta("G3", "v2", "mask", "V2 掩码：涨停（开盘价触及限幅）+ 停牌"),
+    "G3": CaseMeta("G3", "v2", "mask", "V2 掩码：涨停（开盘价触及限幅）"),
     "G4": CaseMeta("G4", "v3", "baseline", "V3 基础：常量价、零费用、5 日 × 2 股"),
     "G5": CaseMeta("G5", "v3", "cost", "V3 费用：真实波动 + cost_rate=0.001"),
     "G6": CaseMeta("G6", "v2", "delisting", "V2 退市：universe 动态池在第 15 日移除标的"),
+    "G7": CaseMeta("G7", "v2", "suspend", "V2 停牌：停牌 2 日后恢复，账目自洽（I2 零违规）"),
 }
 
 
@@ -266,8 +267,7 @@ def build_case(case_id: str, root: Path) -> dict[str, Any]:
         close = close.copy()
         # 第 10 个交易日列 0 真实涨停：整段价格上移至 close(9) × 1.10，使
         #   open(t10) == close(t9) × 1.10（触发涨跌停掩码）且价格序列连续（无虚假跳空）。
-        # 停牌场景不纳入本基线：P-013 实施期发现 V2 停牌路径存在两项缺陷
-        # （停牌日仍成交 / 恢复日重复记账致负持仓），已登记 F-S9-G2 另立批次。
+        # 停牌场景由 G7 单独覆盖（P-014 修复后新增，避免一 case 混两类掩码）。
         bump = close[9, 0] * 1.10 / close[10, 0]
         close[10:, 0] = close[10:, 0] * bump
         open_ = close.copy()
@@ -293,7 +293,7 @@ def build_case(case_id: str, root: Path) -> dict[str, Any]:
         run = _run_v3(n_dates=len(_VOL_DATES), n_codes=3, close=close, open_=open_, cost_rate=0.001)
         metrics = run["metrics"]
 
-    else:  # G6
+    elif case_id == "G6":
         close, open_ = _volatile_prices(len(_VOL_DATES), len(_VOL_CODES))
         write_price_fixture(root, _VOL_DATES, _VOL_CODES, close, open_prices=open_)
         write_factor(
@@ -315,6 +315,22 @@ def build_case(case_id: str, root: Path) -> dict[str, Any]:
             ],
         )
         run = _run_v2(root, n_codes=3, cost=True)
+        metrics = _metrics_block_v2(run["metrics"])
+        metrics["final_value"] = _final_value_from_pv(run["portfolio_value"])
+
+    else:  # G7
+        close, open_ = _volatile_prices(len(_VOL_DATES), len(_VOL_CODES))
+        suspend = np.zeros_like(close)
+        suspend[12:14, 1] = 1  # 600000 于第 12/13 个交易日停牌
+        write_price_fixture(root, _VOL_DATES, _VOL_CODES, close, open_prices=open_, suspend=suspend)
+        write_factor(
+            root,
+            "factor_value",
+            _factor_matrix(len(_VOL_DATES), len(_VOL_CODES)),
+            _VOL_DATES,
+            _VOL_CODES,
+        )
+        run = _run_v2(root, n_codes=3, cost=True, suspended=True)
         metrics = _metrics_block_v2(run["metrics"])
         metrics["final_value"] = _final_value_from_pv(run["portfolio_value"])
 

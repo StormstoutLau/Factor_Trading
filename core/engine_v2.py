@@ -628,6 +628,87 @@ class BacktestEngineV2:
             "n_delisted_closed": self._n_delisted_closed,
         }
 
+    def _clamp_sell_quantity(self, order: PendingOrder) -> int:
+        """卖出数量按可卖持仓夹紧（P-014 D2/D6）；BUY 原样返回。
+
+        同一交易日多笔卖单按队列顺序依次夹紧：前一笔成交后持仓立即减少，
+        后续订单看到的是最新持仓，因此不会出现「多笔卖单合计超过持仓」。
+        """
+        if order.side != OrderSide.SELL:
+            return int(order.quantity)
+
+        tracker = self.tracker
+        if tracker is None:
+            return int(order.quantity)
+
+        position = tracker.get_position(order.stock)
+        available = max(int(position.quantity), 0) if position is not None else 0
+        if available <= 0:
+            return 0
+        return min(int(order.quantity), available)
+
+    def _cancel_next_day_orders(self, date: pd.Timestamp, stocks: Optional[set[str]] = None) -> int:
+        """撤销次日开盘订单（P-014 D5，队列路径 ``cancel_orders`` 的对应物）。
+
+        Args:
+            date: 撤销日期
+            stocks: 限定标的；None 表示全部
+
+        Returns:
+            撤销数量
+        """
+        orders = getattr(self, "_next_day_orders", None)
+        if not orders:
+            return 0
+
+        remaining = []
+        cancelled = 0
+        for info in orders:
+            order = info["order"]
+            if stocks is None or order.stock in stocks:
+                order.mark_cancelled(date)
+                cancelled += 1
+                continue
+            remaining.append(info)
+
+        self._next_day_orders = remaining
+        if cancelled:
+            logger.info(f"撤销{cancelled}个次日开盘订单（再平衡刷新订单簿）")
+        return cancelled
+
+    def _expire_next_day_orders(self, date: pd.Timestamp) -> int:
+        """按 ``max_pending_days_{buy,sell}`` 过期次日开盘订单（P-014 D7）。
+
+        与 :meth:`PendingOrderQueue.mark_expired` 同语义（含半衰期机制），
+        避免无再平衡时被阻断订单永久滞留。
+
+        Returns:
+            过期数量
+        """
+        orders = getattr(self, "_next_day_orders", None)
+        if not orders:
+            return 0
+
+        max_buy = self.cfg.max_pending_days_buy
+        max_sell = self.cfg.max_pending_days_sell
+        active = []
+        expired = 0
+        for info in orders:
+            order = info["order"]
+            max_days = max_buy if order.side == OrderSide.BUY else max_sell
+            if order.is_expired(date, max_days):
+                order.mark_expired(date)
+                expired += 1
+                logger.info(
+                    f"次日订单已过期: {order.stock} {order.side.name} "
+                    f"{order.quantity}股（创建于 {info['create_date'].date()}）"
+                )
+                continue
+            active.append(info)
+
+        self._next_day_orders = active
+        return expired
+
     def _process_pending_orders(self, date: pd.Timestamp, date_index: int):
         """处理待执行订单"""
         if not self.pending_queue:
@@ -668,6 +749,13 @@ class BacktestEngineV2:
                     skipped_suspended.append(order.stock)
                     continue
 
+            qty = self._clamp_sell_quantity(order)
+            if qty <= 0:
+                # 无可卖持仓：作废订单，避免负持仓（P-014 D2/D6）
+                self.pending_queue.cancel_order(order, date)
+                logger.warning(f"卖出订单无可卖持仓，已作废: {order.stock} {order.quantity}股")
+                continue
+
             if order.stock not in open_prices:
                 skipped_price.append(order.stock)
                 continue
@@ -679,7 +767,14 @@ class BacktestEngineV2:
                 else None
             )
 
-            success, trade = executor.execute_pending_order(order, date, open_price, close_price)
+            if qty < order.quantity:
+                logger.warning(
+                    f"卖出数量按可卖持仓夹紧: {order.stock} " f"订单={order.quantity} 实际={qty}"
+                )
+
+            success, trade = executor.execute_order(
+                order.stock, order.side, qty, date, open_price, close_price
+            )
 
             if success and trade:
                 tracker.execute_trade(trade)
@@ -773,11 +868,13 @@ class BacktestEngineV2:
         assert dm is not None and universe is not None
         assert optimizer is not None and tracker is not None
 
-        # 取消过期订单
+        # 取消过期订单（P-014 D5：两条执行路径共用「再平衡刷新订单簿」语义）
         if self.pending_queue:
             available_stocks = set(signal_df.columns)
             for stock in available_stocks:
                 self.pending_queue.cancel_orders(stock, date)
+        elif getattr(self, "_next_day_orders", None):
+            self._cancel_next_day_orders(date, set(signal_df.columns))
 
         # 获取因子信号
         daily_signal = signal_df.iloc[date_index]
@@ -962,6 +1059,11 @@ class BacktestEngineV2:
         assert dm is not None and universe is not None
         assert tracker is not None and executor is not None
 
+        # P-014 D7：先过期，再执行（与队列路径 mark_expired 同语义）
+        self._expire_next_day_orders(date)
+        if not self._next_day_orders:
+            return
+
         logger.info(f"执行次日开盘订单: {len(self._next_day_orders)}个订单, 日期: {date}")
 
         try:
@@ -1004,9 +1106,18 @@ class BacktestEngineV2:
                     failed_orders.append(order_info)
                     continue
 
-            success, trade = executor.execute_order(
-                order.stock, order.side, order.quantity, date, open_price
-            )
+            qty = self._clamp_sell_quantity(order)
+            if qty <= 0:
+                # 无可卖持仓：丢弃该订单，避免负持仓（P-014 D2/D6）
+                logger.warning(f"卖出订单无可卖持仓，已丢弃: {order.stock} {order.quantity}股")
+                continue
+
+            if qty < order.quantity:
+                logger.warning(
+                    f"卖出数量按可卖持仓夹紧: {order.stock} " f"订单={order.quantity} 实际={qty}"
+                )
+
+            success, trade = executor.execute_order(order.stock, order.side, qty, date, open_price)
 
             if success and trade:
                 tracker.execute_trade(trade)

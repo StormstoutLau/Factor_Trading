@@ -114,7 +114,7 @@ def test_baseline_schema_valid():
         assert payload["case_id"] == case_id
         assert payload["git_commit"], f"[{case_id}] 缺少 git_commit"
         assert payload["engine"] in ("v2", "v3")
-        assert payload["scenario"] in ("baseline", "cost", "mask", "delisting")
+        assert payload["scenario"] in ("baseline", "cost", "mask", "delisting", "suspend")
 
         tol = payload["tolerance"]
         assert float(tol["rtol"]) <= 1e-9, f"[{case_id}] rtol 被放宽到 {tol['rtol']}"

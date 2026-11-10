@@ -352,6 +352,32 @@ class PendingOrderQueue:
         """
         return [order for order in self._orders if order.create_date == date]
 
+    def cancel_order(self, order: PendingOrder, cancel_date: pd.Timestamp) -> bool:
+        """取消单个待执行订单（P-014 D4）。
+
+        与 :meth:`cancel_orders` 的「按股票批量取消」互补：执行侧发现订单
+        无可执行数量时只作废这一笔，不影响同标的的其他订单。
+
+        Args:
+            order: 待取消订单
+            cancel_date: 取消日期
+
+        Returns:
+            是否实际取消（非 PENDING 状态返回 False）
+        """
+        if order.status != OrderStatus.PENDING:
+            return False
+
+        order.mark_cancelled(cancel_date)
+        self._log_event(
+            cancel_date,
+            "ORDER_CANCELLED",
+            order.stock,
+            f"{order.side.name} {order.quantity}股",
+        )
+        logger.info(f"取消订单: {order.stock} {order.side.name} {order.quantity}股")
+        return True
+
     def mark_executed(self, order: PendingOrder, execute_date: pd.Timestamp, execute_price: float):
         """标记订单已执行
 

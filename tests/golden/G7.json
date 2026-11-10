@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "case_id": "G7",
+  "engine": "v2",
+  "scenario": "suspend",
+  "description": "V2 停牌：停牌 2 日后恢复，账目自洽（I2 零违规）",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "total_return": -0.007015567334024975,
+    "annual_return": -0.08101318661271895,
+    "annual_volatility": 0.05408408321323169,
+    "sharpe_ratio": -2.0526036500431895,
+    "max_drawdown": 0.013112249455937919,
+    "final_value": 9929844.32665975
+  },
+  "nav": {
+    "length": 21,
+    "first": 10000000.0,
+    "last": 9929844.32665975,
+    "min": 9868877.50544062,
+    "max": 10000000.0
+  },
+  "trades": {
+    "count": 55,
+    "total_amount": 33212648.332373396,
+    "total_cost": 59868.63800511541
+  },
+  "git_commit": "29cd6fa",
+  "python_version": "3.12.10",
+  "dirty": true,
+  "numba_available": true
+}
