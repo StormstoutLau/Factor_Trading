@@ -24,14 +24,14 @@
 | B-1 | export_case 逐 case 导出成功 | T-2.1 完成 | B1-B5 五个 case 目录五件套齐全，exit 0 | ✅ E1：五 case 全部「五件套落盘」+ 现金派生自检 ≤ 5.1e-10；checksum 与设计一致（B1/B5=175，B4=384） |
 | B-2 | run_vectorbt 逐 case 运行成功（venv） | T-1 + T-2.2 完成 | vbt_results/vbt_orders 落盘，exit 0 | ✅ E1：B1-B4 全部 exit 0（orders=2/10/6/6，rejected=0）；**B5 按 meta `v3_only` 豁免**（F-S9-P015-5，设计内行为） |
 | B-3 | 跨 pandas CSV 往返自检通过（U-P015-2） | B-2 运行 | run_vectorbt 启动自检读数「逐元素一致」落 stdout | ✅ E1：五 case「读回自检 shape ok，checksum = …」读数与导出侧一致（pandas 2.2.3 写 → 3.1.1 读） |
-| B-4 | verify_p015 全 case exit 0 | B-1~B-3 完成 | 五 case 断言全过，逐条读数输出 | ✅ E1：**29 项断言 0 失败，exit 0**（终态代码 black 后全链复放确认） |
+| B-4 | verify_p015 全 case exit 0 | B-1~B-3 完成 | 五 case 断言全过，逐条读数输出 | ✅ E1：**28 项断言 0 失败 + 1 项豁免登记，exit 0**（P-016 D1 更正计数口径：原记 29 项含 B5 恒真豁免行；读数见 [APPENDIX §2](APPENDIX_p015_external_calibration.md)） |
 
 ### C 组：恒等式（5 项，对应 I1-I5）
 
 | ID | 验收项 | 判据（可证伪恒等式） | 实测 |
 |----|--------|----------------------|------|
 | C-1 | I1 记账恒等（B1） | `qty_v3==qty_vbt==qty_spec`（rtol=1e-12）；`pv==1e7`（money_atol=1e-6） | ✅ E1：六项 max\|Δ\|=**0.000e+00**（双侧 vs 规格全零） |
-| C-2 | I2 规模语义差分（B2） | I2b/I2c 各侧对规格零残差；I2c 差 == 闭式（rtol=1e-12） | ✅ E1：I2b qty max\|Δ\|=1.164e-10；I2c（一般式，F-S9-P015-4）max\|Δ\|=**2.021e-10** |
+| C-2 | I2 规模语义差分（B2） | **I2a（= G1 组三行 `G1.qty/cash/pv`，verify 无独立命名行——P-016 D4 / F-R5-P015-1）** + I2b/I2c 各侧对规格零残差；I2c 差 == 闭式（rtol=1e-12） | ✅ E1：I2b qty max\|Δ\|=1.164e-10；I2c（一般式，F-S9-P015-4）max\|Δ\|=**2.021e-10**；I2a 读数见同 case G1 三行 |
 | C-3 | I3 费用恒等（B3，实施重定义见 DESIGN §3.3） | vectorbt 费用 == `Σ\|executed\|×P×rate`；缺口登记 | ✅ E1：10033.870913 == Σ\|executed\|×0.001（money_atol 内）；缺口 38658.94 登记（V3 费用透支不可复现部分） |
 | C-4 | I4 多期逐日恒等（B4） | T=6 逐日 qty/cash/pv 三量恒等（rtol=1e-12） | ✅ E1：max\|Δ\|=**5.821e-11**（含翻转日现金过桥）；qty 终态 [625000, 416666.67, 0, 0] |
 | C-5 | I5 阴性对照（B5→V3 侧，实施重定义见 DESIGN §3.5） | V3 费率扰动 0.001 → 偏移 == `−1e7×0.001`（money_atol=1e-6） | ✅ E1：offset = **−10000.000000** == expected（B3×B5 跨 case 断言） |
@@ -64,6 +64,7 @@
 
 - 总数：**19 项**（A3 / B4 / C5 / D3 / E2 / F2）
 - 状态（Step 10 时点）：**19/19 ✅**（逐项绑 E1 证据，RULE-2 逐项核对，非总数推算）
+- **口径更正（P-016 D1）**：§9.2 取证矩阵中的「29 断言」按 P-015 时点口径（豁免行计入断言）；P-016 起为 **28 断言 + 1 豁免登记**，语义与读数不变。
 - 判定：P1 = 0 / P2 = 0（实施期 5 项发现 P1×1 + P2×3 + P3×1 已全部修复并回写 DESIGN/IMPL，见 [IMPL §8.3](IMPL_p015_external_benchmark.md)）
 
 ## 8. Step 8 一致性 Review

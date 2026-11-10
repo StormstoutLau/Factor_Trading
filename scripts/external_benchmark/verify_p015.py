@@ -32,19 +32,38 @@ from _spec import (
     simulate_vbt_spec,
 )
 
+_STATUS_LABEL = {"pass": "PASS", "fail": "FAIL", "waiver": "WAIVER(非断言)"}
+
 
 class Checks:
+    """检查记录器：三态 ``pass / fail / waiver``（P-016 D1 / F-R5-P015-2）。
+
+    ``waiver`` 是**豁免登记**而非断言——不计入断言数、不计入失败数，
+    报告渲染为「— 豁免（非断言）」。这样既保留登记可见性，又不在形式上
+    制造「恒真即通过」。
+    """
+
     def __init__(self) -> None:
         self.rows: list[dict] = []
 
     def add(self, cid: str, case: str, desc: str, ok: bool, detail: str) -> None:
-        self.rows.append({"id": cid, "case": case, "desc": desc, "ok": bool(ok), "detail": detail})
-        mark = "PASS" if ok else "FAIL"
-        print(f"[verify] {cid} [{case}] {mark} — {desc} | {detail}")
+        self._push(cid, case, desc, "pass" if ok else "fail", detail)
+
+    def waive(self, cid: str, case: str, desc: str, detail: str) -> None:
+        """登记豁免（非断言）：保留可见性，不参与通过/失败判定。"""
+        self._push(cid, case, desc, "waiver", detail)
+
+    def _push(self, cid: str, case: str, desc: str, status: str, detail: str) -> None:
+        self.rows.append(
+            {"id": cid, "case": case, "desc": desc, "status": status, "detail": detail}
+        )
+        print(f"[verify] {cid} [{case}] {_STATUS_LABEL[status]} — {desc} | {detail}")
 
     def finalize(self) -> int:
-        n_fail = sum(1 for r in self.rows if not r["ok"])
-        print(f"[verify] 共 {len(self.rows)} 项断言，失败 {n_fail} 项")
+        n_assert = sum(1 for r in self.rows if r["status"] != "waiver")
+        n_fail = sum(1 for r in self.rows if r["status"] == "fail")
+        n_waive = sum(1 for r in self.rows if r["status"] == "waiver")
+        print(f"[verify] 共 {n_assert} 项断言（失败 {n_fail} 项）+ 豁免登记 {n_waive} 项")
         return 0 if n_fail == 0 else 1
 
 
@@ -91,11 +110,10 @@ def verify_case(case_dir: Path, checks: Checks) -> None:
 
     vbt_res_path = case_dir / "vbt_results.csv"
     if spec.entry_mode == "v3_only":
-        checks.add(
+        checks.waive(
             "G2",
             case,
             "vectorbt 侧按 meta 豁免（v3_only：F-S9-P015-5 现金约束语义差）",
-            True,
             "I5 阴性对照移至 V3 侧（跨 case 断言）",
         )
         return pv_v3
@@ -226,11 +244,28 @@ def cross_case_checks(checks: Checks, pv_by_case: dict[str, np.ndarray]) -> None
     )
 
 
+_REPORT_MARK = {"pass": "✅ PASS", "fail": "❌ FAIL", "waiver": "— 豁免（非断言）"}
+
+# 人工回填章节标记（P-016 D2 / F-S9-P016-1）：命中即视为「策展报告」，生成器改名写入
+MANUAL_MARKERS = ("## 1. vectorbt 权威签名核验", "## 3. 口径映射实测结论")
+
+
+def _resolve_report_target(path: Path) -> Path:
+    """含人工章节的已入库报告不得被覆盖：改写 ``<stem>.generated<ext>``。"""
+    if not path.exists():
+        return path
+    text = path.read_text(encoding="utf-8")
+    if any(marker in text for marker in MANUAL_MARKERS):
+        return path.with_name(f"{path.stem}.generated{path.suffix}")
+    return path
+
+
 def write_report(path: Path, checks: Checks) -> None:
     lines = [
         "# APPENDIX：P-015 外部对拍校准报告（VectorBT 1.2.0 ↔ V3）",
         "",
         "> 生成物：`verify_p015.py` 自动产出（P-015 · T-4）。复放命令见 §4。",
+        "> 「— 豁免（非断言）」行是豁免登记，不计入断言数（P-016 D1）。",
         "",
         "## 1. vectorbt 权威签名核验（U-P015-3）",
         "",
@@ -244,8 +279,9 @@ def write_report(path: Path, checks: Checks) -> None:
         "|----|------|------|------|------|",
     ]
     for r in checks.rows:
-        mark = "✅ PASS" if r["ok"] else "❌ FAIL"
-        lines.append(f"| {r['id']} | {r['case']} | {r['desc']} | {mark} | {r['detail']} |")
+        lines.append(
+            f"| {r['id']} | {r['case']} | {r['desc']} | {_REPORT_MARK[r['status']]} | {r['detail']} |"
+        )
     lines += [
         "",
         "## 3. 口径映射实测结论",
@@ -265,8 +301,14 @@ def write_report(path: Path, checks: Checks) -> None:
         "```",
         "",
     ]
-    path.write_text("\n".join(lines), encoding="utf-8")
-    print(f"[verify] 报告已写入 {path}")
+    target = _resolve_report_target(path)
+    if target != path:
+        print(
+            f"[verify] [保护] {path.name} 含人工章节（§1/§3），改写 {target.name}；"
+            "请人工比对 §2 读数后再合并"
+        )
+    target.write_text("\n".join(lines), encoding="utf-8")
+    print(f"[verify] 报告已写入 {target}")
 
 
 def main() -> int:

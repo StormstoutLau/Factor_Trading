@@ -65,6 +65,7 @@
 | P-013 | Golden 基线固化（L4 判据落地） | P-011 U-D1 升格；6 条基线（V2/V3 × baseline·cost·mask·delisting）× 分字段容差 × CI 三版本；**T1** | done（2026-11-10，Step 1-10 全通过：四文档 + B1/B2 两批；**626 passed**（609+17）/ black 171 / mypy 0 / 盲区不劣化 / 6 份基线**逐字节可重现**；`tests/golden/*.json` + `scripts/record_golden.py` + `tests/_golden_cases.py` 单一构造器；实施期发现 **F-S9-G1（P1 停牌账目缺陷）** + F-S9-G2~G7） | P2 |
 | **P-014** | **V2 停牌路径账目缺陷（P-013 实施期发现）** | 次日开盘路径（`enable_pending_orders=False`）在停牌期重复生成清仓单，恢复日一次性成交 → 负持仓 + 5 项 I2 违规；E2 复现见 [RESEARCH_p014 §4](RESEARCH_p014_suspension_accounting.md)；**症状订正**：原登记「停牌日仍成交」未复现（掩码生效），详见该文 §4.3；**T1** | **done（2026-11-10，Step 1-10）**：三层防线（执行侧持仓夹紧 / 再平衡刷新订单簿 / 次日订单过期）+ 8 项性质测试 + golden **G7**；**635 passed** / black 172 / mypy 0（36）/ 盲区不劣化；G1/G2/G4/G5/G6 基线**数值不变**，G3 行为变更重录（56→55 笔，NAV rel 1.11e-6，理由见 [IMPL §9.3](IMPL_p014_suspension_accounting.md)）；四文档 [RESEARCH](RESEARCH_p014_suspension_accounting.md) / [DESIGN](DESIGN_p014_suspension_accounting.md) / [IMPL](IMPL_p014_suspension_accounting.md) / [CHECKLIST](CHECKLIST_p014_suspension_accounting.md) | **P1** |
 | **P-015** | **外部框架对拍校准（U-4 触发 · 单框架打通）** | U-4 触发条件「用户/评审要求第三方框架对照时」由用户 2026-11-10 说明构成——目的=**准确性基准**（验证「准确计算 + 回测机制设计意图落地」），非对外声明一致；用户裁决：① 正式立项 ② 先一个框架打通；**VectorBT↔V3 首例 + 隔离 venv**（vectorbt 1.2.0 依赖 pandas>=3.0.3 / numba>=0.66，与主环境冲突，清华镜像安装）；Backtrader↔V2、Qlib 登记后续（U-P015-1）；**T1**（Layer-1：`scripts/external_benchmark/`） | **done（2026-11-10，Step 1-10）**：四文档 + 规格层/三脚本 + **隔离 venv**（.gitignore 豁免）+ [校准报告](APPENDIX_p015_external_calibration.md)；**29 项恒等式断言 0 失败**（I1 全零残差 / I2c 闭式一般式 2.0e-10 / I3 费用模型一致性 + 缺口 38658.94 登记 / I4 翻转全等 5.8e-11 / I5 阴性对照 −10000.000000 精确命中）；**两处结构性语义差异实锤**（V3 last_pv 规模参考值 vs vbt current-NAV；V3 费用透支现金 vs vbt 部分成交——已写恒等式/缺口）；**635 passed / black 0 / 主环境零污染**；mapping §2.2 获首个实测列；执行序 §3.17；四文档 [RESEARCH](RESEARCH_p015_external_benchmark.md) / [DESIGN](DESIGN_p015_external_benchmark.md) / [IMPL](IMPL_p015_external_benchmark.md) / [CHECKLIST](CHECKLIST_p015_external_benchmark.md) | P2 |
+| **P-016** | **P-015 复审 P3 修正（F-R5-P015-1~3 + F-S9-P016-1）** | RULE-5 复审 §9.4 输出 3 项 P3；改动落 `scripts/external_benchmark/`（Layer-1）→ **T1**（判档规则 1 + 规则 3 fail-closed；本仓无 T2 本地先例）；实施前取证新发现 F-S9-P016-1（报告覆盖**已真实发生**，P2） | **done（2026-11-10，Step 1-10）**：三态词表（pass/fail/waiver，豁免不计断言）/ 报告人工章节保护（命中即改写 `.generated.md`）/ `simulate_vbt_spec` rate>0 fail-fast / I2a↔G1 命名映射三处文档注；**重新回填** APPENDIX §1/§3/§4（P-015 会话内已被覆盖为占位）；**18/18**；**28 断言 + 1 豁免，exit 0**；`635 passed` / black 0 / 主环境零污染；发现 P2×1 + P3×1（F-S9-P016-2 复审漏检项，登记）；四文档 [RESEARCH](RESEARCH_p016_p015_review_fixes.md) / [DESIGN](DESIGN_p016_p015_review_fixes.md) / [IMPL](IMPL_p016_p015_review_fixes.md) / [CHECKLIST](CHECKLIST_p016_p015_review_fixes.md) | **P3** |
 | U-D2(P-011) | V2 同日收盘模式（跨引擎逐日净值一致） | P-011 U-D2 挂起（倾向不做）；触发=第三方要求 V2/V3 逐日净值一致 | pending（倾向不做） | P3 |
 | U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
 | U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
@@ -515,6 +516,24 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **实施期发现 5 项**（F-S9-P015-1~5，全回写）：① from_signals 不支持 TargetPercent → B2 改 from_orders(targetpercent)；② **V3 无现金约束 vs vbt 部分成交**（B4 初版负持仓实锤，`allow_negative` 不存在）→ B4 重构常量价翻转 + 语义差登记 M4；③ API 漂移（cash 方法 / 无 asset_qty）；④ I2c 闭式一般化（路径分叉后现金项不抵消）；⑤ B3/B5 fees>0 全等结构性不可达 → 断言重定义 + 阴性对照移 V3 侧
   - **终态**: 29 项断言 0 失败（I1 全零 / I2c 2.0e-10 / I3 一致性+缺口 38658.94 / I4 5.8e-11 / I5 −10000.000000 精确）
 - **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过 / 取证矩阵 E1-E5 / **19/19 ✅** / P1=P2=P3=0 / E4 零发现（降级重扫确认）；门禁 **635 passed / black 0 / 主环境 pip list 零污染**；[BACKTEST_CALIBER_MAPPING §2.2](BACKTEST_CALIBER_MAPPING.md) 获首个实测列（同提交）；报告 [APPENDIX_p015](APPENDIX_p015_external_calibration.md)（M1-M5：**零不可解释残差，准确性校准通过**）；**RULE-5 异构复审 pass**（CHECKLIST §9.4：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash，E1 九项 / E2 三探针（含 B5 单跑负路径 + 独立重写规格核算 I2c=2.02e-10）/ E3 六组锚点独立重放全命中，P1=P2=0，P3×3 F-R5-P015-1~3 登记待后续批次）；CI run `42809038823`（@`07ddeb3`）+ `42809138807`（@`eab4594`）双 success
+
+---
+
+### 3.18 P-016（P-015 复审 P3 修正）执行记录（2026-11-10，done）
+
+- **立项**: P-015 RULE-5 复审 §9.4 的 F-R5-P015-1~3；档位 **T1**（Layer-1 路径 + 无本地 T2 先例 → fail-closed）
+- **Step 1-2**: [RESEARCH_p016](RESEARCH_p016_p015_review_fixes.md)——P1-P9 事实（E3 @`90eb879`）+ **本轮 E1 红读数 A/B/C**（豁免被计为断言 / rate>0 无防线 / `--report` 覆盖人工章节）；方案矩阵 N-A/W-A/X-A/R-A；未决项 U-P016-1；F1-F4 = N/A（无外部来源）
+- **Step 3-4**: [DESIGN_p016](DESIGN_p016_p015_review_fixes.md)——D1 三态词表 / D2 报告人工章节保护 / D3 fail-fast / D4 只补文档映射；I1-I6；七项被拒方案
+- **Step 5-6**: [IMPL_p016](IMPL_p016_p015_review_fixes.md)——T-1~T-5 / V1-V8 / 风险与回退 / F5 预注册
+- **Step 7-8**: [CHECKLIST_p016](CHECKLIST_p016_p015_review_fixes.md)——18 项零预填；机械校验 10 链接 0 broken / ID 闭环；P3×2（P6 风险表述→既成事实、D2 代价列）当场回写
+- **Step 9 实施**:
+  - `verify_p015.py`：`Checks` 三态（`add`/`waive`/`finalize`）+ `_REPORT_MARK` + `MANUAL_MARKERS` + `_resolve_report_target`
+  - `_spec.py`：`simulate_vbt_spec` 对 `cost_rate > 0` 抛 `NotImplementedError`
+  - **F5 红→绿三组**：A 豁免渲染（`PASS`→`WAIVER(非断言)`）/ B 守卫（静默返回→异常）/ C 保护（覆盖→改名 + 原文件哈希不变）
+  - **F-S9-P016-1（P2，已修）**：`git show HEAD:APPENDIX` 证实 P-015 入库版 §1/§3/§4 **已是占位模板**——覆盖已真实发生（black 后最终复放所致）；本批重新回填 §1（E1 现场重放签名核验）/§3（M1-M5）/§4（实跑命令）
+  - **F-S9-P016-2（P3，登记）**：P-015 RULE-5 复审 E1 九项未覆盖「交付物内容完整性」→ 未发现已发生的覆盖；建议后续复审增「生成物占位残留扫描」
+  - **终态**: `28 断言（失败 0）+ 豁免 1`，exit 0；生成版与入库版 §2 **逐行一致**；`635 passed` / black 0 / 主环境零污染
+- **Step 10 ADD 审计**: CHECKLIST §9——Phase 0-4 全过；取证矩阵 E1×9 + E3×1 + E4「发现 1 项」（保护只判标记存在、不判生成态，低风险不阻断）；**18/18 ✅**；RULE-5 未执行（P3 小修批，可按需发起）
 
 ---
 

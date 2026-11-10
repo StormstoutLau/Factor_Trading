@@ -150,7 +150,18 @@ def simulate_v3_spec(close: np.ndarray, factor: np.ndarray, spec: CaseSpec) -> d
 
 
 def simulate_vbt_spec(close: np.ndarray, factor: np.ndarray, spec: CaseSpec) -> dict:
-    """vectorbt targetpercent 侧声明规格（I2b 断言对象，仅 B2 使用）。"""
+    """vectorbt targetpercent 侧声明规格（I2b 断言对象，仅 B2 使用）。
+
+    边界（F-R5-P015-3 / U-P016-1）：**费用语义未定义**。B2 恒为 ``cost_rate=0``；
+    rate>0 时 vectorbt 侧「target-size 与 fees 的相互作用」尚未取证，故此处
+    fail-fast 拒绝，避免把未验证语义当作已验证结论产出。
+    """
+    if spec.cost_rate > 0:
+        raise NotImplementedError(
+            "simulate_vbt_spec 的费用语义未定义（F-R5-P015-3 / U-P016-1）："
+            f"case={spec.case} cost_rate={spec.cost_rate}；rate>0 的 targetpercent 规格"
+            "待 U-P015-1（Backtrader 第二例）立项时定义"
+        )
     return _simulate(close, factor, spec, size_on="current_nav")
 
 
