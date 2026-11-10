@@ -14,13 +14,13 @@
 
 | 项 | 值 | 证据 |
 |----|----|------|
-| HEAD | `6f583fc006649905df68e3b7cf452fc3cac57fa7`（P-011 审计总结终态） | `git rev-parse HEAD`（E1，2026-11-10 更新） |
-| 分支同步 | `master` 与 `origin/master` 指向同一提交（`6f583fc`）；远端 SSH；CI run `42781237815` 三 job success | `git rev-parse HEAD origin/master`（E1） |
+| HEAD | `77b110b`（P-013 基线元数据重录；文档回填另提交） | `git rev-parse HEAD`（E1，2026-11-10 更新） |
+| 分支同步 | `master` 与 `origin/master` 指向同一提交（`77b110b`）；远端 SSH；CI run `42786173151` 三 job success | `git rev-parse HEAD origin/master`（E1） |
 | 工作区（本批开始前） | 干净（无已跟踪修改、无未跟踪文件） | `git status --short` 空输出（E1） |
 
 ### 1.2 测试状态
 
-> **2026-11-10 终态基线（P-011 收口实测）**: `609 passed` / black 167 unchanged / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件 / 远端 CI 3.10 `602 passed, 1 skipped`（详见 [AUDIT_SUMMARY §5](AUDIT_SUMMARY_backtest_validation.md)）；U-001/U-005 已由 P-008/P-009 关闭，下表为 P-0 时代历史快照存档。
+> **2026-11-10 终态基线（P-013 收口实测）**: `626 passed` / black 171 unchanged / mypy 0（36 files）/ 盲区 4 errors 2 files / **70 测试文件** / 远端 CI run `42786173151` 三版本（3.10/3.11/3.12）各 `619 passed, 1 skipped`（= 本地 626 − 7 项 numba `importorskip`）；P-011 收口时为 `609 passed` / 68 文件 / CI `602 passed, 1 skipped`。U-001/U-005 已由 P-008/P-009 关闭，下表为 P-0 时代历史快照存档。
 
 | 场景 | 结果 | 证据 |
 |------|------|------|
@@ -479,6 +479,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
   - **V10 防护**：脏工作区 / `CI=true` 均拒绝录制（exit=1）
   - **实施期发现 7 项**：**F-S9-G1（P1，停牌路径账目缺陷 → 另立 P-014）**、F-S9-G2（P2，涨停构造污染价格序列）、F-S9-G5（P2，`recorded_at` 破坏可重现）、F-S9-G3/G4/G6/G7（P3）
 - **Step 10 ADD 审计**: Phase 0-4 全过（措辞 0 命中 / D1-D11 逐项落地 / numstat 对账 / 盲区无无依据行为 / Iron Law 以 F-S9-G1 为反例）——**P1=1（不在本批修复）/ P2=2（已修）/ P3=4（已回写）**；CHECKLIST **36/36**；RULE-5 异构复审留待独立会话
+- **CI 回收**: run `42786173151`（commit `77b110b`）三 job `success`，3.10/3.11/3.12 各 `619 passed, 1 skipped`（= 本地 626 − 7 项 numba `importorskip`）→ 6 条 golden 在无 numba 的 `py_func` 路径全部通过，分字段容差有效；**既有观察**：CI `Type check (mypy)` 为 `|| true` 不阻断且报 `Source file found twice`（CI 目录 + 已安装包命名冲突，非本批引入；本地 `Success: 36 source files`）
 
 ---
 

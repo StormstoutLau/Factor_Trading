@@ -82,7 +82,7 @@
 | G2 | black 全绿 | `black --check .` | V2 | ✅ `171 files would be left unchanged`（167 + 4 新增） |
 | G3 | mypy `Success`（36 files，`core/` 零改动） | `mypy --explicit-package-bases core` | V2/V12 | ✅ `Success: no issues found in 36 source files`；`git diff core/ filter/` 空 |
 | G4 | 盲区 `4 errors 2 files` 不劣化 | `mypy ... --check-untyped-defs` | V2 | ✅ `Found 4 errors in 2 files (checked 36 source files)` |
-| G5 | CI 三版本全绿（`py_func` 路径容差有效） | `gh run watch` | V11 | [待推送后回填] |
+| G5 | CI 三版本全绿（`py_func` 路径容差有效） | `gh run 42786173151` | V11 | ✅ 3.10/3.11/3.12 三 job `success`，各自 `619 passed, 1 skipped`（= 本地 626 − 7 项 numba `importorskip`）→ 6 条 golden 在无 numba 的 `py_func` 路径上全部通过，容差 `rtol=1e-9 / money_atol=1e-6` 有效。**观察（既有，非本批引入）**：CI 的 `Type check (mypy)` 步骤为 `|| true`（不阻断）且报 `core/metrics.py: error: Source file found twice under different module names`（CI 工作目录 + 已安装包的 `Factor_Trading` 命名冲突），本地 `mypy --explicit-package-bases core` 为 `Success: 36 source files` |
 
 ## 8. 预登记核对点（Step 8 一致性 Review）
 
@@ -106,7 +106,7 @@
 | 3 盲区扫描 | 全部新增/修改文件逐行归属 | ✅ 无无依据代码行为；`core/`、`filter/` diff = 0 |
 | 4 Iron Law | 交付物是否都有验收行 | ✅ 36 项覆盖 6 case / schema / 容差 / 脚本 / 不变式 / 文档 / 门禁；**F-S9-G1 反例**：不变量观测网再次捕获真实缺陷（停牌路径），证明「基线必须过不变量门」的必要性 |
 
-**Step 10 结论**：**P1=1（F-S9-G1，**不在本批修复**，另立批次）/ P2=2（F-S9-G2 / F-S9-G5，已修）/ P3=4（已回写）**；生产代码零改动；门禁 4/4 pass。
+**Step 10 结论**：**P1=1（F-S9-G1，**不在本批修复**，另立批次）/ P2=2（F-S9-G2 / F-S9-G5，已修）/ P3=4（已回写）**；生产代码零改动；门禁 **5/5 pass**（G5 已由 CI run `42786173151` 回收）。
 
 ## 10. 分母统计与签字
 
