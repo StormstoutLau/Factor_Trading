@@ -3,7 +3,7 @@
 > **文档编号**: CHECKLIST_backtest_validation
 > **阶段**: Phase 3 - 验收（Spec-driven Development，T1 完整管线）
 > **日期**: 2026-11-10
-> **状态**: **Step 1-10 全部通过**（2026-11-10；Step 9 实测 **609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**，B3 Δ 表 + `change_report residual 0.0` 双证，远端 CI run `42768525717` 三 job 全绿；Step 10 ADD 审计全过——CHECKLIST §9：Phase 0-4 全过、**P1=0 / P2=1 F-A1 已修复 `a754a2d`** / P3=2 已回写、`replay: 10 rows OK`、实测列 **76/76**、终态远端 run `42771058634` 三 job success；RULE-5 异构复审留待独立会话）
+> **状态**: **Step 1-10 全部通过；Step 11 审计总结完成**（2026-11-10；Step 9 实测 **609 passed / black 167 / mypy 0（36 files）/ 盲区 4 errors 2 files / 68 测试文件**，B3 Δ 表 + `change_report residual 0.0` 双证，远端 CI run `42768525717` 三 job 全绿；Step 10 ADD 审计全过——CHECKLIST §9：Phase 0-4 全过、**P1=0 / P2=1 F-A1 已修复 `a754a2d`** / P3=2 已回写、`replay: 10 rows OK`、实测列 **76/76**、终态远端 run `42771058634` 三 job success；Step 11 交叉总结见 [AUDIT_SUMMARY_backtest_validation.md](AUDIT_SUMMARY_backtest_validation.md)，无新发现；RULE-5 异构复审留待独立会话）
 > **上游**: [DESIGN_backtest_validation.md](DESIGN_backtest_validation.md)（Step 4 通过；D1-D9 / 不变式 I1-I10；F-R1~F-R4 已回写；Step 9 回写 F-S9-2~F-S9-4） · [IMPL_backtest_validation.md](IMPL_backtest_validation.md)（Step 6 通过；T-0~T-14 / V1-V16；F-I1~F-I5 已回写；**§9 Step 9 实施记录已追加**）
 > **填写规则**: 「实测」列只写 Step 9 实施后的实测证据（RULE-1，禁止预填）；无证据只能标 `[未在 CI 覆盖]` / `[未入仓-不可重放]` / `[未取证]`
 > **解释器**: `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（3.12.10）；测试命令加 `MPLBACKEND=Agg`
@@ -378,3 +378,4 @@
 | Step 8 一致性 Review（独立 pass；5 项预登记核对点 + 机械校验） | 单 Agent 自查（RULE-4） | Step 8 | done（2026-11-10，§8） |
 | Step 9 实施（B1→B2→B3→B4→B5→B6 六提交 + T-14） | 单 Agent 自查 | Step 9 | done（2026-11-10，8 提交；76/76，远端 CI `42768525717` 全绿） |
 | Step 10 ADD 审计 + 提交推送 + 远端 CI（G7 回填） | 单 Agent 自查 | Step 10 | done（2026-11-10，§9 四阶段全过；P1=0/P2=1 F-A1 已修复 `a754a2d`/P3=2；RULE-5 异构复审留待独立会话） |
+| Step 11 审计总结（用户指令扩展步，SPEC_PROCESS 十步之外） | 单 Agent 自查 | Step 11 | done（2026-11-10，[AUDIT_SUMMARY_backtest_validation.md](AUDIT_SUMMARY_backtest_validation.md)；28 项发现归并、U-D4 标注实际闭合、2 项 P3 注记，无新发现） |
