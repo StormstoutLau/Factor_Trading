@@ -677,7 +677,7 @@ def write_manifest(manifest, paths) -> list[Path]: ...
 | ID | 等级 | 发现 | 处理 |
 |----|------|------|------|
 | **F-S9-1** | **P1** | `PositionTracker._take_snapshot` 浅拷贝：快照与实时持仓共享 `Position` 对象，后续调仓/盯市/强平改写历史快照 → 引擎实跑报 53 项 I1/I2 违规 | `tracker.py` 改逐 Position `replace()`；NAV 标量序列与指标零影响 |
-| **F-S9-2** | **P2** | numba `@njit` 的 `np.sum` 为顺序累加、NumPy 为 pairwise；参考实现按 `np.sum` 写会末位不等（实测 200 组中 100 组差 1 ulp） | 参考实现改 `_seq_sum` 显式顺序累加；`py_func` 回退仍走 NumPy → 该用例 `rtol=1e-12` 并注明 |
+| **F-S9-2** | **P2** | numba `@njit` 的 `np.sum` 为顺序累加、NumPy 为 pairwise；参考实现按 `np.sum` 写会末位不等（实测 200 组中 100 组差 1 ulp） | 参考实现改 `_seq_sum` 显式顺序累加；`py_func` 回退仍走 NumPy → 该用例 `rtol=1e-12` 并注明。**远端补正**：CI 无 numba（3.11 首跑 `cash` 差 2.3e-10），主用例同改为「JIT 活跃 → 比特一致；否则 `rtol=1e-12`」（`NUMBA_DISABLE_JIT=1` 本地复跑 9 passed） |
 | **F-S9-3** | **P2** | 末日强平在收盘快照后成交并追加同日第二快照 → I2 在末日误报 3 项 | I2 对「同日多快照日期」跳过（同日配对存在歧义）；新增 ambiguous 用例 |
 | F-S9-4 | P3 | 阴性对照理论值 `3_750` 错误：`P[1]=25` 时 `0.015×0.5×1e7/25 = 3_000`（3_750 仅在 P=20 且不取整手时成立） | 测试断言 `[7_500, 3_000]`；DESIGN §4.5 / 本 IMPL T-5 已回写 |
 | F-S9-5 | P3 | trace 自差分 residual = 1.16e-10（CSV round-trip 浮点噪声），非 0 | 断言改 `< RESIDUAL_TOL(1e-8)`，与 P-012 契约一致 |
@@ -693,7 +693,7 @@ def write_manifest(manifest, paths) -> list[Path]: ...
 | V3 | `Success: no issues found in 36 source files` | ✅ |
 | V4 | `Found 4 errors in 2 files (checked 36 source files)` | ✅ 不劣化 |
 | V5 | `609 tests collected` | ✅ |
-| V6 | `test_reference_diff` 9 passed | ✅ |
+| V6 | `test_reference_diff` 9 passed（本地 JIT 比特一致；`NUMBA_DISABLE_JIT=1` 复跑 9 passed） | ✅ |
 | V7 | `test_cross_engine_equivalence` 5 passed（含阴性对照 `[7_500, 3_000]`） | ✅ |
 | V8 | `test_metrics_single_source` 9 passed | ✅ |
 | V9 | §9.3 Δ 表 | ✅ 变化仅来自公式 |

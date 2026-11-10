@@ -37,7 +37,7 @@
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
 | B1 | `tests/_reference_impl.py` 存在 4 函数（`ref_rebalance_kernel` / `ref_build_target_positions` / `ref_calculate_cost` / `ref_v3_nav`），且**不 import** `core.engine_v3_vector` / `core.target_positions` / `core.execution` 的实现函数 | `Grep 'from core.engine_v3_vector\|from core.target_positions\|from core.execution' tests/_reference_impl.py` = 0 | IMPL T-2 要点 5 | ✅ `Grep = 0`；4 函数齐备 |
-| B2 | V3 `_rebalance_kernel` 与参考在 32 组参数网格上**比特一致**：仓位 `np.array_equal`、现金 `==` | `pytest tests/test_reference_diff.py -k matches_reference -q` = 1 passed | T-3 #1 / DESIGN D3 | ✅ `4 passed, 5 deselected`（32 组网格拆 4 个用例组：仓位 / 现金 / 边界 / 综合） |
+| B2 | V3 `_rebalance_kernel` 与参考在 32 组参数网格上**比特一致**：仓位 `np.array_equal`、现金 `==` | `pytest tests/test_reference_diff.py -k matches_reference -q` = 1 passed | T-3 #1 / DESIGN D3 | ✅ `4 passed, 5 deselected`（32 组网格拆 4 个用例组）；JIT 活跃时现金比特一致，CI 无 numba / 禁用 JIT 时退化 `rtol=1e-12`（F-S9-2 远端补正，`NUMBA_DISABLE_JIT=1` 复跑 9 passed） |
 | B3 | numba 路径与 `py_func` 回退路径同参考对拍（`getattr(fn,"py_func",fn)`；无 numba 环境退化为同一函数仍通过） | `pytest ... -k python_fallback -q` = 1 passed | T-3 #2 / ADR-007 | ✅ `1 passed, 8 deselected`；`py_func` 末位 1 ulp → `rtol=1e-12`（F-S9-2） |
 | B4 | 内核边界：全 NaN 信号 → 持仓/现金原样返回；零价 → 不可建仓但可清仓 | `pytest ... -k 'all_nan_signal or zero_price' -q` = 2 passed | T-3 #3/#4 | ✅ `2 passed, 7 deselected` |
 | B5 | `build_target_positions` 与参考一致：覆盖 `round_lot=True/False`、`value_buffer=0.985`、权重≤0 清仓、价格缺失维持 四分支 | `pytest ... -k target_positions -q` = 2 passed | T-3 #5 / T-4 #1/#2 | ✅ `6 passed`（参考差分 1 + V2 组件 5：四分支 + 整手边界参数化） |

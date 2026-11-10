@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -16,6 +18,20 @@ from _reference_impl import (
     ref_rebalance_kernel,
     ref_v3_nav,
 )
+
+
+def _jit_active() -> bool:
+    """numba JIT 是否真实生效（无 numba 或 ``NUMBA_DISABLE_JIT=1`` 时退化）。
+
+    JIT 下 ``np.sum`` 为顺序累加，与参考 ``_seq_sum`` 比特一致；退化路径走
+    NumPy pairwise 归约，末位可差 1 ulp（F-S9-2）。
+    """
+    if os.environ.get("NUMBA_DISABLE_JIT"):
+        return False
+    return hasattr(_rebalance_kernel, "py_func")
+
+
+_JIT_ACTIVE = _jit_active()
 
 
 def _kernel_cases():
@@ -97,7 +113,13 @@ def test_rebalance_kernel_matches_reference():
         positions, cash = _run_kernel(case, _rebalance_kernel)
         ref_positions, ref_cash = _run_kernel(case, ref_rebalance_kernel)
         assert np.array_equal(positions, ref_positions), f"positions mismatch: {case}"
-        assert cash == ref_cash, f"cash mismatch: {cash} != {ref_cash}"
+        if _JIT_ACTIVE:
+            assert cash == ref_cash, f"cash mismatch: {cash} != {ref_cash}"
+        else:
+            # 无 numba / 禁用 JIT：内核走 NumPy pairwise，末位 ≤1 ulp（F-S9-2）。
+            assert np.isclose(
+                cash, ref_cash, rtol=1e-12, atol=1e-9
+            ), f"cash mismatch: {cash} != {ref_cash}"
 
 
 def test_rebalance_kernel_python_fallback_matches():
@@ -209,7 +231,8 @@ def test_v3_nav_matches_reference():
     positions = np.array([100.0, 0.0, 250.5])
     prices = np.array([10.5, 20.0, 3.25])
     expected = ref_v3_nav(cash, positions, prices)
-    assert cash + float(np.sum(positions * prices)) == expected
+    # 此断言验证参考公式本身；调用侧 np.sum 为 pairwise，按 1 ulp 容差比较（F-S9-2）。
+    assert np.isclose(cash + float(np.sum(positions * prices)), expected, rtol=1e-12, atol=1e-9)
 
 
 def test_determinism_metamorphic():
