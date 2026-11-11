@@ -58,9 +58,9 @@ def test_auxiliary_load_is_idempotent(tmp_path, monkeypatch):
     calls = {"n": 0}
     original = dm._load_and_align_data
 
-    def counted(path):
+    def counted(data, label="aux"):
         calls["n"] += 1
-        return original(path)
+        return original(data, label)
 
     monkeypatch.setattr(dm, "_load_and_align_data", counted)
 

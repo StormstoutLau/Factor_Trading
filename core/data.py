@@ -14,15 +14,17 @@ import logging
 import pickle
 import warnings
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
 
 from core.config import BacktestConfig, AssetInfo, AssetType
+from core.data_provider import DataProvider, PklDataProvider
 
 logger = logging.getLogger(__name__)
+
+_PRICE_KINDS = ("close", "open", "high", "low", "adj_factor")
 
 
 class DataManager:
@@ -32,14 +34,16 @@ class DataManager:
     采用懒加载策略，只在需要时加载数据，并提供智能缓存机制。
     """
 
-    def __init__(self, config: BacktestConfig):
+    def __init__(self, config: BacktestConfig, provider: Optional[DataProvider] = None):
         """初始化数据管理器
 
         Args:
             config: 回测配置
+            provider: 数据读取端口；缺省时按配置构造 pkl 适配器（P-004 B1）
         """
         self.cfg = config
         self.data_dir = config.data_dir
+        self._provider = provider if provider is not None else self._build_provider(config)
 
         # 数据缓存
         self._cache: dict[str, Any] = {}
@@ -72,6 +76,31 @@ class DataManager:
         self._universe_status: dict[str, Any] = {}
 
         logger.info("数据管理器初始化完成")
+
+    @staticmethod
+    def _build_provider(config: BacktestConfig) -> PklDataProvider:
+        """按配置构造 pkl 适配器（映射单一来源，P-004 D2）。
+
+        ``aux_files`` 过滤 falsy：``mktcap_file`` 默认 None 不得回落到
+        适配器默认的 ``mktcap.pkl``，否则会引入新的读取行为。
+        """
+        price_map = {kind: getattr(config, f"{kind}_file") for kind in _PRICE_KINDS}
+        aux_map = {
+            kind: name
+            for kind, name in {
+                "suspend": config.suspend_file,
+                "industry": config.industry_file,
+                "st": config.st_file,
+                "mktcap": config.mktcap_file,
+            }.items()
+            if name
+        }
+        return PklDataProvider(
+            config.data_dir,
+            file_map=price_map,
+            aux_files=aux_map,
+            universe_dir=getattr(config, "universe_dir", None),
+        )
 
     @property
     def trade_dates(self) -> pd.DatetimeIndex:
@@ -165,11 +194,7 @@ class DataManager:
     def universe(self):
         """获取股票池快照（P-012 D5；缺失时降级不中断）。"""
         if self._universe is None:
-            from core.universe_data import load_universe_snapshot
-
-            self._universe = load_universe_snapshot(
-                self.data_dir, getattr(self.cfg, "universe_dir", None)
-            )
+            self._universe = self._provider.load_universe()
             self._universe_status = self._build_universe_status(self._universe)
         return self._universe
 
@@ -207,12 +232,8 @@ class DataManager:
     def _load_basic_data(self):
         """加载基础数据以获取元数据"""
         try:
-            # 加载收盘价获取基础索引
-            close_path = self.data_dir / self.cfg.close_file
-            if not close_path.exists():
-                raise FileNotFoundError(f"收盘价文件不存在: {close_path}")
-
-            close_data = pd.read_pickle(close_path)
+            # 通过端口读取收盘价（文件缺失时由适配器抛 FileNotFoundError）
+            close_data = self._provider.load_price("close")
 
             # 设置元数据
             self._trade_dates = pd.to_datetime(close_data.index)
@@ -264,26 +285,13 @@ class DataManager:
         if self._cache_enabled and cache_key in self._cache:
             return self._cache[cache_key]
 
-        # 确定文件名
-        file_map = {
-            "close": self.cfg.close_file,
-            "open": self.cfg.open_file,
-            "high": self.cfg.high_file,
-            "low": self.cfg.low_file,
-            "adj_factor": self.cfg.adj_factor_file,
-        }
-
-        filename = file_map.get(price_type)
-        if not filename:
+        # 白名单校验（保留原错误文案）；kind 单一来源见 _PRICE_KINDS
+        if price_type not in _PRICE_KINDS:
             raise ValueError(f"未知的价格类型: {price_type}")
-
-        file_path = self.data_dir / filename
-        if not file_path.exists():
-            raise FileNotFoundError(f"价格文件不存在: {file_path}")
 
         # 加载数据
         try:
-            data = pd.read_pickle(file_path)
+            data = self._provider.load_price(price_type)
 
             # 确保索引为日期格式
             if not isinstance(data.index, pd.DatetimeIndex):
@@ -332,54 +340,64 @@ class DataManager:
             self._aux_loaded = True
             return
 
-        # 停牌数据
+        # 停牌数据（cfg-falsy 不得调 load_aux：aux_files 已过滤该键）
         if self.cfg.suspend_file:
-            suspend_path = self.data_dir / self.cfg.suspend_file
-            if suspend_path.exists():
-                self._suspend_data = self._load_and_align_data(suspend_path)
-            else:
-                logger.warning(f"停牌数据文件不存在: {suspend_path}，按 0=正常 处理")
+            raw = self._provider.load_aux("suspend")
+            if raw is None:
+                logger.warning(
+                    f"停牌数据文件不存在: {self.data_dir / self.cfg.suspend_file}，按 0=正常 处理"
+                )
                 self._suspend_data = pd.DataFrame(
                     0, index=self._trade_dates, columns=self._stock_codes
                 )
+            else:
+                self._suspend_data = self._load_and_align_data(raw, "suspend")
 
         # 行业数据
-        industry_path = self.data_dir / self.cfg.industry_file
-        if industry_path.exists():
-            self._industry_data = self._load_and_align_data(industry_path)
-        else:
-            logger.warning(f"行业数据文件不存在: {industry_path}，跳过行业过滤/中性化")
+        if self.cfg.industry_file:
+            raw = self._provider.load_aux("industry")
+            if raw is None:
+                logger.warning(
+                    f"行业数据文件不存在: {self.data_dir / self.cfg.industry_file}，"
+                    "跳过行业过滤/中性化"
+                )
+            else:
+                self._industry_data = self._load_and_align_data(raw, "industry")
 
         # ST数据
         if self.cfg.st_file:
-            st_path = self.data_dir / self.cfg.st_file
-            if st_path.exists():
-                self._st_data = self._load_and_align_data(st_path)
-            else:
-                logger.warning(f"ST数据文件不存在: {st_path}，按 0=正常 处理")
+            raw = self._provider.load_aux("st")
+            if raw is None:
+                logger.warning(
+                    f"ST数据文件不存在: {self.data_dir / self.cfg.st_file}，按 0=正常 处理"
+                )
                 self._st_data = pd.DataFrame(0, index=self._trade_dates, columns=self._stock_codes)
+            else:
+                self._st_data = self._load_and_align_data(raw, "st")
 
         # 市值数据
         if self.cfg.mktcap_file:
-            mktcap_path = self.data_dir / self.cfg.mktcap_file
-            if mktcap_path.exists():
-                self._mktcap_data = self._load_and_align_data(mktcap_path)
+            raw = self._provider.load_aux("mktcap")
+            if raw is None:
+                logger.warning(
+                    f"市值数据文件不存在: {self.data_dir / self.cfg.mktcap_file}，"
+                    "跳过市值过滤/中性化"
+                )
             else:
-                logger.warning(f"市值数据文件不存在: {mktcap_path}，跳过市值过滤/中性化")
+                self._mktcap_data = self._load_and_align_data(raw, "mktcap")
 
         self._aux_loaded = True
 
-    def _load_and_align_data(self, file_path: Path) -> pd.DataFrame:
-        """加载并对齐数据到标准索引
+    def _load_and_align_data(self, data: Any, label: str = "aux") -> pd.DataFrame:
+        """对齐已读取的数据到标准索引
 
         Args:
-            file_path: 数据文件路径
+            data: 已由端口读取的原始数据（DataFrame / dict / Series）
+            label: 数据标签（日志与因子判定用）
 
         Returns:
             对齐后的DataFrame
         """
-        data = pd.read_pickle(file_path)
-
         # 处理dict类型数据（如industry_mapping.pkl, stock_suspended.pkl）
         if isinstance(data, dict):
             # 检查值的类型（停牌数据值通常是Series）
@@ -421,13 +439,13 @@ class DataManager:
             # 只保留同时存在于数据和交易日历中的日期
             common_dates = data.index.intersection(self._trade_dates)
             if len(common_dates) == 0:
-                logger.warning(f"警告: {file_path} 中的日期与交易日历无交集")
+                logger.warning(f"警告: {label} 中的日期与交易日历无交集")
                 # 创建空DataFrame并返回
                 data = pd.DataFrame(0, index=self._trade_dates, columns=self._stock_codes)
                 return data
             # 使用reindex而不是loc，避免KeyError
             # 价格数据用0填充，因子数据保持NaN以区分缺失
-            is_factor = "factor" in str(file_path).lower()
+            is_factor = "factor" in label.lower()
             data = (
                 data.reindex(self._trade_dates)
                 if is_factor
@@ -651,7 +669,7 @@ class DataManager:
         logger.info("开始预加载数据...")
 
         # 加载价格数据
-        for price_type in ["close", "open", "high", "low", "adj_factor"]:
+        for price_type in _PRICE_KINDS:
             self._load_price_data(price_type)
 
         # 加载辅助数据
