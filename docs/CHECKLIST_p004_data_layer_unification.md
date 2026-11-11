@@ -3,7 +3,7 @@
 > **批次**: P-004 · T1
 > **上游**: [IMPL_p004_data_layer_unification.md](IMPL_p004_data_layer_unification.md)（T-1~T-7 / V1-V8）；[DESIGN_p004_data_layer_unification.md](DESIGN_p004_data_layer_unification.md)（D1-D6 / I1-I6）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`
-> **状态**: Step 7 完稿（零预填）
+> **状态**: Step 7 完稿（零预填）→ **Step 9 实施完成（24/24 ✅，§2）**；Step 8 一致性 Review 见 §8
 
 ---
 
@@ -13,57 +13,58 @@
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| A-1 | provider 构造与单一映射来源（D2） | 静态：存在 `_build_provider`；`price_map` 由 cfg 五字段生成；`aux_map` **过滤 falsy**；`_PRICE_KINDS` 被 `_load_price_data` / `preload_data` / `_build_provider` 三处引用，无第二份 kind 列表 | [待 Step 9] |
-| A-2 | 默认配置可构造且 mktcap 不崩（F-D-R5-P004-1，V3） | 运行：`DataManager(BacktestConfig(data_dir=<含 close 的 tmp>))` → 不抛 `ValueError`；`dm.mktcap is None`；`dm.industry is None`；`dm.suspend` / `dm.st` 形状正确且全 0 | [待 Step 9] |
-| A-3 | 价格读取走端口且文案保留（T-2，V1） | 静态：`_load_basic_data` / `_load_price_data` 内无 `pd.read_pickle`、无 `close_path.exists()`；未知 kind 仍抛 `未知的价格类型: …`；运行：五价格属性可读 | [待 Step 9] |
-| A-4 | 辅助数据 cfg 守卫与默认值（T-3，I3） | 静态：suspend/st/industry/mktcap 四分支均有 `if self.cfg.*_file:` 守卫后才调 `load_aux`；运行：缺失语义与 P-010 一致（suspend/st 全 0、industry/mktcap None） | [待 Step 9] |
-| A-5 | 归一化与股票池（T-4） | 静态：`_load_and_align_data(self, data, label="aux")` 无 `pd.read_pickle`；`universe` 经 `self._provider.load_universe()`；运行：幂等 guard 生效（连续 3 次访问 industry，读盘计数 = 1） | [待 Step 9] |
-| A-6 | DI 注入可用（T-7，V7） | 运行：`test_data_manager_accepts_injected_provider` 通过；注入自定义 provider 后 `stock_codes` 来自注入数据 | [待 Step 9] |
+| A-1 | provider 构造与单一映射来源（D2） | 静态：存在 `_build_provider`；`price_map` 由 cfg 五字段生成；`aux_map` **过滤 falsy**；`_PRICE_KINDS` 被 `_load_price_data` / `preload_data` / `_build_provider` 三处引用，无第二份 kind 列表 | ✅ E3 @`bb50009`：[data.py](../core/data.py#L80-L109)；`price_map = {kind: getattr(config, f"{kind}_file") for kind in _PRICE_KINDS}`（L87）+ `if name` 过滤；`_PRICE_KINDS` 定义 L27 / 生成 L87 / 校验 L295 / 循环 L678（三处引用） |
+| A-2 | 默认配置可构造且 mktcap 不崩（F-D-R5-P004-1，V3） | 运行：`DataManager(BacktestConfig(data_dir=<含 close 的 tmp>))` → 不抛 `ValueError`；`dm.mktcap is None`；`dm.industry is None`；`dm.suspend` / `dm.st` 形状正确且全 0 | ✅ E1：探针 → `mktcap is None: True` / `industry is None: True` / `suspend: (2, 2) 0` / `st: (2, 2) 0`；`aux_keys: ['industry','st','suspend']`（mktcap 已过滤）；`test_data_aux_defaults` **4 passed** |
+| A-3 | 价格读取走端口且文案保留（T-2，V1） | 静态：`_load_basic_data` / `_load_price_data` 内无 `pd.read_pickle`、无 `close_path.exists()`；未知 kind 仍抛 `未知的价格类型: …`；运行：五价格属性可读 | ✅ E3 @`bb50009`：[data.py](../core/data.py#L232-L246) 仅 `self._provider.load_price("close")`；[L274-L304](../core/data.py#L274-L304) 无 `read_pickle`/`exists()`；E1 探针 → `ValueError text: 未知的价格类型: volume`；五价格 `[(3, 2)] × 5` |
+| A-4 | 辅助数据 cfg 守卫与默认值（T-3，I3） | 静态：suspend/st/industry/mktcap 四分支均有 `if self.cfg.*_file:` 守卫后才调 `load_aux`；运行：缺失语义与 P-010 一致（suspend/st 全 0、industry/mktcap None） | ✅ E3 @`bb50009`：[data.py](../core/data.py#L353-L397) 四分支逐 `if self.cfg.*_file:` 守卫；E1 默认值读数同 A-2 |
+| A-5 | 归一化与股票池（T-4） | 静态：`_load_and_align_data(self, data, label="aux")` 无 `pd.read_pickle`；`universe` 经 `self._provider.load_universe()`；运行：幂等 guard 生效（连续 3 次访问 industry，读盘计数 = 1） | ✅ E3 @`bb50009`：[data.py](../core/data.py#L391) 签名与无读盘；[L193-L200](../core/data.py#L193-L200) `universe` 走端口；E1 `test_auxiliary_load_is_idempotent` 通过（计数 = 1） |
+| A-6 | DI 注入可用（T-7，V7） | 运行：`test_data_manager_accepts_injected_provider` 通过；注入自定义 provider 后 `stock_codes` 来自注入数据 | ✅ E1：`test_data_manager_accepts_injected_provider` 通过；独立探针 → `DI stock_codes: ['A', 'B']` |
 
 ### B 组：B2 死 API 删除（D3 / I6）
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| B-1 | V3 四个死 API 归零（V6） | `Grep` 全仓 `*.py`：`from_data_manager` / `_load_from_data_manager` / `to_data_manager_compatible` / `from_hdf5` **0 代码命中** | [待 Step 9] |
-| B-2 | `AbstractDataManager` 删除（V6） | `Grep 'AbstractDataManager' --glob '*.py'` = **0 命中**（含定义与引用） | [待 Step 9] |
-| B-3 | 兼容测试同步删除 | `tests/test_data_v3_compatibility.py` 无 `test_to_data_manager_compatible`；文件其余用例保持并通过 | [待 Step 9] |
-| B-4 | 删除后无未使用导入 / 构造不破 | `black --check` 无变更；`mypy core` 0 errors；`DataLoaderV3.load()`（`cls()` 无参）仍可用 | [待 Step 9] |
+| B-1 | V3 四个死 API 归零（V6） | `Grep` 全仓 `*.py`：`from_data_manager` / `_load_from_data_manager` / `to_data_manager_compatible` / `from_hdf5` **0 代码命中** | ✅ E1：`Grep` 四词元 `--glob '*.py'` = **0 命中** |
+| B-2 | `AbstractDataManager` 删除（V6） | `Grep 'AbstractDataManager' --glob '*.py'` = **0 命中**（含定义与引用） | ✅ E1：`Grep 'AbstractDataManager' --glob '*.py'` = **0 命中**（含定义与引用） |
+| B-3 | 兼容测试同步删除 | `tests/test_data_v3_compatibility.py` 无 `test_to_data_manager_compatible`；文件其余用例保持并通过 | ✅ E1：该文件 **5 passed**（6 − 1）；`test_to_data_manager_compatible` 已不存在 |
+| B-4 | 删除后无未使用导入 / 构造不破 | `black --check` 无变更；`mypy core` 0 errors；`DataLoaderV3.load()`（`cls()` 无参）仍可用 | ✅ E1：`black` 110 unchanged；`mypy` 36 files 0 issues；探针 `DataLoaderV3.load(p)` → `n_dates=2` |
 
 ### C 组：B3 协议对齐（D4 / I6 / V7）
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| C-1 | `get_adj_price` 形参一致 | 静态：协议与实现均为 `(self, price_type, adjustment_type)`；默认值均 `price_type="close"` / `adjustment_type="hfq"` | [待 Step 9] |
-| C-2 | `load_factor` 形参一致 | 静态：协议与实现均为 `(self, factor_file)` | [待 Step 9] |
-| C-3 | `universe_status` 纳入协议 | 静态：`IDataManager` 含 `universe_status` 属性；`EXPECTED_MEMBERS[IDataManager]` 含 `"universe_status"` | [待 Step 9] |
-| C-4 | 四签名契约测试 | 运行：`EXPECTED_SIGNATURES` 覆盖 `get_adj_price` / `load_factor` / `get_data_info` / `get_asset_info`；`test_protocol_signatures` 通过 | [待 Step 9] |
-| C-5 | 关键字调用可用（F-R5-P004-2 回归） | 运行探针：`dm.get_adj_price("close", adjustment_type="hfq")` 与 `dm.load_factor(factor_file="x.pkl")` 均不抛 `TypeError` | [待 Step 9] |
+| C-1 | `get_adj_price` 形参一致 | 静态：协议与实现均为 `(self, price_type, adjustment_type)`；默认值均 `price_type="close"` / `adjustment_type="hfq"` | ✅ E3 @`bb50009`：[interfaces.py](../core/interfaces.py#L56) 与 [data.py](../core/data.py#L483) 均 `(self, price_type: str = "close", adjustment_type: str = "hfq")`；E1 `test_protocol_signatures` 通过 |
+| C-2 | `load_factor` 形参一致 | 静态：协议与实现均为 `(self, factor_file)` | ✅ E3：[interfaces.py](../core/interfaces.py#L70) 与 [data.py](../core/data.py#L539) 均 `(self, factor_file: str)` |
+| C-3 | `universe_status` 纳入协议 | 静态：`IDataManager` 含 `universe_status` 属性；`EXPECTED_MEMBERS[IDataManager]` 含 `"universe_status"` | ✅ E3：[interfaces.py](../core/interfaces.py#L47) 属性已声明；`EXPECTED_MEMBERS` 已含之，`test_protocol_members` 通过 |
+| C-4 | 四签名契约测试 | 运行：`EXPECTED_SIGNATURES` 覆盖 `get_adj_price` / `load_factor` / `get_data_info` / `get_asset_info`；`test_protocol_signatures` 通过 | ✅ E1：四签名全覆盖，`test_contract_conformance.py` **6 passed**（含 `test_protocol_signatures`） |
+| C-5 | 关键字调用可用（F-R5-P004-2 回归） | 运行探针：`dm.get_adj_price("close", adjustment_type="hfq")` 与 `dm.load_factor(factor_file="x.pkl")` 均不抛 `TypeError` | ✅ E1：`get_adj_price("close", adjustment_type="hfq")` → `(2, 2)`；`load_factor(factor_file="factor_x.pkl")` → `(1, 2)`，均无 `TypeError` |
 
 ### D 组：零行为回归与门禁（I1 / I4 / I5 / V1 / V2 / V4 / V5 / V8）
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| D-1 | 全量测试终态（I1，V1） | `pytest tests`（Agg，项目解释器 3.12.10）= **636 passed**；B1 后持平 635、B2 后 634、B3 后 636（逐批实读） | [待 Step 9] |
-| D-2 | golden 全过（I5，V2） | `tests/test_golden_baseline.py` 参数化 **G1-G7** 7/7 通过（数值/计数） | [待 Step 9] |
-| D-3 | 复权口径不变（I4，V4） | `test_adjustment`(11) + `test_adjustment_semantics`(2) = 13 项通过 | [待 Step 9] |
-| D-4 | 门禁（V5） | `mypy --explicit-package-bases core` = 0 errors；`black --check core tests` 无变更 | [待 Step 9] |
-| D-5 | 外部对拍回归（V8，可选） | `verify_p015.py` 五 case → `28 断言（失败 0）+ 豁免 1`，exit 0 | [待 Step 9] |
+| D-1 | 全量测试终态（I1，V1） | `pytest tests`（Agg，项目解释器 3.12.10）= **636 passed**；B1 后持平 635、B2 后 634、B3 后 636（逐批实读） | ✅ E1：B1 `635 passed`（80.59s）→ B2 `634 passed`（66.52s）→ B3 **`636 passed`**（74.25s），均 `MPLBACKEND=Agg` |
+| D-2 | golden 全过（I5，V2） | `tests/test_golden_baseline.py` 参数化 **G1-G7** 7/7 通过（数值/计数） | ✅ E1：该文件 **9 passed**（G1-G7 参数化 7 + 集合完整性/schema 2） |
+| D-3 | 复权口径不变（I4，V4） | `test_adjustment`(11) + `test_adjustment_semantics`(2) = 13 项通过 | ✅ E1：`test_adjustment` **11** + `test_adjustment_semantics` **4** = **15 passed**（**Step 9 实读更正**：原 DoD 写 2 / 合计 13，实际 4 个用例） |
+| D-4 | 门禁（V5） | `mypy --explicit-package-bases core` = 0 errors；`black --check core tests` 无变更 | ✅ E1：`black` → `110 files would be left unchanged`；`mypy` → `Success: no issues found in 36 source files` |
+| D-5 | 外部对拍回归（V8，可选） | `verify_p015.py` 五 case → `28 断言（失败 0）+ 豁免 1`，exit 0 | ✅ E1：`--case-dir B1..B5` → `共 28 项断言（失败 0 项）+ 豁免登记 1 项`，**exit 0** |
 
 ### E 组：文档与治理
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| E-1 | 批次登记 | `PROGRESS.md` §3.22 Step 9 记录 + `CHANGELOG.md` Fixed 条目 | [待 Step 9] |
-| E-2 | 变更面受控 | `git diff --stat` 仅含 `core/data.py`、`core/data_v3.py`、`core/interfaces.py`、`tests/test_contract_conformance.py`、`tests/test_data_v3_compatibility.py`、`tests/test_data_aux_defaults.py`（1 行 wrapper）+ docs；无 `.github/` | [待 Step 9] |
-| E-3 | 外部锚点可核（F1-F4） | IMPL §1：≥3 条外部引用均带 ID/日期/版本 + 验证表；未验证项标 `未验证` | [待 Step 9] |
-| E-4 | 提交切分与回退 | B1 / B2 / B3 三个独立提交；任一可单独 `git revert` | [待 Step 9] |
+| E-1 | 批次登记 | `PROGRESS.md` §3.22 Step 9 记录 + `CHANGELOG.md` Fixed 条目 | ✅ `PROGRESS.md` §3.22 已追加 Step 9 行；`CHANGELOG.md` `Fixed` 已加 P-004 条目 |
+| E-2 | 变更面受控 | `git diff --stat` 仅含 `core/data.py`、`core/data_v3.py`、`core/interfaces.py`、`tests/test_contract_conformance.py`、`tests/test_data_v3_compatibility.py`、`tests/test_data_aux_defaults.py`（1 行 wrapper）+ docs；无 `.github/` | ✅ E1：`git diff --stat 6ab9561..HEAD`（实施三提交）= 上述 **6 文件**（`+134/−154`），无 `.github/`；docs 回写见本批后续提交 |
+| E-3 | 外部锚点可核（F1-F4） | IMPL §1：≥3 条外部引用均带 ID/日期/版本 + 验证表；未验证项标 `未验证` | ✅ IMPL §1：E1-E7 七条均带 ID/发布日/版本 + 引用验证表；E8 标 `未验证` 且声明不用于结论 |
+| E-4 | 提交切分与回退 | B1 / B2 / B3 三个独立提交；任一可单独 `git revert` | ✅ E1：`3ddc895`（B1）/ `8b72145`（B2）/ `bb50009`（B3），三批文件面无重叠（B1 data.py+aux 测试、B2 data_v3+interfaces+兼容测试、B3 interfaces+契约测试） |
 
 ---
 
 ## 2. 统计
 
 - 总数：**24 项**（A6 / B4 / C5 / D5 / E4）
-- 状态：**0/24**（Step 7 时点全 `[待 Step 9]`，零预填）
+- 状态：**24/24 ✅**（逐项绑证据，RULE-2 逐项核对；Step 9 实读回填）
+- 发现：**P1 = 0 / P2 = 0 / P3 = 1**（F-S9-P004-1：V4/D-3 的 `test_adjustment_semantics` 计数由 2 更正为实读 4，合计 13→15；已同步 DESIGN §5 V4 / IMPL §4 V4 与本表）
 - 覆盖映射：D1→A-2/A-3；D2→A-1/A-3/A-4；D3→B-1~B-4；D4→C-1~C-5；D5→（出界，无验收行）；D6→E-3；I1→D-1；I2→A-1/A-3；I3→A-2/A-4；I4→D-3；I5→D-2；I6→B-1~B-2/C-4
 
 ---

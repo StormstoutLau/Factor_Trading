@@ -4,7 +4,7 @@
 > **上游**: [DESIGN_p004_data_layer_unification.md](DESIGN_p004_data_layer_unification.md)（D1-D6 / I1-I6 / §4 实现规格 / §9 RULE-5 复审 1 P2 已修）
 > **下游**: CHECKLIST_p004_data_layer_unification
 > **代码证据时点**: HEAD `c4aad0b`（2026-11-11，工作区干净）
-> **状态**: Step 5 完稿 + Step 6 Review 通过（§7）；Step 9 记录待回填（§8）
+> **状态**: Step 5 完稿 + Step 6 Review 通过（§7）；**Step 9 已实施（§8：B1 `3ddc895` / B2 `8b72145` / B3 `bb50009`，终态 636 passed）**
 
 ---
 
@@ -196,7 +196,7 @@ if self.cfg.suspend_file:
 | V1 | 全量测试（终态） | **636 passed**，`MPLBACKEND=Agg`，项目解释器 3.12.10 |
 | V2 | golden | `tests/test_golden_baseline.py` 参数化 **G1-G7** 全过 |
 | V3 | P-010 默认值 | `test_data_aux_defaults` 4 项全过；`dm.mktcap is None`；幂等计数 = 1 |
-| V4 | 复权口径 | `test_adjustment`(11) + `test_adjustment_semantics`(2) 全过 |
+| V4 | 复权口径 | `test_adjustment`(11) + `test_adjustment_semantics`(**4**，Step 9 实读更正) 全过 |
 | V5 | 门禁 | `mypy --explicit-package-bases core` = 0 errors；`black --check core tests` 无变更 |
 | V6 | 死 API 归零 | `Grep 'from_data_manager\|_load_from_data_manager\|to_data_manager_compatible\|from_hdf5\|AbstractDataManager'` = 0 代码命中 |
 | V7 | 契约 | `test_protocol_members` / `test_protocol_signatures` / `test_execute_order_signature` 全过 |
@@ -248,6 +248,65 @@ if self.cfg.suspend_file:
 
 ---
 
-## 8. Step 9 实施记录（待回填）
+## 8. Step 9 实施记录
 
-> [RULE-1] 零预填：本节的 F5 红/绿读数、探针读数、终态计数均在 Step 9 执行后按实读写入，本稿不预写任何数字。
+> [RULE-1] 零预填：本节读数均为 Step 9 执行后实读（2026-11-11，项目解释器 3.12.10，`MPLBACKEND=Agg`）。
+
+### 8.1 基线与提交链
+
+| 项 | 读数 |
+|----|------|
+| 基线 | HEAD `6ab9561` 工作区干净；全量 `635 passed, 152 warnings in 89.22s` |
+| **B1** | `3ddc895`（2 文件 +77/−59）`core/data.py` + `tests/test_data_aux_defaults.py` |
+| **B2** | `8b72145`（3 文件 +2/−91）`core/data_v3.py` / `core/interfaces.py` / `tests/test_data_v3_compatibility.py` |
+| **B3** | `bb50009`（2 文件 +55/−4）`core/interfaces.py` / `tests/test_contract_conformance.py` |
+
+### 8.2 F5 先失败记录（红 / 绿两读数块）
+
+**B1（T-1~T-4，端口注入）**
+
+- 红：`python -c "...DataManager(BacktestConfig(), provider=P())"` → `TypeError: DataManager.__init__() got an unexpected keyword argument 'provider'`；同轮 `has _build_provider: False`；**exit 1**
+- 绿：全量 `635 passed, 152 warnings in 80.59s`（零行为，计数持平）；定向六文件 `38 passed in 16.59s`
+
+**B2（T-5，死 API 删除）**
+
+- 红：`init params: ['self', 'data_dir', 'from_hdf5']`；`from_data_manager / _load_from_data_manager / to_data_manager_compatible / AbstractDataManager` 四者 `hasattr=True`
+- 绿：`init params: ['self', 'data_dir']`；四者 `False`；`DataLoaderV3.load()` 往返 `load ok: 2`；全量 `634 passed in 66.52s`（635 − 1）
+
+**B3（T-6~T-7，协议对齐）**
+
+- 红：`tests/test_contract_conformance.py` → `2 failed, 4 passed in 1.84s`——`test_protocol_members` 缺 `universe_status`；`test_protocol_signatures` 在 `get_adj_price` 第 3 参上 `'adjustment' != 'adjustment_type'`；**exit 1**
+- 绿：同文件 `6 passed in 1.63s`；全量 `636 passed, 152 warnings in 74.25s`（634 + 2）
+
+### 8.3 探针读数（A-2 / A-3 / A-6 / C-5 / B-4）
+
+| 探针 | 读数 |
+|------|------|
+| 默认配置（含 close 的 tmp） | `mktcap is None: True` / `industry is None: True` / `suspend: (2, 2) 0` / `st: (2, 2) 0`；`aux_keys: ['industry', 'st', 'suspend']`（mktcap 已被过滤） |
+| DI 注入 | `DataManager(BacktestConfig(), provider=P())` → `DI stock_codes: ['A', 'B']` |
+| 五价格属性 | `[(3, 2), (3, 2), (3, 2), (3, 2), (3, 2)]`（close/open/high/low/adj_factor） |
+| 未知 kind 文案 | `ValueError text: 未知的价格类型: volume`（原文案保留） |
+| C-5 关键字调用 | `dm.get_adj_price("close", adjustment_type="hfq")` → `(2, 2)`；`dm.load_factor(factor_file="factor_x.pkl")` → `(1, 2)`，均不抛 `TypeError` |
+| B-4 无参构造 | `DataLoaderV3.load(p)` → `n_dates=2` |
+
+### 8.4 V1-V8 终态读数
+
+| # | 验证项 | 实读 |
+|---|--------|------|
+| V1 | 全量测试 | **636 passed, 152 warnings in 74.25s** |
+| V2 | golden | `tests/test_golden_baseline.py` **9 passed**（G1-G7 参数化 7 + 集合完整性/schema 2） |
+| V3 | P-010 默认值 | `tests/test_data_aux_defaults.py` **4 passed**；`dm.mktcap is None` 与幂等读盘计数 = 1 均在用例内断言 |
+| V4 | 复权口径 | `test_adjustment` **11** + `test_adjustment_semantics` **4** = **15 passed**（**Step 9 实读更正**：原文档写 semantics 2 / 合计 13，实际该文件 4 个用例——`test_hfq_formula`/`test_qfq_formula`/`test_legacy_alias_warns`/`test_unknown_mode_raises`） |
+| V5 | 门禁 | `black --check core tests` → **110 files would be left unchanged**；`mypy --explicit-package-bases core` → **Success: no issues found in 36 source files** |
+| V6 | 死 API 归零 | `Grep 'from_data_manager\|_load_from_data_manager\|to_data_manager_compatible\|from_hdf5\|AbstractDataManager' --glob '*.py'` = **0 命中** |
+| V7 | 契约 | `tests/test_contract_conformance.py` **6 passed**（`test_protocol_members` / `test_protocol_signatures` / `test_execute_order_signature` 等） |
+| V8 | 消费者回归（可选） | `verify_p015.py --case-dir B1..B5` → **`共 28 项断言（失败 0 项）+ 豁免登记 1 项`，exit 0** |
+
+### 8.5 实施期偏差与处置
+
+| 项 | 说明 |
+|----|------|
+| T-1 `price_map` 生成方式 | 按 IMPL T-1「由 `_PRICE_KINDS` + cfg 字段生成」实现为 `{kind: getattr(config, f"{kind}_file") for kind in _PRICE_KINDS}`（DESIGN §4.1 示例为显式字典）；满足 CHECKLIST A-1「无第二份 kind 列表」 |
+| B2 导入清理 | `AbstractDataManager` 删除后 `interfaces.py` 的 `BacktestConfig` 导入失去唯一使用者，已同步移除；`data_v3.py` 的 `Any`/`List` 为**删除前即存在**的未使用导入，按最小变更原则未动 |
+| B3 行位重锚 | 删除 `AbstractDataManager` 后 `interfaces.py` 行号下移，B3 按 §3 提示重新 `Read` 定位（`get_adj_price` 现 L56、`load_factor` 现 L68） |
+| V4 计数 | 见 §8.4 V4「Step 9 实读更正」 |

@@ -193,7 +193,7 @@ def test_data_manager_accepts_injected_provider():
 | V1 | 全量测试 | **636 passed**（635 − `test_to_data_manager_compatible` + `test_protocol_signatures` + `test_data_manager_accepts_injected_provider`），`MPLBACKEND=Agg` |
 | V2 | golden | **G1-G7** 7 项参数化全过（数值/计数） |
 | V3 | P-010 默认值 | `test_data_aux_defaults` 4 项全过（含幂等计数 =1） |
-| V4 | 复权口径 | `test_adjustment`(11) + `test_adjustment_semantics`(2) 全过 |
+| V4 | 复权口径 | `test_adjustment`(11) + `test_adjustment_semantics`(4，Step 9 实读更正：原写 2) 全过 |
 | V5 | 门禁 | `mypy core` 0 errors；`black --check` 无变更 |
 | V6 | 死 API 归零 | `Grep 'from_data_manager\|_load_from_data_manager\|to_data_manager_compatible\|from_hdf5\|AbstractDataManager'` = 仅 0 处代码命中 |
 | V7 | 契约 | `test_protocol_members` + `test_protocol_signatures` + `test_execute_order_signature` 全过 |
