@@ -1,6 +1,6 @@
 # 关键决策记录 (Architecture Decision Records)
 
-> 格式: ADR (Architecture Decision Record) | 最后更新: 2026-11-10
+> 格式: ADR (Architecture Decision Record) | 最后更新: 2026-11-11
 
 ---
 
@@ -8,6 +8,7 @@
 
 - **日期**: 2026-01
 - **状态**: ✅ 已采纳
+- **实施状态**（2026-11-11 P-005 核验）: **未实施**——`factor_library/database.py` 当前为 JSON 元数据 + Parquet（`pyarrow`/`fastparquet` 缺失时降级 CSV）；DuckDB 查询层为规划方向（U-P005-1，见 [RESEARCH_p005_factor_db_alignment.md](RESEARCH_p005_factor_db_alignment.md)）
 - **背景**: 需要本地存储多源因子数据（价格/因子/宏观/新闻/另类），避免每次回测重新计算
 - **方案对比**:
   - SQLite: 简单但 OLAP 性能差，列式操作慢
