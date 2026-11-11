@@ -183,7 +183,7 @@ Step 8 一致性 Review（§8）、Step 10 ADD 审计（§9）、签字表（§1
 | 观察 2 | README L196 本批新增文本中 `U-P005-1` 为裸 ID 无链接，README 读者不可跳转（同句 ARCHITECTURE 缺口表链接可解析，主指针有效） | 登记；建议后续批补 RESEARCH 链接 |
 | 观察 3 | uv.lock 根包 `provides-extras` 位于 `[package.metadata]` 子表（TOML 语义），程序化探测须读 `root['metadata']['provides-extras']`——顶层读取会误报 None | 登记（U-P005-5 复核方法注） |
 
-**复审结论**: **pass**——0 P1 / 0 P2 / 3 P3 登记（F-R5-P005-1/3 文档勘误已回写、F-R5-P005-2 幻觉残留登记留后续批）+ 3 观察；RESEARCH 三大主结论（M-A 文档与依赖对齐 / 不迁移 DuckDB→U-P005-1 / 零行为）独立重放全部成立；ADD 审计结论（P2×1 已修 / P3×4 已修）维持。
+**复审结论**: **pass**——0 P1 / 0 P2 / 3 P3 登记（F-R5-P005-1/3 文档勘误已回写、F-R5-P005-2 幻觉残留登记留后续批）+ 3 观察；RESEARCH 三大主结论（M-A 文档与依赖对齐 / 不迁移 DuckDB→U-P005-1 / 零行为）独立重放全部成立；ADD 审计结论（P2×1 已修 / P3×4 已修）维持。复审记录提交 `f3cf3b8`，CI run [`43015720127`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43015720127) 三 job **success**（3.10 1m11s / 3.11 1m50s / 3.12 1m48s）。
 
 ---
 
