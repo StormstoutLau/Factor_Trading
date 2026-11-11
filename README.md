@@ -64,9 +64,9 @@
 │  │                            DATA LAYER                                    │ │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────────┐│ │
 │  │  │ Data Manager │  │ Factor_DB    │  │  Stock Filter                     ││ │
-│  │  │ · Daily K    │  │ · DuckDB     │  │  · Suspended / Limit-up/down      ││ │
-│  │  │ · Level 1    │  │ · Macro/News │  │  · Industry / MarketCap           ││ │
-│  │  │ · Factor     │  │ · Alternative│  │  · ST / Custom                    ││ │
+│  │  │ · Daily K    │  │ · Parquet    │  │  · Suspended / Limit-up/down      ││ │
+│  │  │ · Level 1    │  │ · Metadata   │  │  · Industry / MarketCap           ││ │
+│  │  │ · Factor     │  │ · Lineage    │  │  · ST / Custom                    ││ │
 │  │  └──────────────┘  └──────────────┘  └──────────────────────────────────┘│ │
 │  └─────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -182,17 +182,18 @@ Raw Factor → [Winsorize] → [Fill Missing] → [Neutralize] → [Standardize]
 | **EventLog** | JSONL persistence + ring buffer + subscription/query |
 | **Plugin System** | Registry + Factory + auto-registration decorators |
 
-### 🗄️ Factor_DB (DuckDB)
+### 🗄️ Factor_DB (Parquet · ⚠️ 骨架)
 
-High-performance local storage for multi-source data:
+Lightweight local factor storage：`metadata.json` 存元数据 + 每因子一个 `.parquet` 文件（`pyarrow`/`fastparquet` 不可用时降级 `.csv`）：
 
-| Data Type | Tables | Query |
-|-----------|--------|-------|
-| **Price** | daily_prices, level1_snapshots | PriceQuery |
-| **Factor** | factor_data, factor_info | FactorQuery |
-| **Macro** | macro_data, macro_indicators | MacroQuery |
-| **Sentiment** | news_sentiment, report_sentiment | SentimentQuery |
-| **Alternative** | alternative_data, alternative_types | AlternativeQuery |
+| 能力 | 实现 |
+|------|------|
+| 因子存取 | `add_factor` / `get_factor` / `delete_factor` / `list_factors` |
+| 元数据与检索 | `metadata.json`；`query(category/tags/ic_ir_min/author)` |
+| 版本与血缘 | `FactorMetadata.version` / `parent_factors`；`get_lineage` |
+| 统计回写 | `update_stats(ic_mean/ic_std/ir/half_life/turnover)` |
+
+**能力边界**：无 SQL 查询层、无多源表（Price/Macro/Sentiment 等）、无并发写；多因子联合检索为内存过滤。SQL 查询层为**规划方向**（见 [ARCHITECTURE](docs/ARCHITECTURE.md) 缺口表与 U-P005-1）。
 
 ---
 
@@ -224,7 +225,7 @@ uv sync
 - Python 3.10+
 - Core: numpy, pandas, scipy, matplotlib, seaborn
 - Optimization: cvxpy
-- Database: duckdb
+- Storage: JSON metadata + Parquet per factor (needs `pyarrow` or `fastparquet`; CSV fallback)
 - Validation: pydantic
 - Full list: [pyproject.toml](pyproject.toml)
 

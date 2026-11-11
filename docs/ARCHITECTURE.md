@@ -314,11 +314,12 @@ optimizer = PluginFactory.create("optimizer", "my_optimizer", config)
 | scipy | >=1.10.0 | 优化/统计 |
 | cvxpy | >=1.2.0 | 组合优化 |
 | pydantic | >=2.0.0 | 配置验证 |
-| duckdb | >=0.10.0 | 规划中的 Factor_DB 查询层（当前代码未使用） |
 | scikit-learn | >=1.3.0 | ML 模型 |
 | statsmodels | >=0.14.0 | 计量模型 |
 | matplotlib | >=3.7.0 | 可视化 |
 | plotly | >=5.14.0 | 交互图表 |
+
+> Factor_DB 的 DuckDB 查询层为规划方向，当前未声明依赖；Parquet 读写需 pyarrow 或 fastparquet（环境自带，未声明）。
 
 ### 9.2 可选依赖
 

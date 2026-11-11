@@ -93,7 +93,7 @@ def render() -> None:
 │  Execution  │  Risk Monitor(5D) │  Guard Pipeline     │
 ├──────────────────────────────────────────────────────┤
 │                     DATA LAYER                        │
-│  DataManager  │  Factor_DB(DuckDB)  │  Stock Filter   │
+│  DataManager  │  Factor_DB(Parquet) │  Stock Filter   │
 └──────────────────────────────────────────────────────┘
         """,
             language=None,
