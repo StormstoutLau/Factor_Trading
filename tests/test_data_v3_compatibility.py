@@ -75,15 +75,6 @@ class TestDataLoaderV3Compatibility(unittest.TestCase):
         self.assertEqual(slice_data["close"].shape, (20, self.n_stocks))
         np.testing.assert_allclose(slice_data["close"], self.close_df.values[10:30])
 
-    def test_to_data_manager_compatible(self):
-        """测试转换为 DataManager 兼容格式"""
-        dl = DataLoaderV3.from_pandas_dataframes(close=self.close_df)
-        compat = dl.to_data_manager_compatible()
-
-        self.assertTrue(isinstance(compat["close"], pd.DataFrame))
-        self.assertEqual(compat["close"].shape, (self.n_dates, self.n_stocks))
-        np.testing.assert_allclose(compat["close"].values, self.close_df.values)
-
     def test_save_load(self):
         """测试保存和加载"""
         import tempfile

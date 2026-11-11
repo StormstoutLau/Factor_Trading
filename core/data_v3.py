@@ -27,15 +27,13 @@ class DataLoaderV3:
         5. 向后兼容 DataManager 接口
     """
 
-    def __init__(self, data_dir: Optional[Path] = None, from_hdf5: bool = False):
+    def __init__(self, data_dir: Optional[Path] = None):
         """初始化数据加载器
 
         Args:
             data_dir: 数据目录（可选，用于文件加载）
-            from_hdf5: 是否从 HDF5 格式加载（预留）
         """
         self.data_dir = data_dir
-        self._from_hdf5 = from_hdf5
 
         # 核心数据结构 - NumPy 数组 (n_dates, n_stocks)
         self.price_data: Dict[str, np.ndarray] = {}  # 'open' / 'close' / 'high' / 'low' / 'volume'
@@ -54,20 +52,6 @@ class DataLoaderV3:
         self._asset_info: dict = {}
 
         logger.info("DataLoaderV3 初始化完成")
-
-    @classmethod
-    def from_data_manager(cls, dm) -> "DataLoaderV3":
-        """从现有 DataManager 创建 DataLoaderV3（兼容性构造器）
-
-        Args:
-            dm: DataManager 实例
-
-        Returns:
-            DataLoaderV3 实例
-        """
-        dl = cls()
-        dl._load_from_data_manager(dm)
-        return dl
 
     @classmethod
     def from_pandas_dataframes(
@@ -99,33 +83,6 @@ class DataLoaderV3:
         dl = cls()
         dl._load_from_pandas(close, open, high, low, volume, factor_dict, buyable, sellable)
         return dl
-
-    def _load_from_data_manager(self, dm) -> None:
-        """从 DataManager 加载数据（内部方法）"""
-        logger.info("从 DataManager 加载数据...")
-
-        # 加载价格数据
-        for price_type in ["close", "open", "high", "low"]:
-            df = dm.get_adj_price(price_type, "hfq")
-            self.price_data[price_type] = df.values
-            logger.debug(f"加载 {price_type} 数据: {self.price_data[price_type].shape}")
-
-        # 元数据
-        self.dates = df.index.values.astype(str)
-        self.stocks = df.columns.values.astype(str)
-        self.n_dates, self.n_stocks = self.price_data["close"].shape
-
-        # 构建索引映射
-        self._build_maps()
-
-        # 加载可交易掩码
-        if hasattr(dm, "universe"):
-            if hasattr(dm.universe, "buyable"):
-                self.mask_data["buyable"] = dm.universe.buyable.values
-            if hasattr(dm.universe, "sellable"):
-                self.mask_data["sellable"] = dm.universe.sellable.values
-
-        logger.info(f"DataLoaderV3 加载完成: {self.n_dates} 天 × {self.n_stocks} 股票")
 
     def _load_from_pandas(
         self,
@@ -206,20 +163,6 @@ class DataLoaderV3:
             索引或 None
         """
         return self.stock_map.get(stock)
-
-    def to_data_manager_compatible(self) -> dict:
-        """转换为 DataManager 兼容格式（用于兼容性）
-
-        Returns:
-            兼容字典
-        """
-        return {
-            "dates": self.dates,
-            "stocks": self.stocks,
-            "close": pd.DataFrame(self.price_data["close"], index=self.dates, columns=self.stocks),
-            "n_dates": self.n_dates,
-            "n_stocks": self.n_stocks,
-        }
 
     def save(self, path: Path) -> None:
         """保存到二进制文件

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol
 import numpy as np
 import pandas as pd
 
-from core.config import BacktestConfig, CostConfig, FactorConfig, UniverseConfig
+from core.config import CostConfig, FactorConfig, UniverseConfig
 
 if TYPE_CHECKING:
     from core.tracker import PortfolioSnapshot
@@ -432,29 +432,6 @@ class IReportGenerator(Protocol):
 # =============================================================================
 # 抽象基类（提供默认实现）
 # =============================================================================
-
-
-class AbstractDataManager(ABC):
-    """数据管理器抽象基类"""
-
-    def __init__(self, config: BacktestConfig):
-        self.cfg = config
-
-    @property
-    @abstractmethod
-    def trade_dates(self) -> pd.DatetimeIndex: ...
-
-    @property
-    @abstractmethod
-    def stock_codes(self) -> list[str]: ...
-
-    @abstractmethod
-    def get_adj_price(self, price_type: str, adjustment: str = "hfq") -> pd.DataFrame:
-        """获取复权价格 (raw/hfq/qfq；旧名 forward/backward/none 已弃用)"""
-        ...
-
-    @abstractmethod
-    def load_factor(self, name: str) -> pd.DataFrame: ...
 
 
 class AbstractUniverseFilter(ABC):
