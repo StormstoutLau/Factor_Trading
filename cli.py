@@ -234,7 +234,7 @@ def cmd_info(args: argparse.Namespace) -> None:
         print(f"  Test Files:   {len(test_files)}")
 
     # Key deps
-    deps = ["numpy", "pandas", "scipy", "cvxpy", "duckdb", "pydantic", "matplotlib"]
+    deps = ["numpy", "pandas", "scipy", "cvxpy", "pydantic", "matplotlib"]
     print(f"  Dependencies:")
     for dep in deps:
         try:
