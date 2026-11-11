@@ -3,7 +3,7 @@
 > **批次**: P-004 · T1
 > **上游**: [IMPL_p004_data_layer_unification.md](IMPL_p004_data_layer_unification.md)（T-1~T-7 / V1-V8）；[DESIGN_p004_data_layer_unification.md](DESIGN_p004_data_layer_unification.md)（D1-D6 / I1-I6）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`
-> **状态**: Step 7 完稿（零预填）→ **Step 9 实施完成（24/24 ✅，§2）**；Step 8 一致性 Review 见 §8
+> **状态**: Step 7 完稿（零预填）→ Step 9 实施完成（24/24 ✅，§2）→ **Step 10 ADD 审计通过（§9，P1=P2=P3=0）**；签字表 §10
 
 ---
 
@@ -109,3 +109,62 @@ Step 8 一致性 Review（§8）、Step 10 ADD 审计（§9）、RULE-5 复审�
 | （笔误） | P3 | IMPL T-1 标题「D5-R5 观察 1」ID 形态错误（D5 为 agents 直读决策，与 kind 白名单无关） | 已修：「DESIGN §9 观察 1」 |
 
 **Step 8 结论：通过**（0 P1 / 0 P2 / 3 P3 均已修；可进入 Step 9 实施）。
+
+---
+
+## 9. Step 10 ADD 审计
+
+**执行时点**: 2026-11-11，Step 9 完成、终态 `bb50009` 后单独执行（RULE-1 未与实施同一次写入）；**[RULE-4] 自查（单视角）**声明。审计对象 = B1/B2/B3 三实施提交（`3ddc895` / `8b72145` / `bb50009`）对照 DESIGN §4/§5 与 IMPL T-1~T-7。
+
+### 9.1 四阶段
+
+| 阶段 | 结果 |
+|------|------|
+| Phase 0 规格质量 | ✅ 六项决策均可证伪：D1（DI 探针可构造）/ D2（`aux_keys` 过滤可观测）/ D3（grep 计数可复核）/ D4（形参名序列断言）/ D5（agents 文件不在 diff）/ D6（`G7.json` 存在且参与参数化） |
+| Phase 1 完整性 | ✅ D1→`__init__` 注入 + `_build_provider`（data.py L37-46 / L80-109）；D2→`price_map`/`aux_map` 单一来源 + `_PRICE_KINDS` 三处引用；D3→六行删除清单逐项落地；D4→协议两处形参改名 + `universe_status` + `EXPECTED_SIGNATURES` 四签名；D5→`agents/` 零改动（出界登记兑现）；D6→golden 9 passed 含 G7 |
+| Phase 2 忠实度 | ✅ `git diff 6ab9561..bb50009 -- core/` 与 DESIGN §4.1-§4.3 逐条对应；变更面恰为 6 文件（`+134/−154`，无 factory/engine_v2/agents/examples）；6 个生产构造点零改动（I2） |
+| Phase 3 必要性 | ✅ 新增对象仅规格内四项（`_build_provider` / `_PRICE_KINDS` / `EXPECTED_SIGNATURES`+`test_protocol_signatures` / `_MockProvider`+DI 测试）；无新依赖；`from pathlib import Path` 随最后使用点（`_load_and_align_data` 形参）一并移除 |
+| Phase 4 语义 | ✅ 意图 = 数据层统一且零行为——B1 全量持平 635、golden G1-G7 数值不变、V8 外部对拍 28 断言 0 失败；两处已登记异常路径漂移（价格缺失文案 → pandas 原生 `FileNotFoundError` / `industry_file` falsy → 静默 None）均无测试与现实覆盖（DESIGN §4.1/§6 声明） |
+
+### 9.2 取证矩阵（RULE-6）
+
+| 取证手段（等级） | 覆盖项 | 结果 |
+|------------------|--------|------|
+| 全量 pytest 逐批（E1） | I1 / V1 / D-1 | ✅ 635（80.59s）→ 634（66.52s）→ **636**（74.25s） |
+| F5 红/绿探针 ×3（E1） | IMPL §8.2 | ✅ B1 `TypeError` / B2 `hasattr`×4 / B3 `2 failed` → 全绿 |
+| 行为探针 ×6（E1） | A-2 / A-3 / A-5 / A-6 / C-5 / B-4 | ✅ 默认值四项 / DI `['A','B']` / 五价格 / 原文案 / 关键字双调用 / `load()` 往返 |
+| golden 参数化（E1） | I5 / V2 / D-2 | ✅ 9 passed（G1-G7 数值/计数 + 集合完整性/schema） |
+| 外部对拍（E1） | V8 / D-5 | ✅ 28 断言（失败 0）+ 豁免 1，exit 0 |
+| 门禁 black/mypy（E1） | V5 / D-4 / B-4 | ✅ 110 files unchanged / 36 source files 0 issues |
+| 死 API grep（E1） | I6 / V6 / B-1~B-2 | ✅ 五词元 `--glob '*.py'` = 0 命中 |
+| 静态读码 @`bb50009`（E3） | A-1 / A-4 / A-5 / C-1~C-3 | ✅ 行锚逐条绑定（data.py L27/L87/L193-200/L232-246/L274-304/L353-397/L391/L483/L539；interfaces L47/L56/L70） |
+| diff 全文审读（E3） | Phase 2 / E-2 变更面 | ✅ 与规格逐字对应；6 文件无超纲 |
+| 盲区扫描（E4；范围 = B1 读取四路径 × B2 删除面 × B3 协议面 × 导入/docstring 残留） | 全组 | **发现 2 项观察**（§9.3），均不阻断 |
+| E5 推测 | — | 无 |
+
+### 9.3 E4 盲区观察（登记，不阻断）
+
+| # | 发现 | 处置 |
+|---|------|------|
+| 观察 1 | `data_v3.py` L27 类 docstring 仍声明「5. 向后兼容 DataManager 接口」——B2 删除兼容 API 后该声明失实（DESIGN §4.2 删除清单只列 `__init__` docstring 行，未列类 docstring；属规格外文档残留，零行为影响） | 登记；留 B4/后续文档批清理（审计期不改代码，避免出格变更） |
+| 观察 2 | `data.py` L14 `import pickle` 与 L16 `from functools import lru_cache` 为**删除前即存在**的未使用导入（`pickle.` / `lru_cache` 全文件 0 使用点）；本批 diff 未触及任何使用点，非本批引入；black/mypy 均不报 | 登记；属 TD-5 范畴零散清理，不并入本批 |
+
+### 9.4 审计结论
+
+**P1 = 0 / P2 = 0 / P3 = 0**；E4 发现 2 项观察（文档残留类，登记不阻断）。ADD 通过。
+
+---
+
+## 10. 签字表
+
+| 环节 | 状态 | 主体 | 日期 |
+|------|------|------|------|
+| Step 1-2 调研 + Review | 通过 | [RESEARCH §7-§8](RESEARCH_p004_data_layer_unification.md)（RULE-4 自查·单视角） | 2026-11-11 |
+| RULE-5 异构复审（调研稿） | pass | [RESEARCH §9](RESEARCH_p004_data_layer_unification.md)（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，3 P3 登记回写） | 2026-11-11 |
+| Step 3-4 设计 + Review | 通过 | [DESIGN §8](DESIGN_p004_data_layer_unification.md)（RULE-4 自查·单视角） | 2026-11-11 |
+| RULE-5 异构复审（设计稿） | pass | [DESIGN §9](DESIGN_p004_data_layer_unification.md)（0 P1，1 P2 cfg-falsy 守卫已修入 §4.1，1 P3 更正） | 2026-11-11 |
+| Step 5-6 实施规划 + Review | 通过 | [IMPL §7](IMPL_p004_data_layer_unification.md)（RULE-4 自查·单视角） | 2026-11-11 |
+| Step 7 验收清单 | 通过（零预填） | §1-§3（24 项，实测列全 `[待 Step 9]`） | 2026-11-11 |
+| Step 8 一致性 Review | 通过 | §8（机械校验 + 对齐矩阵 8 行；F-S8-P004-1/2 + 1 笔误已修） | 2026-11-11 |
+| Step 9 TDD 实施 | 完成 | [IMPL §8](IMPL_p004_data_layer_unification.md)（F5 红→绿三批 + 6 探针；CHECKLIST 24/24 ✅） | 2026-11-11 |
+| Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵；E4 2 观察登记） | 2026-11-11 |
