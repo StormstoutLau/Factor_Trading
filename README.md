@@ -4,7 +4,7 @@
 
 **[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)**
 **[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)**
-**[![Tests](https://img.shields.io/badge/Tests-507%20passed-brightgreen.svg)](tests/)**
+**[![Tests](https://img.shields.io/badge/Tests-636%20passed-brightgreen.svg)](tests/)**
 **[![CI](https://github.com/StormstoutLau/Factor_Trading/actions/workflows/tests.yml/badge.svg)](https://github.com/StormstoutLau/Factor_Trading/actions)**
 
 **专业量化回测框架  ·  Multi-Agent 投研  ·  五维风控  ·  Walk-Forward 分析**
@@ -95,7 +95,7 @@ python cli.py dashboard
 
 # 5. Run all tests
 python cli.py test
-# Output: 507 passed ✓
+# Output: 636 passed ✓
 ```
 
 ```python
@@ -193,7 +193,7 @@ Lightweight local factor storage：`metadata.json` 存元数据 + 每因子一�
 | 版本与血缘 | `FactorMetadata.version` / `parent_factors`；`get_lineage` |
 | 统计回写 | `update_stats(ic_mean/ic_std/ir/half_life/turnover)` |
 
-**能力边界**：无 SQL 查询层、无多源表（Price/Macro/Sentiment 等）、无并发写；多因子联合检索为内存过滤。SQL 查询层为**规划方向**（见 [ARCHITECTURE](docs/ARCHITECTURE.md) 缺口表与 U-P005-1）。
+**能力边界**：无 SQL 查询层、无多源表（Price/Macro/Sentiment 等）、无并发写；多因子联合检索为内存过滤。SQL 查询层为**规划方向**（见 [ARCHITECTURE](docs/ARCHITECTURE.md) 缺口表与 [U-P005-1](docs/RESEARCH_p005_factor_db_alignment.md)）。
 
 ---
 
@@ -260,7 +260,7 @@ MPLBACKEND=Agg python -m pytest
 ```
 
 `python -m pytest` reads `testpaths = ["tests"]` from `pyproject.toml`, so no path argument
-is needed. Current baseline: **507 passed** (Python 3.12.10, `MPLBACKEND=Agg`).
+is needed. Current baseline: **636 passed** (Python 3.12.10, `MPLBACKEND=Agg`).
 
 > `python cli.py test` wraps whatever `pytest` is on PATH. If `python` is not the
 > interpreter you installed into (see above), prefix the commands accordingly,
@@ -409,7 +409,7 @@ Factor_Trading_v3.0/
 │   └── cli.html                   # CLI-style interface
 ├── assets/                        # 静态资源 (架构图等)
 ├── examples/                      # 示例脚本 (7 files)
-├── tests/                         # 测试套件 (507 tests, 48 files)
+├── tests/                         # 测试套件 (636 tests, 71 files)
 ├── docs/                          # 文档 (9 files)
 ├── tools/                         # 工具脚本 (benchmark / audit / ui)
 ├── data/                          # 事件日志存储
@@ -438,7 +438,7 @@ Factor_Trading_v3.0/
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome!
 
 Areas where help is especially welcome:
 - New factor implementations
