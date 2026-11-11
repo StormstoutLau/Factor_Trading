@@ -29,9 +29,9 @@ TD-1 将数据层登记为「已规划未执行的迁移」：`core/data.py` 的
 | **P4** | **消费面已扩大**：以 `DataManager` 为词元的引用（含 `IDataManager`/`AbstractDataManager`/`MockDataManager`）共 **170 处 / 35 文件** = 生产 **62 / 16** + 测试 **108 / 19**（TD-1 报告 2026-08-15 读数为 38 = 12 + 26） | E1 `Grep -c 'DataManager' --glob '*.py'`（§4 读数 A/B） |
 | **P5** | **隐性耦合三处**：① `engine_v2.py:610` 以 `getattr(dm, "universe_status", {})` 消费，协议无此成员；② `agent_framework.py:967/977` 直接用 `dm.data_dir` 拼 `industry.pkl`/`mktcap.pkl`，绕过加载器；③ `filter/universe_filter_clean.py` 内 `dm.*` 访问 **38 行（53 处匹配）**，其中辅助/价格字段 **15 处**（`suspend`/`st`/`industry`/`mktcap`/`open`/`close`/`adj_factor`），依赖 P-010/P-012 的语义——**R5 复审更正**：初稿「38 处 / 18 处」为行/处混用与手工计数偏差 | E3 @`3af285a` [engine_v2.py](../core/engine_v2.py) L610；[agent_framework.py](../agents/agent_framework.py) L967/977；[universe_filter_clean.py](../filter/universe_filter_clean.py) L173-361 |
 | **P6** | **I/O 逻辑重复但语义分层不同**：`DataManager._load_price_data`（`:268-304`）做「cfg 文件映射 → `read_pickle` → DatetimeIndex → 日期过滤 → 列序对齐 → 缓存」；`PklDataProvider.load_price`（`:60-64`）只做「默认文件映射 → `read_pickle`」；**安全默认值只在 DataManager**（`:336-368`：suspend/st 缺失→全 0；industry/mktcap 缺失→None），provider 对所有缺失一律 None | E3 [data.py](../core/data.py) L253-311、L313-370；[data_provider.py](../core/data_provider.py) L60-73 |
-| **P7** | **协议面 8 vs 实现面 24，且签名不一致**：`IDataManager` 仅声明 8 成员；`tests/test_contract_conformance.py:27-36` 以 `EXPECTED_MEMBERS` 锁死集合。**R5 复审补发现**：协议 `get_adj_price(..., adjustment: str = "hfq")`（[interfaces.py](../core/interfaces.py) L51）与实现 `get_adj_price(..., adjustment_type: str = "hfq")`（[data.py](../core/data.py) L465-466）**形参名不同**——按协议关键字调用会 TypeError；`AbstractDataManager`（interfaces.py L452）沿协议名。生产全为位置调用未爆，mypy 对方法形参名不敏感故 0 errors | E3 [interfaces.py](../core/interfaces.py) L25-88、L437-457；[test_contract_conformance.py](../tests/test_contract_conformance.py) L26-36；[data.py](../core/data.py) L465-466 |
+| **P7** | **协议面 8 vs 实现面 24，且两处签名不一致**：`IDataManager` 仅声明 8 成员；`tests/test_contract_conformance.py:27-36` 以 `EXPECTED_MEMBERS` 锁死集合。**R5 复审补发现 + DESIGN 期补核**：① 协议 `get_adj_price(..., adjustment=...)`（interfaces.py L51）≠ 实现 `get_adj_price(..., adjustment_type=...)`（data.py L465-466）；② 协议 `load_factor(name)`（interfaces.py L63）≠ 实现 `load_factor(factor_file)`（data.py L521）。按协议关键字调用均会 TypeError；生产全为位置调用未爆，mypy 对方法形参名不敏感故 0 errors | E3 [interfaces.py](../core/interfaces.py) L25-88、L437-457；[test_contract_conformance.py](../tests/test_contract_conformance.py) L26-36；[data.py](../core/data.py) L465-466、L521 |
 | **P8** | **构造点 6 处**：`factory.py:123`（唯一工厂 lambda）、`engine_v2.py:205`（缺省回退 new）、`agent_framework.py:1219`、`multi_strategy_engine.py:510`、`examples/full_backtest_demo.py:255`、`examples/full_backtest_2020_2026_simple.py:69` | E1 `Grep 'DataManager\('` 后人工筛除协议/ABC/`Mock`/docstring 匹配（§4 读数 C） |
-| **P9** | **回归护栏充足**：`pytest tests` **635 passed**（`MPLBACKEND=Agg`）+ 6 份 golden 逐字节基线（G1-G6，P-013/P-014 落地）；无测试断言 DataManager 的「文件不存在」错误文案（改文案风险低） | E1 `pytest`（§4 读数 D）；E1 `Grep '价格文件不存在\|未知的价格类型'` = 0 测试命中 |
+| **P9** | **回归护栏充足**：`pytest tests` **635 passed**（`MPLBACKEND=Agg`）+ **7 份 golden 基线（G1-G7；G1-G6 由 P-013、G7 由 P-014 落地，`tests/test_golden_baseline.py` 参数化重放）**；无测试断言 DataManager 的「文件不存在」错误文案（改文案风险低） | E1 `pytest`（§4 读数 D）；E1 `Grep '价格文件不存在\|未知的价格类型'` = 0 测试命中；E3 `Glob tests/golden/*.json` = G1-G7 |
 
 ---
 
@@ -94,14 +94,14 @@ TD-1 将数据层登记为「已规划未执行的迁移」：`core/data.py` 的
 
 - **M-C 证伪**：`DataLoaderV3` 缺 5 类能力（P1/P3），且其唯一的 DataManager 兼容入口 `from_data_manager` 零调用（P2）——「合并到 V3」在现有 API 面不可达。
 - **M-B 不作为首批**：一次性改 6 生产 + 19 测试文件，与 P-012 六层归因「每次行为变更单独批次」的纪律冲突，且行为差异无法归因。
-- **M-A 路线首批为 B1**：只合并 I/O 实现，不动消费方；以 635 passed + 6 份 golden 逐字节作为零行为判据。
+- **M-A 路线首批为 B1**：只合并 I/O 实现，不动消费方；以 635 passed + 7 份 golden 数值不变作为零行为判据。
 - **M-D 否决**：不满足 P-004 判据（消费方迁移 / 旧实现删除）。
 
 **建议批次切分**（供 DESIGN 采纳）：
 
 | 批次 | 内容 | 行为 | 验收 |
 |------|------|------|------|
-| **B1** | `DataManager` 注入 `DataProvider`；价格/辅助/股票池读取改走端口；安全默认值/对齐/缓存留门面 | 零行为 | `635 passed` + golden 6 份逐字节不变 + 全链 `28 断言 + 豁免 1` |
+| **B1** | `DataManager` 注入 `DataProvider`；价格/辅助/股票池读取改走端口；安全默认值/对齐/缓存留门面 | 零行为 | `635 passed` + golden **G1-G7** 数值不变 |
 | **B2** | 删除 `DataLoaderV3` 死 API（`from_data_manager`/`_load_from_data_manager`/`to_data_manager_compatible`/`from_hdf5`）；`agent_framework` 两处 `data_dir` 直读改走端口 | 零行为 | 同上 + 死 API 引用归零 |
 | **B3** | 协议治理：`IDataManager` 与实现面对齐（至少纳入 `universe_status`；多资产成员按是否接线决定去留）；消费方类型标注迁移到协议 | 零行为 | 契约测试扩展通过；`mypy` 0 |
 | **B4（可选）** | 端口扩全（M-B 的存储侧），把 `returns`/`get_adj_price` 派生逻辑抽为纯函数供端口复用 | 零行为 | 同上 |

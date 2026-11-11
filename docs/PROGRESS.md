@@ -610,8 +610,10 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **方案判定**: **M-A**（`DataManager` 保留门面 + 注入 `DataProvider` 统一 I/O，删 V3 死 API）为首批；M-B（端口扩全 + 消费方迁移）后置独立批次；M-C 证伪；M-D 否决。建议 B1（端口注入，零行为）→ B2（删死 API + agents 直读改端口）→ B3（协议对齐）→ B4（可选扩全）
 - **Step 2 Review**: 通过（1 项 FALSIFIED 表述更正 + 1 项边界方向细化；不阻断）；未决项 U-P004-1~4 已登记
 - **RULE-5 异构复审（2026-11-11）**: **pass（0 P1 / 0 P2 / 3 P3 登记并已回写 + 3 观察）**——[RESEARCH_p004 §9](RESEARCH_p004_data_layer_unification.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 八项重放（170/35、62/16+108/19、72/14、死 API 零调用、pytest Agg **635 passed**（78.45s）六项复现；测试构造点与 filter 计数两项更正）；E2/E3 补扫：**F-R5-P004-2**（协议 `get_adj_price` 形参 `adjustment` ≠ 实现 `adjustment_type`，关键字调用 TypeError——契约测试只锁成员不锁签名，转入 B3 以实现签名为准修订 + 锁签名）+ `AbstractDataManager` 零消费方死代码（观察 1，转入 B2 清单）+ web docstring 词元澄清 + filter 非 clean 模块疑似孤儿（TD-5 范畴不并入）；F-R5-P004-1（测试构造点实测 **37 处/13 文件**）/ F-R5-P004-3（filter 38 行/53 匹配、辅助字段 15 处）均已回写；三大主结论（FALSIFIED / M-C 证伪 / M-A 路线）独立重放全部成立
+- **Step 3-4**: [DESIGN_p004](DESIGN_p004_data_layer_unification.md)——D1-D6 / I1-I6 / B1-B3 实现规格 / V1-V8 / 六项风险预案；Step 4 Review 通过。设计期补核发现**第二处协议签名不一致**（`load_factor(name)` ≠ 实现 `load_factor(factor_file)`，已回写 RESEARCH P7）；D5 主动收窄 RESEARCH B2：agents `data_dir` 直读**移出本批**（原样 pickle vs 对齐 DataFrame，非零行为）；D6 更正 golden 为 **7 份（G1-G7）**
+- **DESIGN RULE-5 异构复审（2026-11-11）**: **pass（0 P1 / 1 P2 已修入 §4.1 / 1 P3 已更正 / 3 观察已吸收）**——[DESIGN_p004 §9](DESIGN_p004_data_layer_unification.md)：复审基座 GLM-5.3-Flash ≠ 设计作者 DeepSeek-V4.1-Flash；E1 七项重放（四签名断言、B2 六处行锚、D5 证据、`load()` 无连锁全命中；`get_adj_price` 15 处消费调用复现 + 发现全仓唯一关键字自调用 data.py:455 补强论据）；**F-D-R5-P004-1（P2）**：§4.1 `_load_auxiliary_data` 规格缺 **cfg-falsy 守卫**——`mktcap_file` 默认 None → aux_map 过滤 → `load_aux` 走 provider `raise ValueError`，照初稿实现默认配置必崩（现状 = 跳过保持 None），已修入 §4.1 + §6 风险表；F-D-R5-P004-2（P3）：`load_factor` 计数 7→**9**（漏 examples 2 处）已更正；观察：kind 白名单三处硬编码（IMPL 以 `_PRICE_KINDS` 收敛）/ `industry_file` falsy 异常路径漂移（IsADirectoryError→静默 None，B4 统一）/ data.py:455 关键字自调用论据
 - **CI 回收**: 远端 run `42872934713`（@`997ffeb`，Step 1-2 + 复审回写提交）三 job **success**
-- **待办**: Step 3 DESIGN（须吸收复审两项转入项：B2 清单 + `AbstractDataManager`；B3 契约测试升级为「成员 + 签名」）
+- **待办**: Step 5 IMPL（T-1~T-n / V1-V8）；实现后按 B1→B2→B3 三次独立提交；必须按修正后规格实现（cfg-falsy 守卫 + `_PRICE_KINDS` + AbstractDataManager 删除 + 四签名契约测试）
 
 ---
 
