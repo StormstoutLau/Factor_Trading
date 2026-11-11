@@ -634,8 +634,9 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **Step 8 一致性 Review**: [CHECKLIST_p005 §8](CHECKLIST_p005_factor_db_alignment.md)——6 唯一链接 0 broken / 15=15 预填 / 对齐矩阵 7 行；**F-S8-P005-1（P3）**已修（web 等宽字符方向写反）
 - **Step 9 实施**: B1 `938f413` + B2 `fb94280`；F5 红 6 命中 → 绿 0；`info` 含 → 不含 duckdb；deps **26 → 25**；`636 passed`（76.41s）/ black 111 / mypy 36 files 0；**F-S9-P005-1~3（P3）**已修（架构图同列两 token / README 规划表述与 D-1 冲突 / ARCHITECTURE 注插错位）
 - **Step 10 ADD 审计**: [CHECKLIST_p005 §9](CHECKLIST_p005_factor_db_alignment.md)——Phase 0-4 全过 + 取证矩阵 10 类；**F-S10-P005-1（P2，`uv.lock` 仍锁 duckdb）已由 B3 修复（−44 行）**；F-S10-P005-2（P3，`DECISIONS` ADR-001 状态失真）已修；E4 3 观察（D-1 允许集修订 / U-P005-5 锁漂移 / PATH 解释器）；结论 P1=0 / P2=1 已修 / P3=4 已修；**15/15 ✅**
-- **CI 回收**: 远端 run [`43012172205`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43012172205) 三个 job **success**（3.10 1m51s / 3.11 1m53s / 3.12 1m22s）
-- **本批收口**: P-005 done；文档与依赖面收敛到实现真相且零行为；遗留 U-P005-1/2/4/5 未决项
+- **CI 回收**: 远端 run [`43012172205`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43012172205) 三个 job **success**（3.10 1m51s / 3.11 1m53s / 3.12 1m22s）+ 回填提交 run `43012554920` **success**
+- **RULE-5 异构复审（2026-11-11，全批）**: **pass（0 P1 / 0 P2 / 3 P3 登记 + 3 观察）**——[CHECKLIST_p005 §9.5](CHECKLIST_p005_factor_db_alignment.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 八项重放全复现（变更面 numstat / 红 6 行 grep / 绿 0 / deps 25+uv.lock 30 / **636 passed** 44.44s 复审自跑 / black 111 / mypy 0）；E2 红绿对照成立（旧 `cli.py` @`586e817` 落临时脚本重放 `info` 打印 `duckdb 1.5.3` ↔ 当前无）；E3 锚点全命中（`database.py` 7 def + `FactorMetadata` L36-40 五统计键与 README `update_stats(...)` 逐字吻合 / `query` 四参数逐字吻合 / RESEARCH P1-P9 重放）；**F-R5-P005-1（P3，IMPL T-1 引用行误为 ARCHITECTURE 中文行 + 「7 字符→7 字符」注记错）已回写**、**F-R5-P005-3（P3，RESEARCH 头部 §8 编号）已回写**、**F-R5-P005-2（P3，ARCHITECTURE L66-68 `Price数据/Macro/News/Alternative` 同源幻觉残留——grep 词元法不可见，Step 8/10 漏扫）登记留后续文档批 + U-P005-3 判据补强**；E4 观察 3 项（README 测试计数 507/48 files 与 ARCHITECTURE「489 个」漂移——实测 636，先于本批 / README L196 裸 ID 无链接 / uv.lock `provides-extras` TOML 子表探测注）
+- **本批收口**: P-005 done；文档与依赖面收敛到实现真相且零行为；遗留 U-P005-1/2/4/5 未决项 + F-R5-P005-2 幻觉残留（后续文档批）
 
 ---
 

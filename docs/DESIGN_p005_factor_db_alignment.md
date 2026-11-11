@@ -60,11 +60,13 @@
 **① L67 架构图**
 
 ```text
-│  │ Data Manager │  │ Factor_DB    │  │  Stock Filter (10种过滤器)        ││
-│  │ · Daily K    │  │ · Parquet    │  │  · 停牌/涨跌停/ST                ││
+│  │  │ Data Manager │  │ Factor_DB    │  │  Stock Filter                     ││ │
+│  │  │ · Daily K    │  │ · Parquet    │  │  · Suspended / Limit-up/down      ││ │
 ```
 
 `· DuckDB` → `· Parquet`（单 token 替换，其余列对齐不变）。
+
+> **F-R5-P005-1（RULE-5 复审更正，P3）**：上方示例初稿误引 `docs/ARCHITECTURE.md` 的中文图表行（`Stock Filter (10种过滤器)` / `· 停牌/涨跌停/ST`）；README.md L67 实为英文行（见 [IMPL T-1](IMPL_p005_factor_db_alignment.md) 更正后引用）。目标定位与替换 token 不受影响。
 
 > **F-S9-P005-1（Step 9 实施期发现，P3）**：同列另两 token `· Macro/News`、`· Alternative` 与 `database.py` 能力无对应（同源幻觉）→ 同批修正为 `· Metadata`、`· Lineage`（均等宽 13 字符）；本项为 D1「删幻觉」意图的同列延伸，超出本小节初稿的单 token 授权，已登记。
 

@@ -3,7 +3,7 @@
 > **批次**: P-005 · **T1**（Layer-1：`cli.py` 运行时输出 + `pyproject.toml` 打包声明；判档规则 2「不可判则升级」）
 > **上游**: [PROGRESS §1.4](PROGRESS.md) P-005（P3）；[RESEARCH_tech_debt_cleanup.md](RESEARCH_tech_debt_cleanup.md) TD-4
 > **代码证据时点**: HEAD `586e817`（2026-11-11，工作区干净）
-> **状态**: Step 1-2 完稿（含 Step 2 Review，§8）
+> **状态**: Step 1-2 完稿（含 Step 2 Review，§7）；§8 RULE-5 全批复审 pass（2026-11-11，见 CHECKLIST §9.5）
 
 ---
 
@@ -86,7 +86,7 @@ TD-4 原登记两件事：
 |----|------|----------|----------|----------|
 | **U-P005-1** DuckDB 存储迁移 | Factor_DB 出现 ≥1 个真实数据集且查询/并发成为可度量瓶颈（有基准读数） | 出现首个生产因子库数据集，或单次 `query()` 内存过滤耗时 >1s（可机械测量） | 不迁移；届时优先 E4 路径（DuckDB 直读 Parquet，零导入） | E1/E4 |
 | **U-P005-2** Factor_DB 实现缺陷（P7 四项） | 四项各有红→绿测试（静默覆盖 / csv 孤儿 / str-datetime / 双份存储） | 下一批次排期（P3；当前零数据，风险未现实化） | 独立立项修复，含 4 项 TDD | E3 |
-| **U-P005-3** 文档幻觉的修复面完整性 | 任一「文档幻觉」修复必须同时扫描 README / web / cli / ARCHITECTURE 四类表面 | 每次文档修正批次 Step 8 校验时 | 把「四处表面扫描」写入本批 CHECKLIST 模板项，供后续批次复用 | E4（本批实证：2026-10-23 只修了 ARCHITECTURE） |
+| **U-P005-3** 文档幻觉的修复面完整性 | 任一「文档幻觉」修复必须同时扫描 README / web / cli / ARCHITECTURE 四类表面 | 每次文档修正批次 Step 8 校验时 | 把「四处表面扫描」写入本批 CHECKLIST 模板项，供后续批次复用；**RULE-5 补强（F-R5-P005-2）**：图表 token 需逐格对照能力清单——`Grep` 词元法（如 `duckdb`）对不含该词元的幻觉不可见（实证：ARCHITECTURE L66-68 `Price数据/Macro/News/Alternative` 两轮扫描均漏） | E4（本批实证：2026-10-23 只修了 ARCHITECTURE） |
 | **U-P005-4** Parquet 可选引擎声明 | `pyproject.toml` 是否显式声明 `pyarrow`（或 extra） | 下一次打包相关批次 | 不声明（当前靠环境自带；CSV 回退可用）；在 README 写明前提 | E2 |
 | **U-P005-5** `uv.lock` 既有漂移 | `uv lock --check` 返回 0 | 下一次依赖维护批次 | 独立锁刷新（Step 10 实读：HEAD `fb94280` 时点已失败——锁内根项目仅 `provides-extras = ["dev"]`，缺 `web` extra；完整重建 +1207/−46 行，故本批只最小面移除 duckdb） | E1 |
 
@@ -122,4 +122,4 @@ TD-4 原登记两件事：
 
 ## 8. RULE-5 异构复审
 
-待用户指派后追加（先例：P-004 调研/设计各一轮）。
+调研稿单点复审未单独执行；**全批异构复审已执行（2026-11-11）**：复审基座 GLM-5.3-Flash ≠ 实施作者 DeepSeek-V4.1-Flash，E1-E4 独立重放——**pass（0 P1 / 0 P2 / 3 P3 登记 + 3 观察）**，完整记录见 [CHECKLIST_p005 §9.5](CHECKLIST_p005_factor_db_alignment.md)。F-R5-P005-1（IMPL T-1 / DESIGN §4.1① 引用行失真）与 F-R5-P005-3（本文件头部 §8 编号）已回写；F-R5-P005-2（ARCHITECTURE L66-68 `Price数据/Macro/News/Alternative` 同源幻觉残留）登记留后续文档批，U-P005-3 判据已补强。三大主结论（M-A / 不迁移 / 零行为）独立重放成立。

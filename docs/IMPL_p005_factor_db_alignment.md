@@ -31,9 +31,11 @@
 
 | 改前 | 改后 |
 |------|------|
-| `│  │ · Daily K    │  │ · DuckDB     │  │  · 停牌/涨跌停/ST                ││` | `│  │ · Daily K    │  │ · Parquet    │  │  · 停牌/涨跌停/ST                ││` |
+| `│  │  │ · Daily K    │  │ · DuckDB     │  │  · Suspended / Limit-up/down      ││ │` | `│  │  │ · Daily K    │  │ · Parquet    │  │  · Suspended / Limit-up/down      ││ │` |
 
-> 仅替换 `DuckDB` → `Parquet`（7 字符 → 7 字符，列宽不变）。
+> 仅替换 `DuckDB`(6 字符) → `Parquet`(7 字符)，行尾空格 5 → 4 补偿，总宽不变。
+>
+> **F-R5-P005-1（RULE-5 复审更正，P3）**：本行引用初稿误写为 `docs/ARCHITECTURE.md` 的中文图表行（`Stock Filter (10种过滤器)` / `· 停牌/涨跌停/ST`）且注记误写「7 字符 → 7 字符」；README L67 实际为上述英文行，`DuckDB`(6) → `Parquet`(7)。目标定位与替换 token 正确，仅引用文本失真（E1 红读数 `586e817:README.md:67` 为证）。
 
 ### T-2 README Factor_DB 章节整节替换（DESIGN §4.1②）
 

@@ -140,12 +140,59 @@ Step 8 一致性 Review（§8）、Step 10 ADD 审计（§9）、签字表（§1
 
 ---
 
+### 9.5 RULE-5 异构复审（2026-11-11，全批）
+
+**复审基座**: GLM-5.3-Flash ≠ 实施作者 DeepSeek-V4.1-Flash（RULE-5 异质性约束满足）；复审会话独立于实施会话，E1-E4 全部现场重放，不依赖文档自报；reviewer 只标记（单向权限），勘误回写为复审结束后的记录层修正（P-004「3 P3 登记并已回写」先例）。
+
+**E1 机械重放（全部复现）**
+
+| # | 断言 | 重放结果 |
+|---|------|----------|
+| 1 | HEAD/分支 | `420a320` = origin/master，工作区干净 |
+| 2 | CI | run `43012172205` + `43012554920` 双 **success**（`gh run list`） |
+| 3 | 提交面 | B1 `938f413` numstat **+17/−15**（README 14/13 + ARCH 2/1 + Overview 1/1）/ B2 `fb94280` **+1/−2** / B3 `e1bc656` **0/−44**——与 IMPL §7.1 一致 |
+| 4 | 红读数 | `git grep -i duckdb 586e817 -- README.md cli.py pyproject.toml web` = **6 行**（L67/L185/L227/L237/L36/L96）逐条复现 |
+| 5 | 绿读数 | 四表面 + 全仓 `*.py` / `pyproject.toml` / `uv.lock` = **0**；ARCHITECTURE 剩余 4 处均为规划/历史表述（L131/L290/L322/L351，D-1 允许集内） |
+| 6 | 依赖面 | `tomllib`：pyproject deps **25** 无 duckdb；uv.lock 根依赖 **30**、duckdb 包块 **0**、字符串 **0** |
+| 7 | 全量回归 | **636 passed, 152 warnings in 44.44s**（复审自跑，Agg + 项目解释器） |
+| 8 | 门禁 | black **111 files unchanged** / mypy **36 source files 0**（复审自跑） |
+
+**E2 运行时（红绿对照成立）**
+
+| 探针 | 结果 |
+|------|------|
+| 红：`git show 586e817:cli.py` 落临时脚本跑 `info` | 打印 `duckdb          1.5.3` ✓ |
+| 绿：当前 `cli.py info` | 无 duckdb，exit 0 ✓ |
+| `uv lock --check`（U-P005-5 判据） | 仍失败（exit 1）——锁根包 `metadata.provides-extras = ["dev"]` 缺 pyproject 的 `web` extra；失败与 duckdb 无关，B3 未留下 duckdb 形态的不一致 ✓ |
+
+**E3 静态读码（锚点全命中）**: README L66-69 图表 `Parquet/Metadata/Lineage` 与 L185-196/L228 能力表述 ↔ `factor_library/database.py` 逐字核验——7 个 `def`（L86/122/141/175/181/194/198）、`FactorMetadata` 统计字段 **L36-40 五键与 README `update_stats(ic_mean/ic_std/ir/half_life/turnover)` 逐字吻合**、`query` 四参数 L141-147 逐字吻合、`metadata.json` L79；ARCHITECTURE L131/L290/L322/L351；Overview L96；RESEARCH P1-P9 重放吻合（database.py **236 行** ✓ / P4 五处 ✓ / P8 零数据 ✓）；ID 闭环 U-P005-1×17 / -2×8 / -3×2 / -4×2 / -5×6、F-S8×3 / F-S9×8 / F-S10×8，0 悬空；七文件相对链接 **0 broken**。
+
+**复审发现**
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-R5-P005-1 | P3 | IMPL T-1 两处描述失真：① 改前/改后整行引用为 `ARCHITECTURE.md` 的中文图表行（`Stock Filter (10种过滤器)` / `· 停牌/涨跌停/ST`），README.md L67 实为英文行（`Stock Filter` / `· Suspended / Limit-up/down`），DESIGN §4.1① 示例同；② 注记「7 字符 → 7 字符」错误——`DuckDB`(6) → `Parquet`(7)，行尾空格 5→4 补偿（与 F-S8-P005-1 同类）。目标定位与替换 token 正确，零行为影响 | **回写更正**：IMPL T-1 + DESIGN §4.1① 引用实际行并注 F-R5-P005-1；CHECKLIST A-1 局部引号前缀亦差一组 `│  │`（随本项说明，判定不受影响） |
+| F-R5-P005-2 | P3 | `ARCHITECTURE.md` L66-68 图表 token `· Price数据 / · Macro/News / · Alternative` 与 `database.py` 能力不符（无多源表）——**F-S9-P005-1 同源幻觉的残留面**；`Grep -i duckdb` 词元法对不含该词元的幻觉不可见，Step 8/10 均漏扫；T-5 只声明不动 L131/L290，未覆盖图表区 | **登记，留后续文档批**（P-004 E4 观察 1 同处理，收口后不扩面）；U-P005-3 判据补强：图表 token 逐格对照能力清单 |
+| F-R5-P005-3 | P3 | RESEARCH 头部「含 Step 2 Review，§8」编号失准（Step 2 Review 实为 §7，§8 为本复审节） | **回写更正**（随本节落位一并修正） |
+
+**E4 盲区观察（登记，不阻断）**
+
+| # | 发现 | 处置 |
+|---|------|------|
+| 观察 1 | 测试计数漂移：README L7 badge `Tests-507` / L98 `507 passed ✓` / L263 `Current baseline: 507` / L412 `507 tests, 48 files`；ARCHITECTURE L3 `测试: 489 个`——实测 **636 passed** | 先于本批存在、出 P-005 声明面（Factor_DB 主题）；登记留后续文档批 |
+| 观察 2 | README L196 本批新增文本中 `U-P005-1` 为裸 ID 无链接，README 读者不可跳转（同句 ARCHITECTURE 缺口表链接可解析，主指针有效） | 登记；建议后续批补 RESEARCH 链接 |
+| 观察 3 | uv.lock 根包 `provides-extras` 位于 `[package.metadata]` 子表（TOML 语义），程序化探测须读 `root['metadata']['provides-extras']`——顶层读取会误报 None | 登记（U-P005-5 复核方法注） |
+
+**复审结论**: **pass**——0 P1 / 0 P2 / 3 P3 登记（F-R5-P005-1/3 文档勘误已回写、F-R5-P005-2 幻觉残留登记留后续批）+ 3 观察；RESEARCH 三大主结论（M-A 文档与依赖对齐 / 不迁移 DuckDB→U-P005-1 / 零行为）独立重放全部成立；ADD 审计结论（P2×1 已修 / P3×4 已修）维持。
+
+---
+
 ## 10. 签字表
 
 | 环节 | 状态 | 主体 | 日期 |
 |------|------|------|------|
 | Step 1-2 调研 + Review | 通过 | [RESEARCH §7](RESEARCH_p005_factor_db_alignment.md)（RULE-4 自查·单视角） | 2026-11-11 |
-| RULE-5 异构复审（调研稿） | 未执行 | [RESEARCH §8](RESEARCH_p005_factor_db_alignment.md)「待用户指派后追加」——本会话无第二异构基座 | — |
+| RULE-5 异构复审（全批） | pass | §9.5（基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1-E4 现场重放全复现；0 P1/P2，3 P3 登记——2 勘误回写 + 1 幻觉残留登记 + 3 观察） | 2026-11-11 |
 | Step 3-4 设计 + Review | 通过 | [DESIGN §7](DESIGN_p005_factor_db_alignment.md)（RULE-4 自查·单视角） | 2026-11-11 |
 | Step 5-6 实施规划 + Review | 通过 | [IMPL §6](IMPL_p005_factor_db_alignment.md)（RULE-4 自查·单视角） | 2026-11-11 |
 | Step 7 验收清单 | 通过（零预填） | §1-§3（15 项，实测列全 `[待 Step 9]`） | 2026-11-11 |
