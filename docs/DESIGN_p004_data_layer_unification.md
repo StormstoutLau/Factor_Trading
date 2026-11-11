@@ -22,7 +22,8 @@
 
 - **B4 端口扩全**（`returns`/`get_adj_price` 等派生进入端口）——U-P004-2 未裁决，且会改变端口语义；
 - **agents `data_dir` 直读迁移**（`agent_framework.py:967/977`）——`_industry_data` 现为**原样 pickle 对象**（注解 `pd.DataFrame` 但实际未归一化），改走 `dm.industry` 会引入对齐语义，非零行为；留 B4 单独取证（RESEARCH B2 建议在本设计中**主动收窄**，理由见 D5）；
-- filter/ 非 clean 孤儿模块（TD-5 范畴）；V3 引擎取价/掩码；P-005 DuckDB。
+- filter/ 非 clean 孤儿模块（TD-5 范畴）；V3 引擎取价/掩码；P-005 DuckDB；
+- **RESEARCH §6 B3 的两个扩展子项**：「多资产成员按是否接线决定去留」「消费方类型标注迁移到协议」——本批 B3（D4）收敛为两处形参对齐 + `universe_status` + 契约测试升级，上述两子项本批不裁决，留 B4 单独取证（**Step 8 补登**，F-S8-P004-2）。
 
 **能力边界**：不引入第二真实数据源；适配器可替换性只由 `MockDataProvider` 注入测试证明。
 
