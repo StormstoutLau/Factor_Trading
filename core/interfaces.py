@@ -44,27 +44,34 @@ class IDataManager(Protocol):
         ...
 
     @property
+    def universe_status(self) -> dict[str, Any]:
+        """股票池快照状态（报告字段；缺失时降级，P-012 D5）"""
+        ...
+
+    @property
     def returns(self) -> pd.DataFrame:
         """收益率矩阵"""
         ...
 
-    def get_adj_price(self, price_type: str, adjustment: str = "hfq") -> pd.DataFrame:
+    def get_adj_price(
+        self, price_type: str = "close", adjustment_type: str = "hfq"
+    ) -> pd.DataFrame:
         """获取复权价格
 
         Args:
             price_type: 价格类型 ('open' | 'high' | 'low' | 'close')
-            adjustment: 复权类型 ('raw' | 'hfq' | 'qfq'；旧名 forward/backward/none 已弃用)
+            adjustment_type: 复权类型 ('raw' | 'hfq' | 'qfq'；旧名 forward/backward/none 已弃用)
 
         Returns:
             价格DataFrame (dates x stocks)
         """
         ...
 
-    def load_factor(self, name: str) -> pd.DataFrame:
+    def load_factor(self, factor_file: str) -> pd.DataFrame:
         """加载因子数据
 
         Args:
-            name: 因子名称/文件名
+            factor_file: 因子文件名
 
         Returns:
             因子DataFrame (dates x stocks)

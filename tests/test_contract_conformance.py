@@ -28,6 +28,7 @@ EXPECTED_MEMBERS: dict[type, set[str]] = {
         "trade_dates",
         "stock_codes",
         "n_stocks",
+        "universe_status",
         "returns",
         "get_adj_price",
         "load_factor",
@@ -69,6 +70,14 @@ IMPLEMENTATIONS: dict[type, type] = {
     IFactorPipeline: FactorPipeline,
     IFactorCombiner: FactorCombiner,
     IExecutionSimulator: ExecutionSimulator,
+}
+
+# P-004 D4：协议与实现的形参名/顺序逐名等价（PEP 544 运行时擦除，mypy 不检查形参名）
+EXPECTED_SIGNATURES: dict[str, list[str]] = {
+    "get_adj_price": ["self", "price_type", "adjustment_type"],
+    "load_factor": ["self", "factor_file"],
+    "get_data_info": ["self"],
+    "get_asset_info": ["self", "symbol"],
 }
 
 
@@ -155,3 +164,38 @@ def test_universe_filter_layer_masks_member():
     """B1 新增的 get_layer_masks 已进入协议与实现。"""
     assert "get_layer_masks" in _public_members(IUniverseFilter)
     assert "get_layer_masks" in _public_members(UniverseFilter)
+
+
+def test_protocol_signatures():
+    """四方法形参名/顺序在协议与实现间逐名等价（P-004 D4 / V7）。"""
+    for name, expected in EXPECTED_SIGNATURES.items():
+        protocol_params = list(inspect.signature(getattr(IDataManager, name)).parameters)
+        impl_params = list(inspect.signature(getattr(DataManager, name)).parameters)
+        assert protocol_params == expected, f"{name} 协议形参漂移: {protocol_params}"
+        assert impl_params == expected, f"{name} 实现形参漂移: {impl_params}"
+
+
+class _MockProvider:
+    """DataProvider 端口最小实现（P-004 B1 DI 注入验收）。"""
+
+    def __init__(self, close: pd.DataFrame) -> None:
+        self._close = close
+
+    def load_price(self, kind: str) -> pd.DataFrame:
+        return self._close
+
+    def load_aux(self, kind: str) -> Any | None:
+        return None
+
+    def load_universe(self) -> Any | None:
+        return None
+
+
+def test_data_manager_accepts_injected_provider():
+    """注入 provider 后价格读取完全走端口（DI / V7）。"""
+    close = pd.DataFrame(
+        {"A": [1.0, 2.0], "B": [3.0, 4.0]},
+        index=pd.date_range("2020-01-01", periods=2),
+    )
+    dm = DataManager(BacktestConfig(), provider=_MockProvider(close))
+    assert list(dm.stock_codes) == ["A", "B"]
