@@ -2,7 +2,7 @@
 
 > **批次**: P-025 · **T1**（`core/` 行为契约 + 结果字典新增键）
 > **上游**: [DESIGN_p025](DESIGN_p025_daily_loop_exception_semantics.md)（D1-D7 / I1-I7 / V1-V12 / §10 Step 4 Review）
-> **状态**: Step 5 实施文档完稿（待 Step 6 Review）
+> **状态**: Step 5 完稿；**Step 6 Review 通过**（§6：1 P2 + 3 P3 回写 + 3 观察）
 > **代码证据时点**: HEAD `0636358`（2026-11-12，工作区干净）
 
 ---
@@ -136,6 +136,8 @@ class DayErrorCollector:
         self._records: list[DayErrorRecord] = []
         self._index: set[tuple[str, str, str, str, str]] = set()
         self._counts: dict[str, int] = {}
+        self._category_counts: dict[str, int] = {}  # 按 category 计数，不受明细上限影响（F-S6-P025-2）
+        self._first_raiseable: Optional[DayErrorRecord] = None  # 首条 raiseable 样本（防截断后取不到）
         self._truncated = False
 
     def record(self, date: Any, stage: str, exc: BaseException) -> Optional[DayErrorRecord]:
@@ -153,6 +155,9 @@ class DayErrorCollector:
                 retryable=retryable,
             )
             self._counts[rec.stage] = self._counts.get(rec.stage, 0) + 1
+            self._category_counts[rec.category] = self._category_counts.get(rec.category, 0) + 1
+            if rec.category in RAISE_CATEGORIES and self._first_raiseable is None:
+                self._first_raiseable = rec
             key = (rec.date, rec.stage, rec.category, rec.error_type, rec.message)
             if key in self._index:
                 return rec
@@ -182,6 +187,9 @@ class DayErrorCollector:
                 retryable=True,
             )
             self._counts[rec.stage] = self._counts.get(rec.stage, 0) + 1
+            self._category_counts[rec.category] = self._category_counts.get(rec.category, 0) + 1
+            if rec.category in RAISE_CATEGORIES and self._first_raiseable is None:
+                self._first_raiseable = rec
             key = (rec.date, rec.stage, rec.category, rec.error_type, rec.message)
             if key in self._index:
                 return
@@ -198,7 +206,7 @@ class DayErrorCollector:
         if self._mode == "off":
             return {"mode": "off"}
         degraded = self._truncated or any(
-            r.category in DEGRADED_CATEGORIES for r in self._records
+            self._category_counts.get(c, 0) > 0 for c in DEGRADED_CATEGORIES
         )
         return {
             "mode": self._mode,
@@ -212,10 +220,10 @@ class DayErrorCollector:
         """raise 模式：首个 data/internal 错误即抛（DESIGN §10 F-S4-P025-6 裁决）"""
         if self._mode != "raise":
             return
-        raiseable = [r for r in self._records if r.category in RAISE_CATEGORIES]
-        if not raiseable:
+        if not any(self._category_counts.get(c, 0) > 0 for c in RAISE_CATEGORIES):
             return
-        first = raiseable[0]
+        first = self._first_raiseable
+        assert first is not None  # 计数 > 0 与 first_raiseable 同分支顺序写入，恒成立
         err = RuntimeError(
             f"日级异常（{first.stage}/{first.error_type}，{first.date}）: {first.message}；"
             '需跳过该日请设 day_error_mode="report"'
@@ -279,14 +287,17 @@ from core.diagnostics import DayErrorCollector
 
 ```python
         # 日级异常旁路（P-025 D5）：None = 零行为变化
-        self._error_sink: Optional[Callable[[pd.Timestamp, str, BaseException], None]] = None
+        # 返回值注解为 object 而非 None：绑定的 self._diagnostics.record 返回
+        # Optional[DayErrorRecord]，mypy 对 Callable[..., None] 参数位不接受非 None 返回
+        # （F-S6-P025-1）；调用侧忽略返回值。
+        self._error_sink: Optional[Callable[[pd.Timestamp, str, BaseException], object]] = None
 ```
 
 **② 新增方法**（放在 `execute_order` 之前）：
 
 ```python
     def set_error_sink(
-        self, sink: Optional[Callable[[pd.Timestamp, str, BaseException], None]]
+        self, sink: Optional[Callable[[pd.Timestamp, str, BaseException], object]]
     ) -> None:
         """注入执行异常旁路（P-025 D5）；不影响成交语义（I5）"""
         self._error_sink = sink
@@ -320,9 +331,12 @@ from core.diagnostics import DayErrorCollector
 
 ```python
         # 执行异常旁路（P-025 D5）：仅真实 ExecutionSimulator 有该方法；
-        # 注入的 fake executor 保持零改动（零改动面：interfaces.py 不加抽象方法）
-        if hasattr(self.executor, "set_error_sink"):
-            self.executor.set_error_sink(self._diagnostics.record)
+        # 注入的 fake executor 保持零改动（零改动面：interfaces.py 不加抽象方法）。
+        # getattr 探测写法（F-S6-P025-1）：hasattr 后直接访问会触发 mypy
+        # 「IExecutionSimulator has no attribute set_error_sink」
+        sink_setter = getattr(self.executor, "set_error_sink", None)
+        if sink_setter is not None:
+            sink_setter(self._diagnostics.record)
 ```
 
 ### 4.6 T-4 `core/portfolio.py`（D6）
@@ -376,7 +390,7 @@ from core.diagnostics import DayErrorCollector
 | T4 | 明细上限 | 60 条不同 message | `len(samples)==50`；`truncated is True` |
 | T5 | `off` 零记录 | 单日注入日级异常 + `day_error_mode="off"` | `run()` 不抛；`run_diagnostics == {"mode": "off"}` |
 | T6 | `report` 模式 | 同 T5 + `"report"` | `degraded is True`；`counts["day_loop"]==1` |
-| T7 | `raise` 模式 | 同 T5 + `"raise"` | `pytest.raises(ExceptionGroup)`（3.11+；3.10 走 `RuntimeError` 分支，CI 3.10 job 覆盖） |
+| T7 | `raise` 模式 | 同 T5 + `"raise"` | 断言按 `sys.version_info` **分支**（F-S6-P025-4）：3.11+ `pytest.raises(getattr(builtins, "ExceptionGroup"))`（直接写 `ExceptionGroup` 名字在 3.10 收集期 NameError）；3.10 分支 `pytest.raises(RuntimeError)` |
 | T8 | 优化失败计量 | 80 交易日 fake + `OptimizerConfig(method="min_variance", cov_lookback=60)`（真优化器） | `counts["rebalance"] >= 1`；`degraded is True` |
 | T9 | setup 预检 | 4 交易日 fake + `method="min_variance"`（`cov_lookback` 默认 60） | `engine.setup()` → `RuntimeError` match=`必然失败` |
 | T10 | 方法名真值 | 纯函数 | `build_optimizer(OptimizerConfig(method="mean_variance"))` 是 `MeanVarianceOptimizer`；`method="bogus"` → `ValueError` match=`合法值` |
@@ -501,8 +515,47 @@ engine._process_trading_day = _boom_on_target   # → counts["day_loop"] == 1
 
 ---
 
-## 10. 待 Step 6 Review 核对的开放点
+## 10. Step 6 开放点（已全部关闭）
 
-1. §4.1 的 `classify_day_error` 是否覆盖 DESIGN D2 表全部「典型来源」（缺价格列 / 缺 universe 行 / 协方差奇异 / 整手取整为 0）。
-2. `run_diagnostics.counts` 的键是否只含阶段名（D4 文案约定），当前实现按 `rec.stage` 累加——`record_failure` 未接线不产生污染。
-3. T7 在 CI 3.10 job 的期望应为 `RuntimeError`（非 `ExceptionGroup`），测试需按 `sys.version_info` 分支断言。
+1. ~~classify_day_error 是否覆盖 D2 全部「典型来源」~~ → **已核对**：缺列/缺键（`KeyError/FileNotFoundError`）、日期不齐（`ValueError`，`day_loop` 下归 `data`）、协方差奇异（`LinAlgError`/类名匹配）、回看不足（`ValueError` 且 `rebalance` 归 `solver`）；「整手取整为 0」是 success=False 路径，F-S4-P025-3 已裁决本批不计量。
+2. ~~counts 键是否只含阶段名~~ → **已核对**：实现按 `rec.stage` 累加，`record_failure` 未接线不产生污染。
+3. ~~T7 在 3.10 的期望~~ → **已裁决回写**（F-S6-P025-4，见 §4.8 T7 行）。
+
+---
+
+## 11. Step 6 Review（实施文档幻觉抑制）
+
+> **执行方式**：IMPL 完稿后逐条核对设计对齐、版本存在性、签名可实现（RULE-1 时序独立；RULE-4 单 Agent）。
+> **核对基线**：HEAD `43cfa36`（IMPL 提交时点），全部代码锚点实查取证。
+
+### 11.1 检查表
+
+| # | 检查项 | 结论 |
+|---|--------|------|
+| 1 | 任务与设计一一对应 | ✅ T-1←D1/D2/D3、T-2←D4、T-3←D5、T-4←D6、T-5←D7、T-6←DESIGN §4.1 B4 行；无设计外任务 |
+| 2 | DESIGN ↔ IMPL 对齐 | ✅ I1→§4.3④（键恒存在）、I2→§4.3③（logger+continue 保留）、I3→§4.1（record 整体 try/except）、I4→off 首行短路、I5→sink 单向旁路、I6/I7→Step 9 验证；V1-V12 映射见 §8 |
+| 3 | 依赖版本真实存在 | ✅ 零新增三方依赖：numpy 既有；标准库 `builtins/sys/dataclasses/typing/logging` |
+| 4 | stdlib API 下限 | ✅ `getattr(builtins, "ExceptionGroup")` 仅在 `sys.version_info >= (3, 11)` 分支内触达（3.10 运行时无 AttributeError）；`frozenset` / `dataclass(frozen=True)` / `asdict` 全版本；mypy `python_version=3.10`（pyproject L106 实证）下无 name-defined（getattr 返回 Any） |
+| 5 | 签名可实现 | ✅ `set_error_sink` 落在具体类而非 Protocol（F-S5-P025-4）；`Callable/Optional` 在 execution.py L14 已导入（实查，无需新增导入行）；sink 注解 object 化（F-S6-P025-1 回写后闭环） |
+| 6 | 低效操作排除 | ✅ §6 表 9 项非空；正常路径（`run()` try 体 / `execute_order` 成交路径）零新增指令 |
+| 7 | 回退点 | ✅ §5 接口表 12 项签名+回退齐备；B1-B4 批次回退命令 + `day_error_mode="off"` 运行时退出闸 |
+| 8 | 红态可观测 | ✅ T5-T7 红 = `run_diagnostics` 键不存在（KeyError）；T8 红 = counts 键不存在；T9 红 = `DID NOT RAISE`；T10 红 = `is` 断言失败 + 缺 `ValueError` |
+| 9 | 导入副作用 | ✅ `diagnostics.py` 零 `core.*` 依赖（仅 numpy + stdlib）→ 无循环依赖；engine_v2 仅新增 1 条 import |
+| 10 | 行号/引用核对 | ✅ L344 invariant_mode / L335-L337 run catch / L915-L917 优化 catch / L1183 execution_stats / execution L175-L177 / L327-L329 / L277-L278 dumper / L240 build_optimizer / pyproject L106 / tests.yml L46 / fixture 行号（test_rebalance_exits L166-L187、L190-L215、L218-L222、L225-L234、L237-L239、L242-L261、L278-L281）全部实查命中 |
+| 11 | cvxpy 类名匹配（不 import 仅按 `__name__`） | ✅ `SolverError` / `DCPError` 为 cvxpy.error 公开异常名；匹配顺序 LinAlgError→类名→ValueError 无继承冲突（二者均非 ValueError 子类） |
+
+### 11.2 发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S6-P025-1** | **P2** | sink 注解 `Callable[[...], None]` 与绑定的 `record` 返回 `Optional[DayErrorRecord]` 在 mypy 下 incompatible（返回类型非 None 不被 None 参数位接受）→ V10/CI 门禁必红；且 `hasattr` 探测后直接 `self.executor.set_error_sink(...)` 会报 `IExecutionSimulator has no attribute set_error_sink`（静态类型为 Protocol，hasattr 不收窄） | ✅ 已回写 §4.4①②（注解改 `object`）+ §4.5②（`getattr(executor, "set_error_sink", None)` 探测写法） |
+| **F-S6-P025-2** | P3 | `raise_if_needed` / `degraded` 判定基于截断后的 `_records`（≤50 条）：≥50 条 execution 类之后出现的 internal 会漏抛/漏标（raise 语义失效但不违反 I3） | ✅ 已回写 §4.1（新增 `_category_counts` 计数器 + `_first_raiseable` 样本引用，判定改基于计数） |
+| **F-S6-P025-3** | P3 | DESIGN D4 代码形态缺现状 `logger.error` 行（与 DESIGN §4.3 文案约定「现状 error 保持不变」矛盾）；IMPL §4.3③ 初稿已正确保留 | ✅ 已回写 DESIGN D4 代码块补 `logger.error`（IMPL 方向正确，DESIGN 对齐） |
+| **F-S6-P025-4** | P3 | T7 若直接写 `pytest.raises(ExceptionGroup)`，在 CI 3.10 job 收集期即 NameError（3.10 无该内置名） | ✅ 已回写 §4.8 T7 行（按 `sys.version_info` 分支断言）；关闭 §10 开放点 3 |
+| 观察-1 | — | T8 fixture 若沿用原版全零 returns，`_ledoit_wolf_shrinkage` 的 `kappa=(pi-rho)/gamma` 在 gamma=0 时 ZeroDivisionError（混入 internal 类失败记录）；T8 断言（`>=1` + degraded）不受影响 | 落码时 fixture 用非全零收益，避免噪声 |
+| 观察-2 | — | `record_failure` 无测试覆盖 | 维持 F-S5-P025-2 裁决（实现不接线、不单独测试） |
+| 观察-3 | — | execution.py 导入行零改动（`Callable/Optional` 已在 L14）——IMPL 未单列导入 diff，实查确认无需改动 | 登记（对照 P-023 F-S6-P023-1 同类项） |
+
+### 11.3 结论
+
+**通过**——0 P1 / 1 P2（已回写）/ 3 P3（全部回写）/ 3 观察（1 项落码时采纳、2 项登记）；§10 开放点 3 项全部关闭。可进入 Step 7 验收清单（CHECKLIST）。

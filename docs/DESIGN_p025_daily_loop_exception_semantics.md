@@ -120,12 +120,13 @@ class DayErrorCollector:
                     self._refresh_last_nav(date)
             except Exception as e:
                 self._diagnostics.record(date, "day_loop", e)
+                logger.error(f"处理交易日 {date} 时发生错误: {e}")
                 if self.cfg.day_error_mode == "raise":
                     self._diagnostics.raise_if_needed()
                 continue
 ```
 
-**要点**：`off` 模式下 `record` 立即返回并不分配记录（零开销）；`raise` 分支在首个 `internal`/`data` 错误处即抛出（首错即抛语义——Step 4 F-S4-P025-6 裁决：D1 原文「聚合全部」与就地调用 `raise_if_needed` 的代码形态矛盾，统一为单错即抛，E1）。
+**要点**：`off` 模式下 `record` 立即返回并不分配记录（零开销）；`raise` 分支在首个 `internal`/`data` 错误处即抛出（首错即抛语义——Step 4 F-S4-P025-6 裁决：D1 原文「聚合全部」与就地调用 `raise_if_needed` 的代码形态矛盾，统一为单错即抛，E1）。（Step 6 F-S6-P025-3 回写：代码形态补回现状 `logger.error` 行，保 I2 日志行为不变。）
 
 **`run_diagnostics` 结构**（写入 `additional_info`，只增不改 P11 的 10 键）：
 
