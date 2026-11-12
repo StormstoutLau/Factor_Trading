@@ -183,6 +183,20 @@ Raw Factor → [Winsorize] → [Fill Missing] → [Neutralize] → [Standardize]
 | **EventLog** | JSONL persistence + ring buffer + subscription/query |
 | **Plugin System** | Registry + Factory + auto-registration decorators |
 
+### 🩺 Run Diagnostics（P-025）
+
+每次回测结果 `additional_info["run_diagnostics"]` 都会记录日级异常（日循环 / 组合优化 / 订单执行三处统一汇入），按 `(阶段, 异常类型)` 分为 `data` / `execution` / `solver` / `internal` 四类：
+
+| 字段 | 含义 |
+|------|------|
+| `mode` | `off` / `report`（默认）/ `raise` |
+| `degraded` | 存在 `data`/`solver`/`internal` 类错误（`execution` 属业务可恢复，不计入） |
+| `counts` | 按阶段计数（`day_loop` / `rebalance` / `execution`），不受明细上限影响 |
+| `samples` | 最多 50 条明细（日期 / 阶段 / 类别 / 异常类名 / 截断 200 字符的消息 / 可重试标记） |
+| `truncated` | 明细超过 50 条被截断 |
+
+策略由 `BacktestConfig.day_error_mode` 控制（与 `invariant_mode` 同形）：`off` 零分配、`report` 记录并继续（默认）、`raise` 首个 `data`/`internal` 错误即抛 `ExceptionGroup`（3.11+）。另：协方差类优化方法在 `交易日数 ≤ cov_lookback` 时 `setup()` 直接抛错（不再产出 0 成交的假成功结果）。
+
 ### 🗄️ Factor_DB (Parquet · ⚠️ 骨架)
 
 Lightweight local factor storage：`metadata.json` 存元数据 + 每因子一个 `.parquet` 文件（`pyarrow`/`fastparquet` 不可用时降级 `.csv`）：

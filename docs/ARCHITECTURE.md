@@ -1,6 +1,6 @@
 # Factor Trading v3.2 · 架构文档
 
-> 版本: v3.2.0 | 最后更新: 2026-11-12 | 测试: 654 个 | 核心模块: 28 个
+> 版本: v3.2.0 | 最后更新: 2026-11-13 | 测试: 671 个 | 核心模块: 27 个（口径 = §3.1 表行数）
 > 权威来源: 本文件是项目架构的唯一权威文档，替代所有旧版架构分析文件。
 
 ---
@@ -76,6 +76,8 @@ Factor Trading v3.0 是专业的 A 股量化回测框架，从 Backtest_Opus_2.0
 
 ### 3.1 核心引擎层 (`core/`)
 
+> 头部「核心模块」计数 = 本表行数（不含 `__init__.py` 与未列出的辅助模块；`core/` 目录下 `.py` 文件总数另计）。
+
 | 模块 | 文件 | 行数(约) | 职责 | 状态 |
 |------|------|---------|------|------|
 | **Engine V2** | `engine_v2.py` | 900+ | 主引擎，依赖注入 + 插拔式架构 | ✅ 活跃 |
@@ -98,6 +100,7 @@ Factor Trading v3.0 是专业的 A 股量化回测框架，从 Backtest_Opus_2.0
 | **Guard Pipeline** | `guard_pipeline.py` | 200+ | 事前安全检查链 (仓位/回撤/冷却/换手/集中度) | ✅ 活跃 |
 | **Event Log** | `event_log.py` | 200+ | JSONL 持久化 + 内存环形缓冲区 + 订阅/查询 API | ✅ 活跃 |
 | **Plugin System** | `engine_plugins.py` | 200+ | Registry + Factory + 自动注册装饰器 | ✅ 活跃 |
+| **Diagnostics** | `diagnostics.py` | 150+ | 日级异常四分类（data/execution/solver/internal）+ 采集/去重/上限 + `run_diagnostics` 载荷（P-025） | ✅ 活跃 |
 | **Interfaces** | `interfaces.py` | 300+ | 全部核心接口 Protocol 定义 (IDataManager 等) | ✅ 活跃 |
 | **Factory** | `factory.py` | 100+ | 回测引擎工厂方法 | ✅ 活跃 |
 | **Walk-Forward** | `walk_forward.py` | 200+ | 窗口分割器 (Rolling/Expanding + Purge Gap) | ✅ 活跃 |
