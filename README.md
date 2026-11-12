@@ -217,7 +217,7 @@ docker compose run --rm backtest
 ### uv
 
 ```bash
-uv sync
+uv sync --all-extras
 ```
 
 ### Requirements
