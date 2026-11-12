@@ -230,7 +230,7 @@
 ## 11. RULE-5 异构复审（独立会话）
 
 > **复审基座**: **GLM-5.3-Flash** ≠ 作者 DeepSeek-V4.1-Flash（异构成立）
-> **复审时点**: 2026-11-12，复审基线 HEAD `02a7bdd`（工作区干净）
+> **复审时点**: 2026-11-12，复审基线 HEAD `02a7bdd`（工作区干净）；复审记录提交 `cefbaa2`，复审 CI run [`43199218328`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43199218328) 三 job success（回填提交自身 run 不计入验收证据）
 > **复审方式**: E1 机械重放 + E2 红绿对照 + E3 独立脚本静态校验（`%TEMP%\r5_p024_e3_check.py`，**不复用作者脚本**）+ E4 盲区扫描
 
 ### 11.1 E1 机械重放
