@@ -61,6 +61,7 @@
 | P-005 | TD-4：Factor_DB 存储迁移 / 文档对齐（DuckDB 为规划方向） | `docs/RESEARCH_tech_debt_cleanup.md` TD-4；2026-11-10 复核代码仍零 `import duckdb`（仅 docs 提及）；**宜排 P-004 之后**——接口未统一前迁移会波及两套实现；无外部触发 | **done（2026-11-11，Step 1-10 全通过）**：B1 文档对齐 `938f413`（README 架构图 3 token + Factor_DB 章节整节重写 + Requirements；web Overview；ARCHITECTURE 依赖表删行补注）/ B2 依赖与 CLI `fb94280`（`pyproject` 去 `duckdb>=0.10.0`、`cli info` 去 duckdb）/ B3 `uv.lock` −44（Step 10 P2 补丁）；四表面 `Grep -i duckdb` **6 → 0**、`info` 无 duckdb、deps **26 → 25**；终态 **`636 passed`** / black 111 / mypy 36 files 0；Step 8 1 P3 + Step 9 3 P3 + Step 10 P2×1/P3×1/E4 3 观察均登记；CI run `43012172205` 三 job success；不迁移决策登记 U-P005-1（新增 U-P005-5 锁漂移）；四文档 [RESEARCH](RESEARCH_p005_factor_db_alignment.md) / [DESIGN](DESIGN_p005_factor_db_alignment.md) / [IMPL](IMPL_p005_factor_db_alignment.md) / [CHECKLIST](CHECKLIST_p005_factor_db_alignment.md) | P3 |
 | **P-020** | **文档一致性收尾（P-005 复审残留 + 计数漂移）** | P-005 RULE-5 §9.5 **F-R5-P005-2**（`ARCHITECTURE.md` L66-68 `Price数据/Macro/News/Alternative` 与 `database.py` 能力不符）+ E4 观察 1/2（README 4 处 `507`、ARCHITECTURE L3 `489` vs 实测 636；README L196 裸 ID）；**T3**（Layer-0 纯文档订正，零代码 / 零门禁） | **done（2026-11-11，T3 轻批）**：ARCHITECTURE 三 token → `Metadata/Lineage/Stats`（列宽 14 不变）+ L3/L269 测试数 → 636；README badge / L98 / L263 / L412 → 636（71 files）+ L196 补 U-P005-1 链接 + L441 移除不存在的 `CONTRIBUTING.md` 链接；PROGRESS 补登 U-P005-1/2/4/5；`636 passed` / black 111 / mypy 0 / 链接 0 broken；CI run `43019737462` 三 job success；执行记录 §3.24 | P3 |
 | **P-021** | **依赖与锁维护（U-P005-4 / U-P005-5）** | P-005 RULE-5 E4 观察 2（`uv lock --check` 失败——锁根包 `provides-extras` 缺 `web`）+ U-P005-5；U-P005-4（`pyarrow`/`fastparquet` 是否显式声明）；**T1**（`uv.lock` 真值面，判档规则 2 保守升级） | **done（2026-11-12，Step 1-10 全通过）**：B1 `2245962`（plain `uv lock` `+1207/−2`：extras `["dev","web"]`、新增 19 包、既有 pin changed 0 / duckdb 0、修正旧锁 black specifier `>=23.0.0→~=26.0`）/ B2 `6c4adb5`（`ARCHITECTURE` §9.2 三行真值 + 三条锁纪律）/ B3 docs；`uv lock --check` **1 → 0**、`uv export --frozen` exit 0（325 行）；**636 passed** / black 111 / mypy 36 files 0；`pyproject.toml` 零改动；U-P005-4 结案（不显式声明，文档写明前提 + CSV 回退）/ U-P005-5 结案（实测 `+1207/−2`，原估 −46 偏差已注）；**RULE-5 异构复审 pass**（GLM-5.3-Flash ≠ 作者，E1-E4 重放全复现；0 P1/P2，4 P3 回写 + 2 观察）；CI run `43167039277` + 回填 `43167328785` 三 job success；四文档 [RESEARCH](RESEARCH_p021_dependency_lock_maintenance.md) / [DESIGN](DESIGN_p021_dependency_lock_maintenance.md) / [IMPL](IMPL_p021_dependency_lock_maintenance.md) / [CHECKLIST](CHECKLIST_p021_dependency_lock_maintenance.md) | P3 |
+| **P-022** | **Factor_DB 四项实现缺陷（U-P005-2）** | P-005 P7 静态读码四项；本批 Step 1 探针全部复现，且**缺陷③升级为确定性崩溃（P1）**：重开数据库后 `add_factor`/`update_stats`/双因子 `delete_factor` 均 `AttributeError`；缺陷①静默覆盖、②删除复活为数据完整性（P2）；④双份存储（P3）；**T1**（`factor_library/` 行为变更 + 4 组红绿测试） | **done（2026-11-12，Step 1-10 全通过）**：B1 `9c50bcd`（加载期 datetime 解析）/ B2 `ec21dc5`（覆盖守卫 = metadata ∪ 内存 ∪ 两种文件）/ B3 `9ffbfde`（删除同时清 parquet+csv）/ B4 `1550e63`（写入后单一格式）/ B4b `59e1273`（black）；逐批红 4/2/2/2 → 绿 11；**647 passed**（636+11，44.46s）/ black 112 unchanged / mypy 36 files 0；7 个公开方法与 `FactorMetadata` 字段 AST **完全相等**；`batch_backtest`/`pyproject` 零改动；ADD P3×1 已记录 + U-P022-4 登记；RULE-5 待异构基座会话；四文档 [RESEARCH](RESEARCH_p022_factor_db_defects.md) / [DESIGN](DESIGN_p022_factor_db_defects.md) / [IMPL](IMPL_p022_factor_db_defects.md) / [CHECKLIST](CHECKLIST_p022_factor_db_defects.md) | **P1** |
 | U-006-R | mypy 盲区残差重评（`mypy core --check-untyped-defs` 现存 4 errors 2 files） | P-007 Q4=B 裁决挂起（§3.13）；**重评前置已满足**——§3.14 硬约束 4「U-006 在 L5 之后重评」的 L5 接口治理已随 P-012 B6 完成；残差实测 8 → 4 errors 2 files（P-012/P-011 实施后）；**T3**（评估决策 + 可选小修，零行为） | pending（前置解除） | P3 |
 | F-A1(P-012) | 注入式工作流未注入信号 → 静默空回测（空因子/空信号时引擎无输出无告警） | P-012 CHECKLIST §11 P3 发现；期望 fail-fast 或显式 warning；注意 P-007 层 B 已有「空因子 fail-fast」行为（`05af52f`），需核对是否已覆盖该场景后再定修法；**T3**（小修 + 1 测试） | pending | P3 |
 | U-D1(P-011) | golden 全局基线固化（L4 判据） | P-011 U-D1 设计裁决挂起；**硬约束「先改口径、后固 golden」已满足**——复权三口径/掩码/退市均已随 P-012 落地且 RULE-5 复审确认无未归因行为；**T1**（基线固化 + manifest 绑定） | **done（2026-11-10 由 P-013 承接**，见下） | **P2** |
@@ -75,7 +76,11 @@
 | U-D3(P-011) | trace 采样/保留策略 | P-011 U-D3 挂起；触发=长区间/全市场 trace（体积 > 500 MB） | pending（条件触发） | P3 |
 | U-2(P-011) | DSR/PBO 多重检验校正 | P-011 RESEARCH U-2 裁决：S-B 方案挂起至对外发布需求——无 trials log 则 DSR/PBO 无数据可算；触发=对外发布因子结论或建立 trials 记录 | pending（条件触发） | P3 |
 | U-P005-1 | Factor_DB DuckDB 存储迁移（条件触发） | [RESEARCH_p005 §5](RESEARCH_p005_factor_db_alignment.md) 四元块；触发 = 首个生产因子库数据集，或单次 `query()` 内存过滤 >1s（可机械测量）；届时优先 DuckDB 直读 Parquet（零导入） | pending（条件触发） | P3 |
-| U-P005-2 | Factor_DB 四项实现缺陷（静默覆盖 / csv 孤儿 / str-datetime / 双份存储） | [RESEARCH_p005 P7](RESEARCH_p005_factor_db_alignment.md)；HEAD 复核四项仍在（`database.py` L77-84 / L101-112 / L198-210）；零数据 → 风险未现实化；修复含 4 组红绿测试，`add_factor` 语义变严 | pending（可排期） | P3 |
+| U-P005-2 | Factor_DB 四项实现缺陷（静默覆盖 / csv 孤儿 / str-datetime / 双份存储） | [RESEARCH_p005 P7](RESEARCH_p005_factor_db_alignment.md)；HEAD 复核四项仍在（`database.py` L77-84 / L101-112 / L198-210）；零数据 → 风险未现实化；修复含 4 组红绿测试，`add_factor` 语义变严 | **done（2026-11-12 由 P-022 承接）**：四项全修；缺陷③由「类型漂移」重估为「写后重开崩溃（P1）」；新增 11 项回归测试；**647 passed** | P3 |
+| U-P022-1 | `_save_metadata` 原子写（tmp + os.replace） | [RESEARCH_p022 §6](RESEARCH_p022_factor_db_defects.md)；当前为非原子 `open(..., "w")` | pending（条件触发：并发写 / 写中断事故） | P3 |
+| U-P022-2 | `get_factor` 返回副本（防调用方污染缓存） | [RESEARCH_p022 P10](RESEARCH_p022_factor_db_defects.md)；当前命中缓存时返回内部 DataFrame | pending（条件触发：缓存污染事故 / 新增写消费方） | P3 |
+| U-P022-3 | 非 `ImportError` 写入失败的清理 | [RESEARCH_p022 §6](RESEARCH_p022_factor_db_defects.md)；`ArrowInvalid` 等异常会留下半成品文件 | pending（条件触发：真实引擎异常样本） | P3 |
+| U-P022-4 | `overwrite=True` 保留 `created_at` | [RESEARCH_p022 §6](RESEARCH_p022_factor_db_defects.md)；探针证实覆盖会重置创建时间（血缘/审计丢失） | pending（条件触发：按创建时间排序 / 审计需求） | P3 |
 | U-P005-4 | Parquet 可选引擎声明（`pyarrow`/`fastparquet`） | [RESEARCH_p005 §5](RESEARCH_p005_factor_db_alignment.md)；当前不声明，README 写明前提 + CSV 回退 | **done（2026-11-12 由 P-021 承接）**：决定**不显式声明**（保持核心依赖最小面）；`ARCHITECTURE §9.2` 写明「未声明；缺失时降级 CSV」；锁内 `pyarrow` 仅经 streamlit（`[web]` extra）传递出现 | P3 |
 | U-P005-5 | `uv.lock` 既有漂移（`uv lock --check` 失败） | [RESEARCH_p005 §5](RESEARCH_p005_factor_db_alignment.md)；锁内根包 `metadata.provides-extras` 缺 `web` extra；原估完整重锁 `+1207/−46` 行 | **done（2026-11-12 由 P-021 承接）**：plain `uv lock` 实测 **`+1207/−2`**（既有 pin 全部保留，仅 2 行元数据更新：extras + black specifier）；`--check` exit 1 → 0；120 → 148 包（新增 19） | P3 |
 | U-P021-1 | CI 增加 `uv lock --check` 门禁 | [RESEARCH_p021 §6](RESEARCH_p021_dependency_lock_maintenance.md)；CI 当前 `pip install ".[dev]"`，锁不参与安装；本地 `--check` 已归零但不约束提交 | pending（条件触发：锁再次漂移或引入 uv 安装路径） | P3 |
@@ -124,6 +129,7 @@
 > **映射说明**: U-002 由 P-006 关闭；U-003 作为 P-001 Step 1 的输入，不单独占工作流。
 > **已关闭（2026-11-09，P-006）**: U-002 —— [DECISIONS.md](DECISIONS.md) 出现 ADR-016（§决策状态说明前，TD-1.2 轻量子包化）；三处代码引用保留（E1 `git grep -n "ADR-016"` = 代码 3 处 + DECISIONS 条目）。
 > **已关闭（2026-11-12，P-021）**: U-P005-4 / U-P005-5 —— `uv.lock` plain 重建（`--check` exit 1 → 0，`+1207/−2`）且 Parquet 引擎维持「不显式声明」；实测与决策详见 §3.25。
+> **已关闭（2026-11-12，P-022）**: U-P005-2 —— Factor_DB 四项缺陷全部修复（B1-B4），重开写入崩溃 / 静默覆盖 / 删除复活 / 双份存储均转绿；详见 §3.26。
 
 ---
 
@@ -672,6 +678,18 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **CI 回收**: B3 `0e0d594` 触发 run [`43167039277`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43167039277) 三 job **success**（3.10 1m54s / 3.11 1m11s / 3.12 1m30s）；回填提交 `4fd65ea` 触发 run [`43167328785`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43167328785) 三 job **success**（3.10 1m14s / 3.11 1m9s / 3.12 1m55s）
 - **RULE-5 异构复审（2026-11-12，全批）**: **pass（0 P1 / 0 P2 / 4 P3 登记 + 2 观察）**——[CHECKLIST_p021 §11](CHECKLIST_p021_dependency_lock_maintenance.md)：复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；E1 十一项重放全复现（CI 双 run / numstat 四笔 / `--check` 0 / export 325 行 / tomllib 对拍 120→148 + changed 0 + added 19 / **636 passed** 43.40s 复审自跑 / black 111 / mypy 0 / 保护面空）；E2 红绿对照闭合（旧锁字节级落临时目录 exit 1 → 同目录 relatch 后 exit 0）；E3 锚点全命中 + 四文档链接 0 broken / ID 闭环；**F-R5-P021-1（RESEARCH 头部 §7 编号）/ -2（§3.1 沿用锚点计数 3→2）/ -3（纪律条数口径 2↔3 子句）/ -4（回填 run 43167328785 未登记）均 P3 已回写**；E4 2 观察；复审记录提交 `89c4f68` run `43169697196` 三 job success
 - **本批收口**: U-P005-4 / U-P005-5 关闭；新增 U-P021-1（CI 锁门禁）/ U-P021-2（numba 声明）/ U-P021-3（升级节奏）三项条件触发未决项
+
+---
+
+### 3.26 P-022（Factor_DB 四项实现缺陷）执行记录（2026-11-12，done · T1）
+
+- **立项**: U-P005-2（P-005 P7 静态读码四项）；档位 **T1**（`factor_library/` 行为变更 + 4 组红绿测试）；规范源 SPEC_PROCESS **v1.7.2**；证据时点 HEAD `cc3214c`
+- **Step 1 严重度重估**: 运行探针全部复现四项，且缺陷③（str-datetime）实为**写后重开崩溃**——重开后 `add_factor` / `update_stats` / 双因子 `delete_factor` 均 `AttributeError`；缺陷①静默覆盖、②删除复活（`get_factor` 从残留 csv 复活）为 P2；④双份存储 P3
+- **Step 1-8**: 四文档落稿（RESEARCH P1-P10 + E1-E4 锚点 / DESIGN D1-D6 + I1-I6 / IMPL T-1~T-5 + V1-V6 / CHECKLIST 18 项零预填）；Step 2 Review（1 项严重度重估 + E4 未采用）/ Step 4 / Step 6 均通过；Step 8 一致性 **0 发现**（20 处 `[待 Step 9]` = 18 格 + 2 合法）
+- **Step 9 实施**: B1 `9c50bcd`（加载期 datetime 解析）/ B2 `ec21dc5`（覆盖守卫 = metadata ∪ 内存 ∪ 两种文件）/ B3 `9ffbfde`（删除 parquet+csv）/ B4 `1550e63`（写入后单一格式）/ B4b `59e1273`（black）；逐批红 **4/2/2/2 failed** → 绿 **11 passed**；全量 **647 passed**（636+11，44.46s）/ black **112 files unchanged** / mypy 36 files 0；7 个公开方法与 `FactorMetadata` 字段 AST **完全相等**；`batch_backtest`/`pyproject` 零改动
+- **Step 10 ADD 审计**: [CHECKLIST_p022 §9](CHECKLIST_p022_factor_db_defects.md)——Phase 0-4 全过 + 取证矩阵 9 类；**P1=0 / P2=0 / P3=1（F-S9-P022-1 已记录）**；E4 1 观察升级 **U-P022-4**（overwrite 重置 created_at）+ 3 观察；**18/18 ✅**
+- **未执行**: **RULE-5 异构复审**——本会话即实施作者（DeepSeek-V4.1-Flash），需异构基座独立会话全批复审
+- **本批收口**: U-P005-2 关闭；新增 U-P022-1（原子写）/ U-P022-2（返回副本）/ U-P022-3（非 ImportError 清理）/ U-P022-4（保留 created_at）四项条件触发未决项
 
 ---
 
