@@ -76,3 +76,33 @@ class TestReopenWrites:
         assert isinstance(meta.created_at, datetime)
         assert isinstance(meta.updated_at, datetime)
         assert meta.created_at.isoformat()
+
+
+class TestOverwriteGuard:
+    """B2：overwrite 守卫必须覆盖已持久化因子（缺陷①）。"""
+
+    def test_reopen_rejects_duplicate_without_overwrite(self, db_path, sample_factor):
+        db = FactorDatabase(db_path)
+        db.add_factor("f1", sample_factor, metadata=META)
+
+        reopened = FactorDatabase(db_path)
+        with pytest.raises(ValueError, match="已存在"):
+            reopened.add_factor("f1", sample_factor, metadata=META)
+
+    def test_overwrite_persisted_factor(self, db_path, sample_factor):
+        db = FactorDatabase(db_path)
+        db.add_factor("f1", sample_factor, metadata=META)
+        updated = sample_factor * 2.0
+
+        reopened = FactorDatabase(db_path)
+        reopened.add_factor("f1", updated, metadata=META, overwrite=True)
+
+        pd.testing.assert_frame_equal(reopened.get_factor("f1"), updated)
+
+    def test_orphan_csv_requires_overwrite(self, db_path, sample_factor):
+        sample_factor.to_csv(Path(db_path) / "orphan.csv")
+
+        db = FactorDatabase(db_path)
+        with pytest.raises(ValueError, match="已存在"):
+            db.add_factor("orphan", sample_factor, metadata=META)
+

@@ -112,14 +112,21 @@ class FactorDatabase:
             metadata: 元数据
             overwrite: 是否覆盖已有因子
         """
-        if name in self._factors and not overwrite:
+        data_path = self.db_path / f"{name}.parquet"
+        csv_path = self.db_path / f"{name}.csv"
+
+        exists = (
+            name in self._metadata
+            or name in self._factors
+            or data_path.exists()
+            or csv_path.exists()
+        )
+        if exists and not overwrite:
             raise ValueError(f"因子 {name} 已存在，设置 overwrite=True 覆盖")
 
         self._factors[name] = data.copy()
 
         # 保存数据（优先parquet，降级csv）
-        data_path = self.db_path / f"{name}.parquet"
-        csv_path = self.db_path / f"{name}.csv"
         try:
             data.to_parquet(data_path)
         except ImportError:
