@@ -237,8 +237,8 @@ uv sync --all-extras
 | B1 | `e360436` | `tests.yml` L46 + adapter L67 + 守卫测试（3 断言） | ✅ 3 文件 **+77/−2** |
 | B2 | `ac2a3d6` | README uv 段 → `--all-extras` | ✅ 1 文件 +1/−1 |
 | B3 | `c1c67b2` | PROGRESS（§1.4 七行 + §2 注记 + 关闭注 + §3.28）+ CHANGELOG + 四文档 | ✅ 6 文件 **+871/−1** |
-| B4 | `[待回填]` | T-9：`pyproject.toml` 追加 `[[tool.mypy.overrides]] filter.*`（+8 行）；临时 mypy 钉版已撤回 | `[待回填]` |
-| B5 | `[待回填]` | 文档回填（版本漂移发现 + 计数 28→29） | `[待回填]` |
+| B4 | `f8cb9ba` | T-9：`pyproject.toml` 追加 `[[tool.mypy.overrides]] filter.*`（+8 行）；撤回 `745e2b7` 的钉版，`uv.lock` 复原 | ✅ 8 文件 **+59/−34**（含文档更正） |
+| B5 | `[待回填]` | 回填 CI run `43196177149` + Step 10 ADD | `[待回填]` |
 
 ### 7.2 F5 红绿读数
 
@@ -257,7 +257,7 @@ uv sync --all-extras
 | V6 | `black --check .` | **180 files would be left unchanged** | ✅（= 179 + 1） |
 | V7 | `uv lock --check` + `git diff --stat` | exit 0（`Resolved 148 packages`）；B1+B2 累计 4 文件 | ✅ |
 | V8 | `Select-String "mypy.*\|\| true"` on `.github/` | **0 命中** | ✅ |
-| V9 | 远端 CI run | `[待回填]` | `[待回填]` |
+| V9 | 远端 CI run | run [`43196177149`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43196177149) 三 job **success**（3.10 1m58s / 3.11 1m27s / 3.12 1m47s） | ✅ |
 | V10 | **（追加）越界声明跨版本/跨依赖验证** | X1（CI 依赖 + 无声明）**21 errors**；X2（+ 声明，mypy 2.1.0）**0**；X3（+ 声明，mypy 2.4.1）**0** | ✅ |
 
 ### 7.4 实施发现

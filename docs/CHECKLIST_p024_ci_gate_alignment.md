@@ -2,7 +2,7 @@
 
 > **批次**: P-024 · **T1**
 > **上游**: [IMPL_p024_ci_gate_alignment.md](IMPL_p024_ci_gate_alignment.md)（T-0~T-9 / V1-V10）；[DESIGN_p024_ci_gate_alignment.md](DESIGN_p024_ci_gate_alignment.md)（D1-D7 / I1-I7）
-> **状态**: Step 9 完成（**29 项**：28 ✅ + 1 项远端 CI 待回填；D8 为 Step 9 追加）
+> **状态**: Step 10 ADD 通过（**29/29 ✅**；CI run `43196177149` 三 job success；RULE-5 待独立会话）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待回填]`（仅用于远端 CI 行）
 
 ---
@@ -61,7 +61,7 @@
 | D4 | 删除探针后同一命令 exit 0（**后绿**） | 退出码 0 + 末行 `Success` | I2 / V3 | ✅ **exit 0** / `Success: no issues found in 36 source files` |
 | D5 | 生产代码零改动 | `git diff --name-only -- core/ agents/ web/ factor_library/ cli.py` = 空 | I6 | ✅ **空** |
 | D6 | 无临时文件残留 | `git status --short` 空输出 + `Test-Path core/_p024_probe.py` = False | R3 / V7 | ✅ 探针已删（V3 复跑统计为 **36 files**，不含探针）；`git status` 仅 P-024 文档 |
-| D7 | 远端 CI 三 job success，mypy step 日志含 `36 source files` | `gh run view <run_id>` 或 Actions 页面 | V9 / I7 | `[待回填]` |
+| D7 | 远端 CI 三 job success，mypy step 日志含 `36 source files` | `gh run view 43196177149` | V9 / I7 | ✅ run [`43196177149`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43196177149) **success**：3.10 / 3.11 / 3.12 三 job 全绿（1m58s / 1m27s / 1m47s） |
 | D8 | **（追加）越界声明**：`pyproject.toml` 含 `[[tool.mypy.overrides]] module = ["filter.*"] ignore_errors = true`；CI 依赖集下门禁 0 errors | 读回 pyproject L112-L117；X1（无声明，pandas 3.1.1）**21 errors** vs X2（有声明）**0**；X3（mypy 2.4.1 + 声明）**0** | D6（修订）/ V10 | ✅ pyproject L112-L117（+8 行）；X1/X2/X3 三读数齐备；`mypy>=1.5.0` 维持（钉版已撤回） |
 
 ---
@@ -87,7 +87,7 @@
 |----|------|
 | 验收项总数 | **29**（A 6 + B 6 + C 3 + D 8 + E 6，机械计数；D8 为 Step 9 追加） |
 | 实测列 `[待 Step 9]` 数（Step 7 时点） | 28 处（28 验收单元格；§6 规则行不含该标记；D8 为 Step 9 追加项，不在 Step 7 计数内） |
-| Step 9 回填后剩余 | **0 处 `[待 Step 9]`**；1 处 `[待回填]`（D7 远端 CI run，推送后回填） |
+| Step 9 回填后剩余 | **0 处 `[待 Step 9]`**；**0 处 `[待回填]`**（D7 与 §8.1 已回填） |
 
 ---
 
@@ -102,7 +102,7 @@
 | 1 | 相对链接 | RESEARCH **23** / DESIGN **10** / IMPL **10** / CHECKLIST **2**（共 45）→ **0 broken** |
 | 2 | ID 闭环 | RESEARCH **P1-P13** 连续 ✅；DESIGN **D1-D7 / I1-I7** ✅；IMPL **T-0~T-8** ✅ |
 | 3 | 验收计数 | A 6 + B 6 + C 3 + D 8（Step 9 追加 D8）+ E 6 = **29**（与表体逐行一致） |
-| 4 | 零预填 | 验收行 **29**，实测列 `[待 Step 9]` **0** 处、`[待回填]` **1** 处（D7 远端 CI） |
+| 4 | 零预填 | 验收行 **29**，实测列 `[待 Step 9]` **0** 处、`[待回填]` **0** 处 |
 
 ### 7.2 对齐矩阵
 
@@ -138,8 +138,8 @@
 | `e360436` | B1：`tests.yml` L46 + adapter L67 + 守卫测试 3 断言 | 3 文件 **+77/−2** |
 | `ac2a3d6` | B2：README uv 段 → `--all-extras` | 1 文件 +1/−1 |
 | `c1c67b2` | B3：PROGRESS + CHANGELOG + 四文档 | 6 文件 **+871/−1** |
-| `[待回填]` | B4：`pyproject.toml` L65 + `uv.lock`（钉 `mypy~=2.1.0`） | `[待回填]` |
-| `[待回填]` | B5：文档回填（版本漂移发现 + 29 项计数） | `[待回填]` |
+| `f8cb9ba` | B4：`pyproject.toml` 追加 `[[tool.mypy.overrides]] filter.*`（+8 行，撤回钉版） | 8 文件 **+59/−34**（含文档更正） |
+| `[待回填]` | B5：回填 CI run `43196177149` + Step 10 ADD | `[待回填]` |
 
 ### 8.2 红 → 绿读数（F5）
 
@@ -157,8 +157,9 @@
 | 新测试 | 与 adapter 合跑 **9 passed in 0.07s**（3 + 6） |
 | mypy 门禁 / 盲区 | 36 files **0** / **0**（同一命令两侧同形） |
 | black | **180 files would be left unchanged** |
-| 依赖面 | `uv lock --check` **exit 0**（148 packages）；`pyproject.toml` / `uv.lock` diff **空** |
+| 依赖面 | `uv lock --check` **exit 0**（148 packages）；`pyproject.toml` / `uv.lock`：仅新增 `filter.*` override 块（钉版与锁改动已撤回） |
 | 保护面 | `core/` `agents/` `web/` `factor_library/` `cli.py` diff **空**；`mypy.*\|\| true` grep **0** |
+| 远端 CI | run [`43196177149`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43196177149) 三 job **success** |
 
 ### 8.4 实施发现
 
@@ -174,7 +175,41 @@
 
 ## 9. Step 10 ADD 审计
 
-`[待 Step 10]`
+### 9.1 变更面
+
+| 类别 | 文件 | 规模 |
+|------|------|------|
+| CI | `.github/workflows/tests.yml` | −1/+1 |
+| 门禁配置 | `scripts/spec_runner_adapter.py` | −1/+1 |
+| 类型配置 | `pyproject.toml`（`filter.*` override） | +8 |
+| 文档 | `README.md` | −1/+1 |
+| 测试 | `tests/test_p024_ci_gate_alignment.py`（新增） | +64 |
+| 台账 | `docs/PROGRESS.md`、`CHANGELOG.md` | +~40 / +1 |
+| 四文档 | `docs/*_p024_ci_gate_alignment.md` | 新增 |
+
+**生产代码零改动**：`core/` / `agents/` / `web/` / `factor_library/` / `cli.py` diff 空（D5 ✅）。**依赖面**：`uv.lock` 与最终 `pyproject` 的 `mypy` specifier 均回到批前值（钉版撤回）。
+
+### 9.2 问题闭环
+
+| 来源 | 发现 | 级别 | 闭环 |
+|------|------|------|------|
+| Step 1 | CI mypy 假门禁（`\|\| true` 恒吞退出码） | P1 | B1 修复 + D4-B 守卫 |
+| Step 1 | 双口径不可互换（CI 参数本地 exit 2） | P2 | D1/D2 统一命令 |
+| Step 9 | CI 首跑红：`filter/*` 21 errors（pandas 3.1.1 桩） | P2 | D6 override + U-P024-4 |
+| Step 9 | 首轮误诊为 mypy 版本漂移并提交钉版 | P2 | 撤回 `745e2b7`，`f8cb9ba` 更正 + 文档留痕 |
+| Step 1-8 | 5 个 P3（来源误记 / 守卫规范化 / 悬空链接 / I7 / 输入规范化） | P3 | 全部回写 |
+
+### 9.3 判据复核
+
+| 项 | 结论 |
+|----|------|
+| 29 项验收 | **29/29 ✅**（D7 已回填） |
+| 门禁 | `654 passed` / black `180 unchanged` / mypy `36 files 0` / `uv lock --check` exit 0 |
+| 远端 | run `43196177149` 三 job success |
+| Iron Law（生产代码零改动） | ✅ |
+| 零预填 | ✅（§6 读数一致） |
+
+**结论**：ADD 审计通过（0 P1 / 0 P2 遗留；2 个 P2 已闭环并有撤回留痕）。
 
 ---
 
@@ -186,9 +221,9 @@
 | 作者 · Step 4 设计 Review | **pass**（0 P1/P2，2 P3 F-D4-P024-1/2） | DESIGN §9 |
 | 作者 · Step 6 实施规划 Review | **pass**（0 P1/P2，2 P3 F-I1-P024-1/2） | IMPL §6 |
 | 作者 · Step 8 一致性 Review | **pass**（0 P1/P2，3 P3 F-S8-P024-1~3） | CHECKLIST §7 |
-| 作者 · Step 9 实施 | **done**（28 ✅ / 1 待回填；先红 → 对照 → 后绿三读数齐备；P2 F-S9-P024-4 已由 D6 修订处置） | CHECKLIST §8 |
+| 作者 · Step 9 实施 | **done**（29/29 ✅；先红 → 对照 → 后绿三读数齐备；P2×2 F-S9-P024-4/5 已闭环并留撤回记录） | CHECKLIST §8 |
 | **RULE-5 异构基座复审** | `[待独立会话]` | §11 |
-| CI run | `[待回填]` | §8.3 |
+| CI run | ✅ [`43196177149`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43196177149) 三 job success | §8.3 |
 
 ---
 
