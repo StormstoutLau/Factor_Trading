@@ -162,5 +162,54 @@ Step 8 一致性 Review（§8）、Step 9 实测回填（§1 验收表）、Step
 | Step 8 一致性 Review | 通过 | §8（20 处 `[待 Step 9]` = 18 格 + 2 合法；链接 0 broken；ID 闭环；对齐矩阵 7 行；0 发现） | 2026-11-12 |
 | Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p022_factor_db_defects.md)（四批红 4/2/2/2 → 绿 11；B1-B4 + B4b + B5b；18/18 ✅） | 2026-11-12 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵 9 类；P3×1 已记录 + U-P022-4 + 3 观察） | 2026-11-12 |
-| RULE-5 异构复审 | **未执行** | 本会话即作者（DeepSeek-V4.1-Flash）；待异构基座独立会话全批复审 | — |
-| CI 回收 | success | 首跑 `43175692308` **failure**（D-1/D-2 环境依赖 parquet，2 failed × 3 版本）→ B5b `e03c650` 修复；第二跑 `43176076114` 三 job **success**（3.10 1m52s / 3.11 1m32s / 3.12 1m36s） | 2026-11-12 |
+| RULE-5 异构复审 | **pass** | 异构基座 GLM-5.3-Flash 独立会话全批复审（E1-E4 重放 + 1 P3 回写）；见 §11 | 2026-11-12 |
+| CI 回收 | success | 首跑 `43175692308` **failure**（D-1/D-2 环境依赖 parquet，2 failed × 3 版本）→ B5b `e03c650` 修复；第二跑 `43176076114` 三 job **success**（3.10 1m52s / 3.11 1m32s / 3.12 1m36s）；回填提交 `a29b498` 触发 run `43176435214` 三 job **success** 2m20s（F-R5-P022-1 补登） | 2026-11-12 |
+
+---
+
+## 11. RULE-5 异构复审（2026-11-12）
+
+> **复审基座**：GLM-5.3-Flash（本节作者）≠ P-022 实施作者 DeepSeek-V4.1-Flash——满足 RULE-5 异质性约束。复审时点 HEAD `a29b498`（= origin/master，工作区干净）；复审方法与取证矩阵依据 SPEC_PROCESS v1.7.2 RULE-6（E1 可重放命令 / E2 运行时 / E3 静态读码绑 commit / E4 盲区扫描 / E5 推测不用于结论）。
+
+### 11.1 E1 机械重放（全部复现）
+
+| # | 断言 | 重放结果 |
+|---|------|----------|
+| 1 | HEAD/分支 | `a29b498` = origin/master，工作区干净（复审自证） |
+| 2 | CI 三 run | 首跑 `43175692308` **failure** 1m29s（B5 触发）/ 第二跑 `43176076114` **success** 1m55s（B5b 触发；job 明细 **3.10 1m52s / 3.11 1m32s / 3.12 1m36s** 与 §10 逐字一致，`gh run view`）/ 回填 `43176435214` **success** 2m20s（B5c 触发） |
+| 3 | 提交面 | 8 笔 numstat 逐笔与 IMPL §7.1 一致：B1 `9c50bcd` **+15/−1 +78** / B2 `ec21dc5` **+10/−3 +30** / B3 `9ffbfde` **+4/−4 +30** / B4 `1550e63` **+6/−1 +34** / B4b `59e1273` **0/−3** / B5 `40e8077` 6 文件 **+679/−1** / B5b `e03c650` 4 文件 **+12/−8** / B5c `a29b498` 3 文件 **+5/−3** |
+| 4 | 全量回归 | **647 passed, 152 warnings in 65.72s**（复审自跑，Agg + 项目解释器；文档 44.46s——passed 数一致，时长波动） |
+| 5 | 门禁 | black **112 files would be left unchanged** / mypy **`Success: no issues found in 36 source files`**（复审自跑） |
+| 6 | AST 签名对照（独立脚本） | `cc3214c` 旧版 vs HEAD 新版：7 个公开方法签名 **全等** + `FactorMetadata` 字段 **全等**（`ast.unparse` 参数串比对） |
+| 7 | 四缺陷探针（独立脚本，隔离临时目录） | **6/6 OK**：重开 datetime 还原 + 重开 add/update/delete 不崩 / 守卫 ValueError + overwrite=True 读回新值 / 孤儿 csv 拦截 / 删除双格式 + 不可复活 / parquet 成功清旧 csv / CSV 回退清旧 parquet + 重开读回 |
+| 8 | 保护面 | `git diff --name-only cc3214c..HEAD -- batch_backtest pyproject.toml` = **空** |
+
+### 11.2 E2 运行时（合成红态重放闭合）
+
+| 探针 | 结果 |
+|------|------|
+| 红：`git checkout cc3214c -- factor_library/database.py` + HEAD 测试 `tests/test_p022_factor_db_defects.py` | **10 failed, 1 passed in 0.76s**——TestReopenWrites **4** failed（3×`AttributeError: 'str' object has no attribute 'isoformat'` + 1×isinstance 断言）/ TestOverwriteGuard **2** failed（DID NOT RAISE）+ 1 passed（overwrite=True 读写项，旧代码本就支持）/ TestDeleteBothFormats **2** failed / TestSingleFormat **2** failed——与 IMPL §7.2 逐批红态 **4/2/2/2** 同构 ✓ |
+| 绿控制组：`git checkout HEAD -- factor_library/database.py` 后重跑 | **11 passed in 0.67s**，工作区恢复干净 ✓ |
+
+### 11.3 E3 静态读码（锚点全命中）
+
+`factor_library/database.py` @`a29b498`：L86 `_build_metadata` / L93 `datetime.fromisoformat` / L96 ISO 错误消息（缺陷③）/ L118 四路并集守卫 + L124 `ValueError`（缺陷①）/ L132 `except ImportError` + L135/L138 双向清理（缺陷④）/ L232+L234 删除双格式循环（缺陷②）——行号逐一命中；四文档相对链接 **14 处 0 broken**；ID 闭环 U-P022-1~4（RESEARCH↔PROGRESS）/ F-S9-P022-1~3（IMPL）/ F-S10-P022-1（CHECKLIST）/ T-1~T-5 / D1-D6 / I1-I6 / V1-V6（IMPL 以 `D1-D6`/`I1-I6` 区间形式引用，合法覆盖）；上游链形 RESEARCH←DESIGN←IMPL←CHECKLIST 与 P-021 先例一致。
+
+### 11.4 复审发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-R5-P022-1 | P3 | CI 回收链不完整：回填提交 `a29b498`（B5c）触发的 run `43176435214`（三 job success 2m20s）未登记于 CHECKLIST §10 / PROGRESS §3.26（均止于 `43176076114`）——与 F-R5-P021-4 同构 | **回写补登**（CHECKLIST §10 CI 回收行 + PROGRESS §3.26，随本节落位一并修正） |
+
+### 11.5 E4 盲区观察（登记，不阻断）
+
+| # | 发现 | 处置 |
+|---|------|------|
+| 观察 1 | CHECKLIST §9.3 未引 F-S9-P022-2 ID（单因子 delete 因先移除该条而幸存的观察）——实质由 IMPL §7.5 权威登记覆盖，非追溯断裂 | 登记 |
+| 观察 2 | §8「全文 20 处 `[待 Step 9]`」为 Step 8 时点快照（18 格 + 2 合法）；Step 9 回填后实测列转 ✅，终态描述性引用 4 处（L5 规则行 / §8 统计行自身 / 签字表 Step 7/8 两处历史描述）——时点陈述非当前态，非缺陷 | 登记 |
+| 观察 3 | PROGRESS §1.4「647 passed…44.46s」与复审自跑 65.72s——passed 数一致，时长波动非缺陷 | 登记 |
+| 观察 4（环境） | `%TEMP%` 残留实施期探针 14 个（`p022_*`）+ 上批复审脚本（`r5_p021_*` 5 个） | 复审收尾统一清理（本节落位时执行） |
+
+### 11.6 复审结论
+
+**pass**——0 P1 / 0 P2 / **1 P3 登记（F-R5-P022-1，记录层回写）** + 4 观察；P-022 四项修复主结论（加载期 datetime 还原 / 四路守卫 / 双格式删除 / 写后单一格式）独立重放全部成立；ADD 审计结论（P3×1 已记录 + U-P022-4 + 3 观察）维持。复审记录提交与 CI run 于回填提交补记。
