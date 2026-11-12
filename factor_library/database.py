@@ -126,11 +126,16 @@ class FactorDatabase:
 
         self._factors[name] = data.copy()
 
-        # 保存数据（优先parquet，降级csv）
+        # 保存数据（优先parquet，降级csv），成功后清理另一种格式
         try:
             data.to_parquet(data_path)
         except ImportError:
             data.to_csv(csv_path)
+            if data_path.exists():
+                data_path.unlink()
+        else:
+            if csv_path.exists():
+                csv_path.unlink()
 
         # 更新元数据
         meta = FactorMetadata(name=name, **(metadata or {}))
