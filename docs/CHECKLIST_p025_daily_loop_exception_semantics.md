@@ -135,8 +135,52 @@
 | Step 3-4 设计 + Review | 通过 | [DESIGN §10](DESIGN_p025_daily_loop_exception_semantics.md)（异构 GLM-5.3-Flash；7 P3 回写 + 4 观察） | 2026-11-12 |
 | Step 5-6 实施规划 + Review | 通过 | [IMPL §11](IMPL_p025_daily_loop_exception_semantics.md)（1 P2 + 3 P3 回写 + 3 观察） | 2026-11-12 |
 | Step 7 验收清单 | 完稿（零预填 42 项） | §1-§7 | 2026-11-12 |
-| Step 8 一致性 Review | [待 Step 8] | — | — |
+| Step 8 一致性 Review | 通过 | §10（链接 0 broken〔2 伪命中人工判定〕；ID 闭环 17 组；计数 42；2 P3 回写 IMPL） | 2026-11-13 |
 | Step 9 TDD 实施 | [待 Step 9] | — | — |
 | Step 10 ADD 审计 | [待 Step 10] | — | — |
 | RULE-5 异构复审 | [待 RULE-5] | — | — |
 | CI 回收 | [待 Step 9] | — | — |
+
+---
+
+## 10. Step 8 一致性 Review（2026-11-13）
+
+> **执行方式**：四文档全部完稿后独立机械校验 + 人工对齐（RULE-1 时序独立；RULE-4 单 Agent「自查·单视角」）。机械脚本 `%TEMP%\p025_consistency.py`（链接 / ID 闭环 / 计数 / 零预填 / 角色引用五项）。
+
+### 10.1 机械读数
+
+| # | 校验 | 读数 |
+|---|------|------|
+| 1 | 相对链接 | RESEARCH **12** / DESIGN **8** / IMPL **2** / CHECKLIST **5**；broken 2 处均经人工判定为**代码块伪命中**（`optimizer_map[config.method](config)` 的 `](config)` 被 regex 误判）→ **0 broken** |
+| 2 | ID 闭环 | RESEARCH P1-P14 ✅ / E1-E4 ✅ / U-P025-1~6 ✅；DESIGN D1-D7 ✅ / I1-I7 ✅ / V1-V12 ✅ / R1-R8 ✅ / T1-T10 ✅；IMPL T-1~T-6 ✅ / F-S5-1~5 ✅ / F-S6-1~4 ✅；CHECKLIST A/B/C/D/E/F 六组 ✅——**17 组全连续无缺口** |
+| 3 | 验收计数 | 分组 A7+B6+C6+D8+E9+F6 = **42**，与 §7 声称逐项一致 |
+| 4 | 零预填 | `[待 Step 9]` **46 处** = 42 验收单元格 + 4 处合法字面引用（头部规则行 / §7 统计行 / 签字表 2 行）；`✅` 仅 2 处（规则行 + §7 统计行文字），**验收单元格零 ✅ 预填** ✅ |
+| 5 | 角色引用 | RESEARCH / DESIGN 均有上游+下游行；IMPL / CHECKLIST 仅上游行——终端文档标准形态（P-023 先例一致） |
+
+### 10.2 对齐矩阵
+
+| 上游 → 下游 | 检查 | 结论 |
+|-------------|------|------|
+| RESEARCH P2/P3/P4 → DESIGN D2/D4/D5 | 三层静默与三处采集点一一对应 | 一致 |
+| RESEARCH P7/P11/P12/P13 → DESIGN D7-O2/D4/D1/D3 | 假成功预检 / 10 键只增 / 三态同形 / 独立采集器 | 一致 |
+| RESEARCH F-D3-P025-1 → DESIGN D6 | 词表对齐 + fail-closed | 一致 |
+| DESIGN D1-D7 → IMPL T-1~T-6 | T-1 合并 D1/D2/D3（同批基座）、T-2←D4、T-3←D5、T-4←D6、T-5←D7、T-6←B4 行 | 一致 |
+| DESIGN V1-V12 → CHECKLIST | V1→A1、V2→A2-A4、V3→B1-B3、V4→D2、V5→B6/C5/E6、V6→C3、V7→D3/E7、V8→B4、V9→D6、V10→E4/E5、V11→E3、V12→E9/F6 | 一致（无遗留） |
+| DESIGN I1-I7 → CHECKLIST D1-D8 | I1→D1、I2→D2+B5、I3→A2+D3、I4→A6+D4、I5→D5、I6→D6、I7→D7、零改动面→D8 | 一致 |
+| DESIGN R1-R8 → CHECKLIST | R1→C4/F3、R2→C6、R3→A2、R4→B3、R5→F4、R6→A4、R7→D3/D6、R8→B3 | 一致（8 项全有落点） |
+| IMPL T-1~T-6 → CHECKLIST 组 | T-1→A、T-2→B、T-3→C1/C2+B6、T-4→C3/C4、T-5→C5/C6、T-6→F | 一致 |
+| DESIGN §10 F-S4-P025-3 / IMPL F-S5-P025-2 → CHECKLIST §8 #4 | success=False 与 record_failure 的**未覆盖声明** | 一致 |
+
+### 10.3 发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S8-P025-1** | P3 | IMPL §1 门禁口径写「`black --check`：文件数 +1」，实为 **+2**（`core/diagnostics.py` + 新测试文件）；且 `core tests cli.py` 口径基线实测 **114**（非 113） | ✅ 已回写 IMPL §1（基线 114/180 → 目标 116/182） |
+| **F-S8-P025-2** | P3 | IMPL §8 V10 写「`black --check .`」无目标读数——Step 7 实测基线 `.` 口径 **180**，新增 2 文件后应为 **182**，原文「不变」表述失准 | ✅ 已回写 IMPL §8 V10（→ 182） |
+| 观察-1 | — | 链接校验 2 处伪命中（代码块内 `](config)`），脚本口径需人工复核后方可下「0 broken」结论 | 人工判定后记录于 §10.1 #1 |
+| 观察-2 | — | `[待 Step 9]` 46 处构成：42 验收 + 4 合法引用——预判 44 漏算头部规则行与 §7 统计行的字面出现 | §10.1 #4 如实记录 |
+| 观察-3 | — | IMPL / CHECKLIST 无「下游」行 | 管线标准形态（终端文档），登记不改 |
+
+### 10.4 结论
+
+**通过**——0 P1 / 0 P2 / 2 P3（均已回写 IMPL）/ 3 观察；42 项验收口径覆盖 D1-D7 / I1-I7 / V1-V12 / R1-R8 / T-1~T-6 全部；链接 0 broken、ID 闭环 17 组、计数自洽、零预填合规。可进入 Step 9 实施。

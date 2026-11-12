@@ -14,7 +14,7 @@
 | 变更文件 | `core/diagnostics.py`（新增）/ `core/config.py` / `core/engine_v2.py` / `core/execution.py` / `core/portfolio.py` / `tests/test_p025_day_error_diagnostics.py`（新增）/ `README.md` / `docs/ARCHITECTURE.md` / `CHANGELOG.md` / `docs/PROGRESS.md` |
 | 零改动面 | `core/interfaces.py`（**不**给 `IExecutionSimulator` 加抽象方法——sink 走可选 duck-typing，否则全部 fake 执行器立刻 TypeError）/ `core/pending.py` / `core/data.py` / `core/rebalance.py` / `core/factory.py`（仅间接受益于 D6）/ `engine_v3_vector.py` / `cli.py` / `tests/golden/*.json` / `pyproject.toml` / `.github/` |
 | 行为变更 | **3 项**：① `build_optimizer` 未知 method → `ValueError`（原静默等权）；② `mean_variance` 实际生效 `MeanVarianceOptimizer`（原静默等权）；③ 4 个协方差方法在 `n_days <= cov_lookback` 时 `setup()` 抛 `RuntimeError`（原 run 期静默全失败）。④ 结果字典新增 `run_diagnostics` 键（只增，不改既有 10 键） |
-| 门禁口径 | `mypy --explicit-package-bases --check-untyped-defs core`：37 files 0 error（新增 1 文件）；`black --check`：文件数 +1；`pytest -q`：654 → ≥664 |
+| 门禁口径 | `mypy --explicit-package-bases --check-untyped-defs core`：37 files 0 error（新增 1 文件）；`black --check`：文件数 **+2**（`core/diagnostics.py` + 新测试文件；Step 7 实测基线 `core tests cli.py` 114 / `.` 180 → 目标 116 / 182，Step 8 F-S8-P025-1 订正）；`pytest -q`：654 → ≥664 |
 
 **设计前提**：mypy `python_version = "3.10"`（pyproject L106）→ `ExceptionGroup` 不能直接写名字（3.10 typeshed 无此符号），必须经 `getattr(builtins, "ExceptionGroup")` 取得（见 §4.1 实现）。
 
@@ -495,7 +495,7 @@ engine._process_trading_day = _boom_on_target   # → counts["day_loop"] == 1
 | V7 | 探针 C 重跑：`counts.execution >= 3`（3 次注入全计量） |
 | V8 | `set(additional_info) - HEAD_KEYS == {"run_diagnostics"}`（`report` 与 `off` 双跑） |
 | V9 | `pytest tests/test_golden*.py -q` 全绿、无重录 |
-| V10 | `mypy --explicit-package-bases --check-untyped-defs core` → 37 files 0；`black --check .` |
+| V10 | `mypy --explicit-package-bases --check-untyped-defs core` → 37 files 0；`black --check .` → **182**（基线 180 + 2 新文件，Step 8 F-S8-P025-2 订正） |
 | V11 | `pytest -q` ≥ 664 passed |
 | V12 | 远端 CI 三 job success |
 
