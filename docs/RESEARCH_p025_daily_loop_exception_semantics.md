@@ -4,7 +4,7 @@
 > **上游**: [PROGRESS §1.4](PROGRESS.md) U-P023-1；[RESEARCH_p023 §6](RESEARCH_p023_quality_guardrails.md)（该项登记来源）
 > **下游**: DESIGN_p025 → IMPL_p025 → CHECKLIST_p025
 > **代码证据时点**: HEAD `a29b39c`（2026-11-12，工作区干净）
-> **状态**: Step 1 调研完稿（待 Step 2 独立 Review）
+> **状态**: Step 1 调研完稿 + **Step 2 独立 Review 通过**（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，2 P3 回写 + 2 观察，见 §10）
 
 ---
 
@@ -33,8 +33,8 @@
 | **P5** | **探针 A/A2（注入日级异常）**：20 个交易日、在第 6 日注入 `RuntimeError` → **无异常上抛**、`_process_trading_day` 仍被调用 20 次、results 正常返回；快照 **20 条但仅 19 个不同日期**（注入日缺席，末日 `_force_liquidation` 补采一次导致末日重复），`portfolio_value` 同为 20 行且不含注入日 | E2 `%TEMP%\p025_probe.py` 探针 A / `%TEMP%\p025_probe_a2.py` |
 | **P6** | **探针 B（优化器全失败）**：`optimizer.optimize` 注入异常 → 4 次调仓时机全部"组合优化失败"、**0 成交**、results 完整返回、`additional_info` 无任何 error/skip 字段 | E2 `%TEMP%\p025_probe.py` 探针 B |
 | **P7** | **探针 B2（配置可达的假成功，关键）**：`method="min_variance"` + `cov_lookback=60`、交易日仅 20 → 每次优化抛「最小方差优化需要收益率数据或协方差矩阵」→ **0 成交 / sharpe=0.0 / total_return=0.0 / 零诊断**；同数据 `mean_variance` 成功 13 笔（对照组），说明失败来自方法分支而非数据不足 | E2 `%TEMP%\p025_probe_b2.py` |
-| **P8** | **探针 C（执行层异常）**：连续 3 日注入执行异常 → 全部被吞，订单隐式保留、第 4 个交易日全部成交（9 单 9 成），`pending_order_stats.avg_retry_count=1.0` 来自**部分成交计数**，与异常重试无关 | E2 `%TEMP%\p025_probe.py` 探针 C |
-| **P9** | **retry 语义现状（双轨、均无计量）**：① pending 队列——订单留在队列逐日重试，`max_pending_days_buy=5` / `sell=10` 到期作废，`retry_count` 仅在 `mark_partial` / `mark_executed_full` 自增；② next-day 列表——失败订单进 `failed_orders` 保留，由 `_expire_next_day_orders` 定期清理，**无原因、无尝试计数** | E3 [pending.py](../core/pending.py) L157-L182、L390；engine_v2.py L1085-L1135、[config.py](../core/config.py) L374-L377 |
+| **P8** | **探针 C（执行层异常）**：连续 3 日注入执行异常 → 全部被吞，订单隐式保留、第 4 个交易日全部成交（9 单 9 成），`pending_order_stats.avg_retry_count=1.0` 来自队列 `mark_executed` 的**成交自增**（每单成交 +1，9 单全成 → 均值 1.0），与异常重试无关 | E2 `%TEMP%\p025_probe.py` 探针 C |
+| **P9** | **retry 语义现状（双轨、均无计量）**：① pending 队列——订单留在队列逐日重试，`max_pending_days_buy=5` / `sell=10` 到期作废，`retry_count` 三处自增：`PendingOrder.mark_partial`（L169）/ `mark_executed_full`（L182）/ `PendingOrderQueue.mark_executed`（L390，**每次成交 +1**）；② next-day 列表——失败订单进 `failed_orders` 保留，由 `_expire_next_day_orders` 定期清理，**无原因、无尝试计数** | E3 [pending.py](../core/pending.py) L157-L182、L381-L390；engine_v2.py L1085-L1135、[config.py](../core/config.py) L374-L377 |
 | **P10** | **测试面为零**：全仓 `tests/*.py` 对 `_process_trading_day` / `_execute_rebalance` / 日循环异常路径 **0 处引用**（`Select-String` 空命中） | E1 `Select-String -Path tests/*.py -Pattern "_process_trading_day|处理交易日|_execute_rebalance|组合优化失败"` → 0 |
 | **P11** | **结果字典无诊断位**：`additional_info` 实际 10 键（config / data_info / execution_stats / input_fingerprint / invariant_report / metrics_method / pending_order_stats / universe / universe_summary / validation_declaration）；`invariant_report` 是唯一带校验语义的字段，且只校验**已生成**的快照 | E2 探针 D；E3 engine_v2.py L1160-L1218 |
 | **P12** | **三态策略先例**：`invariant_mode: Literal["off","report","raise"] = "report"`（P-011 D2），默认 report 并把结果写入 `invariant_report`，`raise` 时抛 `InvariantViolationError` | E3 [config.py](../core/config.py) L344；engine_v2.py L1186-L1198 |
@@ -83,7 +83,7 @@
 
 **被拒方案代价**：M-B 无法满足「CI 严格模式」（无 `raise`），后续需二次改造；M-C 会让真实脏数据中断回测，与 P-010/P-012 建立的「缺失数据安全降级」纪律冲突；M-D 把本批工期翻倍且引入未验证的 I/O 面。
 
-**每个方案的锚点覆盖**：M-A — E2（transient vs 确定性）、E3（errors 必须被计数）、E4（不得静默）覆盖 ≥3 维；M-B — E3、E4；M-C — E4、E1（聚合多异常后统一抛出）；M-D — E3、E2。
+**每个方案的锚点覆盖（锚点→维度）**：M-A — E3→收益（errors 可见）、E2→兼容+长期（`off` 退出闸 / 停止无效重试）、E4→收益（消除静默），覆盖 收益/兼容/长期 ≥3 维；M-B — E3→收益、E4→收益、E2→长期（仅计数不设闸，无效重试持续，需二次改造）；M-C — E4→收益、E1→兼容+长期（聚合多异常后统一抛出，`ExceptionGroup` 跨 3.10/3.11 形态）；M-D — E3→收益+维护（white-box 内检）、E2→长期（重试纪律与运维）。
 
 ---
 
@@ -96,7 +96,7 @@
 | **A3** | 因子文件缺中间一日（真实形态） | 无异常；净值含该日；当日「没有有效的因子得分，返回空权重」 | **负向**：数据层 PIT 对齐（P14）已排除该路径 |
 | **B** | `optimizer.optimize` 注入异常 | 4 次「组合优化失败」；0 成交；零诊断字段 | 优化失败不进日循环，双重静默 |
 | **B2** | `min_variance` + `cov_lookback=60`（20 日） | 0 成交 / `sharpe=0.0` / `total_return=0.0` / 零诊断；对照 `mean_variance` 13 笔 | **配置可达的假成功（P1）** |
-| **C** | 连续 3 日注入执行异常 | 全吞；订单保留；第 4 日 9 单全成；`avg_retry_count=1.0`（部分成交口径） | 隐式重试无计数、无上界告警 |
+| **C** | 连续 3 日注入执行异常 | 全吞；订单保留；第 4 日 9 单全成；`avg_retry_count=1.0`（队列 `mark_executed` 成交自增，非异常重试计数） | 隐式重试无计数、无上界告警 |
 | **D** | 正常跑 | `additional_info` 10 键（P11）；`results` 6 键 | 无诊断位，需新增 |
 
 ---
@@ -146,4 +146,44 @@
 2. `report` 模式下控制流与现状完全一致 → 654 测试与 golden 无需重录。
 3. 异常分类表可覆盖 ≥95% 的日级异常类型（以 654 测试运行的日志为语料核对）。
 
-**下一步**：Step 2 独立 Review（异构基座）→ DESIGN_p025（D/I/T 三层 + 验证矩阵）。
+**下一步**：~~Step 2 独立 Review（异构基座）~~（已完成，见 §10）→ DESIGN_p025（D/I/T 三层 + 验证矩阵）。
+
+---
+
+## 10. Step 2 Review（独立 pass）
+
+> **执行方式**：RESEARCH 完稿（`221ed64`）后独立执行；复审基座 **GLM-5.3-Flash ≠ 作者基座 DeepSeek-V4.1-Flash**（异构成立）。机械复核含：四探针脚本独立重跑、代码锚点行号逐条比对、外部锚点引文逐句核对（对照 Step 1 抓取的原文存档）、相对链接与台账登记复检。不复用作者结论，只对照原文与重跑读数。
+
+### 10.1 机械复核
+
+| # | 校验 | 读数 |
+|---|------|------|
+| 1 | 探针 A/B/C/D 重跑（`%TEMP%\p025_probe.py`） | A：无上抛 / 调用 20/20 / results 完整 / 快照 20；B：4 次「组合优化失败」/ 0 成交 / 零诊断字段；C：3 次注入全吞 / 第 4 交易日 9 单全成 / `avg_retry_count=1.0`；D：`additional_info` 10 键 / `results` 6 键——**与 §5 逐项一致** |
+| 2 | 探针 A2/A3 重跑 | A2：快照 20 / 重复日 [2024-01-29] / 注入日缺席 / `portfolio_value` 20 行不含注入日；A3：21 快照 / 20 去重日 / 净值含缺失日——**一致** |
+| 3 | 探针 B2 重跑 | `min_variance`：0 成交 / sharpe 0.0 / total_return 0.0 / 零诊断；`mean_variance` 对照 13 笔 / sharpe 4.1908——**一致** |
+| 4 | 代码锚点行号 | engine_v2 L327-L337 / L361-L408 / L898-L917 / L1085-L1135 / L1160-L1218 / L1186-L1198；execution L327-L329；config L344 / L374-L377；data L564-L582；pending L157-L182 / L381-L390——**全部逐字命中**（`221ed64` 代码与 `a29b39c` 相同，纯文档提交） |
+| 5 | 外部锚点引文 | PEP 654「multiple unrelated exceptions simultaneously」/ AWS「partial or transient failures」「not always safe to retry」「stop retrying when the retries are not helping」/ SRE「failures masked by retries」「latency, traffic, errors, and saturation」——**逐句对照原文存档命中** |
+| 6 | P10 / P13 复查 | tests 对异常路径引用 **0**；`EventLog\(` 全仓 **2** 处（定义 + engine_plugins L56）——**一致** |
+| 7 | 相对链接与台账 | RESEARCH 11 处链接 **0 broken**；PROGRESS §1.4 P-025 行 + U-P023-1 改判行落位复核一致 |
+
+### 10.2 门禁四项（SPEC_PROCESS Step 2 门禁）
+
+| 检查项 | 结论 |
+|--------|------|
+| 幻觉排除 | **通过**——3 条新增锚点引文与原文存档逐句命中；martinfowler `FailFast.html` 404 弃用注属实（作者实测 404，未列入锚点表） |
+| 方案完整性 | **通过（附 1 P3 订正）**——5 方案 ≥2；7 维矩阵齐（成本/收益/兼容/维护/升级潜力/短期/长期）；选型理由与被拒代价齐；锚点覆盖维度标注缺失见 F-S2-P025-2（已回写） |
+| 风险覆盖 | **通过**——6 项风险（R1-R6）均带缓解，≥3 |
+| 假设明确 | **通过**——3 项关键假设显式声明且可验证 |
+
+### 10.3 发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S2-P025-1** | P3 | P9 原文「`retry_count` **仅**在 `mark_partial` / `mark_executed_full` 自增」与同行证据列「pending.py …L390」自相矛盾——L390 是**第三处自增点** `PendingOrderQueue.mark_executed`（每次成交 +1，[pending.py L381-L390](../core/pending.py#L381-L390)）；§5 探针 C 行「`avg_retry_count=1.0`（部分成交口径）」归因随之失准（实为队列成交自增：9 单全成 → 均值 1.0） | **已回写**：P9 正文改三处自增 + 证据列 L381-L390；P8 与 §5 C 行归因订正 |
+| **F-S2-P025-2** | P3 | §4 锚点覆盖行仅 M-A 声明「覆盖 ≥3 维」且未映射维度，M-B/M-C/M-D 只列锚点 ID——不满足门禁「每方案 ≥2 锚点覆盖 ≥3 维」的举证格式 | **已回写**：逐案标注 锚点→维度 映射（§4） |
+| 观察 O1 | — | **末日重复快照为既有行为，非日循环吞没所致**：探针 A3 正常回测（无注入）同样 21 快照 / 20 去重日；A2 的重复日 [2024-01-29] 在无注入时同样出现。golden G1-G7 已编码该行为——本批 `run_diagnostics` **不得顺带「修复」重复快照**（会破坏 golden）；如需治理应另行登记独立项 | 不处置；转 DESIGN 注记 |
+| 观察 O2 | — | 可静态判定的配置错误（如 `cov_lookback` > 交易日数且 method 依赖协方差）可在 `setup()` 预检 fail-fast（与 P-023 setup 守卫同形），比运行期诊断更早暴露探针 B2 类假成功 | 不处置；由 DESIGN 裁决是否纳入 B1 |
+
+### 10.4 结论
+
+**通过**——0 P1 / 0 P2 / **2 P3（均已回写）** + 2 观察；门禁四项全过；机械复核 7 项全命中（探针读数逐项复现、代码锚点零漂移、引文零幻觉）。严重度重估（P6/P7→P1）理由成立：B2 为纯配置可达的假成功结果，与 P-023 F-A1 同类。可进入 Step 3 DESIGN（纳入 O1/O2 裁决）。
