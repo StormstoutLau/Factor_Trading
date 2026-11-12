@@ -81,7 +81,21 @@ class FactorDatabase:
             with open(meta_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             for name, meta_dict in data.items():
-                self._metadata[name] = FactorMetadata(**meta_dict)
+                self._metadata[name] = self._build_metadata(name, meta_dict)
+
+    def _build_metadata(self, name: str, meta_dict: dict) -> FactorMetadata:
+        """由 JSON 记录构造元数据，并把 ISO 时间字符串还原为 datetime。"""
+        payload = dict(meta_dict)
+        for key in ("created_at", "updated_at"):
+            value = payload.get(key)
+            if isinstance(value, str):
+                try:
+                    payload[key] = datetime.fromisoformat(value)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"metadata.json 中 {name}.{key} 不是 ISO 8601 时间: {value!r}"
+                    ) from exc
+        return FactorMetadata(**payload)
 
     def add_factor(
         self,
