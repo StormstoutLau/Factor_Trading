@@ -2,7 +2,7 @@
 
 > **批次**: P-024 · **T1**
 > **上游**: [IMPL_p024_ci_gate_alignment.md](IMPL_p024_ci_gate_alignment.md)（T-0~T-9 / V1-V10）；[DESIGN_p024_ci_gate_alignment.md](DESIGN_p024_ci_gate_alignment.md)（D1-D7 / I1-I7）
-> **状态**: Step 10 ADD 通过（**29/29 ✅**；CI run `43196177149` 三 job success；RULE-5 待独立会话）
+> **状态**: Step 10 ADD 通过 + **RULE-5 异构复审 pass**（**29/29 ✅**；CI run `43196177149` 三 job success；0 P1/P2，1 P3 回写 + 2 观察）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待回填]`（仅用于远端 CI 行）
 
 ---
@@ -222,11 +222,60 @@
 | 作者 · Step 6 实施规划 Review | **pass**（0 P1/P2，2 P3 F-I1-P024-1/2） | IMPL §6 |
 | 作者 · Step 8 一致性 Review | **pass**（0 P1/P2，3 P3 F-S8-P024-1~3） | CHECKLIST §7 |
 | 作者 · Step 9 实施 | **done**（29/29 ✅；先红 → 对照 → 后绿三读数齐备；P2×2 F-S9-P024-4/5 已闭环并留撤回记录） | CHECKLIST §8 |
-| **RULE-5 异构基座复审** | `[待独立会话]` | §11 |
+| **RULE-5 异构基座复审** | **pass**（GLM-5.3-Flash ≠ 作者；0 P1/P2，1 P3 F-R5-P024-1 已回写 + 2 观察；E1-E4 重放全命中） | §11 |
 | CI run | ✅ [`43196177149`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43196177149) 三 job success | §8.3 |
 
 ---
 
 ## 11. RULE-5 异构复审（独立会话）
 
-`[待独立会话]`
+> **复审基座**: **GLM-5.3-Flash** ≠ 作者 DeepSeek-V4.1-Flash（异构成立）
+> **复审时点**: 2026-11-12，复审基线 HEAD `02a7bdd`（工作区干净）
+> **复审方式**: E1 机械重放 + E2 红绿对照 + E3 独立脚本静态校验（`%TEMP%\r5_p024_e3_check.py`，**不复用作者脚本**）+ E4 盲区扫描
+
+### 11.1 E1 机械重放
+
+| # | 重放项 | 读数 | 判定 |
+|---|--------|------|------|
+| 1 | 提交链 7 笔（`e360436`/`ac2a3d6`/`c1c67b2`/`745e2b7`/`b910cbc`/`f8cb9ba`/`02a7bdd`） | `git log` 逐字一致 | ✅ |
+| 2 | numstat 六笔 | B1 **77/2**（3 文件）/ B2 **1/1** / B3 **871/1**（6 文件）/ B4（钉版）**2/2** / B4 `f8cb9ba` **59/34**（8 文件）/ B5 `02a7bdd` **50/14**（3 文件）——与文档全部一致 | ✅ |
+| 3 | CI 命令（tests.yml L46） | `python -m mypy --explicit-package-bases --check-untyped-defs core`；L45 步骤名未变 | ✅ |
+| 4 | 本地门禁（adapter L67） | 同旗标 + Python312 pin；两侧同形 | ✅ |
+| 5 | README L220 | `uv sync --all-extras` | ✅ |
+| 6 | pyproject L65 / override L112-L117 | `mypy>=1.5.0`（钉版已撤回）+ `filter.* ignore_errors` 块在位 | ✅ |
+| 7 | 门禁读数 | **654 passed**（52.58s）/ mypy **0 / 36 files**（exit 0）/ black **180 unchanged** / `uv lock --check` **exit 0**（148 packages）/ 守卫测试 **3 passed** | ✅ |
+| 8 | CI run 四笔 | `43193963200`@`c1c67b2` **failure** / `43195187927`@`b910cbc` **failure** / `43196177149`@`f8cb9ba` **success**（三 leg 各 **647 passed, 1 skipped** = 654 − 7 numba）/ `43196949769`@`02a7bdd` **success**——`gh run list --commit` 逐笔复现 | ✅ |
+| 9 | 台账结构 | §1.4 **U-P023-\* 4 行 + U-P024-\* 4 行**；§2 P-024 关闭注 1 处；§3.28 存在；CHANGELOG `### CI` 1 处 | ✅ |
+
+### 11.2 E2 红绿对照（探针复放）
+
+| # | 实验 | 读数 | 与文档对照 |
+|---|------|------|-----------|
+| 1 | **先红**：注入 `core/_r5_p024_probe.py`（`x: int = "s"`）+ 新 CI 命令 | **exit 1** / `Incompatible types in assignment` / `Found 1 error in 1 file (checked 37 source files)` | ✅ 与 V1 同构 |
+| 2 | **假门禁对照**：同命令 + `\|\| true`（Git bash 绝对路径） | **`SWALLOWED_EXIT=0`** | ✅ 与 V2 / P13 同构（复审侧同样确认：必须用 Git bash 而非 WSL 存根） |
+| 3 | **后绿**：删探针复跑 | **exit 0** / `36 source files`；`git status` core/ 零残留 | ✅ 与 V3 同构 |
+| 4 | **X1 归因复现**：mypy 2.1.0 + CI 依赖集（pandas 3.1.1 / numpy 2.4.6 / pydantic 2.14.3）+ 临时 ini（**无 override**） | **21 errors / 7 files**（exit 1） | ✅ 与 CI 3.10 leg 逐字同形——**复审独立证实根因是 pandas 3.1.1 类型桩而非 mypy 版本** |
+| 5 | **X2 越界声明生效**：同依赖集 + pyproject override | **0 errors / 36 files**（exit 0） | ✅ |
+| 6 | **X4 伪影抽查**：`uv run --with mypy==2.4.1`（缺 pydantic/pandas，现含 override） | **3 errors，全在 `config_v2.py:279/296/314`**（`no-any-return`） | ✅ 伪影核心复现——缺 pydantic 时 `ignore_missing_imports` 使 `model_dump/model_validate` 成 `Any`；X1/X2 中该 3 条为 0。注：完整「24/8」读数无法在 HEAD 复现（override 已在 pyproject 中抑制 filter 21 条），属时点差异，不影响结论 |
+
+### 11.3 E3 静态锚点（独立脚本）
+
+| 校验 | 读数 |
+|------|------|
+| 相对链接 | RESEARCH **26** / DESIGN **10** / IMPL **11** / CHECKLIST **2**（共 **49**）→ **0 broken** |
+| ID 闭环 | RESEARCH **P1-P13** 连续；DESIGN **D1-D7 / I1-I7**；IMPL **T-0~T-9 / V1-V10** |
+| 验收计数 | A 6 + B 6 + C 3 + D 8 + E 6 = **29**，与表体逐行一致 |
+| 零预填 | 验收表 `[待 Step 9]` = **0**、`[待回填]` = **0**、无 ✅ 缺失行 |
+| 互链方向 | RESEARCH→DESIGN / DESIGN→IMPL / IMPL→CHECKLIST 各 **2** 处 |
+
+### 11.4 E4 盲区扫描（发现与回写）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-R5-P024-1** | **P3** | **测试计数漂移**：README 4 处（L7 badge / L98 / L263 / L412）+ ARCHITECTURE 2 处（L3 / L269）仍写 **636 / 71 files**，实测 **654 / 74 files**——P-022（647）/ P-023（651）/ P-024（654）三批累计新增 18 项均未更新文档计数，与 P-020 修复过的同类缺陷（E4 观察 2）同形复现 | **本节回写时一并修复**（6 token：636 → 654、71 → 74、ARCHITECTURE 最后更新日期）并更新 P-024 行 RULE-5 注记 |
+| 观察 1 | — | CHECKLIST §8.1 B5 行提交哈希为 `[待回填]` 自引用占位——回填提交（`02a7bdd`）无法包含自身哈希；与 P-023「回填提交自身 run 不计入验收证据」同性质，但本文未显式声明该合法态 | 不处置；后续批次可在 §8.1 表头加一行声明 |
+| 观察 2 | — | 漂移守卫（D4-A）比较**两侧相等**，可防分叉、不可防**联合退化**（两侧同步加回 `--ignore-missing-imports` 仍通过）——属「分歧守卫」而非「口径策略守卫」，设计已隐含此边界（断言 B 只钉 `\|\| true`） | 不处置；如需策略级守卫可改钉精确旗标元组（登记观察即可） |
+
+### 11.5 结论
+
+**pass**——0 P1 / 0 P2 / **1 P3（F-R5-P024-1，已回写修复）+ 2 观察**；E1 九项重放全命中、E2 六组红绿/归因读数全复现（含作者「误诊撤回」叙事的独立证实）、E3 四文档 0 broken / ID 闭环 / 29/29 零预填。P-024 的「CI 门禁恢复真实阻塞 + 双侧同形 + README extras + 越界声明」四项交付全部成立；登记的 U-P024-1（不钉版本，含撤回注记）/ U-P024-4（pandas 桩 21 errors）与复审证据一致。

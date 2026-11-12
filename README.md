@@ -4,7 +4,7 @@
 
 **[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)**
 **[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)**
-**[![Tests](https://img.shields.io/badge/Tests-636%20passed-brightgreen.svg)](tests/)**
+**[![Tests](https://img.shields.io/badge/Tests-654%20passed-brightgreen.svg)](tests/)**
 **[![CI](https://github.com/StormstoutLau/Factor_Trading/actions/workflows/tests.yml/badge.svg)](https://github.com/StormstoutLau/Factor_Trading/actions)**
 
 **专业量化回测框架  ·  Multi-Agent 投研  ·  五维风控  ·  Walk-Forward 分析**
@@ -95,7 +95,7 @@ python cli.py dashboard
 
 # 5. Run all tests
 python cli.py test
-# Output: 636 passed ✓
+# Output: 654 passed ✓
 ```
 
 ```python
@@ -260,7 +260,7 @@ MPLBACKEND=Agg python -m pytest
 ```
 
 `python -m pytest` reads `testpaths = ["tests"]` from `pyproject.toml`, so no path argument
-is needed. Current baseline: **636 passed** (Python 3.12.10, `MPLBACKEND=Agg`).
+is needed. Current baseline: **654 passed** (Python 3.12.10, `MPLBACKEND=Agg`).
 
 > `python cli.py test` wraps whatever `pytest` is on PATH. If `python` is not the
 > interpreter you installed into (see above), prefix the commands accordingly,
@@ -409,7 +409,7 @@ Factor_Trading_v3.0/
 │   └── cli.html                   # CLI-style interface
 ├── assets/                        # 静态资源 (架构图等)
 ├── examples/                      # 示例脚本 (7 files)
-├── tests/                         # 测试套件 (636 tests, 71 files)
+├── tests/                         # 测试套件 (654 tests, 74 files)
 ├── docs/                          # 文档 (9 files)
 ├── tools/                         # 工具脚本 (benchmark / audit / ui)
 ├── data/                          # 事件日志存储
