@@ -139,10 +139,14 @@ class TestDeleteBothFormats:
 class TestSingleFormat:
     """B4：写入成功后只保留一种格式（缺陷④）。"""
 
-    def test_parquet_write_removes_stale_csv(self, db_path, sample_factor):
+    def test_parquet_write_removes_stale_csv(self, db_path, sample_factor, monkeypatch):
         stale_csv = Path(db_path) / "both.csv"
         sample_factor.to_csv(stale_csv)
 
+        def _fake_parquet(self, path, *args, **kwargs):
+            Path(path).write_bytes(b"PAR1")
+
+        monkeypatch.setattr(pd.DataFrame, "to_parquet", _fake_parquet)
         db = FactorDatabase(db_path)
         db.add_factor("both", sample_factor, metadata=META, overwrite=True)
 
@@ -151,10 +155,9 @@ class TestSingleFormat:
         pd.testing.assert_frame_equal(db.get_factor("both"), sample_factor)
 
     def test_csv_fallback_removes_stale_parquet(self, db_path, sample_factor, monkeypatch):
-        seed = FactorDatabase(db_path)
-        seed.add_factor("swap", sample_factor, metadata=META)
+        # 预置无 metadata 的陈旧 parquet，固定 CSV 回退分支（CI 无 parquet 引擎）
         stale_parquet = Path(db_path) / "swap.parquet"
-        assert stale_parquet.exists()
+        stale_parquet.write_bytes(b"PAR1")
 
         monkeypatch.setattr(pd.DataFrame, "to_parquet", _raise_import_error)
         updated = sample_factor * 3.0

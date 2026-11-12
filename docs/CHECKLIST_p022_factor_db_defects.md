@@ -37,8 +37,8 @@
 
 | ID | 验收项 | DoD | 实测 |
 |----|--------|-----|------|
-| D-1 | parquet 成功清理 csv | 预置 `{name}.csv` → `add_factor`（parquet 可用）→ csv 不存在，parquet 存在 | ✅ `test_parquet_write_removes_stale_csv` 绿：csv 删除、parquet 存在、读回等值（按 F-S9-P022-1 用 `overwrite=True` 进入写入路径） |
-| D-2 | CSV 回退清理 parquet | 预置 `{name}.parquet` → 强制 `ImportError` 写 csv → parquet 不存在，`get_factor` 读回新值 | ✅ `test_csv_fallback_removes_stale_parquet` 绿：parquet 删除、csv 存在；重开读回 `updated`（`check_freq=False`） |
+| D-1 | parquet 成功清理 csv | 预置 `{name}.csv` → `add_factor`（parquet 可用）→ csv 不存在，parquet 存在 | ✅ `test_parquet_write_removes_stale_csv` 绿：csv 删除、parquet 存在、读回等值（按 F-S9-P022-1 用 `overwrite=True`；按 F-S9-P022-3 以 monkeypatch 固定 parquet 成功分支，不依赖 CI 引擎） |
+| D-2 | CSV 回退清理 parquet | 预置 `{name}.parquet` → 强制 `ImportError` 写 csv → parquet 不存在，`get_factor` 读回新值 | ✅ `test_csv_fallback_removes_stale_parquet` 绿：预置哨兵 parquet + 强制 `ImportError` → parquet 删除、csv 存在；重开读回 `updated`（`check_freq=False`） |
 
 ### E 组：兼容与回归（I5 / I6 / V5 / V6）
 
@@ -163,4 +163,4 @@ Step 8 一致性 Review（§8）、Step 9 实测回填（§1 验收表）、Step
 | Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p022_factor_db_defects.md)（四批红 4/2/2/2 → 绿 11；B1-B4 + B4b；18/18 ✅） | 2026-11-12 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵 9 类；P3×1 已记录 + U-P022-4 + 3 观察） | 2026-11-12 |
 | RULE-5 异构复审 | **未执行** | 本会话即作者（DeepSeek-V4.1-Flash）；待异构基座独立会话全批复审 | — |
-| CI 回收 | 待回填 | B5 推送后 `gh run list` 登记 run 号与三 job 结论 | — |
+| CI 回收 | 待回填 | 首跑 `43175692308` **failure**（D-1/D-2 环境依赖 parquet，2 failed × 3 版本）→ B5b 固定分支修复；第二跑待登记 | — |

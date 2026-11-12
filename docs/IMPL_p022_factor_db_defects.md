@@ -173,6 +173,7 @@
 |----|------|------|------|
 | F-S9-P022-1 | P3 | B2 守卫生效后，「预置 csv 再写入」必须先 `overwrite=True`，否则在进入 B4 清理路径前即被拒绝；DESIGN §4.4 样例未显式写 `overwrite` | D-1/D-2 测试按 `overwrite=True` 实现；§7.4 记录该前提 |
 | F-S9-P022-2 | 观察 | `delete_factor` 在「重开 + 单因子」时不会崩溃（该条先被移除再 `_save_metadata`），仅 ≥2 因子时触发 P6 | RESEARCH P6 已如实记录，测试用双因子覆盖 |
+| F-S9-P022-3 | P3 | CI 用 `pip install ".[dev]"`，**无 parquet 引擎**：D-1 原测试依赖真实 parquet、D-2 依赖 seed 写 parquet → CI 三版本各 2 failed（run `43175692308`） | 测试改为固定分支：D-1 `monkeypatch` 写哨兵 parquet；D-2 预置哨兵 parquet + 强制 `ImportError`；B5b 提交修复 |
 | 环境 | 观察 | PATH 上的 `python` 仍指向 Anaconda 3.13；所有命令显式 `Python312` | 已在 §7 声明 |
 
 **与 DESIGN 偏差**：无（D1-D6 / I1-I6 全部按规划落地；未做原子写/返回副本/非 ImportError 清理）。
