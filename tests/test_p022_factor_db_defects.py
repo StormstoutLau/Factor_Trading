@@ -106,3 +106,33 @@ class TestOverwriteGuard:
         with pytest.raises(ValueError, match="已存在"):
             db.add_factor("orphan", sample_factor, metadata=META)
 
+
+def _raise_import_error(self, *args, **kwargs):
+    raise ImportError("no parquet engine")
+
+
+class TestDeleteBothFormats:
+    """B3：删除必须同时清理 parquet 与 csv（缺陷②）。"""
+
+    def test_delete_removes_csv_fallback(self, db_path, sample_factor, monkeypatch):
+        db = FactorDatabase(db_path)
+        monkeypatch.setattr(pd.DataFrame, "to_parquet", _raise_import_error)
+        db.add_factor("csv_only", sample_factor, metadata=META)
+        csv_path = Path(db_path) / "csv_only.csv"
+        assert csv_path.exists()
+
+        db.delete_factor("csv_only")
+
+        assert not csv_path.exists()
+
+    def test_deleted_factor_cannot_resurrect(self, db_path, sample_factor, monkeypatch):
+        db = FactorDatabase(db_path)
+        monkeypatch.setattr(pd.DataFrame, "to_parquet", _raise_import_error)
+        db.add_factor("csv_only", sample_factor, metadata=META)
+        db.delete_factor("csv_only")
+
+        assert not (Path(db_path) / "csv_only.parquet").exists()
+        with pytest.raises(KeyError):
+            db.get_factor("csv_only")
+
+

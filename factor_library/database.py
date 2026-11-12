@@ -223,10 +223,10 @@ class FactorDatabase:
         if name in self._metadata:
             del self._metadata[name]
 
-        # 删除文件
-        data_path = self.db_path / f"{name}.parquet"
-        if data_path.exists():
-            data_path.unlink()
+        # 删除文件（parquet 与 csv 两种格式都可能存在）
+        for data_path in (self.db_path / f"{name}.parquet", self.db_path / f"{name}.csv"):
+            if data_path.exists():
+                data_path.unlink()
 
         self._save_metadata()
 
