@@ -733,6 +733,15 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **CI 回收**: 首跑 `43193963200` failure（`filter/*` 21 errors）→ 修复 `f8cb9ba`（`filter.*` 越界声明 + 撤回钉版）→ run [`43196177149`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43196177149) 三 job **success**（3.10 1m58s / 3.11 1m27s / 3.12 1m47s）；回填提交自身 run 不计入验收证据
 - **本批收口**: **U-006 / U-P023-2 / U-P023-4 关闭**（判据达成）；新增 U-P024-2（CI `uv lock --check`）/ U-P024-3（检查面扩展）/ U-P024-4（`filter/` 在 pandas 3.x 下 21 errors）三项条件触发未决项；U-P024-1 维持 pending（误诊已撤回）；四文档 [RESEARCH](RESEARCH_p024_ci_gate_alignment.md) / [DESIGN](DESIGN_p024_ci_gate_alignment.md) / [IMPL](IMPL_p024_ci_gate_alignment.md) / [CHECKLIST](CHECKLIST_p024_ci_gate_alignment.md)
 
+### 3.29 远端 legacy `main` 分支收口 + CI 分支过滤清理（2026-11-12，done · 无批次编号）
+
+- **背景**: 远端 `main`（`dba4be8`，2026-05-13，5 提交 / 235 文件 / 48,457 行，全为 `Add files via upload`）与 `master` **无共同祖先**（`git merge-base` 为空、`--is-ancestor` = False），却长期是 **GitHub 默认分支** → 访客与 clone 默认落到 5 月快照；README L8 CI 徽章未带 `?branch=`，状态取自 `main` 而非现网门禁
+- **前置核查**: `main` 无保护规则（`Branch not protected`，404）/ 以 `main` 为基的 PR = 0 / 无 tag / README 与 `tests/`+`scripts/` 无分支名引用；仅 `main` 独有的 125 文件中非 `.pyc` 部分为被重构取代的旧扁平布局 + `demo_data/` + `output/` 产物 + 2 张零引用的 `Instruction.PNG`/`UI.PNG` → 无独有工程价值
+- **处置（顺序不可换）**: ① 存档 tag `archive/legacy-main-2026-05-13` → `dba4be8`（已推送）；② 默认分支 `main` → `master`（`gh api -X PATCH -f default_branch=master`）；③ `git push origin --delete main`（`- [deleted] main`）→ `git remote set-head origin -a` 得 `origin/HEAD -> origin/master`
+- **代码变更**: `0482df7` — `tests.yml` L5/L7 `branches: [main, master, develop]` / `[main, master]` 收敛为 `[master]`（1 文件 **+2/−2**），7 步骤（含 mypy 门禁）零改动
+- **验证**: YAML 解析合法（`push: ['master']` / `pr: ['master']` / steps 7）；守卫测试 `test_p024_ci_gate_alignment.py` + `test_spec_runner_adapter.py` **9 passed**；CI run [`43206371865`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43206371865) 三 job **success**（默认分支切换后首跑）
+- **终态**: 远端仅 `refs/heads/master`（`0482df7`）+ tag `archive/legacy-main-2026-05-13`；默认分支 `master`；工作区干净
+
 ---
 
 ## 4. 审查记录
