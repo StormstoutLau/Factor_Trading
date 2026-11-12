@@ -204,5 +204,5 @@ Step 8 一致性 Review（§8）、Step 9 实测回填（§1 验收表）、Step
 
 ### 11.6 复审结论
 
-**pass**——0 P1 / 0 P2 / **4 P3 登记（F-R5-P021-1~4，全部记录层回写）** + 2 观察；P-021 三大主结论（M-A 原样重建锁 / D2 不声明 pyarrow / 零行为零升级）独立重放全部成立；ADD 审计结论（P3×1 已修 + 3 观察）维持。复审记录提交以 `git log` 为准，CI run 由回填提交登记。
+**pass**——0 P1 / 0 P2 / **4 P3 登记（F-R5-P021-1~4，全部记录层回写）** + 2 观察；P-021 三大主结论（M-A 原样重建锁 / D2 不声明 pyarrow / 零行为零升级）独立重放全部成立；ADD 审计结论（P3×1 已修 + 3 观察）维持。复审记录提交 `89c4f68`，CI run [`43169697196`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43169697196) 三 job **success**。
 
