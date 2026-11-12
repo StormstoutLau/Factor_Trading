@@ -208,4 +208,4 @@
 | Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p023_quality_guardrails.md)（三批红绿；`a5b95bb`；25/25 ✅） | 2026-11-12 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵 7 类；P3×1 登记 + 3 观察） | 2026-11-12 |
 | RULE-5 异构复审 | **未执行** | 本会话即作者（DeepSeek-V4.1-Flash）；待异构基座独立会话全批复审 | — |
-| CI 回收 | [待推送] | 提交推送后回填 run 号与三 job 结论 | — |
+| CI 回收 | success | 提交 `a5b95bb` + `74f08ff` 合并推送 → run [`43187514724`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43187514724) 三 job **success**（3.11 1m25s / 3.12 2m0s / 3.10 1m15s） | 2026-11-12 |
