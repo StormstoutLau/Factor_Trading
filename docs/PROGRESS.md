@@ -765,6 +765,19 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **RULE-5 异构复审 pass**（复审基座 **GLM-5.3-Flash** ≠ 各文档/实施/审计作者基座 **DeepSeek-V4.1-Flash**，异构成立）：E1 机械重放 **9/9**（numstat 4 笔 / CI 3 run / pytest 671 / mypy 37 files 0 / black 116+182 / 新增 17 / decoupled 12 / 保护面 diff 空 / golden 零重录）；E2 红态重放（checkout `43cfa36` 四 core 文件 → **6 红**：`day_error_mode` TypeError ×3 + `KeyError: run_diagnostics` + EqualWeight 静默降级 + 预检 DID NOT RAISE → 恢复 → 17 绿、工作区干净）；E3 锚点全命中 + 验收区段 42/42 ✅ + 链接 0 broken；E4 盲区扫描 **2 P3 均已回写修复**（**F-R5-P025-1** §12.4 RULE-5 状态声明「作者同为 GLM」与作者归属铁证不符已订正——若采信原声明本复审会话将不满足异质性而失效，属异构复审核心命中；**F-R5-P025-2** README 计数漂移 4 处 654→671、74→78 files〔F-R5-P024-1 同类复发〕）+ 3 观察（sink 自定义注入逃逸面 / record_failure 无调用点 / run 二次累积，均维持既有裁决）；0 P1 / 0 P2；复审落稿提交 `1413e1b` → CI run [`43268888853`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43268888853) 三 job success；详见 [CHECKLIST_p025 §13](CHECKLIST_p025_daily_loop_exception_semantics.md)
 - **本批收口**: **U-P023-1 关闭**（由 P-025 完成）；**U-P025-5 关闭**（3.11+/3.10 分支已实现且 CI 3.10 job 覆盖）；U-P025-4 裁决不做；U-P025-1/2/3/6 维持 pending；四文档 [RESEARCH](RESEARCH_p025_daily_loop_exception_semantics.md) / [DESIGN](DESIGN_p025_daily_loop_exception_semantics.md) / [IMPL](IMPL_p025_daily_loop_exception_semantics.md) / [CHECKLIST](CHECKLIST_p025_daily_loop_exception_semantics.md)
 
+### 3.31 P-026（静默失败治理第二批 · U-P025-3）执行记录（2026-11-13，Step 1 完成 · T1）
+
+- **立项**: U-P025-3 承接（触发条件「其中任一处产生可复现的静默错误」经 Step 1 读码**实证成立**）；档位 **T1**（`core/` 行为契约 + 结果/返回值新增可观测字段）；代码证据时点 HEAD `7ff7a4d`
+- **Step 1 候选池实测（E1）**: 全仓 `except Exception` **49 处**——`core/` 27 / `agents/` 11 / `filter/` 5 / `scripts/` 2 / `batch_backtest/` 2 / `strategy_evaluation/` 1 / `cli.py` 1；core 27 = 已埋点 3（engine_v2 ×2 + execution ×1）+ 采集器兜底 2（diagnostics）+ **待评估 22**
+- **Step 1 逐点裁决（22 处全覆盖）**: **K 保持 8**（`data.py` ×3 记录后重抛 / `event_log` listener 隔离 ×2 + 恢复 warning + 快捷函数 / `walk_forward` 回调隔离）/ **D 升级诊断 10** / **F fail-fast 0** / **排除 4**（`config_v2` ×3 冻结且形态正确 / `execution` L251 P-025 已裁正确降级）
+- **Step 1 三处 P2 实证（读码）**: ① `factor.py` L344 `except Exception: continue` **零日志**（去常数列失败 → 该日中性化整体跳过 → 信号缺失）；② `engine_plugins.py` L235 Guard 异常 **fail-open**（`return True, []`，异常不计入既有 `_blocked_count`/`_warning_count`）；③ `walk_forward_engine.py` L185 `set_period` 失败仅 warning（窗口以**错误期间模式**运行且无字段标记）
+- **Step 1 辅助发现**: `engine_plugins.py` L161 为 **`debug` 级**（A3 铁证 root logger 默认 WARNING → 默认不可见）；`event_log` L160 读取失败返回空列表（**「无事件」与「读失败」不可区分**）；`global_contagion` L433/L447 **零日志**兜底、L589 假阴性不可区分；静默路径测试覆盖近零（9 关键词中 7 项 0 命中）
+- **方案矩阵**: 5 案（M-A 逐点三态分级显形 / M-B 仅提日志级别 / M-C 全局注册表 / M-D 全量 fail-fast / M-E 维持）选 **M-A**——延续 P-025「显式静默 vs 未声明静默」判据（PEP 20 后句）、复用 sink 注入先例（P-025 D5）、**零全局状态**、本批 0 项 fail-fast
+- **外部锚点（4 项全 T1 命中，2026-11-13 直读）**: PEP 20「Errors should never pass silently. Unless explicitly silenced.」/ CWE-390「detects a specific error, but takes no actions」/ Python logging 文档「root logger is created with level WARNING」/ AWS Builders' Library「almost always prefer alternatives to fallback」
+- **未决项**: U-P026-1（EventLog 写盘失败是否 fail-fast，倾向只计量）/ U-P026-2（contagion `degraded` 字段粒度）/ U-P026-3（core 外 22 处后续分批）/ U-P026-4（listener 限流，不做）/ U-P026-5（是否建全局采集器，本批不建）
+- **批次切分**: B1 factor / B2 plugins / B3 contagion / B4 event_log + walk_forward / B5 文档与回归
+- **下一 Step**: Step 2 独立 Review（异构基座）；调研文档 [RESEARCH_p026](RESEARCH_p026_silent_exception_governance.md)
+
 ---
 
 ## 4. 审查记录
