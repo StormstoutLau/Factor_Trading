@@ -127,8 +127,11 @@ class DataLoaderV3:
 
     def _build_maps(self):
         """构建日期/股票到索引的映射"""
-        self.date_map = {date_str: i for i, date_str in enumerate(self.dates)}
-        self.stock_map = {stock_code: i for i, stock_code in enumerate(self.stocks)}
+        dates = self.dates
+        stocks = self.stocks
+        assert dates is not None and stocks is not None
+        self.date_map = {date_str: i for i, date_str in enumerate(dates)}
+        self.stock_map = {stock_code: i for i, stock_code in enumerate(stocks)}
 
     def get_slice(self, start: int, end: int) -> dict[str, np.ndarray]:
         """获取日期切片

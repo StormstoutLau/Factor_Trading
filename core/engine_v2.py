@@ -10,7 +10,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -221,7 +221,7 @@ class BacktestEngineV2:
             logger.info("使用注入的因子处理管道")
         else:
             logger.info("创建默认因子处理管道...")
-            self.pipeline = FactorPipeline(self.dm, self.cfg.factor)
+            self.pipeline = FactorPipeline(cast(DataManager, self.dm), self.cfg.factor)
 
         # 4. 因子合成器
         if self._injected_combiner is not None:
@@ -290,7 +290,9 @@ class BacktestEngineV2:
         fname = self.cfg.factor_files[0]
         logger.info(f"加载因子: {fname}")
 
-        raw = self.dm.load_factor(fname)
+        dm = self.dm
+        assert dm is not None
+        raw = dm.load_factor(fname)
         logger.info(
             f"  因子形状: {raw.shape}, NaN: {raw.isna().sum().sum() / (raw.shape[0] * raw.shape[1]):.2%}"
         )
@@ -310,6 +312,11 @@ class BacktestEngineV2:
         """运行回测"""
         if self.dm is None:
             raise RuntimeError("请先调用setup()方法")
+        if self._composite_signal is None:
+            raise RuntimeError(
+                "回测信号未就绪：注入 factor_pipeline/factor_combiner 的工作流"
+                "需在 setup() 后设置 _composite_signal（或提供非空 factor_files）"
+            )
 
         t0 = time.perf_counter()
         self._run_started_at = datetime.now()
@@ -1137,6 +1144,10 @@ class BacktestEngineV2:
         tracker = self.tracker
         executor = self.executor
         snapshots = tracker.get_snapshots()
+        if not snapshots:
+            raise RuntimeError(
+                "回测未产生任何组合快照，拒绝生成结果：请检查交易日范围与信号就绪状态"
+            )
         trades_df = executor.trade_log.get_trades_df()
 
         output_dir = self.cfg.output_dir
