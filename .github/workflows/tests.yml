@@ -43,4 +43,4 @@ jobs:
         run: python -m pytest tests/ --tb=short -q
 
       - name: Type check (mypy)
-        run: mypy core/ --ignore-missing-imports --no-error-summary || true
+        run: python -m mypy --explicit-package-bases --check-untyped-defs core
