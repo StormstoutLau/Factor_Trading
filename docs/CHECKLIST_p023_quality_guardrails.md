@@ -207,5 +207,56 @@
 | Step 8 一致性 Review | 通过 | §7（链接 0 broken；ID 闭环；计数 25；2 P3 回写） | 2026-11-12 |
 | Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p023_quality_guardrails.md)（三批红绿；`a5b95bb`；25/25 ✅） | 2026-11-12 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵 7 类；P3×1 登记 + 3 观察） | 2026-11-12 |
-| RULE-5 异构复审 | **未执行** | 本会话即作者（DeepSeek-V4.1-Flash）；待异构基座独立会话全批复审 | — |
+| RULE-5 异构复审 | **pass** | 异构基座 GLM-5.3-Flash 独立会话全批复审（E1-E4 重放；0 P1/P2/P3 + 4 观察）；见 §11 | 2026-11-12 |
 | CI 回收 | success | 提交 `a5b95bb` + `74f08ff` 合并推送 → run [`43187514724`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43187514724) 三 job **success**（3.11 1m25s / 3.12 2m0s / 3.10 1m15s）；回填提交 `ab61d2b` → run `43187917684` 三 job **success**（3.10 1m24s / 3.12 1m11s / 3.11 1m59s）。**登记收敛**：本笔终态登记提交自身的 run 不再作为验收证据（回填链到此为止） | 2026-11-12 |
+
+---
+
+## 11. RULE-5 异构复审（2026-11-12）
+
+> **复审基座**：GLM-5.3-Flash（本节作者）≠ P-023 实施作者 DeepSeek-V4.1-Flash——满足 RULE-5 异质性约束。复审时点 HEAD `a5cad18`（= origin/master，工作区干净）；方法与取证矩阵依据 SPEC_PROCESS v1.7.2 RULE-6（E1 可重放命令 / E2 运行时 / E3 静态读码绑 commit / E4 盲区扫描 / E5 推测不用于结论）。
+
+### 11.1 E1 机械重放（全部复现）
+
+| # | 断言 | 重放结果 |
+|---|------|----------|
+| 1 | HEAD/分支 | `a5cad18` = origin/master，工作区干净（复审自证） |
+| 2 | CI run | `43187514724` **success** 2m4s（B4 触发）/ `43187917684` **success** 2m3s（B5 触发）/ `43188290186` **success** 1m52s（B5b 触发；按 §10 登记收敛声明不计入验收证据，如实记录） |
+| 3 | 提交面 | 4 笔 numstat 逐笔与 §8.1 / IMPL §7.1 一致：`a5b95bb` **3 文件 +222/−5**（data_v3 +5/−2、engine_v2 +14/−3、新测试 +203）/ `74f08ff` 6 文件 **+872/−2** / `ab61d2b` 2 文件 **+4/−3** / `a5cad18` 2 文件 **+2/−2** |
+| 4 | 全量回归 | **651 passed, 152 warnings in 84.96s**（复审自跑；文档 39.91s——passed 数一致，时长波动） |
+| 5 | 门禁 | black **113 files would be left unchanged** / mypy 门禁口径 **`Success: no issues found in 36 source files`** / 盲区口径（`--check-untyped-defs`）**同读数 exit 0**（复审自跑） |
+| 6 | 注入式回归 | `pytest tests/test_real_ashare_backtest.py tests/test_real_ashare_strict_validation.py -q` → **27 passed, 21 warnings in 11.45s** |
+| 7 | 探针复跑（E2 场景 A/B/C/D/E） | A/C/E 由「静默 OK」→ **`RuntimeError`**（「信号未就绪」×2 /「快照」×1）；B 仍 `ValueError`（`setup()` 守卫不变，I1 佐证）；D 对照不变（snapshots=5 / trades=8）——与 IMPL §7.4 逐字同 |
+| 8 | 保护面 | `git diff --name-only c2a1918..HEAD -- pyproject.toml .github/ core/interfaces.py core/factor.py core/engine_v3_vector.py` = **空** |
+
+### 11.2 E2 运行时（合成红态重放闭合）
+
+| 探针 | 结果 |
+|------|------|
+| 红：`git checkout c2a1918 -- core/engine_v2.py core/data_v3.py` + HEAD 测试 | **2 failed, 2 passed**——`test_run_without_signal_raises` / `test_generate_results_empty_snapshots_raises` 均 `Failed: DID NOT RAISE <class 'RuntimeError'>`（F-A1 双缺失复现）；T2/T4 对照绿（13 用例形态照常）——与 §8.2 F5 三批红态同构 ✓ |
+| 绿控制组：`git checkout HEAD -- ...` 恢复后重跑 | **4 passed in 3.03s**，工作区恢复干净 ✓ |
+
+### 11.3 E3 静态读码（锚点全命中）
+
+`core/engine_v2.py` @`a5cad18`：L313-L314（既有 dm 守卫未动）/ L315-L317（D1 信号守卫+消息）/ L1145-L1148（D2 空快照守卫）/ L224 `cast(DataManager, self.dm)` / L293-L295 别名+assert；`core/data_v3.py` L130-L134（D3 别名+assert）——行号逐一命中，与 §9.1 Phase 1 映射一致；四文档相对链接 **21 处 0 broken**；ID 闭环 P1-P13 / D1-D6 / I1-I6 / V1-V7 / T-1~T-5 / U-P023-1~4 / F-S 发现 9 组跨 S2/S4/S6/S8/S9/S10 六步骤；CHECKLIST 验收行区段限定 **25 项全 ✅**；`[待 Step 9]` 4 处均为规则行/统计行合法引用。
+
+### 11.4 复审发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| — | — | **0 项 P1 / P2 / P3**——四项主结论（双守卫落位与文案 / 盲区四项清零 / 注入式 13 用例形态不破 / 保护面与逐日循环零改动）独立重放全部成立 | — |
+
+> 复审脚本两处口径误报经人工判定为非缺陷：① 互链计数要求 ≥2，而 DESIGN→RESEARCH、IMPL→DESIGN 单上游链为管线标准形态（P-021/P-022 先例一致）；② 「25 项全 ✅」检查误将 §8.2 红态记录行（`| B1 \|`…无 ✅ 属红态如实记录）计入判定区——区段限定复核 25/25 ✅ 成立。
+
+### 11.5 E4 盲区观察（登记，不阻断）
+
+| # | 发现 | 处置 |
+|---|------|------|
+| 观察 1 | `%TEMP%` 残留实施期脚本 2 个（`p023_consistency.py` / `p023_fa1_probe.py`）+ 提交消息 txt 4 个 + 复审脚本 1 个 | 复审收尾统一清理（本节落位时执行） |
+| 观察 2 | run `43188290186`（B5b 终态提交触发，success 1m52s）未登记——但 §10 已明示「本笔提交自身 run 不计入验收证据」 | **已声明合法态**（与 P-022 F-R5-P022-1「无声明漏登」性质不同）；复审提交产生的 run 同样落入该声明 |
+| 观察 3 | PROGRESS §3.27「39.91s」与复审自跑 84.96s——passed 数 651 一致，时长波动非缺陷 | 登记 |
+| 观察 4 | §10 CI 回收行「`a5b95bb` + `74f08ff` 合并推送」表述准确：CI 仅跑 HEAD（`74f08ff`），`a5b95bb` 代码随同 run 被测试 | 登记 |
+
+### 11.6 复审结论
+
+**pass**——0 P1 / 0 P2 / 0 P3 + 4 观察；P-023 四项主结论独立重放全部成立；ADD 审计结论（P3×1 登记 + 3 观察）维持；**U-006-R 关闭与 F-A1 关闭判定均成立**。复审记录提交与 CI run 于回填提交补记。

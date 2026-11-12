@@ -706,6 +706,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **V1-V7 实读**: **651 passed**（647+4，39.91s）/ black **113 files unchanged** / mypy 门禁 **36 files 0** / 盲区 **0** / 注入式 **27 passed** / 保护面 diff **空**
 - **探针复跑**: A/C 由「静默 OK」→ `RuntimeError(信号未就绪)`；E 由「OK」→ `RuntimeError(快照)`；D 不变
 - **CI 回收**: 提交 `a5b95bb`（代码）+ `74f08ff`（文档）合并推送 → run [`43187514724`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43187514724) 三 job **success**（3.11 1m25s / 3.12 2m0s / 3.10 1m15s）；回填提交 `ab61d2b` → run `43187917684` 三 job **success**（3.10 1m24s / 3.12 1m11s / 3.11 1m59s，登记收敛：终态登记提交自身 run 不计入验收证据）
+- **RULE-5 异构复审**: **pass**（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash）——E1 机械重放 8/8（CI 三 run / 4 笔 numstat / `651 passed` / black 113 / mypy 双口径 36 files 0 / 注入式 27 passed / 探针 A/C/E 转抛 RuntimeError / 保护面空）+ E2 合成红态重放（`c2a1918` 旧码 + 新测试 → **2 failed 2 passed**，双守卫缺失复现；恢复 HEAD 后 4 passed）+ E3 锚点行号全命中 + 四文档 21 链接 0 broken + ID 闭环 + 25/25 ✅ + E4 盲区扫描；**0 P1 / 0 P2 / 0 P3 + 4 观察**（含 `43188290186` 已声明合法态）；详见 [CHECKLIST_p023 §11](CHECKLIST_p023_quality_guardrails.md)
 - **本批收口**: **U-006-R 关闭**（盲区 4 → 0）；**F-A1 关闭**（双守卫 + 来源订正）；新增 U-P023-1（catch-all retry 语义）/ U-P023-2（`--check-untyped-defs` 是否入门禁）/ U-P023-3（零交易日语义）/ U-P023-4（v3 引擎信号路径未取证）四项条件触发未决项
 
 ---
