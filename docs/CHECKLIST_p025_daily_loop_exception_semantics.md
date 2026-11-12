@@ -138,7 +138,7 @@
 | Step 8 一致性 Review | 通过 | §10（链接 0 broken〔2 伪命中人工判定〕；ID 闭环 17 组；计数 42；2 P3 回写 IMPL） | 2026-11-13 |
 | Step 9 TDD 实施 | 完成（42/42 ✅） | §11（五批红绿；`22b833e`；671 passed / 37 files / 116+182 / golden 零重录） | 2026-11-13 |
 | Step 10 ADD 审计 | 通过（P3×3：2 修 1 登记 + 3 观察） | §12（Phase 0-4 + 取证矩阵 E1-E5 + 盲区扫描） | 2026-11-13 |
-| RULE-5 异构复审 | [待 RULE-5] | — | — |
+| RULE-5 异构复审 | **pass**（GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash） | §13（E1 9/9 / E2 红绿闭环 / E3 锚点全命中 / E4 **2 P3 已修**〔F-R5-P025-1 状态声明订正 + F-R5-P025-2 README 计数〕+ 3 观察） | 2026-11-13 |
 | CI 回收 | success | run [`43260476319`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43260476319) 三 job **success**（3.10 / 3.11 / 3.12） | 2026-11-13 |
 
 ---
@@ -287,4 +287,60 @@
 
 **P1 = 0 / P2 = 0 / P3 = 3（2 已修 + 1 登记）+ 3 观察**；42/42 ✅；V1-V12 全过；I1-I7 全过（含 I6 golden 零重录、I7 末日重复快照未动）；Phase 0-4 通过。
 
-> **RULE-5 状态**：本批**尚未执行**异构复审——实施/审计与 DESIGN 作者同为 GLM-5.3-Flash，不满足异质性约束；需另起异构基座会话对本批全批复审。
+> **RULE-5 状态**：已于 2026-11-13 执行异构复审并 **pass**——复审基座 **GLM-5.3-Flash ≠ 各文档/实施/审计作者基座 DeepSeek-V4.1-Flash**（作者归属铁证：[RESEARCH §10](RESEARCH_p025_daily_loop_exception_semantics.md) L156、[DESIGN §10](DESIGN_p025_daily_loop_exception_semantics.md) L315、[PROGRESS §1.4](PROGRESS.md) P-025 行 Step 2/4 Review 记录「异构 GLM-5.3-Flash vs 作者 DeepSeek-V4.1-Flash」），E1-E4 独立重放全复现，见 §13。
+>
+> **F-R5-P025-1（P3，本行原声明订正）**：本段原文写作「实施/审计与 DESIGN 作者同为 GLM-5.3-Flash，不满足异质性约束」——与上述三处作者归属记录**不符**（DESIGN 作者为 DeepSeek-V4.1-Flash，非 GLM-5.3-Flash），系异构复审捕获的文档事实错误，已订正。
+
+---
+
+## 13. RULE-5 异构复审（2026-11-13）
+
+> **异质性**：复审基座 **GLM-5.3-Flash** ≠ 本批各文档/实施/审计作者基座 **DeepSeek-V4.1-Flash**（作者归属铁证：[RESEARCH §10](RESEARCH_p025_daily_loop_exception_semantics.md) L156、[DESIGN §10](DESIGN_p025_daily_loop_exception_semantics.md) L315、PROGRESS §1.4 P-025 行 Step 2/4 Review 记录）——异构成立。
+> **执行方式**：按 P-023/P-024 先例执行 E1-E4 独立重放（本节与正文非同一次写入，RULE-1；单 Agent 自查，RULE-4）。复审对象：HEAD `5b30d8e`（= origin/master，工作区干净，提交链 `43cfa36`→`c239691`→`ee72240`→`f853caa`→`22b833e`→`69a6d22`→`e199acc`→`5b30d8e` 逐笔核对一致）。
+
+### 13.1 E1 机械重放（9/9 命中）
+
+| # | 重放项 | 声称 | 重放读数 | 判定 |
+|---|--------|------|----------|------|
+| 1 | 逐笔 numstat（4 提交） | `22b833e` 6 files +547/−2 / `69a6d22` 5 files / `e199acc` 2 files / `5b30d8e` 3 files | `git show --stat` 逐笔一致 | ✅ |
+| 2 | CI run ×3 | 三 run success | `43260476319` / `43260996944` / `43264262846` 均 success，displayTitle 与提交消息一致 | ✅ |
+| 3 | pytest 全量 | 671 passed | **671 passed**（MPLBACKEND=Agg，92.37s） | ✅ |
+| 4 | mypy 门禁 | 37 files 0 | `--explicit-package-bases --check-untyped-defs core` → **37 source files, exit 0** | ✅ |
+| 5 | black 双口径 | 116 + 182 | core/tests/cli.py **116** + 全仓 **182** unchanged | ✅ |
+| 6 | 新增测试 | 17 passed | **17 passed**（10 函数 / 17 实例，F-S9-P025-1 口径） | ✅ |
+| 7 | 注入式保护 | decoupled 12 passed | **12 passed** | ✅ |
+| 8 | 保护面 diff | 零改动面 8 路径空 | `git diff 43cfa36..HEAD -- <8 路径>` **空输出** | ✅ |
+| 9 | golden | 13 passed 零重录 | E1-3 全量 671 含 golden 13（无重录痕迹，golden 目录零 diff） | ✅ |
+
+### 13.2 E2 红态重放（6 红 → 恢复 → 17 绿）
+
+`git checkout 43cfa36 -- core/config.py core/engine_v2.py core/execution.py core/portfolio.py`（保留 HEAD 的 diagnostics.py 与测试文件）→ `pytest tests/test_p025_day_error_diagnostics.py -q`：
+
+| 红态 | 异常形态 |
+|------|----------|
+| T5 off / T6 report / T7 raise | `TypeError: BacktestConfig.__init__() got an unexpected keyword argument 'day_error_mode'` ×3 |
+| T8 优化失败计量 | `KeyError: 'run_diagnostics'` |
+| T10 D6 别名 | `assert False`（返回 `EqualWeightOptimizer`——F-D3-P025-1 静默降级复现） |
+| T9 D7 预检 | `DID NOT RAISE <class 'RuntimeError'>` |
+
+`git checkout HEAD -- core/` 恢复 → `git status` 干净 → 复跑 **17 passed**。红态形态与 §11 批次红绿记录一致，红绿闭环成立。
+
+### 13.3 E3 静态读码
+
+代码锚点逐一命中：[config.py L345](../core/config.py#L345) / [diagnostics.py](../core/diagnostics.py)（STAGES L25-36 / RAISE+DEGRADED L39+L42 / classify L57-74 / record off 短路 L96-97 + 兜底 L121-123 / `_category_counts`+`_first_raiseable` L89-91 / raise_if_needed `ExceptionGroup` getattr L170-185）/ [engine_v2.py](../core/engine_v2.py)（L182 / L288-290 / L292-303 / L360-365 / L943-946 / L1213）/ [execution.py](../core/execution.py)（L177-189 / L339-344）/ [portfolio.py](../core/portfolio.py)（L435-445，5 键 + fail-closed）。四文档相对链接 3 唯一目标 0 broken；验收区段 **42/42 ✅**（机械统计，无未完成行）。
+
+### 13.4 E4 盲区扫描
+
+| # | 发现 | 等级 | 处置 |
+|---|------|------|------|
+| **F-R5-P025-1** | §12.4 RULE-5 状态声明「实施/审计与 DESIGN 作者同为 GLM-5.3-Flash」与作者归属记录不符（DESIGN §10 L315 等三处铁证作者 = DeepSeek-V4.1-Flash）——**异构复审核心命中：若采信原声明，本复审会话（GLM）将不满足异质性而失效** | P3 | **已修**：§12.4 状态段订正 + 保留原文订正注记（见 §12.4） |
+| **F-R5-P025-2** | README 测试计数漂移 4 处（badge L7 / L99 / L278 / L427 均为 654，实测 671；L427 另含 74 files → 78 files）——P-024 F-R5-P024-1 同类复发（P-025 新增 17 测试后 README 未同步） | P3 | **已修**：4 处 → 671 / 78 files（`654` 仅保留 L18 NEWS 历史叙事，口径合理） |
+| 观察-1 | `set_error_sink` 若注入自定义 callable（非 `DayErrorCollector.record`），其抛错会从 `execute_order` except 分支逃逸（原语义 except 绝不抛）——当前生产唯一注入点 engine_v2 L288-290 绑定 `record`（I3 零抛错契约兜住），grep 全仓无其他注入点，无现实风险 | 观察 | 不处置；后续若开放自定义 sink，应在引擎侧包兜底 |
+| 观察-2 | `record_failure` 生产无调用点（F-S5-P025-2 既有裁决，复审确认无回归） | 观察 | 维持原裁决 |
+| 观察-3 | `run()` 二次调用 `_diagnostics` 累积（§12.3 观察-1 既有，复审确认） | 观察 | 维持 |
+
+### 13.5 复审结论
+
+**E1 9/9 + E2 红绿闭环 + E3 锚点全命中 + 42/42 ✅ 全复现；E4 捕获 2 P3（均已回写修复）+ 3 观察（登记）；0 P1 / 0 P2。**
+
+本批审计结论（§12.4）**维持**：P-025 十步管线 + RULE-5 异构复审全部通过，收口。
