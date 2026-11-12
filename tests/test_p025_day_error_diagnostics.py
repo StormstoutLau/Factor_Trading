@@ -161,7 +161,7 @@ class _AlwaysTrigger:
         return True
 
 
-def _build_config(tmp_path, n_days: int = 4, **overrides) -> BacktestConfig:
+def _build_config(tmp_path, **overrides) -> BacktestConfig:
     zero_cost = CostConfig(
         commission_rate=0.0,
         commission_min=0.0,
@@ -197,7 +197,7 @@ def _make_engine(cfg: BacktestConfig, n_days: int = 4, optimizer=None) -> Backte
 
 def _prepare_engine_with_day_error(tmp_path, mode: str, n_days: int = 6) -> BacktestEngineV2:
     """仅对第 3 个交易日注入日级异常（单日注入：保证仍有快照产出）"""
-    cfg = _build_config(tmp_path, n_days=n_days, day_error_mode=mode)
+    cfg = _build_config(tmp_path, day_error_mode=mode)
     engine = _make_engine(cfg, n_days)
     engine.setup()
     target = engine.dm.trade_dates[2]
@@ -255,7 +255,6 @@ def test_optimize_failure_counted(tmp_path):
     n_days = 80
     cfg = _build_config(
         tmp_path,
-        n_days=n_days,
         optimizer=OptimizerConfig(
             method="min_variance", target_count=2, round_lot=True, cov_lookback=60
         ),
@@ -298,14 +297,13 @@ def test_setup_cov_precheck(tmp_path):
     """短历史 + 协方差方法 → setup 期 fail-fast（D7-O2）；等权不受影响（R2）"""
     cfg = _build_config(
         tmp_path,
-        n_days=4,
         optimizer=OptimizerConfig(method="min_variance", target_count=2, cov_lookback=60),
     )
     engine = _make_engine(cfg, 4)
     with pytest.raises(RuntimeError, match="必然失败"):
         engine.setup()
 
-    cfg_equal = _build_config(tmp_path / "equal", n_days=4)
+    cfg_equal = _build_config(tmp_path / "equal")
     engine_equal = _make_engine(cfg_equal, 4)
     engine_equal.setup()
     assert engine_equal.optimizer is not None

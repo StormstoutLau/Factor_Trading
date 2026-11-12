@@ -97,7 +97,7 @@
 |----|--------|--------------|------|------|
 | F1 | 四文档齐备且互链：`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_p025_daily_loop_exception_semantics.md` 存在，相对链接 0 broken | Step 8 机械校验脚本读数 | T-6 | ✅ 四文档存在；Step 8 机械校验链接 **0 broken** |
 | F2 | PROGRESS §1.4 P-025 行置 `done`（含 T1 / 四文档链接 / CI run id） | 读回 §1.4 | T-6 | ✅ §1.4 L67 = done（T1 + Step 1-9 摘要 + 四文档链接；CI run 见 §11.1） |
-| F3 | CHANGELOG `[Unreleased] > Changed` 记录 **3 项行为变更**：`mean_variance` 真正生效 / 未知 method fail-closed / 短历史协方差方法 setup fail-fast | 读回 `CHANGELOG.md` `Changed` 前三条 | D6+D7 观察-2 / R1 | ✅ CHANGELOG `Changed` 首条 P-025（四项行为变更合并一条，含门禁读数） |
+| F3 | CHANGELOG `[Unreleased] > Changed` 记录行为变更（**4 项**：`mean_variance` 真正生效 / 未知 method fail-closed / 短历史协方差方法 setup fail-fast / `run_diagnostics` 新增键） | 读回 `CHANGELOG.md` `Changed` 首条 | D6+D7 观察-2 / R1 | ✅ CHANGELOG `Changed` 首条 P-025（四项合并一条，含门禁读数；Step 10 F-S10-P025-2 订正项数与 CHANGELOG 一致） |
 | F4 | README 增「运行诊断（run_diagnostics）」字段说明；ARCHITECTURE 新增 `core/diagnostics.py` 模块行 + 计数**按其口径**订正（不得简单 +1，见 F-S4-P025-4） | 读回两文档对应节 | T-6 / R5 | ✅ README 新增「🩺 Run Diagnostics（P-025）」节；ARCHITECTURE §3.1 新增 Diagnostics 行 + 头部 671/27（口径已注明） |
 | F5 | U-P025-1~6 六项未决状态更新（承接/关闭/另立），U-P023-1 关闭注写明「由 P-025 承接并完成」 | 读回 PROGRESS §1.4 未决表 | RESEARCH §7 | ✅ 未决表新增 U-P025-1~6 六行（U-P025-5 done / U-P025-4 裁决不做 / 其余 pending）；U-P023-1 = **done（由 P-025 承接并完成）** |
 | F6 | 实施提交推送后 CI run 三 job success（与 E9 同一 run；F6 只登记提交链） | `git log --oneline` + `gh run list` | V12 | ✅ `22b833e`（代码 6 文件 +547/−2）→ `69a6d22`（文档 5 文件 +140/−46）→ run `43260476319` success |
@@ -137,7 +137,7 @@
 | Step 7 验收清单 | 完稿（零预填 42 项） | §1-§7 | 2026-11-12 |
 | Step 8 一致性 Review | 通过 | §10（链接 0 broken〔2 伪命中人工判定〕；ID 闭环 17 组；计数 42；2 P3 回写 IMPL） | 2026-11-13 |
 | Step 9 TDD 实施 | 完成（42/42 ✅） | §11（五批红绿；`22b833e`；671 passed / 37 files / 116+182 / golden 零重录） | 2026-11-13 |
-| Step 10 ADD 审计 | [待 Step 10] | — | — |
+| Step 10 ADD 审计 | 通过（P3×3：2 修 1 登记 + 3 观察） | §12（Phase 0-4 + 取证矩阵 E1-E5 + 盲区扫描） | 2026-11-13 |
 | RULE-5 异构复审 | [待 RULE-5] | — | — |
 | CI 回收 | success | run [`43260476319`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43260476319) 三 job **success**（3.10 / 3.11 / 3.12） | 2026-11-13 |
 
@@ -241,3 +241,50 @@
 ### 11.6 覆盖率
 
 **42 / 42 项 ✅**（E9 / F6 已由 CI run `43260476319` 回填）——A 7/7、B 6/6、C 6/6、D 8/8、E 9/9、F 6/6；0 P1 / 0 P2 / 0 P3 遗留。
+
+---
+
+## 12. Step 10 ADD 审计（2026-11-13）
+
+> **执行方式**：机械三校验 + 门禁链 + 四阶段审计（ADD）+ 取证矩阵 E1-E5（RULE-1 时序独立；RULE-4 单 Agent）。
+> **审计基线**：`43cfa36..e199acc`（13 文件 **+903/−23**；工作区干净）。
+
+### 12.1 四阶段
+
+| 阶段 | 检查 | 结论 |
+|------|------|------|
+| **Phase 0: Spec 质量门** | D1-D7 全部可机械核验——D1（字段名 + Literal 三值 + 默认值）/ D2（四类 + 双键判定 + 不看消息）/ D3（4 方法 + 50 上限 + frozen 6 字段）/ D4（catch 三段式 + 键恒存在）/ D5（sink 可选 + 默认 None）/ D6（别名 + fail-closed + 消息含「合法值」）/ D7（`cov_methods` 4 值 + `n_days <= cov_lookback` + 消息含「必然失败」） | ✅ 无「合理处理」「尽可能」类模糊词 |
+| **Phase 1: 完整性** | D1→[config.py L345](../core/config.py#L345)；D2/D3→[diagnostics.py L45-L76](../core/diagnostics.py#L45-L76)（classify）+ L77-L186（collector）；D4→[engine_v2.py L182](../core/engine_v2.py#L182) + L359-L366；D5→[execution.py L177-L189](../core/execution.py#L177-L189) + L339-L344、[engine_v2.py L286-L290](../core/engine_v2.py#L286-L290) + L942-L945；D6→[portfolio.py L435-L447](../core/portfolio.py#L435-L447)；D7→[engine_v2.py L292-L303](../core/engine_v2.py#L292-L303)（O1 末日快照 = 零 diff，符合「不动」裁决） | ✅ **7/7 落地** |
+| **Phase 2: 忠实度** | 逐条对照 IMPL §4 代码形态：run catch 顺序（record → logger.error → raise_if_needed → continue）✓ / 优化 catch（record 前置）✓ / sink 用 `getattr` 探测 ✓（F-S6-P025-1 回写生效）/ 预检 4 方法集合与消息文案 ✓ / `_category_counts` + `_first_raiseable` ✓（F-S6-P025-2 回写生效）/ `ExceptionGroup` 经 `getattr(builtins,…)` ✓（F-S5-P025-5）。**偏离 1 项**：T9 等权对照由独立函数合并入 T9（F-S9-P025-2，已在 §11.5 登记） | ✅ 1 项已登记，无静默偏离 |
+| **Phase 3: 必要性** | +903 行归属：代码 **+238**（diagnostics 186 / engine_v2 30 / execution 15 / portfolio 6 / config 1）、测试 **+311**（10 函数覆盖 T1-T10）、文档 **+354**（CHECKLIST 243 / IMPL 87 / PROGRESS 24 / README 14 / ARCHITECTURE 5 / DESIGN 3 / CHANGELOG 1）。**0 行无设计依据**；`STAGES` 常量无运行时使用（登记 F-S10-P025-3） | ✅ |
+| **Phase 4: 语义** | 目标「假成功 → 明确失败 + 可观测」达成：B2 场景由 `sharpe 0.0` 转为 setup 抛错（§11.4）；A2 控制流零变化但新增 `counts.day_loop=1`；**未把静默换成另一个静默**——`record` 只旁路上报、不改控制流，`degraded`/`counts` 使失败在结果中显形 | ✅ |
+
+### 12.2 取证矩阵（E1-E5）
+
+| 取证手段（等级） | 覆盖项 | 结果 |
+|------------------|--------|------|
+| pytest 全量 / 新增 / golden / decoupled（E1） | E2/E3/E9、D6、C2 | ✅ `671 passed` / `17 passed` / `13 passed` / `12 passed` |
+| mypy + black 双口径（E1） | E4/E5 | ✅ 37 files 0 / 116 + 182 unchanged |
+| git diff numstat + 保护面（E1） | D8/F1-F6 | ✅ 13 文件 +903/−23；零改动面 8 路径 **空**；golden 目录 **无变更** |
+| 探针复跑 A2/B2/C/A3（E2） | D2/D3/D7、E6/E7 | ✅ 与 §11.4 读数逐字一致（复审时点自跑） |
+| AST 签名比对（E3，绑 `22b833e`） | D5 | ✅ `execute_order` / `__init__` 签名与 HEAD `43cfa36` **一致** |
+| 静态读码（E3，绑 `e199acc`） | Phase 1 七项锚点 | ✅ 行号逐一命中（见上表 Phase 1） |
+| 盲区扫描（E4） | 全变更面 + 跨模块影响 | **3 P3（2 已修 / 1 登记）+ 3 观察**，见 §12.3 |
+| 推测（E5） | — | **未用于任何结论** |
+
+### 12.3 E4 盲区扫描结果
+
+| # | 发现 | 等级 | 处置 |
+|---|------|------|------|
+| **F-S10-P025-1** | 测试夹具 `_build_config(tmp_path, n_days=4, ...)` 的 `n_days` 参数**从未使用**（数据天数由 `_make_engine(cfg, n_days)` 独立决定）→ 5 个调用点传参无效，易误导后续维护者 | P3 | **已修**：删除死参数 + 5 处调用点同步（重跑 17 passed / black unchanged） |
+| **F-S10-P025-2** | CHECKLIST F3 项定义「3 项行为变更」，而 CHANGELOG 实际写 **4 项**（另含 `run_diagnostics` 新增键）→ 文档内部计数不一致 | P3 | **已修**：F3 项定义改为 4 项并与 CHANGELOG 对齐（`run_diagnostics` 属「新增键」而非「行为变更」，原写法少算） |
+| **F-S10-P025-3** | `core/diagnostics.py` 的 `STAGES` 常量**无运行时使用**（仅作契约词表） | P3 | **登记**：保留为 D3 阶段词表（供后续在 settle/pending/mark 等粒度插桩时校验），注释已说明「本批只产生 3 类」 |
+| 观察-1 | `run()` 二次调用时 `_diagnostics` **累积**（不在 `run()` 起点重置）——与既有「run() 非幂等」（tracker 快照累积）一致 | 观察 | 不处置；如未来支持多次 run 应一并重置 |
+| 观察-2 | `execution.py` L239 的 `except`（自定义价格回调失败 → 回退开盘价）**未接入** sink | 观察 | 正确：该路径属「降级告警」而非「成交失败」，D5 只指定 L327-L329 |
+| 观察-3 | 探针脚本位于 `%TEMP%`（`p025_verify_s9.py` / `p025_gates_s9.py` / `p025_backfill.py`），**不入仓** | 观察 | §11.4 已保全读数；复审需按该表重建脚本 |
+
+### 12.4 审计结论
+
+**P1 = 0 / P2 = 0 / P3 = 3（2 已修 + 1 登记）+ 3 观察**；42/42 ✅；V1-V12 全过；I1-I7 全过（含 I6 golden 零重录、I7 末日重复快照未动）；Phase 0-4 通过。
+
+> **RULE-5 状态**：本批**尚未执行**异构复审——实施/审计与 DESIGN 作者同为 GLM-5.3-Flash，不满足异质性约束；需另起异构基座会话对本批全批复审。
