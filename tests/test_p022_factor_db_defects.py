@@ -167,6 +167,3 @@ class TestSingleFormat:
         monkeypatch.undo()
         reloaded = FactorDatabase(db_path).get_factor("swap")
         pd.testing.assert_frame_equal(reloaded, updated, check_freq=False)
-
-
-
