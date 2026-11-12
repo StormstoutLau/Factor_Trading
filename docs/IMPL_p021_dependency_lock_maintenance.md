@@ -38,7 +38,7 @@
 | 位置 | 改动 |
 |------|------|
 | L324-331 | 标题改「可选与未声明依赖」；表格 4 行 → 3 行（streamlit / numba / pyarrow+fastparquet），删除误列的 ta/tushare/akshare |
-| 表后 | 追加 2 条纪律（改依赖须 `uv lock`；`uv sync` 默认不装 extras） |
+| 表后 | 追加纪律注（3 子句：改依赖须 `uv lock` 并提交锁；CI 用 pip 不校验锁；`uv sync` 默认不装 extras） |
 
 > 不改 §9.1 核心依赖表与 L322 DuckDB 注。
 

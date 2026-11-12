@@ -3,7 +3,7 @@
 > **批次**: P-021 · **T1**（`uv.lock` 依赖锁 + `docs/ARCHITECTURE.md` 依赖表；判档规则 2「真值源/依赖面不可判则升级」）
 > **上游**: [PROGRESS §1.4](PROGRESS.md) U-P005-5 / U-P005-4；[CHECKLIST_p005 §9.5](CHECKLIST_p005_factor_db_alignment.md) 观察 2
 > **代码证据时点**: HEAD `48bf88f`（2026-11-12，工作区干净）
-> **状态**: Step 1-2 完稿（含 Step 2 Review，§7）
+> **状态**: Step 1-2 完稿（含 Step 2 Review，§8）
 
 ---
 
@@ -39,7 +39,7 @@ P-005 的 B3 为最小面同步，只手工移除了 `uv.lock` 中的 duckdb 三
 
 ### 3.1 降级链（F3）
 
-`WebFetch` 直接读取 uv 官方文档 1 页（sync/lock 语义），命中正文；P-005 的 3 条锚点（pandas `to_parquet`、Packaging Guide、DuckDB Parquet）沿用其 2026-11-11 读取记录，不重复抓取。**无降级跳转**。
+`WebFetch` 直接读取 uv 官方文档 1 页（sync/lock 语义），命中正文；P-005 的 2 条锚点（pandas `to_parquet`、Packaging Guide）沿用其 2026-11-11 读取记录，不重复抓取。**无降级跳转**。
 
 ### 3.2 锚点清单与验证表（F1/F2/F4）
 

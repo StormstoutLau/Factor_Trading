@@ -15,7 +15,7 @@
 | 批次 | 内容 |
 |------|------|
 | **B1** | `uv lock` 重建（仅 `uv.lock`） |
-| **B2** | `docs/ARCHITECTURE.md` §9.2 依赖表改写 + 2 条维护纪律 |
+| **B2** | `docs/ARCHITECTURE.md` §9.2 依赖表改写 + 锁维护纪律注（3 子句） |
 
 **不覆盖（明确出界）**：
 - `uv lock --upgrade` 全量升级（M-B 否决）；
@@ -34,7 +34,7 @@
 |---|------|----------|----------|------|
 | **D1** | **plain `uv lock` 原样重建**（不加 `--upgrade`），一次提交 | ① `--upgrade`；② 保持陈旧；③ 继续手工补 | ① E2 明示 plain lock 优先沿用旧 pin，升级需显式 `--upgrade`；② README L220 承诺 `uv sync`，陈旧锁使该路径不可复现；③ P-005 已证手工补会遗漏（web extra） | 生成文件 +1200 行级差异（一次性） |
 | **D2** | **不声明 `pyarrow`/`fastparquet`**（维持 U-P005-4 倾向并结案） | ① 加入核心 dependencies；② 新增 `[project.optional-dependencies] parquet` extra | ① 重二进制进所有安装，而 Factor_DB 零真实数据（P-005 P8）；② E5 的 extra 语义要求「特定功能需要」，但 E3 明确 `uv sync` 默认不装 extras——extra 不能解决默认可用性，只是把问题改名；CSV 回退已存在（E4） | Parquet 默认依赖环境自带；未装时降级 CSV（已有行为） |
-| **D3** | **`ARCHITECTURE.md` §9.2 如实化**：删去误列为可选的 `ta`/`tushare`/`akshare`（实为核心依赖），补 `numba`、`pyarrow`/`fastparquet` 行并标「未声明」；表后加 2 条纪律（改依赖须 `uv lock`；`uv sync` 默认不装 extras） | 保留原表只加注 | 原表 3 行与 `pyproject.toml` 直接矛盾，只加注仍留失真主体 | 6 行表格重写 |
+| **D3** | **`ARCHITECTURE.md` §9.2 如实化**：删去误列为可选的 `ta`/`tushare`/`akshare`（实为核心依赖），补 `numba`、`pyarrow`/`fastparquet` 行并标「未声明」；表后加纪律注（3 子句：改依赖须 `uv lock` 并提交锁；CI 用 pip 不校验锁；`uv sync` 默认不装 extras） | 保留原表只加注 | 原表 3 行与 `pyproject.toml` 直接矛盾，只加注仍留失真主体 | 6 行表格重写 |
 | **D4** | **不新增 CI 门禁** | 在 `tests.yml` 加 `uv lock --check` | CI 走 pip（P4），锁只服务本地 `uv sync`；为低频事件增加门禁违反「不为判断造门禁」 | 锁漂移仍靠人工纪律（U-P021-1 触发再议） |
 | **D5** | **`pyproject.toml` 零改动**（字节级不变） | 顺手调整依赖顺序/版本 | 本批主题是「锁与文档对齐」，不是升级或重排；零改动使 I2 可机械核验 | 无 |
 
