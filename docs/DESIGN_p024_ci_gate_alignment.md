@@ -17,7 +17,7 @@
 | **D3** | README `### uv` 段 `uv sync` → `uv sync --all-extras` | P8/P9；ARCHITECTURE L332 |
 | **D4** | 新增**门禁漂移守卫**测试 1 文件 3 断言（CI 命令形状 / `\|\| true` 缺席 / README extras） | 防 D1-D3 被静默改回；规则 3 fail-closed |
 | **D5** | 台账补登：§1.4 新增 U-P023-1~4 与 U-P024-1~3 七行；§2 U-006 行补注 + 关闭注；§3.28 执行记录；CHANGELOG | P11；未决项单来源纪律 |
-| **D6** | **钉 mypy 版本**：dev extras `mypy>=1.5.0` → `mypy~=2.1.0`（Step 9 修订——原「不钉」在 CI 首跑即触发 U-P024-1，见 §7 R1） | RESEARCH §6 U-P024-1（触发条件已现实化）；§3 D6 |
+| **D6** | **按模块声明 `filter.*` 越界**：`[[tool.mypy.overrides]] module = ["filter.*"] ignore_errors = true`（Step 9 修订——CI 首跑红的根因是 pandas 3.1.1 类型桩，非 mypy 版本；越界声明零版本耦合） | X1-X3；U-P024-4；§3 D6 |
 | **D7** | **不扩** mypy 检查面（仍为 `core`，不加 `cli.py`/`agents`/`web`/`scripts`） | RESEARCH §6 U-P024-3（出界） |
 
 ---
@@ -117,10 +117,17 @@ uv sync --all-extras
 | §3.28 | 新增 P-024 执行记录（立项 / 批次 / 红绿读数 / 收口） |
 | CHANGELOG | 新增 P-024 条目（类型：chore/ci，可见行为：CI 类型检查开始真实阻塞） |
 
-### D6/D7 版本面与检查面
+### D6/D7 检查面边界（Step 9 修订）
 
-- **D6（Step 9 修订：由「不钉」改为「钉」）**：CI 首跑（run `43193963200`）在 3.10 leg 装到 **mypy 2.4.1**，本地为 **2.1.0**，同一命令下 2.4.1 报 **24 errors / 8 files**（`core/config_v2.py` 3 + `filter/*` 21），2.1.0 报 0——「不钉」的 fail-closed 前提（版本漂移导致的红是**可见**的）成立，但可见的代价是**本批无法收口**，且红因是**出界模块**而非本批目标。故钉 `mypy~=2.1.0`（patch 级允许，minor 冻结），使 CI 三腿与本地同引擎；升级到 2.4.x 前的清零工作登记为 **U-P024-4**。
-- **D7（不变）**：**不扩** mypy 检查面（仍为 `core`）。2.4.1 暴露的 `filter/*` 21 errors 属检查面扩展议题（U-P024-3），不在本批处理。
+- **D6（修订：由「不改 pyproject」改为「按模块声明越界」）**：CI 首跑（run `43193963200`）3.10 leg 报 **21 errors / 7 files，全部在 `filter/*`**。归因实验 X1-X4 证明根因是 **pandas 3.1.1 类型桩**（CI 装 3.1.1、本地 2.2.3，`pandas>=2.0.0` 无上限），**与 mypy 版本无关**（2.1.0 与 2.4.1 在同依赖集下读数一致）。因 `core` 经 `engine_v2` L61-62 / `factory` L31 导入 `filter`，follow 后把越界模块的错误计入门禁，故新增：
+  ```toml
+  [[tool.mypy.overrides]]
+  module = ["filter.*"]
+  ignore_errors = true
+  ```
+  语义：`filter` 仍被解析以提供类型信息，但**不向门禁报告错误**——门禁结论严格对应声明范围（`core`）。X2/X3 证明该声明在 mypy 2.1.0 与 2.4.1 下均得 0 errors。
+- **不钉 mypy 版本**：U-P024-1 的首次「已触发」判定**撤回**（由 X4 的污染读数得出——缺 pydantic 的临时环境使 `model_dump/model_validate` 返回 `Any`）。`mypy>=1.5.0` 维持。
+- **D7（不变）**：**不扩** mypy 检查面（仍为 `core`）。`filter/` 的 21 条属独立批次（U-P024-4）。
 
 ---
 
@@ -193,9 +200,9 @@ C. readme_uv_uses_all_extras
 
 | ID | 风险 | 概率 | 影响 | 处置 |
 |----|------|------|------|------|
-| **R1** | 三 leg 解析到不同 mypy 版本，某 leg 报新错 → CI 红 | **已现实化**（run `43193963200`：3.10 装 2.4.1，24 errors） | 高 | 已处置：D6 钉 `mypy~=2.1.0`（§3 D6 修订），CI 三腿与本地同引擎 |
-| **R2** | `--check-untyped-defs` 在旧版 mypy（3.10 leg）行为差异 | 低（钉版后三腿同版本） | 中 | 由 D6 消解；若仍有差异，按 leg 读数登记 |
-| **R6** | 锁定版本后无法感知新版 mypy 的新检查 | 必然 | 低 | 升级动作显式化：清零后再放宽到 `~=2.4`，登记 U-P024-4 |
+| **R1** | 依赖版本漂移（pandas `>=2.0.0` 无上限）使 `filter/` 出现错误 → CI 红 | **已现实化**（run `43193963200`：CI pandas 3.1.1 → `filter/*` 21 errors） | 高 | 已处置：D6 越界声明（`filter.* ignore_errors`），X2/X3 验证跨版本/跨依赖均 0 |
+| **R2** | `--check-untyped-defs` 在旧版 mypy（3.10 leg）行为差异 | 低 | 中 | X3 证明 mypy 2.1.0 与 2.4.1 读数一致；若仍出现，按 leg 读数登记 |
+| **R6** | 越界声明掩盖 `filter/` 的真实退化 | 中 | 中 | 显式登记 U-P024-4；`filter/` 纳入门禁（U-P024-3）时须先清零 |
 | **R3** | T-1 注入的探针文件残留进提交 | 低 | 高 | T-1 后立即删除 + `git status --short` 空输出校验（Step 9 硬门） |
 | **R4** | README 改 `--all-extras` 与锁真值不符 | 低 | 低 | I5：`uv lock --check` exit 0 |
 | **R5** | D4 断言依赖 `Type check (mypy)` 步骤名，未来改名即失效 | 低 | 低 | 断言失败信息含实际读取到的步骤名，改名时立刻暴露 |

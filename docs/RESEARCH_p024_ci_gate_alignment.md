@@ -103,7 +103,16 @@
 
 > 注：读数 B 的 3 条 note 是 mypy 对「无注解函数体默认不检查」的提示，**不是 error**；读数 D 纳入 `--check-untyped-defs` 后该提示消失且仍 0 errors。
 
-**Step 9 追加读数（版本漂移现实化）**：`uv run --no-project --with mypy==2.4.1 python -m mypy --explicit-package-bases --check-untyped-defs core` → **24 errors / 8 files**（`core/config_v2.py` 3 / `filter/custom.py` 2 / `filter/industry.py` 1 / `filter/market_cap.py` 1 / `filter/prefix.py` 1 / `filter/na_factor.py` 2 / `filter/extended.py` 1 / `filter/universe_filter_clean.py` 13）；同命令 `mypy==2.1.0` → **0 errors / 36 files**。CI run `43193963200` 的 3.10 leg 读数为 **21 errors / 7 files**（Linux 侧少 3 条 `config_v2` 命中，平台差异）。→ 直接导致 U-P024-1 触发与 D6 修订。
+**Step 9 追加读数（CI 首跑红与根因判定）**：run `43193963200` 的 3.10 leg 报 **21 errors / 7 files**，全部落在 `filter/*`（`universe_filter_clean.py` 独占 13；`custom.py` 2、`na_factor.py` 2，其余 1），**`core/` 0 条**。本地同命令 0 errors。归因实验（`uv run --no-project`，逐步隔离）：
+
+| # | 环境 | 读数 | 说明 |
+|---|------|------|------|
+| X1 | mypy 2.1.0 + **pandas 3.1.1** / numpy 2.4.6 / pydantic 2.14.3 | **21 errors / 7 files** | 与 CI 逐字同形 → 复现 |
+| X2 | 同 X1 + `filter.* ignore_errors` | **0 errors** | 越界声明生效 |
+| X3 | mypy **2.4.1** + 同 X1 依赖 + `filter.* ignore_errors` | **0 errors** | 声明对版本不敏感 |
+| X4 | mypy 2.4.1，**缺 pydantic/pandas**（首轮误诊环境） | 24 errors / 8 files（含 `core/config_v2.py` 3） | **伪影**：`ignore_missing_imports=true` 使 pydantic 成 `Any`，`model_dump/model_validate` 触发 `no-any-return` |
+
+**结论（更正首轮判断）**：根因是 **pandas 3.1.1 的类型桩**（`pandas>=2.0.0` 无上限，CI 装 3.1.1、本地 2.2.3），**不是 mypy 版本**；首轮「mypy 2.4.1 vs 2.1.0」结论由 X4 的污染读数得出，已证伪并撤回。处置改为 **`filter.* ignore_errors` 越界声明**（零版本耦合），mypy 版本维持不钉。
 
 ---
 
@@ -111,15 +120,15 @@
 
 - **U-P024-1 mypy 版本上限**
   - 判据：dev extras 中 `mypy` 是否加版本上限
-  - 触发条件：CI 三条 leg 出现因 mypy 版本差异导致的**不一致结论**，或某 leg 装到的 mypy 不再支持该 Python
-  - **状态：已触发并结案（P-024 Step 9）**——CI 首跑 run `43193963200` 的 3.10 leg 装到 **mypy 2.4.1**（本地 2.1.0），同一命令报 **24 errors / 8 files**（`core/config_v2.py` 3 + `filter/*` 21）：`filter` 由 `engine_v2` L61-62 / `factory` L31 导入而被 follow，`core/config_v2.py` 的 3 条为 2.4.x 新增检查命中冻结模块。处置：**钉 `mypy~=2.1.0`**（pyproject + `uv.lock` 各 1 行），三腿与本地同引擎
-  - 证据等级：E1（本地 `uv run --with mypy==2.4.1` 复现 24 errors；2.1.0 为 0）
+  - 触发条件：CI 三条 leg 出现因 **mypy 版本差异**导致的**不一致结论**
+  - 当前倾向：**不钉**。Step 9 一度误判触发（CI 2.4.1 vs 本地 2.1.0），经 X1-X4 隔离实验证伪——差异来自 **pandas 3.1.1 类型桩**而非 mypy 版本；`mypy~=2.1.0` 的临时改动已撤回，`mypy>=1.5.0` 保持
+  - 证据等级：E1（X1/X3 同依赖不同 mypy 均 0 errors）
 
-- **U-P024-4 mypy 升级到 2.4.x 前的清零**
-  - 判据：`mypy~=2.4` 下 `core`（含 follow 到的 `filter/*`）0 errors
-  - 触发条件：需要 2.4.x 的新检查能力，或 `filter/` 纳入检查面（U-P024-3）
-  - 当前倾向：维持 `~=2.1.0`；待 `core/config_v2.py`（冻结模块，3 条 `no-any-return`）与 `filter/*`（21 条，`universe_filter_clean.py` 独占 13）清零后再放宽
-  - 证据等级：E1（run `43193963200` 3.10 leg 日志 + 本地 2.4.1 复现）
+- **U-P024-4 `filter/` 在 pandas 3.x 下的 21 errors**
+  - 判据：`filter/` 在 CI 依赖集（pandas 3.1.1）下 0 errors
+  - 触发条件：`filter/` 纳入门禁（U-P024-3），或需要把 pandas 上限钉定
+  - 当前倾向：本批以 `[[tool.mypy.overrides]] filter.* ignore_errors = true` **声明越界**（门禁 target = `core`），不修 `filter/`（21 条中 13 条集中在 `universe_filter_clean.py`，属独立批次）
+  - 证据等级：E1（X1/X2 对照）
 
 - **U-P024-2 CI 增加 `uv lock --check`**
   - 判据：`tests.yml` 出现锁校验步骤

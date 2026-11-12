@@ -62,7 +62,7 @@
 | D5 | 生产代码零改动 | `git diff --name-only -- core/ agents/ web/ factor_library/ cli.py` = 空 | I6 | ✅ **空** |
 | D6 | 无临时文件残留 | `git status --short` 空输出 + `Test-Path core/_p024_probe.py` = False | R3 / V7 | ✅ 探针已删（V3 复跑统计为 **36 files**，不含探针）；`git status` 仅 P-024 文档 |
 | D7 | 远端 CI 三 job success，mypy step 日志含 `36 source files` | `gh run view <run_id>` 或 Actions 页面 | V9 / I7 | `[待回填]` |
-| D8 | **（追加）版本面钉定**：dev extras 为 `mypy~=2.1.0`，`uv.lock` 解析到 2.1.0，`uv lock --check` exit 0 | `Select-String pyproject "mypy~=2.1.0"`；`uv.lock` mypy 块 `version = "2.1.0"`；`uv lock --check` exit 0 | D6（修订）/ V10 | ✅ pyproject L65 + uv.lock L1098/L2096-2097；`--check` **exit 0**（148 packages；lock diff 仅 1 行 specifier） |
+| D8 | **（追加）越界声明**：`pyproject.toml` 含 `[[tool.mypy.overrides]] module = ["filter.*"] ignore_errors = true`；CI 依赖集下门禁 0 errors | 读回 pyproject L112-L117；X1（无声明，pandas 3.1.1）**21 errors** vs X2（有声明）**0**；X3（mypy 2.4.1 + 声明）**0** | D6（修订）/ V10 | ✅ pyproject L112-L117（+8 行）；X1/X2/X3 三读数齐备；`mypy>=1.5.0` 维持（钉版已撤回） |
 
 ---
 
@@ -164,9 +164,10 @@
 
 | ID | 级别 | 发现 | 处置 |
 |----|------|------|------|
-| **F-S9-P024-4** | **P2** | **CI 首跑红**：推送 `c1c67b2` 后 run `43193963200` → 3.10 **failure**（3.11/3.12 canceled）。CI 装到 **mypy 2.4.1**（本地 2.1.0），同一命令报 **21 errors / 7 files**（全在 `filter/*`）；本地 `uv run --with mypy==2.4.1` 复现 **24 errors / 8 files**（多 3 条 `core/config_v2.py`）。根因：`core` 经 `engine_v2` L61-62 / `factory` L31 导入 `filter`，follow 后一并检查；dev extras 无版本上限 → 三腿各自解析 | 钉 `mypy~=2.1.0`（D6 修订，B4）+ 登记 **U-P024-4**（升级 2.4.x 前清零）；重跑 CI |
+| **F-S9-P024-4** | **P2** | **CI 首跑红**：推送 `c1c67b2` 后 run `43193963200` → 3.10 **failure**（3.11/3.12 canceled），**21 errors / 7 files 全在 `filter/*`**，`core/` 0 条。归因 X1-X4 定位为 **pandas 3.1.1 类型桩**（`pandas>=2.0.0` 无上限；CI 3.1.1 vs 本地 2.2.3），`core` 经 `engine_v2` L61-62 / `factory` L31 导入 `filter` 后被 follow | 新增 `[[tool.mypy.overrides]] filter.* ignore_errors`（D6 修订，B4）；X2/X3 验证跨 mypy 版本均 0；`filter/` 21 条登记 U-P024-4 |
+| **F-S9-P024-5** | **P2** | **误诊与撤回**：首轮判为「mypy 2.4.1 vs 2.1.0 版本漂移」并提交 `745e2b7`（`mypy~=2.1.0`）。复核发现该读数来自 `uv run --no-project` **缺 pydantic/pandas** 的环境（`ignore_missing_imports=true` → pydantic 成 `Any` → `config_v2.py` 3 条伪影） | 撤回钉版（`pyproject` 恢复 `mypy>=1.5.0`、`uv.lock` 复原）；改以越界声明收口；U-P024-1 的「已触发」判定撤回 |
 | F-S9-P024-1 | P3 | `shutil.which("bash")` 在 Windows 解析到 `C:\Windows\system32\bash.EXE`（WSL 存根，恒返回 0），首轮探针 A-D 全 `exit=0` → 假阴性 | 改用 Git bash 绝对路径；读数恢复正常（3/0/2/0） |
-| F-S9-P024-2 | P3 | `git commit` 提示三文件 `LF will be replaced by CRLF`（autocrlf=true） | 与既有行为一致，无处置 |
+| F-S9-P024-2 | P3 | `git commit` 提示 `LF will be replaced by CRLF`（autocrlf=true） | 与既有行为一致，无处置 |
 | F-S9-P024-3 | P3 | Step 8 改为代码字面量的 3 处测试文件链接，Step 9 后未恢复为链接 | 有意保留（E1 以文件存在性单独验收） |
 
 ---
