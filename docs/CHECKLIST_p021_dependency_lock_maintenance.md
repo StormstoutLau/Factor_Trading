@@ -151,5 +151,5 @@ Step 8 一致性 Review（§8）、Step 9 实测回填（§1 验收表）、Step
 | Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p021_dependency_lock_maintenance.md)（F5 红 exit 1 → 绿 exit 0；B1/B2/B3 三提交；15/15 ✅） | 2026-11-12 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵 10 类；P3×1 已修 + 3 观察 + 1 环境观察） | 2026-11-12 |
 | RULE-5 异构复审 | **未执行** | 本会话即作者（DeepSeek-V4.1-Flash），不满足异质约束；待异构基座独立会话全批复审 | — |
-| CI 回收 | 待回填 | B3 推送后 `gh run list` 登记 run 号与三 job 结论 | — |
+| CI 回收 | success | run `43167039277`（3.10 1m54s / 3.11 1m11s / 3.12 1m30s，三 job 全绿） | 2026-11-12 |
 

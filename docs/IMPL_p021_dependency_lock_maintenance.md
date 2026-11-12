@@ -113,7 +113,7 @@
 | 基线 | HEAD `48bf88f` 干净（仅四文档未跟踪）；`uv lock --check` = **exit 1**；锁根包 `provides-extras = ["dev"]`；锁内 **120** 包 |
 | **B1** | `2245962`（1 文件 `+1207/−2`）：`uv.lock` |
 | **B2** | `6c4adb5`（1 文件 `+7/−6`）：`docs/ARCHITECTURE.md` §9.2 |
-| **B3** | 四文档 + `PROGRESS` / `CHANGELOG` 回写（本节所属提交，哈希以 `git log` 为准）；CI run 号由后续回填提交登记 |
+| **B3** | `0e0d594`（6 文件 `+593/−2`）：四文档 + `PROGRESS` / `CHANGELOG`；CI run `43167039277` 三 job success（回填见 CHECKLIST §10） |
 
 ### 7.2 F5 先失败记录（红 / 绿两读数块）
 

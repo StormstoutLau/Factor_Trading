@@ -669,6 +669,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **Step 1-8**: 四文档落稿（RESEARCH P1-P9 + E1-E5 锚点 / DESIGN D1-D5 + I1-I5 / IMPL T-1~T-3 + V1-V5 / CHECKLIST 15 项零预填）；Step 2 Review 0 P1/P2（M-D CI 门禁改登记 U-P021-1）；Step 4/6 Review 通过；Step 8 一致性 **0 发现**（17 处 `[待 Step 9]` = 15 格 + 2 合法）
 - **Step 9 实施**: B1 `2245962`（`uv.lock` `+1207/−2`：plain `uv lock`，extras `["dev"]→["dev","web"]`、120→148 包 / 新增 19、既有 pin changed 0 / removed 0、duckdb 0、旧锁 black specifier `>=23.0.0→~=26.0`）/ B2 `6c4adb5`（`ARCHITECTURE` §9.2 改「可选与未声明依赖」3 行 + 3 条纪律，`+7/−6`）/ B3 docs；`uv lock --check` **1 → 0**、`uv export --frozen` exit 0（325 行）；**636 passed**（49.83s）/ black 111 unchanged / mypy 36 files 0；`pyproject.toml` 零改动；F-S9-P021-1（旧锁 black specifier 漂移，P3）已随 B1 修正
 - **Step 10 ADD 审计**: [CHECKLIST_p021 §9](CHECKLIST_p021_dependency_lock_maintenance.md)——Phase 0-4 全过 + 取证矩阵 10 类；**P1=0 / P2=0 / P3=1（已修）**；E4 3 观察（README `uv sync` 未提示 `--extra web` / `pyarrow` 经 streamlit 传递入锁 / U-P005-5 原估 `−46` 与实测 `−2` 偏差已注）+ 1 环境观察（PATH 解释器）；**15/15 ✅**
+- **CI 回收**: B3 `0e0d594` 推送后端 run [`43167039277`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43167039277) 三个 job **success**（3.10 1m54s / 3.11 1m11s / 3.12 1m30s）
 - **未执行**: **RULE-5 异构复审**——本会话即实施作者（DeepSeek-V4.1-Flash），不满足异质约束；需异构基座独立会话全批复审（E1-E4 现场重放）
 - **本批收口**: U-P005-4 / U-P005-5 关闭；新增 U-P021-1（CI 锁门禁）/ U-P021-2（numba 声明）/ U-P021-3（升级节奏）三项条件触发未决项
 
