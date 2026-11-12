@@ -85,7 +85,7 @@
 | E6 | 探针 B2 复跑：20 日 + `min_variance` → **`setup()` 抛 `RuntimeError`**（不再出假成功结果） | `%TEMP%\p025_probe_b2.py` 复跑：旧读数 `sharpe 0.0 / 0 成交` → 新读数 setup 抛错 | V5 / P7 | ✅ setup 抛 `RuntimeError: 优化方法 min_variance 需要协方差估计，但交易日数 20 ≤ cov_lookback 60，全轮调仓将必然失败` |
 | E7 | 探针 C 复跑：3 日注入执行异常 → `counts.execution >= 3`，且第 4 日订单仍全成（成交语义未变） | 探针 C 复跑 + `run_diagnostics` 读数 | V7 / D5 | ✅ 探针 C：counts.execution=**6**；恢复后成交 4 笔（成交语义未变） |
 | E8 | 五处红态可观测（实现前逐批取证）：T5/T6 键缺失、T8 counts 缺失、T9 `DID NOT RAISE`、T10 `is` 断言失败、测试文件 `ImportError` | Step 9 逐批记录 pytest 读数（**不预填结论**） | F5 / IMPL §11.1 #8 | ✅ 五处红态：B1 `ModuleNotFoundError` / B2 `2×KeyError + DID NOT RAISE` / B3a `degraded False` / B3b `EqualWeightOptimizer` / B3c `DID NOT RAISE` |
-| E9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | V12 | [待 CI 回填] |
+| E9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | V12 | ✅ run `43260476319` **conclusion=success**；三 job 全 success（3.10 / 3.11 / 3.12——3.10 leg 覆盖 `ExceptionGroup` 缺失分支） |
 
 ---
 
@@ -100,7 +100,7 @@
 | F3 | CHANGELOG `[Unreleased] > Changed` 记录 **3 项行为变更**：`mean_variance` 真正生效 / 未知 method fail-closed / 短历史协方差方法 setup fail-fast | 读回 `CHANGELOG.md` `Changed` 前三条 | D6+D7 观察-2 / R1 | ✅ CHANGELOG `Changed` 首条 P-025（四项行为变更合并一条，含门禁读数） |
 | F4 | README 增「运行诊断（run_diagnostics）」字段说明；ARCHITECTURE 新增 `core/diagnostics.py` 模块行 + 计数**按其口径**订正（不得简单 +1，见 F-S4-P025-4） | 读回两文档对应节 | T-6 / R5 | ✅ README 新增「🩺 Run Diagnostics（P-025）」节；ARCHITECTURE §3.1 新增 Diagnostics 行 + 头部 671/27（口径已注明） |
 | F5 | U-P025-1~6 六项未决状态更新（承接/关闭/另立），U-P023-1 关闭注写明「由 P-025 承接并完成」 | 读回 PROGRESS §1.4 未决表 | RESEARCH §7 | ✅ 未决表新增 U-P025-1~6 六行（U-P025-5 done / U-P025-4 裁决不做 / 其余 pending）；U-P023-1 = **done（由 P-025 承接并完成）** |
-| F6 | 实施提交推送后 CI run 三 job success（与 E9 同一 run；F6 只登记提交链） | `git log --oneline` + `gh run list` | V12 | [待 CI 回填] |
+| F6 | 实施提交推送后 CI run 三 job success（与 E9 同一 run；F6 只登记提交链） | `git log --oneline` + `gh run list` | V12 | ✅ `22b833e`（代码 6 文件 +547/−2）→ `69a6d22`（文档 5 文件 +140/−46）→ run `43260476319` success |
 
 ---
 
@@ -136,10 +136,10 @@
 | Step 5-6 实施规划 + Review | 通过 | [IMPL §11](IMPL_p025_daily_loop_exception_semantics.md)（1 P2 + 3 P3 回写 + 3 观察） | 2026-11-12 |
 | Step 7 验收清单 | 完稿（零预填 42 项） | §1-§7 | 2026-11-12 |
 | Step 8 一致性 Review | 通过 | §10（链接 0 broken〔2 伪命中人工判定〕；ID 闭环 17 组；计数 42；2 P3 回写 IMPL） | 2026-11-13 |
-| Step 9 TDD 实施 | 完成（40/42，待 CI 2 项） | §11（五批红绿；`22b833e`；671 passed / 37 files / 116+182 / golden 零重录） | 2026-11-13 |
+| Step 9 TDD 实施 | 完成（42/42 ✅） | §11（五批红绿；`22b833e`；671 passed / 37 files / 116+182 / golden 零重录） | 2026-11-13 |
 | Step 10 ADD 审计 | [待 Step 10] | — | — |
 | RULE-5 异构复审 | [待 RULE-5] | — | — |
-| CI 回收 | [待 Step 9] | — | — |
+| CI 回收 | success | run [`43260476319`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43260476319) 三 job **success**（3.10 / 3.11 / 3.12） | 2026-11-13 |
 
 ---
 
@@ -240,4 +240,4 @@
 
 ### 11.6 覆盖率
 
-**40 / 42 项 ✅**（E9 / F6 待 CI run 回填）——两组：A 7/7、B 6/6、C 6/6、D 8/8、E 8/9、F 5/6。
+**42 / 42 项 ✅**（E9 / F6 已由 CI run `43260476319` 回填）——A 7/7、B 6/6、C 6/6、D 8/8、E 9/9、F 6/6；0 P1 / 0 P2 / 0 P3 遗留。
