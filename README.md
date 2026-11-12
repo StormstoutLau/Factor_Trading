@@ -15,6 +15,7 @@
 
 ## 📰 News
 
+- **[2026-11]** **质量加固** — CI 门禁去假（移除 mypy `|| true`、CI 与本地同口径 + 越界声明）、依赖与锁维护、Factor_DB 实现缺陷修复、文档一致性收尾；测试基线 245 → **654 passed**
 - **[2026-06]** **v3.2** — 架构清理：根目录桥接文件全部移除，导入路径统一为 `from core.xxx`，245 测试全部通过
 - **[2026-05]** **v3.1** — 模块化升级：新增 EventLog、GuardPipeline、PluginRegistry、Agent风格化反思、蒸馏隔离审计
 - **[2026-01]** **v3.0** — 重构自 Backtest_Opus_2.0，模块化设计、配置驱动、多策略支持
@@ -79,7 +80,7 @@
 ```bash
 # 1. Clone & Install
 git clone https://github.com/StormstoutLau/Factor_Trading.git
-cd Factor_Trading_v3.0
+cd Factor_Trading
 pip install -e ".[web]"
 
 # 2. Generate demo data (pkl files are git-ignored, not shipped with the repo)
@@ -356,7 +357,7 @@ streamlit run web/streamlit_app/main.py
 
 ```
 Factor_Trading_v3.0/
-├── core/                          # 核心引擎 (27 files)
+├── core/                          # 核心引擎 (36 files)
 │   ├── engine_v2.py               # 回测引擎 (V2 with DI)
 │   ├── engine_v3_vector.py        # 向量化引擎 (high-performance)
 │   ├── config.py / config_v2.py   # 配置系统 (dataclass / Pydantic)
@@ -389,7 +390,7 @@ Factor_Trading_v3.0/
 │   ├── assumption_monitor.py      # 假设监控
 │   └── sentiment_framework.py     # 情感分析框架
 │
-├── filter/                        # 股票池过滤器 (9 files)
+├── filter/                        # 股票池过滤器 (10 files)
 │   ├── universe_filter_clean.py   # 主过滤器
 │   ├── industry.py / market_cap.py # 行业/市值过滤
 │   └── custom.py / extended.py    # 自定义扩展
@@ -410,7 +411,7 @@ Factor_Trading_v3.0/
 ├── assets/                        # 静态资源 (架构图等)
 ├── examples/                      # 示例脚本 (7 files)
 ├── tests/                         # 测试套件 (654 tests, 74 files)
-├── docs/                          # 文档 (9 files)
+├── docs/                          # 文档（架构 / 批次台账 / 规范）
 ├── tools/                         # 工具脚本 (benchmark / audit / ui)
 ├── data/                          # 事件日志存储
 ├── demo_data/                     # Demo 数据
@@ -428,11 +429,13 @@ Factor_Trading_v3.0/
 
 ## 📚 Documentation
 
-- [ARCHITECTURE_ANALYSIS.md](docs/ARCHITECTURE_ANALYSIS.md) — 架构设计分析
-- [CODE_WIKI.md](docs/CODE_WIKI.md) — 代码手册
-- [BACKTEST_ENGINE_UPGRADE_PLAN.md](docs/BACKTEST_ENGINE_UPGRADE_PLAN.md) — 引擎升级方案
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — **架构权威文档**（替代所有旧版架构分析文件）
+- [PROGRESS.md](docs/PROGRESS.md) — 批次台账与进度（P-001 ~ P-024）
+- [CODE_WIKI.md](docs/CODE_WIKI.md) — 模块级代码细节参考（部分内容基于 V1 架构，已标注需更新）
 - [WALK_FORWARD_PLAN.md](docs/WALK_FORWARD_PLAN.md) — Walk-Forward 设计
 - [INTEGRATION_PROPOSAL.md](docs/INTEGRATION_PROPOSAL.md) — Factor_DB 集成方案
+- [BACKTEST_ENGINE_UPGRADE_PLAN.md](docs/BACKTEST_ENGINE_UPGRADE_PLAN.md) — 引擎升级方案（v4.0 规划）
+- [ARCHITECTURE_ANALYSIS.md](docs/ARCHITECTURE_ANALYSIS.md) — ⚠️ 历史存档（内容已并入 ARCHITECTURE.md）
 
 ---
 
