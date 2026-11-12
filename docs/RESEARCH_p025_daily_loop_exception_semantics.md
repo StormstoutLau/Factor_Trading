@@ -32,7 +32,7 @@
 | **P4** | **第三级静默（执行）**：`ExecutionSimulator._execute` 的 `except Exception: logger.error("交易执行失败") + return (False, None)` → 调用方视为「未成交」，订单留在队列次日再试 | E3 [execution.py](../core/execution.py) L327-L329；E2 探针 C（3 次注入 → 3 次被吞） |
 | **P5** | **探针 A/A2（注入日级异常）**：20 个交易日、在第 6 日注入 `RuntimeError` → **无异常上抛**、`_process_trading_day` 仍被调用 20 次、results 正常返回；快照 **20 条但仅 19 个不同日期**（注入日缺席，末日 `_force_liquidation` 补采一次导致末日重复），`portfolio_value` 同为 20 行且不含注入日 | E2 `%TEMP%\p025_probe.py` 探针 A / `%TEMP%\p025_probe_a2.py` |
 | **P6** | **探针 B（优化器全失败）**：`optimizer.optimize` 注入异常 → 4 次调仓时机全部"组合优化失败"、**0 成交**、results 完整返回、`additional_info` 无任何 error/skip 字段 | E2 `%TEMP%\p025_probe.py` 探针 B |
-| **P7** | **探针 B2（配置可达的假成功，关键）**：`method="min_variance"` + `cov_lookback=60`、交易日仅 20 → 每次优化抛「最小方差优化需要收益率数据或协方差矩阵」→ **0 成交 / sharpe=0.0 / total_return=0.0 / 零诊断**；同数据 `mean_variance` 成功 13 笔（对照组），说明失败来自方法分支而非数据不足 | E2 `%TEMP%\p025_probe_b2.py` |
+| **P7** | **探针 B2（配置可达的假成功，关键）**：`method="min_variance"` + `cov_lookback=60`、交易日仅 20 → 每次优化抛「最小方差优化需要收益率数据或协方差矩阵」→ **0 成交 / sharpe=0.0 / total_return=0.0 / 零诊断**。**订正（P-025 Step 3，F-D3-P025-1）**：原记「同数据 `mean_variance` 成功 13 笔（对照组）」失准——`build_optimizer` 的 `optimizer_map` 无 `mean_variance` 键（只有 `mvo`），该 13 笔实为**等权降级**读数；`mean_variance` 与 `equal_weight` 端到端读数完全相同（64 笔 / sharpe −1.4611384945695667），`mvo` 才真正生效（3 笔 / sharpe 1.4918，`%TEMP%\p025_probe_d1.py`）。B2 的 P1 结论不变 | E2 `%TEMP%\p025_probe_b2.py` / `%TEMP%\p025_probe_d1.py` |
 | **P8** | **探针 C（执行层异常）**：连续 3 日注入执行异常 → 全部被吞，订单隐式保留、第 4 个交易日全部成交（9 单 9 成），`pending_order_stats.avg_retry_count=1.0` 来自队列 `mark_executed` 的**成交自增**（每单成交 +1，9 单全成 → 均值 1.0），与异常重试无关 | E2 `%TEMP%\p025_probe.py` 探针 C |
 | **P9** | **retry 语义现状（双轨、均无计量）**：① pending 队列——订单留在队列逐日重试，`max_pending_days_buy=5` / `sell=10` 到期作废，`retry_count` 三处自增：`PendingOrder.mark_partial`（L169）/ `mark_executed_full`（L182）/ `PendingOrderQueue.mark_executed`（L390，**每次成交 +1**）；② next-day 列表——失败订单进 `failed_orders` 保留，由 `_expire_next_day_orders` 定期清理，**无原因、无尝试计数** | E3 [pending.py](../core/pending.py) L157-L182、L381-L390；engine_v2.py L1085-L1135、[config.py](../core/config.py) L374-L377 |
 | **P10** | **测试面为零**：全仓 `tests/*.py` 对 `_process_trading_day` / `_execute_rebalance` / 日循环异常路径 **0 处引用**（`Select-String` 空命中） | E1 `Select-String -Path tests/*.py -Pattern "_process_trading_day|处理交易日|_execute_rebalance|组合优化失败"` → 0 |
@@ -123,6 +123,7 @@
 | **U-P025-3** | 其余 22 处 `except Exception` 治理 | 其中任一处产生可复现的静默错误 | 本批出界，按模块分批登记 | E1 grep 25 处 − 本批 3 处 |
 | **U-P025-4** | 优化失败时退化为等权（而非跳过调仓） | 真实回测中出现优化失败且用户明确要求降级继续 | 不做：静默降级会掩盖配置错误（正是 P7 的成因） | E2 探针 B2 |
 | **U-P025-5** | `ExceptionGroup`（`raise` 模式）与 `raise ... from`（3.10）的分支实现 | DESIGN 阶段确认项目最低版本 3.10 的兼容策略 | 3.11+ 用 `ExceptionGroup`，3.10 用首异常 + 诊断字典 | E1 PEP 654 |
+| **U-P025-6** | 末日重复快照治理（`_force_liquidation` 末日二次 `update_market_values`） | 需要精确的交易日数统计 / golden 有意重录 | 本批不动（golden G1-G7 已编码该形态）；改则 7 条基线全破 | E2 探针 A3 |
 
 ---
 
