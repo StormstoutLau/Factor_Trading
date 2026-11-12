@@ -435,9 +435,11 @@ def build_optimizer(config: OptimizerConfig) -> BaseOptimizer:
     optimizer_map = {
         "equal_weight": EqualWeightOptimizer,
         "min_variance": MinVarianceOptimizer,
+        "mean_variance": MeanVarianceOptimizer,  # 与 CLI / config_v2 词表对齐（P-025 D6）
         "mvo": MeanVarianceOptimizer,
         "risk_parity": RiskParityOptimizer,
     }
 
-    optimizer_class = optimizer_map.get(config.method, EqualWeightOptimizer)
-    return optimizer_class(config)
+    if config.method not in optimizer_map:
+        raise ValueError(f"未知优化方法: {config.method!r}；合法值: {sorted(optimizer_map)}")
+    return optimizer_map[config.method](config)

@@ -54,6 +54,7 @@ from core.pending import (
     select_fallback_stocks,
 )
 from core.portfolio import build_optimizer
+from core.diagnostics import DayErrorCollector
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
 from core.tracker import PositionTracker
@@ -177,6 +178,9 @@ class BacktestEngineV2:
         # 六层归因 dump（默认关闭；setup 时按 cfg.dump_layers_dir 重建）
         self._layer_dumper = LayerDumper(None)
 
+        # 日级异常采集（P-025 D3/D4）：off 模式下 record 首行短路，零分配
+        self._diagnostics = DayErrorCollector(config.day_error_mode)
+
         logger.info("回测引擎V2初始化完成")
 
     def setup(self):
@@ -277,6 +281,27 @@ class BacktestEngineV2:
         self._layer_dumper = LayerDumper(self.cfg.dump_layers_dir)
         self._layer_dumper.setup()
 
+        # 12. 执行异常旁路（P-025 D5）：仅真实 ExecutionSimulator 有该方法；
+        # 注入的 fake executor 保持零改动（interfaces.py 不加抽象方法）。
+        # getattr 探测写法（IMPL F-S6-P025-1）：hasattr 后直接访问会触发 mypy
+        # 「IExecutionSimulator has no attribute set_error_sink」
+        sink_setter = getattr(self.executor, "set_error_sink", None)
+        if sink_setter is not None:
+            sink_setter(self._diagnostics.record)
+
+        # 13. 协方差方法预检（P-025 D7-O2）：短历史下每一次调仓都必然失败
+        cov_methods = {"min_variance", "mean_variance", "mvo", "risk_parity"}
+        if self.cfg.optimizer.method in cov_methods:
+            dm_check = self.dm
+            assert dm_check is not None
+            n_days = len(dm_check.trade_dates)
+            if n_days <= self.cfg.optimizer.cov_lookback:
+                raise RuntimeError(
+                    f"优化方法 {self.cfg.optimizer.method} 需要协方差估计，"
+                    f"但交易日数 {n_days} ≤ cov_lookback {self.cfg.optimizer.cov_lookback}，"
+                    "全轮调仓将必然失败"
+                )
+
         elapsed = time.perf_counter() - t0
         logger.info(f"回测引擎V2设置完成，耗时: {elapsed:.2f}秒")
 
@@ -333,7 +358,10 @@ class BacktestEngineV2:
                     self._refresh_last_nav(date)
 
             except Exception as e:
+                self._diagnostics.record(date, "day_loop", e)
                 logger.error(f"处理交易日 {date} 时发生错误: {e}")
+                if self.cfg.day_error_mode == "raise":
+                    self._diagnostics.raise_if_needed()
                 continue
 
         # 清理过期订单
@@ -913,6 +941,7 @@ class BacktestEngineV2:
             logger.debug(f"优化得到{len(target_weights)}只股票的目标权重")
 
         except Exception as e:
+            self._diagnostics.record(date, "rebalance", e)
             logger.error(f"组合优化失败: {e}")
             return
 
@@ -1181,6 +1210,7 @@ class BacktestEngineV2:
                 self.pending_queue.get_order_stats() if self.pending_queue else {}
             ),
             "execution_stats": executor.get_execution_stats(),
+            "run_diagnostics": self._diagnostics.summary(),
         }
 
         # 不变量校验（P-011 D2）：默认 report 仅附诊断字段，不中断回测

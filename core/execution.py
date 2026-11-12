@@ -174,7 +174,19 @@ class ExecutionSimulator:
         self.custom_price_callback = custom_price_callback
         self.trade_log = TradeLog()
 
+        # 日级异常旁路（P-025 D5）：None = 零行为变化。
+        # 返回值注解为 object 而非 None：绑定的 DayErrorCollector.record 返回
+        # Optional[DayErrorRecord]，mypy 对 Callable[..., None] 参数位不接受非 None 返回
+        # （IMPL F-S6-P025-1）；调用侧忽略返回值。
+        self._error_sink: Optional[Callable[[pd.Timestamp, str, BaseException], object]] = None
+
         logger.info(f"交易执行模拟器初始化完成，执行价格类型: {execution_price_type.value}")
+
+    def set_error_sink(
+        self, sink: Optional[Callable[[pd.Timestamp, str, BaseException], object]]
+    ) -> None:
+        """注入执行异常旁路（P-025 D5）；不影响成交语义（I5）"""
+        self._error_sink = sink
 
     def _get_execution_price(
         self,
@@ -325,6 +337,9 @@ class ExecutionSimulator:
             return True, trade
 
         except Exception as e:
+            sink = self._error_sink
+            if sink is not None:
+                sink(date, "execution", e)
             logger.error(f"交易执行失败: {stock} {side.name} {quantity}股, 错误: {e}")
             return False, None
 
