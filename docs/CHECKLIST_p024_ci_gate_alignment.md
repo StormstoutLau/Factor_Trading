@@ -1,8 +1,8 @@
 # CHECKLIST：P-024 CI 门禁对齐（mypy 假门禁 + README uv extras）
 
 > **批次**: P-024 · **T1**
-> **上游**: [IMPL_p024_ci_gate_alignment.md](IMPL_p024_ci_gate_alignment.md)（T-0~T-8 / V1-V9）；[DESIGN_p024_ci_gate_alignment.md](DESIGN_p024_ci_gate_alignment.md)（D1-D7 / I1-I6）
-> **状态**: Step 9 完成（**28 项**：27 ✅ + 1 项远端 CI 待回填）
+> **上游**: [IMPL_p024_ci_gate_alignment.md](IMPL_p024_ci_gate_alignment.md)（T-0~T-9 / V1-V10）；[DESIGN_p024_ci_gate_alignment.md](DESIGN_p024_ci_gate_alignment.md)（D1-D7 / I1-I7）
+> **状态**: Step 9 完成（**29 项**：28 ✅ + 1 项远端 CI 待回填；D8 为 Step 9 追加）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待回填]`（仅用于远端 CI 行）
 
 ---
@@ -62,6 +62,7 @@
 | D5 | 生产代码零改动 | `git diff --name-only -- core/ agents/ web/ factor_library/ cli.py` = 空 | I6 | ✅ **空** |
 | D6 | 无临时文件残留 | `git status --short` 空输出 + `Test-Path core/_p024_probe.py` = False | R3 / V7 | ✅ 探针已删（V3 复跑统计为 **36 files**，不含探针）；`git status` 仅 P-024 文档 |
 | D7 | 远端 CI 三 job success，mypy step 日志含 `36 source files` | `gh run view <run_id>` 或 Actions 页面 | V9 / I7 | `[待回填]` |
+| D8 | **（追加）版本面钉定**：dev extras 为 `mypy~=2.1.0`，`uv.lock` 解析到 2.1.0，`uv lock --check` exit 0 | `Select-String pyproject "mypy~=2.1.0"`；`uv.lock` mypy 块 `version = "2.1.0"`；`uv lock --check` exit 0 | D6（修订）/ V10 | ✅ pyproject L65 + uv.lock L1098/L2096-2097；`--check` **exit 0**（148 packages；lock diff 仅 1 行 specifier） |
 
 ---
 
@@ -84,8 +85,8 @@
 
 | 项 | 读数 |
 |----|------|
-| 验收项总数 | **28**（A 6 + B 6 + C 3 + D 7 + E 6，机械计数） |
-| 实测列 `[待 Step 9]` 数（Step 7 时点） | 28 处（28 验收单元格；§6 规则行不含该标记） |
+| 验收项总数 | **29**（A 6 + B 6 + C 3 + D 8 + E 6，机械计数；D8 为 Step 9 追加） |
+| 实测列 `[待 Step 9]` 数（Step 7 时点） | 28 处（28 验收单元格；§6 规则行不含该标记；D8 为 Step 9 追加项，不在 Step 7 计数内） |
 | Step 9 回填后剩余 | **0 处 `[待 Step 9]`**；1 处 `[待回填]`（D7 远端 CI run，推送后回填） |
 
 ---
@@ -100,8 +101,8 @@
 |---|------|------|
 | 1 | 相对链接 | RESEARCH **23** / DESIGN **10** / IMPL **10** / CHECKLIST **2**（共 45）→ **0 broken** |
 | 2 | ID 闭环 | RESEARCH **P1-P13** 连续 ✅；DESIGN **D1-D7 / I1-I7** ✅；IMPL **T-0~T-8** ✅ |
-| 3 | 验收计数 | A 6 + B 6 + C 3 + D 7 + E 6 = **28**（与表体逐行一致） |
-| 4 | 零预填 | 验收行 **28**，实测列 `[待 Step 9]` **28** 处，且全部位于末列（0 处错位） |
+| 3 | 验收计数 | A 6 + B 6 + C 3 + D 8（Step 9 追加 D8）+ E 6 = **29**（与表体逐行一致） |
+| 4 | 零预填 | 验收行 **29**，实测列 `[待 Step 9]` **0** 处、`[待回填]` **1** 处（D7 远端 CI） |
 
 ### 7.2 对齐矩阵
 
@@ -124,7 +125,7 @@
 
 ### 7.4 结论
 
-**通过**——0 P1 / 0 P2 / **3 P3（均已回写）**；28 项验收口径覆盖 D1-D7 / I1-I7 / V1-V9 / T-0~T-8；链接 0 broken、ID 闭环、零预填合规。可进入 Step 9 实施。
+**通过**——0 P1 / 0 P2 / **3 P3（均已回写）**；Step 7 口径 28 项 + Step 9 追加 D8 = **29 项**，覆盖 D1-D7 / I1-I7 / V1-V10 / T-0~T-9；链接 0 broken、ID 闭环、零预填合规。可进入 Step 9 实施。
 
 ---
 
@@ -136,7 +137,9 @@
 |------|------|---------|
 | `e360436` | B1：`tests.yml` L46 + adapter L67 + 守卫测试 3 断言 | 3 文件 **+77/−2** |
 | `ac2a3d6` | B2：README uv 段 → `--all-extras` | 1 文件 +1/−1 |
-| `[待回填]` | B3：PROGRESS + CHANGELOG + 四文档 | `[待回填]` |
+| `c1c67b2` | B3：PROGRESS + CHANGELOG + 四文档 | 6 文件 **+871/−1** |
+| `[待回填]` | B4：`pyproject.toml` L65 + `uv.lock`（钉 `mypy~=2.1.0`） | `[待回填]` |
+| `[待回填]` | B5：文档回填（版本漂移发现 + 29 项计数） | `[待回填]` |
 
 ### 8.2 红 → 绿读数（F5）
 
@@ -161,6 +164,7 @@
 
 | ID | 级别 | 发现 | 处置 |
 |----|------|------|------|
+| **F-S9-P024-4** | **P2** | **CI 首跑红**：推送 `c1c67b2` 后 run `43193963200` → 3.10 **failure**（3.11/3.12 canceled）。CI 装到 **mypy 2.4.1**（本地 2.1.0），同一命令报 **21 errors / 7 files**（全在 `filter/*`）；本地 `uv run --with mypy==2.4.1` 复现 **24 errors / 8 files**（多 3 条 `core/config_v2.py`）。根因：`core` 经 `engine_v2` L61-62 / `factory` L31 导入 `filter`，follow 后一并检查；dev extras 无版本上限 → 三腿各自解析 | 钉 `mypy~=2.1.0`（D6 修订，B4）+ 登记 **U-P024-4**（升级 2.4.x 前清零）；重跑 CI |
 | F-S9-P024-1 | P3 | `shutil.which("bash")` 在 Windows 解析到 `C:\Windows\system32\bash.EXE`（WSL 存根，恒返回 0），首轮探针 A-D 全 `exit=0` → 假阴性 | 改用 Git bash 绝对路径；读数恢复正常（3/0/2/0） |
 | F-S9-P024-2 | P3 | `git commit` 提示三文件 `LF will be replaced by CRLF`（autocrlf=true） | 与既有行为一致，无处置 |
 | F-S9-P024-3 | P3 | Step 8 改为代码字面量的 3 处测试文件链接，Step 9 后未恢复为链接 | 有意保留（E1 以文件存在性单独验收） |
@@ -181,7 +185,7 @@
 | 作者 · Step 4 设计 Review | **pass**（0 P1/P2，2 P3 F-D4-P024-1/2） | DESIGN §9 |
 | 作者 · Step 6 实施规划 Review | **pass**（0 P1/P2，2 P3 F-I1-P024-1/2） | IMPL §6 |
 | 作者 · Step 8 一致性 Review | **pass**（0 P1/P2，3 P3 F-S8-P024-1~3） | CHECKLIST §7 |
-| 作者 · Step 9 实施 | **done**（27 ✅ / 1 待回填；先红 → 对照 → 后绿三读数齐备） | CHECKLIST §8 |
+| 作者 · Step 9 实施 | **done**（28 ✅ / 1 待回填；先红 → 对照 → 后绿三读数齐备；P2 F-S9-P024-4 已由 D6 修订处置） | CHECKLIST §8 |
 | **RULE-5 异构基座复审** | `[待独立会话]` | §11 |
 | CI run | `[待回填]` | §8.3 |
 

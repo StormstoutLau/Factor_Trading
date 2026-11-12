@@ -31,6 +31,7 @@
 | **T-6** | CHANGELOG 条目 | [CHANGELOG.md](../CHANGELOG.md) | D5 | +~5 |
 | **T-7** | 四文档回填（Step 9 记录 + 读数） | `docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_p024_*.md` | — | 回填 |
 | **T-8** | 收口：提交 / 推送 / CI run 回收 / 关闭注 | — | D5 | 0 |
+| **T-9** | **（Step 9 追加）钉 mypy 版本**：`mypy>=1.5.0` → `mypy~=2.1.0` + `uv lock` | [pyproject.toml](../pyproject.toml) L65、[uv.lock](../uv.lock) | D6（修订） | +1/−1 ×2 |
 
 ---
 
@@ -235,7 +236,9 @@ uv sync --all-extras
 |------|------|------|------|
 | B1 | `e360436` | `tests.yml` L46 + adapter L67 + 守卫测试（3 断言） | ✅ 3 文件 **+77/−2** |
 | B2 | `ac2a3d6` | README uv 段 → `--all-extras` | ✅ 1 文件 +1/−1 |
-| B3 | `[待回填]` | PROGRESS（§1.4 七行 + §2 注记 + 关闭注 + §3.28）+ CHANGELOG + 四文档 | `[待回填]` |
+| B3 | `c1c67b2` | PROGRESS（§1.4 七行 + §2 注记 + 关闭注 + §3.28）+ CHANGELOG + 四文档 | ✅ 6 文件 **+871/−1** |
+| B4 | `[待回填]` | T-9：`pyproject.toml` L65 + `uv.lock`（钉 `mypy~=2.1.0`） | `[待回填]` |
+| B5 | `[待回填]` | 文档回填（版本漂移发现 + 计数 28→29） | `[待回填]` |
 
 ### 7.2 F5 红绿读数
 
@@ -255,9 +258,11 @@ uv sync --all-extras
 | V7 | `uv lock --check` + `git diff --stat` | exit 0（`Resolved 148 packages`）；B1+B2 累计 4 文件 | ✅ |
 | V8 | `Select-String "mypy.*\|\| true"` on `.github/` | **0 命中** | ✅ |
 | V9 | 远端 CI run | `[待回填]` | `[待回填]` |
+| V10 | **（追加）版本一致性**：`uv.lock` 内 `mypy` = 2.1.0；`uv lock --check` exit 0 | `Select-String "version = ""2.1.0"""` 命中 mypy 块；`--check` exit 0（148 packages，lock diff 仅 1 行 specifier） | ✅ |
 
 ### 7.4 实施发现
 
+- **F-S9-P024-4（P2，CI 首跑红）**：`e360436`+`ac2a3d6`+`c1c67b2` 合并推送后 run [`43193963200`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43193963200) —— 3.10 leg **failure**（3.11/3.12 被 canceled）。日志显示 CI 装到 **mypy 2.4.1**，同一命令报 **21 errors / 7 files**（全在 `filter/*`）；本地以 `uv run --with mypy==2.4.1` 复现 **24 errors / 8 files**（多 3 条 `core/config_v2.py` 的 `no-any-return`，平台差异）。根因：`core` 经 `engine_v2` L61-62 / `factory` L31 导入 `filter`，follow 后被一并检查；dev extras 未钉版本 → 三条 leg 各自解析。**处置**：按 U-P024-1 的触发条件行动，钉 `mypy~=2.1.0`（D6 修订），并登记 U-P024-4（升级到 2.4.x 前的清零）。
 - **F-S9-P024-1（P3，工具坑）**：`shutil.which("bash")` 在 Windows 解析到 `C:\Windows\system32\bash.EXE`（WSL 存根，**恒返回 0**），首轮探针 A-D 全为 `exit=0` 造成「假阴性」；改用 Git bash 绝对路径后读数正常（A `exit=3` / B `exit=0` / C `exit=2` / D `exit=0`）。→ 已写入探针脚本注释；复审时须确认 bash 路径。
 - **F-S9-P024-2（P3）**：`git commit` 时 git 提示三文件 `LF will be replaced by CRLF`（autocrlf=true），与既有仓库行为一致，无内容影响；未做额外处置。
 - **F-S9-P024-3（P3）**：Step 8 的 3 处「未创建文件链接」已按 F-S8-P024-1 改为代码字面量；Step 9 文件创建后**未**恢复为链接（避免 3 处链接噪声，且 CHECKLIST E1 以文件存在性单独验收）。

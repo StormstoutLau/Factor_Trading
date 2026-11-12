@@ -103,15 +103,23 @@
 
 > 注：读数 B 的 3 条 note 是 mypy 对「无注解函数体默认不检查」的提示，**不是 error**；读数 D 纳入 `--check-untyped-defs` 后该提示消失且仍 0 errors。
 
+**Step 9 追加读数（版本漂移现实化）**：`uv run --no-project --with mypy==2.4.1 python -m mypy --explicit-package-bases --check-untyped-defs core` → **24 errors / 8 files**（`core/config_v2.py` 3 / `filter/custom.py` 2 / `filter/industry.py` 1 / `filter/market_cap.py` 1 / `filter/prefix.py` 1 / `filter/na_factor.py` 2 / `filter/extended.py` 1 / `filter/universe_filter_clean.py` 13）；同命令 `mypy==2.1.0` → **0 errors / 36 files**。CI run `43193963200` 的 3.10 leg 读数为 **21 errors / 7 files**（Linux 侧少 3 条 `config_v2` 命中，平台差异）。→ 直接导致 U-P024-1 触发与 D6 修订。
+
 ---
 
 ## 6. 未决项登记（四元块）
 
 - **U-P024-1 mypy 版本上限**
-  - 判据：dev extras 中 `mypy` 是否加版本上限（如 `~=2.1`）
+  - 判据：dev extras 中 `mypy` 是否加版本上限
   - 触发条件：CI 三条 leg 出现因 mypy 版本差异导致的**不一致结论**，或某 leg 装到的 mypy 不再支持该 Python
-  - 当前倾向：不钉（fail-closed 优先：门禁红是可见的，钉上限会冻结新检查能力）；本批只登记，不改 pyproject
-  - 证据等级：E3（pyproject L65 + L106）
+  - **状态：已触发并结案（P-024 Step 9）**——CI 首跑 run `43193963200` 的 3.10 leg 装到 **mypy 2.4.1**（本地 2.1.0），同一命令报 **24 errors / 8 files**（`core/config_v2.py` 3 + `filter/*` 21）：`filter` 由 `engine_v2` L61-62 / `factory` L31 导入而被 follow，`core/config_v2.py` 的 3 条为 2.4.x 新增检查命中冻结模块。处置：**钉 `mypy~=2.1.0`**（pyproject + `uv.lock` 各 1 行），三腿与本地同引擎
+  - 证据等级：E1（本地 `uv run --with mypy==2.4.1` 复现 24 errors；2.1.0 为 0）
+
+- **U-P024-4 mypy 升级到 2.4.x 前的清零**
+  - 判据：`mypy~=2.4` 下 `core`（含 follow 到的 `filter/*`）0 errors
+  - 触发条件：需要 2.4.x 的新检查能力，或 `filter/` 纳入检查面（U-P024-3）
+  - 当前倾向：维持 `~=2.1.0`；待 `core/config_v2.py`（冻结模块，3 条 `no-any-return`）与 `filter/*`（21 条，`universe_filter_clean.py` 独占 13）清零后再放宽
+  - 证据等级：E1（run `43193963200` 3.10 leg 日志 + 本地 2.4.1 复现）
 
 - **U-P024-2 CI 增加 `uv lock --check`**
   - 判据：`tests.yml` 出现锁校验步骤
