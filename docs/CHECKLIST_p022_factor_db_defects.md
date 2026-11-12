@@ -160,7 +160,7 @@ Step 8 一致性 Review（§8）、Step 9 实测回填（§1 验收表）、Step
 | Step 5-6 实施规划 + Review | 通过 | [IMPL §6](IMPL_p022_factor_db_defects.md)（RULE-4 自查·单视角） | 2026-11-12 |
 | Step 7 验收清单 | 通过（零预填） | §1-§3（18 项，实测列全 `[待 Step 9]`） | 2026-11-12 |
 | Step 8 一致性 Review | 通过 | §8（20 处 `[待 Step 9]` = 18 格 + 2 合法；链接 0 broken；ID 闭环；对齐矩阵 7 行；0 发现） | 2026-11-12 |
-| Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p022_factor_db_defects.md)（四批红 4/2/2/2 → 绿 11；B1-B4 + B4b；18/18 ✅） | 2026-11-12 |
+| Step 9 TDD 实施 | 完成 | [IMPL §7](IMPL_p022_factor_db_defects.md)（四批红 4/2/2/2 → 绿 11；B1-B4 + B4b + B5b；18/18 ✅） | 2026-11-12 |
 | Step 10 ADD 审计 | 通过 | §9（Phase 0-4 + 取证矩阵 9 类；P3×1 已记录 + U-P022-4 + 3 观察） | 2026-11-12 |
 | RULE-5 异构复审 | **未执行** | 本会话即作者（DeepSeek-V4.1-Flash）；待异构基座独立会话全批复审 | — |
-| CI 回收 | 待回填 | 首跑 `43175692308` **failure**（D-1/D-2 环境依赖 parquet，2 failed × 3 版本）→ B5b 固定分支修复；第二跑待登记 | — |
+| CI 回收 | success | 首跑 `43175692308` **failure**（D-1/D-2 环境依赖 parquet，2 failed × 3 版本）→ B5b `e03c650` 修复；第二跑 `43176076114` 三 job **success**（3.10 1m52s / 3.11 1m32s / 3.12 1m36s） | 2026-11-12 |
