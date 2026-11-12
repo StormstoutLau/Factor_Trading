@@ -4,7 +4,7 @@
 > **上游**: [RESEARCH_p025](RESEARCH_p025_daily_loop_exception_semantics.md)（P1-P14 / E1-E4 / §10 Step 2 Review）
 > **下游**: IMPL_p025 → CHECKLIST_p025
 > **代码证据时点**: HEAD `3e4b896`（2026-11-12，工作区干净）
-> **状态**: Step 3 设计完稿（待 Step 4 独立 Review）
+> **状态**: Step 4 独立 Review 完成（**pass**：7 P3 回写 + 4 观察，复审基座 GLM-5.3-Flash）
 
 ---
 
@@ -12,10 +12,10 @@
 
 | ID | 决策项 | 决定 | 对应 |
 |----|--------|------|------|
-| **D1** | 错误策略开关 | 新增 `day_error_mode: Literal["off","report","raise"] = "report"`，与 `invariant_mode` 同形（config L345 之后） | P12 / M-A |
+| **D1** | 错误策略开关 | 新增 `day_error_mode: Literal["off","report","raise"] = "report"`，与 `invariant_mode` 同形（config L344 之后） | P12 / M-A |
 | **D2** | 异常分类 | 四类：`data` / `execution` / `solver` / `internal`；分类由 `(stage, exception_type)` 双键决定，**不按消息文本匹配** | P2-P4 / E1 |
 | **D3** | 采集器落位 | 新增 **`core/diagnostics.py`** 独立模块（不放入 engine_v2）——供 `execution.py` 复用，避免反向依赖 | P4 / P13 |
-| **D4** | 日循环改造 | `run()` 的 catch 改为 `classify → record → 按 mode 决定继续/抛出`；`report`/`off` 保持 `continue`，`raise` 抛聚合异常 | P2 / E4 |
+| **D4** | 日循环改造 | `run()` 的 catch 改为 `classify → record → 按 mode 决定继续/抛出`；`report`/`off` 保持 `continue`，`raise` 首个 internal/data 错误即抛 | P2 / E4 |
 | **D5** | 内层接入 | 优化失败（engine L915）与执行失败（execution L327）接入同一采集器；executor 以**可选 sink** 注入，默认 `None` 零行为变化 | P3 / P4 |
 | **D6** | 优化器方法名去静默 | `build_optimizer` 补 `"mean_variance"` 别名；**未知 method 不再静默降级等权**，改抛 `ValueError`（fail-closed） | **F-D3-P025-1（新发现）** |
 | **D7** | 边界裁决 | O1：末日重复快照**不动**（golden 已编码）；O2：`setup()` 增 `cov_lookback` 预检（仅依赖协方差的方法） | §10.3 O1/O2 |
@@ -60,7 +60,7 @@
 |------|------|
 | `off` | 完全旧行为：不采集、不新增诊断键（`run_diagnostics` 仅含 `{"mode": "off"}`） |
 | `report` | **默认**：采集并写入 `run_diagnostics`，控制流与现状一致（`continue`） |
-| `raise` | 采集后**抛出**：3.11+ 用 `ExceptionGroup` 聚合全部 internal/data 错误；3.10 抛首个并附诊断字典到异常属性。`execution`/`solver` 类**不参与抛出**（业务可恢复） |
+| `raise` | 采集后**抛出**：首个 `internal`/`data` 类错误即抛——3.11+ 以 `ExceptionGroup` 包裹（单错即抛、组内 1 元素；跨日聚合留待后续需要时扩展，Step 4 F-S4-P025-6 裁决），3.10 原样抛并附诊断字典到异常属性。`execution`/`solver` 类**不参与抛出**（业务可恢复） |
 
 **理由**：与 `invariant_mode` 同形（P12）→ 消费方零学习成本；默认 `report` 保证 654 测试与 golden 零回归；`raise` 供 CI/pytest 严格模式。
 
@@ -73,7 +73,7 @@
 | 类别 | 判定 | 典型来源 | 可重试 |
 |------|------|----------|--------|
 | `data` | `KeyError` / `FileNotFoundError` / `ValueError`（数据形态）且 stage ∈ {settle, pending, next_day, mark} | 缺价格列、缺 universe 行、日期不齐 | 是（下一交易日可能恢复） |
-| `execution` | 成交失败（`success=False`）或 `ExecutionError` | 资金不足、整手取整为 0、掩码限制 | 是（订单留队） |
+| `execution` | 执行阶段异常（`stage == execution`）或 `ExecutionError`；**`success=False` 非异常路径本批不计量**（Step 4 F-S4-P025-3 裁决缩范围，见 §10） | 资金不足、整手取整为 0、掩码限制 | 是（订单留队） |
 | `solver` | `np.linalg.LinAlgError` / cvxpy `SolverError` / `ValueError("…需要收益率数据…")` 且 stage == rebalance | 协方差奇异、回看不足 | 否（同输入必再失败） |
 | `internal` | `TypeError` / `AttributeError` / `AssertionError` / `NameError` / `IndexError` / 其余 `Exception` | 代码缺陷 | 否 |
 
@@ -91,7 +91,7 @@
 @dataclass(frozen=True)
 class DayErrorRecord:
     date: str            # ISO 日期
-    stage: str           # settle|pending|next_day|rebalance|mark|risk|dump|finalize
+    stage: str           # day_loop|settle|pending|next_day|rebalance|mark|execution|risk|dump|finalize
     category: str        # data|execution|solver|internal
     error_type: str      # 异常类名
     message: str         # 截断至 200 字符
@@ -99,7 +99,7 @@ class DayErrorRecord:
 
 class DayErrorCollector:
     def record(self, date, stage, exc) -> DayErrorRecord | None: ...  # 内部 try/except 兜底
-    def record_failure(self, date, stage, reason: str, category="execution") -> None: ...
+    def record_failure(self, date, stage, reason: str, category="execution") -> None: ...  # 本批无调用点（success=False 计量留待后续，见 §10 F-S4-P025-3）
     def summary(self) -> dict[str, Any]: ...   # counts / samples / truncated / degraded
     def raise_if_needed(self) -> None: ...     # 仅 raise 模式调用
 ```
@@ -125,7 +125,7 @@ class DayErrorCollector:
                 continue
 ```
 
-**要点**：`off` 模式下 `record` 立即返回并不分配记录（零开销）；`raise` 分支到达时若已聚合多个 internal 错误则一次性抛出（E1）。
+**要点**：`off` 模式下 `record` 立即返回并不分配记录（零开销）；`raise` 分支在首个 `internal`/`data` 错误处即抛出（首错即抛语义——Step 4 F-S4-P025-6 裁决：D1 原文「聚合全部」与就地调用 `raise_if_needed` 的代码形态矛盾，统一为单错即抛，E1）。
 
 **`run_diagnostics` 结构**（写入 `additional_info`，只增不改 P11 的 10 键）：
 
@@ -175,7 +175,7 @@ class DayErrorCollector:
 
 **为什么纳入本批**：属「静默降级导致假结果」同族缺陷（用户选 `mean_variance` 得到等权却不被告知）；且它是 RESEARCH P7 对照组的成因，不修则本批的诊断会记录「一切正常」而实际上优化器方法根本没生效。
 
-**风险控制**：`build_optimizer` 在 `engine.setup()` L240 调用 → 未知 method 在 **setup 期**即失败（早于 run）；`equal_weight` 仍为 config 默认值，golden 与 654 测试不受影响（实测无测试传 `mean_variance`）。
+**风险控制**：`build_optimizer` 有两个调用点——`engine.setup()` L240 与 `factory.py` L167（`create_default_engine` → `create_all`，Step 4 F-S4-P025-5 补记；CLI 实际走 factory 路径）→ 未知 method 在**组件创建/setup 期**即失败（均早于 run）；`equal_weight` 仍为 config 默认值，golden 与 654 测试不受影响（实测无测试传 `mean_variance`）。
 
 ### D7 边界裁决
 
@@ -195,7 +195,7 @@ class DayErrorCollector:
                 )
 ```
 
-**理由**：`_execute_rebalance` L899 的 `date_index >= cov_lookback` 决定 `returns_data` 是否为 `None`；`len(trade_dates)-1 < cov_lookback` 时**每一次**调仓都必然抛 `ValueError`（P7 的 P1 假成功）。预检把它前移到 setup，与 P-023「入口 fail-fast」同型。
+**理由**：`_execute_rebalance` L899 的 `date_index >= cov_lookback` 决定 `returns_data` 是否为 `None`；`len(trade_dates)-1 < cov_lookback` 时**每一次**调仓都必然抛 `ValueError`（P7 的 P1 假成功）。预检把它前移到 setup，与 P-023「入口 fail-fast」同型。**注（Step 4 观察-2）**：判据为必要非充分——「短窗 + 稀疏触发」（如 quarterly + 20 交易日，窗口内无调仓触发日）下预检将误报而实际不会失败；残余场景由 `run_diagnostics` 兜底。
 
 **被拒方案**：运行期首次失败即抛（仍在循环内，用户已等完前 N 天）；自动降级等权（U-P025-4 已裁决不做——静默降级正是本批要消灭的）。
 
@@ -246,9 +246,9 @@ class DayErrorCollector:
 | **I2** | `report` / `off` 模式下控制流与 HEAD 完全一致（仍 `continue`） | 探针 A2 快照数/日期序列与 HEAD 逐字节相同 |
 | **I3** | 采集器任何路径不抛异常 | T2 + 代码审查（`record` 内 try/except） |
 | **I4** | `off` 模式零新开销（不构造 record、不写键内容） | 计时探针 ≤2% 差异；`run_diagnostics == {"mode": "off"}` |
-| **I5** | 成交语义不变：`execute_order` 签名、返回值、异常处理路径不变 | AST 比较 + 4 处调用点零改动 |
+| **I5** | 成交语义不变：`execute_order` 签名、返回值、对外可见行为不变（except 分支仅追加 sink 调用，Step 4 F-S4-P025-7 措辞修订） | AST 比较（签名/返回）+ 4 处调用点零改动 |
 | **I6** | golden G1-G7 数值不变 | Step 9 逐字节比对 |
-| **I7** | 末日重复快照形态保留 | 快照数 = 22（末日重复）与 HEAD 相同 |
+| **I7** | 末日重复快照形态保留 | 快照数 = 21（末日重复，探针 A3 读数 21 快照 / 20 去重日，Step 4 F-S4-P025-1 订正）与 HEAD 相同 |
 
 ---
 
@@ -279,7 +279,7 @@ class DayErrorCollector:
 | **R2** | D7-O2 预检误伤「短历史 + 等权」用户 | P3 | 仅对 4 个依赖协方差的方法生效；等权不受影响 |
 | **R3** | 采集器成为新故障点 | P2 | I3 零抛错契约 + T2 |
 | **R4** | `raise` 模式破坏 654 既有测试 | P2 | 默认 `report`；全量回归中 `raise` 仅在 T7 显式构造 |
-| **R5** | 新增第 36→37 个 core 模块影响 ARCHITECTURE 计数 | P3 | B4 同步订正 ARCHITECTURE「核心模块」行 |
+| **R5** | 新增第 36→37 个 core .py 文件影响 ARCHITECTURE 计数 | P3 | B4 先核 ARCHITECTURE「核心模块」行统计口径（头部现值 28 与实查 36 个 .py 文件差 8，Step 4 F-S4-P025-4），再按其口径修数 |
 | **R6** | `run_diagnostics` 体积（50 条 × 200 字符）写入结果字典 | P3 | 上限 50 + 截断标记；`off` 零开销 |
 | **R7** | golden 因 sink 注入产生时序变化 | P2 | sink 仅在异常分支调用，正常路径零调用 |
 | **R8** | Python 3.10 无 `ExceptionGroup` | P3 | `raise` 分支按 `sys.version_info` 分支实现（U-P025-5） |
@@ -306,3 +306,54 @@ class DayErrorCollector:
 | **F-D3-P025-1** | **P2** | `build_optimizer` 用 `mvo` 作均值方差键，而 CLI 与 `config_v2` 用 `mean_variance` → 用户选 `mean_variance` **静默得到等权**（探针实测：与 `equal_weight` 读数完全相同）；任意未知字符串同样静默降级 | 纳入本批 **D6**（别名 + fail-closed）；RESEARCH P7 对照组归因已订正 |
 | F-D3-P025-2 | P3 | RESEARCH §4 选型理由②「同数据 `mean_variance` 成功 13 笔」失准（实为等权降级） | 已在 RESEARCH P7 追加订正注，选型结论不变 |
 | 观察 | — | O1 末日重复快照成因确认：`_force_liquidation(update_market_values=True)` 在末日二次 `update_market_values` | D7-O1 不动；登记 U-P025-6 |
+
+---
+
+## 10. Step 4 独立 Review（2026-11-12）
+
+> 复审基座：**GLM-5.3-Flash**（≠ DESIGN 作者 DeepSeek-V4.1-Flash，异构成立）；复审对象：本文档 @ 提交 `6564d44`（CI `43223641940` success）。
+
+### 10.1 机械复核检查表
+
+| # | 复核项 | 结果 |
+|---|--------|------|
+| 1 | 重跑探针 `%TEMP%\p025_probe_d1.py`（分派表直读 + 80 日端到端三方法对比） | ✅ 与 §2 读数逐字一致：`mean_variance`/`bogus` → EqualWeightOptimizer；equal_weight 与 mean_variance 读数完全相同（64 笔 / sharpe −1.4611384945695667）；mvo 3 笔 / sharpe 1.491792480720085 |
+| 2 | [portfolio.py L435-L442](../core/portfolio.py#L435-L442) `optimizer_map` 4 键 + L442 `.get(..., EqualWeightOptimizer)` 静默降级 | ✅ 逐字一致 |
+| 3 | [cli.py L295](../cli.py#L295) choices 含 `mean_variance`；[config_v2.py L120-L125](../core/config_v2.py#L120-L125) Literal 含该值 | ✅ |
+| 4 | config.py L344 `invariant_mode` 三态先例 | ✅ |
+| 5 | engine_v2.py：L56 import / L240 setup 调用 / run() catch L326-L337 / 优化 catch L898-L917 / `_execute_rebalance` L863 / `date_index >= cov_lookback` L899 | ✅ 全部命中 |
+| 6 | execute_order 生产调用点：engine_v2 L533 / L782 / L1127 + execution.py L392 内部（def L250、except L327-L329） | ✅ 恰为 D5 所述 4 处 |
+| 7 | 双表对照：engine_plugins.py L319-L339 注册表用 `mean_variance`→MeanVarianceOptimizer（无 `mvo` 键）；build_optimizer 用 `mvo`（无 `mean_variance`） | ✅ D6 对齐方向正确（残余差异见观察-1） |
+| 8 | MeanVarianceOptimizer 无 returns/cov 时抛 `ValueError`（portfolio L276-L277） | ✅ D7 cov_methods 收录 `mean_variance` 合理；D2 solver 类消息匹配 |
+| 9 | D6 测试破坏面：tests 无任何 `OptimizerConfig(method="mean_variance"/未知串)`（test_strategy_allocator 的 mean_variance 属 allocator 模块，无关）；test_engine_plugins L295-L307 兼容测试用 equal_weight | ✅ fail-closed 安全 |
+| 10 | R5 计数：core 实查 **36** 个 .py 文件；ARCHITECTURE 头部「核心模块： 28 个」 | ⚠️ 口径不一致 → F-S4-P025-4 |
+| 11 | 探针读数一致性：V4/I2 用 A2（20 快照 / 19 去重日）、D7-O1 用 A3（21 / 20）均与 RESEARCH §5/§10 一致；I7 原写 22 | ❌ I7 数值错误 → F-S4-P025-1 |
+| 12 | 链接复检：RESEARCH_p025 / portfolio#L435-L442 ×2 / cli#L295 共 4 处相对链接 | ✅ 全部有效 |
+| 13 | 基数一致性：654 测试（ARCHITECTURE 头部）+ 10 新 = V11 的 664 | ✅ |
+
+### 10.2 发现（7 P3 回写 + 4 观察）
+
+| ID | 级 | 发现 | 处置 |
+|----|----|------|------|
+| **F-S4-P025-1** | P3 | I7「快照数 = 22」与 RESEARCH 探针 A3 读数（**21** 快照 / 20 去重日）不符 | ✅ 已回写 I7（22→21） |
+| **F-S4-P025-2** | P3 | D3 `stage` 注释枚举缺 `day_loop`（D4 使用）与 `execution`（D5 sink + D4 counts 示例使用） | ✅ 已回写枚举 |
+| **F-S4-P025-3** | P3 | D2 表 execution 类含「成交失败（`success=False`）」，但 D5 仅在异常分支接 sink、`record_failure` 全文无调用点 → success=False 路径（如 execution.py L461-L469 价格偏差拒绝）本批不被计量，契约与接线不一致 | ✅ 裁决**缩范围**回写（D2 行 + record_failure 注记）；success=False 计量留待后续批次 |
+| **F-S4-P025-4** | P3 | R5 混用计数口径：core 实查 36 个 .py（36→37 成立）vs ARCHITECTURE 头部 28（差 8） | ✅ 已回写缓解措施（B4 先核口径再修数，不得简单 +1） |
+| **F-S4-P025-5** | P3 | D6 风险控制遗漏 `factory.py` L167 第二调用点（`create_default_engine` → `create_all`，CLI 实际走此路径） | ✅ 已回写；该路径在组件创建期触发 ValueError，仍早于 run，fail-fast 语义成立 |
+| **F-S4-P025-6** | P3 | raise 模式语义矛盾：D1「ExceptionGroup 聚合全部 internal/data 错误」vs D4 在首个异常处就地调用 `raise_if_needed()`（实为首错即抛，跨日聚合不可能发生） | ✅ 已裁决「**首错即抛**」并回写 D1/D4/§1（单错即抛、组内 1 元素；跨日聚合留待后续需要时扩展） |
+| **F-S4-P025-7** | P3 | I5「异常处理路径不变」与 D5 在 except 内追加 sink 调用冲突（AST 比较会检出 except 体变化） | ✅ 已回写措辞（签名/返回值/对外可见行为不变；except 仅追加 sink） |
+| 观察-1 | — | 双表残余差异：D6 修复后 `mean_variance` 双表可用，但 plugin registry（engine_plugins L319-L339）无 `mvo` 键（既有现状） | 登记，本批不扩散 |
+| 观察-2 | — | D7-O2 预检为必要非充分：短窗 + 稀疏触发（如 quarterly + 20 交易日）时窗口内无调仓触发日 → 预检误报；R2 仅覆盖等权误伤 | ✅ 已在 D7 理由段注记；残余场景由 run_diagnostics 兜底 |
+| 观察-3 | — | D5「9 个测试文件共 28 处调用」实测：`.execute_order(` 调用 **24 处 / 8 文件**（宽松口径 34 行 / 9 文件）；数字不精确但「不改签名」结论不变 | 登记，不回写 |
+| 观察-4 | — | §1 表 D1「config L345 之后」与 D1 详述「紧跟 invariant_mode（L344）之后」差一行 | ✅ 已统一为 L344 之后 |
+
+### 10.3 结论
+
+**pass** —— 门禁四项：
+
+- **幻觉排除** ✅：全部代码锚点实查命中（上表 1-8、10-13），探针独立复现 F-D3-P025-1 读数逐字一致。
+- **方案完整性** ✅：D1-D7 覆盖三层静默 + DESIGN 期新发现；T1-T10 与 V1-V12 一一对应；I1-I7 含回退与运行时退出闸。
+- **风险覆盖** ✅：R1-R8 齐备（F-S4-P025-4 口径补充已并入 R5）。
+- **假设明确** ✅：O1/O2 裁决、被拒方案（D1/D7）、回退点（B1-B4）明确；raise 模式语义经 F-S4-P025-6 裁决后无歧义。
+
+7 项 P3 已全部回写正文（含 2 项裁决：F-S4-P025-3 缩范围 / F-S4-P025-6 首错即抛），4 项观察中 2 项回写、2 项登记。无 P1/P2。可进入 Step 5+（IMPL 前置）。
