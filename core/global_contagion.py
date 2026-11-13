@@ -583,7 +583,8 @@ def compute_granger_causality(x: pd.Series, y: pd.Series, max_lag: int = 5) -> d
             # 样本不足属前置条件不满足（非计算异常）：failed=False（P-026 D3.4）
             return {"causal": False, "p_value": 1.0, "lag": 0, "failed": False}
 
-        result = grangercausalitytests(data[["y", "x"]], maxlag=max_lag, verbose=False)
+        # verbose 参数在 statsmodels 0.15 已移除（CI 实装 0.15.0）；默认即不打印
+        result = grangercausalitytests(data[["y", "x"]], maxlag=max_lag)
 
         # 找出最小p值
         min_p = 1.0

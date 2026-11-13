@@ -175,6 +175,8 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 
 变更量：`git diff --numstat` 8 文件 **+100/−10**（DESIGN 估算 +97/−13，偏差见 F-I-P026-4）；新测试文件 422 行（DESIGN 估算 ≈240，偏差见 F-I-P026-3）。
 
+> **Step 9 复测（2026-11-13，含 F-S9-P026-1 补丁）**：全量 **687 passed, 172 warnings**（移除 `verbose` 后 statsmodels `FutureWarning` 消失，较 Step 5 读数少 1，**相对 671 基线零新增 warning**）；mypy **37 files 0** / black **116 unchanged** 不变；红态重放 **14 failed / 2 passed** → 绿态 **16 passed**（详见 CHECKLIST §12）。
+
 ---
 
 ## 7. 实施期发现与偏差
@@ -186,7 +188,7 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 | F-I-P026-3 | P3 | 测试实际 422 行 vs DESIGN 估算 ≈240 行：差异来自独立复制的引擎夹具（`_FakeDM`/`_FakeUniverse`/`_Top2Optimizer`/`_AlwaysTrigger`/`_build_config`）+ 12 个用例的 docstring | 接受（夹具独立复制避免与 P-025 测试耦合，符合 DESIGN §4.1「不改原文件」） |
 | F-I-P026-4 | P3 | 代码行数 +100/−10 vs DESIGN 估算 +97/−13：`factor.py` 旁路接口与注释比预估多 3 行、`global_contagion.py` 新增局部变量与标记比预估少 3 行删除 | 接受（净差 ≤3 行，无功能偏差） |
 | F-I-P026-5 | 观察 | `_set_agent_period` 在 `hasattr(agent, "distillation_config")` 为 True 但值为 `None` 时抛 `AttributeError`（L194 无 None 守卫） | 本批不改（D5 仅补计数）；已登记 U 类，属「静默失败治理」相邻面，待第三批裁决 |
-| F-I-P026-6 | 观察 | T10 触发 `statsmodels` `FutureWarning: verbose is deprecated`（库内部默认参数，非本项目调用导致） | 接受，warnings 计数 172 → 173 与之对应 |
+| F-I-P026-6 | 观察 | T10 触发 `statsmodels` `FutureWarning: verbose is deprecated`（库内部默认参数，非本项目调用导致） | **Step 9 已消除**：移除 `grangercausalitytests(..., verbose=False)` 实参（F-S9-P026-1），warnings 回落 **172**（零新增），见 §11 |
 
 ---
 
@@ -206,7 +208,7 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 
 ## 9. 下一步
 
-**Step 7 已完稿**：[CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md)（45 项零预填；含 F-I-P026-1 的 DESIGN V1 口径 683→687 交接项）。下一为 **Step 8 一致性 Review**（RESEARCH ↔ DESIGN ↔ IMPL ↔ CHECKLIST 四对对齐；须异构基座 ≠ 本 IMPL / DESIGN / CHECKLIST 作者 DeepSeek-V4.1-Flash），随后 Step 9 TDD 回填 → Step 10 ADD 审计 → RULE-5 异构终审。
+**Step 9 已完成**：[CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md) 45/45 实测列落证据（红态 **14 failed / 2 passed** → 绿态 **16 passed**；全量 **687** / mypy **37** / black **116**）。Step 9 实施期发现并修复 **F-S9-P026-1**（CI Python 3.10/3.11 装 statsmodels 0.15.0 已移除 `verbose` 参数 → T10 在 CI 失败）：补丁与本文件 §11 留痕。下一为 **Step 10 ADD 审计**（须异构基座 ≠ 本 IMPL / DESIGN / CHECKLIST 作者 DeepSeek-V4.1-Flash）→ RULE-5 异构终审 → CI 回收收口。
 
 ---
 
@@ -231,3 +233,18 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 | O-S6-P026-3 | 观察 | `diagnostics.py` L129/L160 采集器自身失败仅 error 日志——属 P-025 I2 设计语义（sink 旁路自身容错），非缺陷 | 接受，无需处置 |
 
 **复审结论**: **pass**（0 P1 / 0 P2 / 1 P3 已订正 / 3 观察登记）。E1-E4 全维度通过，门禁三重放与 §6 完全一致，无幻觉、无范围外改动（numstat 15 files 均在声明面内）。
+
+---
+
+## 11. Step 9 TDD 实施期补丁记录（2026-11-13）
+
+> **执行基座**: DeepSeek-V4.1-Flash（Step 9 非复审步，RULE-5 不要求异构）。
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S9-P026-1 | **P2** | 远端 CI（Python 3.10 / 3.11，`statsmodels==0.15.0`）T10 失败：`grangercausalitytests() got an unexpected keyword argument 'verbose'`，异常被 D3.4 的 `except` 捕获后 `failed=True`，触发 `assert True is False`。本地 0.14.6 仅 `FutureWarning` 不报错 → **本地绿、CI 红**（Step 5 起 4 个 run 连续失败） | **已修复**（单行）：`core/global_contagion.py` 调用改为 `grangercausalitytests(data[["y", "x"]], maxlag=max_lag)`（0.15 已删 `verbose`；0.14 默认即 False），跨版本兼容。复测：新测试 **16 passed** / 全量 **687 passed** / mypy **37** / black **116** |
+| F-S9-P026-2 | P3 | F-I-P026-6 的 `FutureWarning` 随补丁消失，warnings 由 173 回落 **172**（与 671 基线的差值即新增 16 测试的既有 warning 之外的零新增） | 接受；§6 / §7 已同步订正，CHECKLIST F7 实测列注明偏差 |
+
+**变更面（Step 9 增量）**：`core/global_contagion.py` **+1/−1**（仅调用行）；无其他代码改动；不改变 D3.4 三路径键契约。
+
+**回退**：`git checkout e79bf06 -- core/global_contagion.py` 可单独回退本补丁（但 CI T10 将复红）。
