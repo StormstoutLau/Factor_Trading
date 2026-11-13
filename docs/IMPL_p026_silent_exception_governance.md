@@ -208,7 +208,7 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 
 ## 9. 下一步
 
-**Step 9 已完成**：[CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md) 45/45 实测列落证据（红态 **14 failed / 2 passed** → 绿态 **16 passed**；全量 **687** / mypy **37** / black **116**）。Step 9 实施期发现并修复 **F-S9-P026-1**（CI Python 3.10/3.11 装 statsmodels 0.15.0 已移除 `verbose` 参数 → T10 在 CI 失败）：补丁与本文件 §11 留痕。下一为 **Step 10 ADD 审计**（须异构基座 ≠ 本 IMPL / DESIGN / CHECKLIST 作者 DeepSeek-V4.1-Flash）→ RULE-5 异构终审 → CI 回收收口。
+**Step 9 已完成**：[CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md) 45/45 实测列落证据（红态 **14 failed / 2 passed** → 绿态 **16 passed**；全量 **687** / mypy **37** / black **116**）。Step 9 实施期发现并修复 **F-S9-P026-1**（CI Python 3.10/3.11 装 statsmodels 0.15.0 已移除 `verbose` 参数 → T10 在 CI 失败）：补丁与本文件 §11 留痕。**Step 10 ADD 审计已通过**（异构基座 GLM-5.3-Flash；0 P0/P1/P2，评分 A+，G2 收口，见 [CHECKLIST_p026 §13](CHECKLIST_p026_silent_exception_governance.md)）。下一为 RULE-5 异构终审 → 批次关闭。
 
 ---
 

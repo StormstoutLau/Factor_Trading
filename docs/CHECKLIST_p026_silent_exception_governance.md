@@ -2,7 +2,7 @@
 
 > **批次**: P-026 · **T1**（`core/` 行为契约 + 新增可观测字段与方法，零 fail-fast）
 > **上游**: [IMPL_p026](IMPL_p026_silent_exception_governance.md)（B1-B5 / §4 精确变更实录 / §6 门禁 / §10 Step 6 复审）；[DESIGN_p026](DESIGN_p026_silent_exception_governance.md)（D1-D8 / I1-I7 / V1-V6 / T1-T12）
-> **状态**: Step 7 完稿（**45 项**零预填）+ Step 8 一致性 Review pass + **Step 9 TDD 完成**（45/45 回填：44 ✅ / 1 ❌ G2 待 Step 10；F8 / G6 已依 CI run `43386673276` 回填 ✅；Step 9 发现并修复 **F-S9-P026-1**，见 §12）
+> **状态**: Step 7 完稿（**45 项**零预填）+ Step 8 一致性 Review pass + **Step 9 TDD 完成**（44 ✅ + F8/G6 依 CI 回填；F-S9-P026-1 已修复，见 §12）+ **Step 10 ADD 审计 pass**（评分 **A+**，0 P0/P1/P2，G2 已收口，见 §13）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（Step 9 实测）**: `pytest --collect-only tests/test_p026_silent_exception_governance.py` **16 tests collected** / 全量 **687 passed, 172 warnings** / mypy **37 files 0** / black **116 unchanged** / 红态 **14 failed + 2 passed**
 
@@ -108,7 +108,7 @@
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
 | G1 | 四文档齐备且互链：`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_p026_silent_exception_governance.md` 存在，相对链接 0 broken | Step 8 / Step 9 机械校验脚本读数 | B5 | ✅ 脚本重放四文档相对链接 **31 links / 0 broken**（Step 9 复跑） |
-| G2 | PROGRESS §1.4 P-026 行置 `done`（含 T1 / 四文档链接 / CI run id）+ §3.31 Step 1-10 执行记录完整 | 读回 §1.4 与 §3.31 | B5 | ❌ **未达成（Step 10 收口项）**：`Select-String 'P-026' docs/PROGRESS.md` 仅命中 §3.31（1 处），§1.4 **无 P-026 行**；§3.31 已更新至 Step 1-9，Step 10 时补 done 行 + CI run id |
+| G2 | PROGRESS §1.4 P-026 行置 `done`（含 T1 / 四文档链接 / CI run id）+ §3.31 Step 1-10 执行记录完整 | 读回 §1.4 与 §3.31 | B5 | ✅（Step 10 收口）§1.4 新增 **P-026 done 行**（CI run `43387091175` 三 job success）+ §3.31 更新至 Step 1-10；U-P025-3 同步置 done |
 | G3 | CHANGELOG `[Unreleased]` 记录四项行为变更（因子链路 / 插件层 / 传染分析 / EventLog 与 WF），含门禁读数 | 读回 `CHANGELOG.md` 对应条目 | B5 | ✅ `CHANGELOG.md` L46 `[Unreleased]` 含 P-026 四项行为变更（因子链路 / 插件层 / 传染分析 / EventLog 与 WF）+ 门禁读数 |
 | G4 | README 计数一致：**4 处 687**（L7 badge / L99 / L278 / L427 `79 files`）；`docs/ARCHITECTURE.md` L3 测试数 **687**（核心模块 27 不变） | `Select-String -Pattern '687'` 读数 | B5 | ✅ `Select-String '687' README.md` = **4 处**；`docs/ARCHITECTURE.md` = **1 处**（L3） |
 | G5 | 未决项与回退点登记完整：U-P026-1~6 + F-S6-P026-1 + O-S6-P026-1/2/3 有落点；RB1-RB5 文件级回退可行 | 读回 IMPL §7 / §10 / §8 与 PROGRESS 未决表 | IMPL §8 / §10 | ✅ U-P026-1~5 落 `PROGRESS §3.31` L777（U-P026-6 已由 DESIGN D4 采纳、落 IMPL §4.6，不再列为未决）；F-S6-P026-1 + O-S6-P026-1/2/3 落 IMPL §10 L228-L231；RB1-RB5 落 DESIGN §8 + IMPL §8 文件级回退表 |
@@ -123,6 +123,7 @@
 | 验收项总数 | **45**（A 9 + B 4 + C 4 + D 5 + E 9 + F 8 + G 6，机械计数） |
 | 实测列 `[待 Step 9]` 数（Step 7 时点） | **45 处** = 45 验收单元格，**零 ✅ 预填** |
 | Step 9 回填后剩余 | **0 处**（44 ✅ + 1 ❌ G2 待 Step 10 收口；F8 / G6 已依 CI run `43386673276` 回填 ✅） |
+| Step 10 G2 收口后 | **45/45 ✅**（G2 随 §1.4 P-026 done 行 + §3.31 Step 1-10 记录闭合，CI run `43387091175`） |
 
 > **RULE-2 统计溯源**：上表 45 由 §1-§7 七张表逐行机械计数得出（A1-A9 / B1-B4 / C1-C4 / D1-D5 / E1-E9 / F1-F8 / G1-G6），非估计值。
 > **本文件作者基座**: DeepSeek-V4.1-Flash（与 DESIGN / IMPL 作者同源）→ **Step 8 一致性 Review 与 Step 10 ADD 审计须由异构基座执行**（RULE-5）。
@@ -153,9 +154,9 @@
 | Step 7 验收清单 | 完稿（零预填 45 项） | §1-§8（作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 | Step 8 一致性 Review | **pass**（2 P3 修复 + 1 观察） | §11（异构基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 | Step 9 TDD 实施 | **完成**（45/45 回填；红态 14 failed / 2 passed → 绿态 16 passed；全量 687 / mypy 37 / black 116） | §12（作者 DeepSeek-V4.1-Flash，非复审步） | 2026-11-13 |
-| Step 10 ADD 审计 | 待执行 | 须异构基座 ≠ DeepSeek-V4.1-Flash | — |
 | RULE-5 异构复审 | 待执行 | — | — |
 | CI 回收 | 成功（run `43386673276`，3.10 / 3.11 / 3.12 三 job success） | — | 2026-11-13 |
+| Step 10 ADD 审计 | **pass**（0 P0 / 0 P1 / 0 P2，2 观察，评分 A+） | §13（审计基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 
 ---
 
@@ -228,3 +229,55 @@
 2. **F8 / G6 已闭合**：补丁提交 `8756f9a` 推送后 CI run `43386673276` 三 job 全 success（F8 / G6 已回填 ✅）。
 3. **审计基座**：Step 10 ADD 审计须由 **≠ DeepSeek-V4.1-Flash** 的异构基座执行（本 CHECKLIST / DESIGN / IMPL 同源）。
 4. **补丁留痕**：`core/global_contagion.py` 的 `verbose` 移除属 Step 9 实修补丁，已记入 [IMPL §11](IMPL_p026_silent_exception_governance.md)，Step 10 应重放该 diff。
+
+---
+
+## 13. Step 10 ADD 审计记录（2026-11-13）
+
+> **审计基座**: GLM-5.3-Flash（≠ DESIGN/IMPL/CHECKLIST 作者 DeepSeek-V4.1-Flash，RULE-5 异构成立）。
+> **方法**: audit-driven-development 检测环——Phase 0 spec 质量门 → Phase 1 盘点 → Phase 2 五子代理并行审计 → Phase 3 汇总分级 → Phase 3.5 主审源码级复核（P0 硬门）。
+> **基线**: HEAD `84054fc`（diff base `76f7e6e`）。
+
+### 13.1 Phase 0 spec 质量门（DESIGN_p026）
+
+| 维度 | 得分 | 依据 |
+|------|------|------|
+| 可测试约束 | 1 | D1.4 注入时点 / D4.1 初始化时点 / D7 生命周期 / raise 语义等 ≥3 条数值或时点约束 |
+| 模块映射 | 1 | D1→factor+engine_v2+diagnostics / D2→engine_plugins / D3→global_contagion / D4→event_log / D5→walk_forward*，全 1:1 |
+| 接口契约 | 1 | `set_error_sink` / `neutralize_skip_counts` / `get_stats` / `stats` / `failed` / `agent_period_failures` 全部签名级明确 |
+| 修正项 | 1 | F-S4-P026-1~6 + F-I-P026-1~6 全枚举 |
+| 跨模块契约 | 1 | I1-I7 + R1-R8 + 零改动面清单 |
+| **合计** | **5/5 = Tier A** | 全量审计（评分无 B 档封顶） |
+
+### 13.2 Phase 2 五维度结论
+
+| 维度 | 范围 | 结论 | 子代理证据 | 主审源码级复核 |
+|------|------|------|------------|----------------|
+| B1 factor 链路 vs D1 | factor.py / engine_v2.py / diagnostics.py | **pass** | 8 段，D1.1-D1.4 全对齐 | 注入行 L238-L242 早于 `_precompute_factors()`（独立读码确认） |
+| B2 插件层 vs D2 | engine_plugins.py | **pass** | 7 段，D2.1/D2.2 对齐、fail-open 保持 | T8 四断言（Step 9）+ `return True, []` 读码；无 mode="raise" |
+| B3 传染 vs D3 | global_contagion.py | **pass** | 8 段，D3.1-D3.4 + F-S9-P026-1 对齐 | T9/T10 三路径断言（Step 9）；早退 4 键不含 strength |
+| B4 EventLog+WF vs D4/D5/D7 | event_log.py / walk_forward.py / walk_forward_engine.py | **pass** | 8 段，4 自增点/时点/每 run 重置全对齐 | `_stats` L74 早于 `_recover_state()` L82（独立读码） |
+| 跨模块契约 | 零改动面 + I3/I6 + D6/D8 | **pass** | 片段对齐 | `git diff --name-only` **16 文件全在声明面**（8 core + 测试 + 6 文档含 G3/G4 声明的 CHANGELOG/README/ARCHITECTURE）；新增 warning `exc_info` **0 命中** |
+
+### 13.3 发现与分级
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| O-S10-P026-1 | 观察 | 空市场早退路径（global_contagion L397-L404）不显式传 `degraded_components`，依赖 dataclass 默认 `[]`——与 D3.1「带默认值→既有构造点零改动」意图一致，行为正确 | 登记不改码 |
+| O-S10-P026-2 | 观察 | 五个子代理输出为证据片段索引而非结构化 verdict；主审按 ADD 校准规则对全部关键声明（注入时点 / `_stats` 时点 / fail-open / 零改动面 / exc_info）完成源码级复核，0 幻觉、0 撤销 | 流程记录 |
+
+**P0 = 0 / P1 = 0 / P2 = 0 / P3 = 0**（观察 2 项不计分）。
+
+### 13.4 评分
+
+`score = 100 − (0×20 + 0×8 + 0×3 + 0×1) = 100` → **A+**（Phase 0 = Tier A，无封顶限制）。
+
+### 13.5 修复优先级矩阵
+
+- **Tier 1（P0）**: 空
+- **Tier 2（P1 + 低成本 P2）**: 空
+- **Tier 3**: 观察 2 项，仅登记无需修复
+
+### 13.6 审计结论
+
+**pass（0 P0 / 0 P1 / 0 P2，2 观察）。** 代码与 DESIGN_p026 D1-D8 + I1-I7 完全对齐；零改动面干净；D6（K 类零改动 + fail-open 保持）与 D8（中文「位置+后果」文案、无 exc_info）守住；F-S9-P026-1 补丁与设计意图一致（跨 statsmodels 版本兼容）。**下一为 RULE-5 异构终审 → 批次关闭。**
