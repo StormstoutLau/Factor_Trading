@@ -2,7 +2,7 @@
 
 > **批次**: P-026 · **T1**（`core/` 行为契约 + 新增可观测字段与方法，零 fail-fast）
 > **上游**: [IMPL_p026](IMPL_p026_silent_exception_governance.md)（B1-B5 / §4 精确变更实录 / §6 门禁 / §10 Step 6 复审）；[DESIGN_p026](DESIGN_p026_silent_exception_governance.md)（D1-D8 / I1-I7 / V1-V6 / T1-T12）
-> **状态**: Step 7 完稿（**45 项**零预填）+ Step 8 一致性 Review pass + **Step 9 TDD 完成**（44 ✅ + F8/G6 依 CI 回填；F-S9-P026-1 已修复，见 §12）+ **Step 10 ADD 审计 pass**（评分 **A+**，0 P0/P1/P2，G2 已收口，见 §13）
+> **状态**: Step 7 完稿（**45 项**零预填）+ Step 8 一致性 Review pass + **Step 9 TDD 完成**（44 ✅ + F8/G6 依 CI 回填；F-S9-P026-1 已修复，见 §12）+ **Step 10 ADD 审计 pass**（评分 **A+**，0 P0/P1/P2，G2 已收口，见 §13）+ **RULE-5 异构终审 pass**（E1-E4 全复现，0 P0-P3，批次关闭，见 §14）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（Step 9 实测）**: `pytest --collect-only tests/test_p026_silent_exception_governance.py` **16 tests collected** / 全量 **687 passed, 172 warnings** / mypy **37 files 0** / black **116 unchanged** / 红态 **14 failed + 2 passed**
 
@@ -154,7 +154,7 @@
 | Step 7 验收清单 | 完稿（零预填 45 项） | §1-§8（作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 | Step 8 一致性 Review | **pass**（2 P3 修复 + 1 观察） | §11（异构基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 | Step 9 TDD 实施 | **完成**（45/45 回填；红态 14 failed / 2 passed → 绿态 16 passed；全量 687 / mypy 37 / black 116） | §12（作者 DeepSeek-V4.1-Flash，非复审步） | 2026-11-13 |
-| RULE-5 异构复审 | 待执行 | — | — |
+| RULE-5 异构复审 | **pass**（E1-E4 全复现；0 P0-P3 + 1 观察） | §14（终审基座 Qwen3.8-Max ≠ 作者 DeepSeek-V4.1-Flash ≠ Step 4/6/8/10 审计 GLM-5.3-Flash） | 2026-11-13 |
 | CI 回收 | 成功（run `43386673276`，3.10 / 3.11 / 3.12 三 job success） | — | 2026-11-13 |
 | Step 10 ADD 审计 | **pass**（0 P0 / 0 P1 / 0 P2，2 观察，评分 A+） | §13（审计基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 
@@ -281,3 +281,64 @@
 ### 13.6 审计结论
 
 **pass（0 P0 / 0 P1 / 0 P2，2 观察）。** 代码与 DESIGN_p026 D1-D8 + I1-I7 完全对齐；零改动面干净；D6（K 类零改动 + fail-open 保持）与 D8（中文「位置+后果」文案、无 exc_info）守住；F-S9-P026-1 补丁与设计意图一致（跨 statsmodels 版本兼容）。**下一为 RULE-5 异构终审 → 批次关闭。**
+
+---
+
+## 14. RULE-5 异构终审记录（2026-11-13）
+
+> **终审基座**: Qwen3.8-Max（≠ 四文档作者 DeepSeek-V4.1-Flash，亦 ≠ Step 4/6/8/10 审计基座 GLM-5.3-Flash，RULE-5 异构三段成立）。
+> **基线**: HEAD `f789e4b`（master = origin/master，工作区干净）。
+> **方法**: E1 机械重放 + E2 红态重放 + E3 锚点抽验 + E4 盲区扫描（SPEC_PROCESS v1.7.2 RULE-5；参照 P-025 §3.30 先例）。
+
+### 14.1 E1 机械重放（全部复现）
+
+| 项 | 命令 | 读数 | 判定 |
+|----|------|------|------|
+| 提交链 | `git log --oneline` | 11 笔 `7c48d50`(S1)→…→`f789e4b`(S10) 完整；HEAD = origin/master = `f789e4b` | ✅ |
+| 变更面 | `git diff --numstat bbb55bc..e79bf06 -- core/` | 8 文件 **+100/−10**，与 IMPL §6 一致 | ✅ |
+| 零改动面 | `git diff --name-only 76f7e6e..f789e4b` | **16 文件**（8 core + test_p026 + CHANGELOG/README/ARCHITECTURE + PROGRESS + 3 P-026 文档 DESIGN/IMPL/CHECKLIST；RESEARCH 定稿于 base 之前不在范围） | ✅ |
+| CI | `gh run view` ×3 | `43386673276`@`8756f9a` / `43387091175`@`84054fc` / `43406605239`@`f789e4b` 均 **success** | ✅ |
+| 全量 pytest | `MPLBACKEND=Agg pytest -q` | **687 passed, 172 warnings**（74.72s） | ✅ |
+| mypy | `mypy --explicit-package-bases --check-untyped-defs core` | **37 source files, 0 error** | ✅ |
+| black | `black --check core tests` | **116 files unchanged** | ✅ |
+| 新测试 | `pytest tests/test_p026_silent_exception_governance.py --collect-only -q` | **16 tests collected** | ✅ |
+| golden | `git diff 76f7e6e..f789e4b -- tests/golden/` + `git ls-files tests/golden` | **零重录**；golden 测试 9 项（含于 687），文件 G1-G7 共 **7 条** | ✅ |
+
+### 14.2 E2 红态重放（精确复现）
+
+| 步骤 | 读数 | 判定 |
+|------|------|------|
+| `git checkout 76f7e6e -- core/`（8 文件）→ 跑新测试 | **14 failed, 2 passed**（T1[exc4] / T6 预期不红，与 §12.1 逐字一致） | ✅ |
+| `git checkout HEAD -- core/` → 复跑 | **16 passed**；`git status --short` 空（零残留） | ✅ |
+
+### 14.3 E3 锚点抽验（全部命中）
+
+| 锚点 | 读数 | 判定 |
+|------|------|------|
+| `STAGES` factor 位置 | `diagnostics.py` L31（`"rebalance"` L30 与 `"mark"` L32 之间），元组 11 值 | ✅ |
+| sink 注入时点 | `engine_v2.py` L238-240 `getattr` 探测 + 注入，**早于** L242 `_precompute_factors()` | ✅ |
+| `raise_if_needed` 唯一调用点 | `engine_v2.py` L369 | ✅ |
+| `_stats` 初始化时点 | `event_log.py` L74-78 **早于** L82 `_recover_state()` | ✅ |
+| CHECKLIST 验收计数 | 验收项行数 = **45**，实测列含 ✅ 行数 = **45/45** | ✅ |
+| 四文档相对链接 | 脚本重放（`%TEMP%\p026_links.py`）= **33 links, 0 broken** | ✅ |
+
+### 14.4 E4 盲区扫描
+
+| 扫描面 | 读数 | 判定 |
+|--------|------|------|
+| README/ARCHITECTURE 计数 | README 三处 **687**（L7 badge / L99 / L278）+ L427「687 tests, 79 files」与实测 `tests/*.py` = **79** 一致；ARCHITECTURE 头部「测试: 687 个」 | ✅ 无漂移 |
+| `exc_info` | 全 core 仅 `diagnostics.py` L130/L161 两处既有 error（P-025 设计语义）；P-026 新增 warning **0 命中** | ✅ D8 守住 |
+| except 治理面 | 8 文件 except 全扫：本批治理点全部「日志 + 计量」（factor L366/L391、plugins L163/L244、contagion L436/L452/L605、event_log L165/L168/L278/L318、walk_forward_engine L188） | ✅ |
+| 范围外观察 | `engine_v2.py` L597（`close = None`）/ L1023（静默 return）为既有静默点，**不在** RESEARCH 22 处裁决锚点清单内，属后续批次台账候选 | 观察 |
+
+### 14.5 发现与分级
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| O-R5-P026-1 | 观察 | engine_v2 L597/L1023 两处既有静默捕获不在本批裁决范围（RESEARCH 锚点清单未含），建议并入后续「静默失败治理」批次台账（与 O-S6-P026-1/2/3、F-I-P026-5 同列） | 登记不改码 |
+
+**P0 = 0 / P1 = 0 / P2 = 0 / P3 = 0**（观察 1 项不计分）。未发现 P3 计数漂移（README/ARCHITECTURE 已为正确值 687/79，未复现历史先例 F-R5-P024-1 / F-R5-P025-2 类漂移）。
+
+### 14.6 终审结论
+
+**pass。** E1-E4 全部复现，与 §12/§13 记录读数逐条一致；基座链 DeepSeek-V4.1-Flash（Step 3/5/7/9 作者）→ GLM-5.3-Flash（Step 4/6/8/10 审计）→ Qwen3.8-Max（RULE-5 终审）三段异构成立。**P-026 批次关闭。**
