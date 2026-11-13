@@ -70,6 +70,8 @@ class ContagionNetwork:
     centrality: dict[str, float]  # 中心性
     mst_edges: list[tuple]  # 最小生成树边
     contagion_paths: list[dict]  # 传染路径
+    # 降级分量标记（P-026 D3.1）：空列表表示全部正常计算
+    degraded_components: list[str] = field(default_factory=list)
 
 
 # ==================== 全球市场传染监控器 ====================
@@ -420,6 +422,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
         # 计算特征向量中心性
         adjacency = spillover.values
         centrality = {}
+        degraded_components: list[str] = []
 
         try:
             # 使用幂迭代计算特征向量中心性
@@ -430,8 +433,10 @@ class GlobalContagionMonitor(BaseRiskMonitor):
 
             for idx, market in enumerate(markets):
                 centrality[market] = float(principal[idx])
-        except Exception:
+        except Exception as e:
+            logger.warning(f"特征向量中心性计算失败，退化为等权: {e}")
             centrality = {m: 1.0 / n for m in markets}
+            degraded_components.append("centrality")
 
         # 最小生成树 (用于识别主要传染路径)
         try:
@@ -444,8 +449,10 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             for r, c in zip(rows, cols):
                 if r < c:  # 避免重复
                     mst_edges.append((markets[r], markets[c], float(mst[r, c])))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"最小生成树计算失败，返回空边集: {e}")
             mst_edges = []
+            degraded_components.append("mst")
 
         # 识别传染路径
         contagion_paths = self._identify_contagion_paths(spillover, centrality)
@@ -457,6 +464,7 @@ class GlobalContagionMonitor(BaseRiskMonitor):
             centrality=centrality,
             mst_edges=mst_edges,
             contagion_paths=contagion_paths,
+            degraded_components=degraded_components,
         )
 
     def _identify_contagion_paths(
@@ -572,7 +580,8 @@ def compute_granger_causality(x: pd.Series, y: pd.Series, max_lag: int = 5) -> d
     try:
         data = pd.DataFrame({"y": y, "x": x}).dropna()
         if len(data) < max_lag + 10:
-            return {"causal": False, "p_value": 1.0, "lag": 0}
+            # 样本不足属前置条件不满足（非计算异常）：failed=False（P-026 D3.4）
+            return {"causal": False, "p_value": 1.0, "lag": 0, "failed": False}
 
         result = grangercausalitytests(data[["y", "x"]], maxlag=max_lag, verbose=False)
 
@@ -585,10 +594,16 @@ def compute_granger_causality(x: pd.Series, y: pd.Series, max_lag: int = 5) -> d
                 min_p = p_value
                 best_lag = lag
 
-        return {"causal": min_p < 0.05, "p_value": min_p, "lag": best_lag, "strength": 1 - min_p}
+        return {
+            "causal": min_p < 0.05,
+            "p_value": min_p,
+            "lag": best_lag,
+            "strength": 1 - min_p,
+            "failed": False,
+        }
     except Exception as e:
         logger.warning(f"Granger因果检验失败: {e}")
-        return {"causal": False, "p_value": 1.0, "lag": 0, "strength": 0}
+        return {"causal": False, "p_value": 1.0, "lag": 0, "strength": 0, "failed": True}
 
 
 def compute_impulse_response(

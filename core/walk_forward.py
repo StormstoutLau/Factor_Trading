@@ -224,6 +224,8 @@ class WalkForwardResult:
     """
 
     window_results: list[dict]
+    # 期间设置失败计数（P-026 D5.1）：窗口以错误期间模式运行时 > 0
+    agent_period_failures: int = 0
 
     @property
     def n_windows(self) -> int:

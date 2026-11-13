@@ -56,6 +56,8 @@ class EventLogPlugin:
         self.event_log = event_log or EventLog(log_path=log_path)
         self._subscribers: list[Callable] = []
         self._enabled = False
+        # 记录失败计数（P-026 D2.1）：原先仅 debug 日志，默认配置下完全不可见
+        self._error_count = 0
 
     def enable(self) -> EventLogPlugin:
         """启用事件记录"""
@@ -159,7 +161,12 @@ class EventLogPlugin:
         try:
             self.event_log.append(event_type, payload, source="engine")
         except Exception as e:
-            logger.debug(f"EventLog 记录失败: {e}")
+            self._error_count += 1
+            logger.warning(f"EventLog 记录失败: {e}")
+
+    def get_stats(self) -> dict[str, Any]:
+        """获取事件记录统计（P-026 D2.1）"""
+        return {"enabled": self._enabled, "error_count": self._error_count}
 
     @property
     def is_enabled(self) -> bool:
@@ -188,6 +195,8 @@ class GuardPlugin:
         self._enabled = False
         self._blocked_count = 0
         self._warning_count = 0
+        # 检查自身异常计数（P-026 D2.2）：fail-open 保持，仅补计量
+        self._error_count = 0
 
     def enable(self) -> GuardPlugin:
         """启用风控检查"""
@@ -233,7 +242,8 @@ class GuardPlugin:
 
             return True, []
         except Exception as e:
-            logger.warning(f"Guard 检查异常: {e}")
+            self._error_count += 1
+            logger.warning(f"Guard 检查异常（已放行）: {e}")
             return True, []  # 异常时允许执行，避免阻断正常交易
 
     def check_and_log(
@@ -268,6 +278,7 @@ class GuardPlugin:
             "mode": self.mode,
             "blocked_count": self._blocked_count,
             "warning_count": self._warning_count,
+            "error_count": self._error_count,
         }
 
     @property

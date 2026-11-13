@@ -62,6 +62,8 @@ class WalkForwardEngine:
         # 结果收集
         self.window_results: list[dict] = []
         self.current_window: Optional[WalkForwardWindow] = None
+        # 期间设置失败计数（P-026 D5.2）：每次 run() 重置
+        self._agent_period_failures = 0
 
         logger.info(f"WalkForwardEngine初始化: {splitter.get_n_splits()}个窗口")
 
@@ -75,6 +77,7 @@ class WalkForwardEngine:
             WalkForwardResult: 汇总结果
         """
         self.window_results = []
+        self._agent_period_failures = 0  # P-026 D5.2：每次 run 重置，避免多次累积
 
         for window in self.splitter.split():
             self.current_window = window
@@ -183,6 +186,7 @@ class WalkForwardEngine:
                     f"设置为 {period.value} 模式"
                 )
             except Exception as e:
+                self._agent_period_failures += 1
                 logger.warning(f"    设置Agent期间失败: {e}")
 
         # 同时设置蒸馏配置
@@ -228,7 +232,10 @@ class WalkForwardEngine:
                 }
             )
 
-        return WalkForwardResult(window_results=test_results)
+        return WalkForwardResult(
+            window_results=test_results,
+            agent_period_failures=self._agent_period_failures,
+        )
 
 
 def run_walk_forward_backtest(

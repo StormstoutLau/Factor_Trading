@@ -234,6 +234,11 @@ class BacktestEngineV2:
         else:
             self.combiner = FactorCombiner(self.cfg.factor_files, self.cfg.factor_weights)
 
+        # 3.5 因子异常旁路（P-026 D1.4）：必须早于 _precompute_factors()，否则 setup 期因子异常漏采
+        factor_sink_setter = getattr(self.pipeline, "set_error_sink", None)
+        if factor_sink_setter is not None:
+            factor_sink_setter(self._diagnostics.record)
+
         self._precompute_factors()
 
         # 5. 组合优化器

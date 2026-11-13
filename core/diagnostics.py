@@ -28,6 +28,7 @@ STAGES = (
     "pending",
     "next_day",
     "rebalance",
+    "factor",  # P-026 追加：因子预处理（setup 期一次性）
     "mark",
     "execution",
     "risk",
@@ -67,6 +68,13 @@ def classify_day_error(stage: str, exc: BaseException) -> tuple[str, bool]:
         if isinstance(exc, ValueError):
             # 「…需要收益率数据或协方差矩阵」等输入不足
             return "solver", False
+        return "internal", False
+    if stage == "factor":
+        # 因子预处理（setup 期一次性完成，无逐日重试语义；P-026 D1.3）
+        if isinstance(exc, np.linalg.LinAlgError):
+            return "solver", False
+        if isinstance(exc, (KeyError, FileNotFoundError, ValueError)):
+            return "data", False
         return "internal", False
     if isinstance(exc, (KeyError, FileNotFoundError, ValueError)):
         # day_loop 下的数据形态：缺列 / 缺键 / 日期不齐

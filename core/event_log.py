@@ -70,6 +70,13 @@ class EventLog:
         self._listeners: list[EventListener] = []
         self._type_listeners: dict[str, list[EventListener]] = {}
 
+        # 运行期失败计数（P-026 D4）：仅观测用途，不加锁；须早于 _recover_state()
+        self._stats: dict[str, int] = {
+            "read_failures": 0,
+            "write_failures": 0,
+            "skipped_lines": 0,
+        }
+
         # Ensure directory exists and recover state
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self._recover_state()
@@ -156,8 +163,10 @@ class EventLog:
                         if limit and len(results) >= limit:
                             break
                     except (json.JSONDecodeError, KeyError):
+                        self._stats["skipped_lines"] += 1
                         continue
         except Exception as e:
+            self._stats["read_failures"] += 1
             logger.warning(f"EventLog read error: {e}")
 
         return results
@@ -267,7 +276,12 @@ class EventLog:
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(self._entry_to_dict(entry), ensure_ascii=False) + "\n")
         except Exception as e:
+            self._stats["write_failures"] += 1
             logger.error(f"Failed to write event to disk: {e}")
+
+    def stats(self) -> dict[str, int]:
+        """运行期失败计数快照（只读；P-026 D4.3）"""
+        return dict(self._stats)
 
     def _notify_listeners(self, entry: EventLogEntry) -> None:
         """通知所有订阅者"""
@@ -302,6 +316,7 @@ class EventLog:
                         data = json.loads(line)
                         entries.append(self._parse_entry(data))
                     except (json.JSONDecodeError, KeyError):
+                        self._stats["skipped_lines"] += 1
                         continue
 
             if entries:

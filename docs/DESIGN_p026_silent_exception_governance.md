@@ -4,7 +4,7 @@
 > **上游**: [RESEARCH_p026](RESEARCH_p026_silent_exception_governance.md)（Step 2 独立 Review pass，§10）
 > **下游**: IMPL_p026 → CHECKLIST_p026
 > **代码证据时点**: HEAD `9c332cc`（2026-11-13，工作区干净）
-> **状态**: Step 3 设计完稿 + **Step 4 独立 Review 通过**（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，4 P3 回写订正 + 2 观察，见 §11）
+> **状态**: Step 3 设计完稿 + **Step 4 独立 Review 通过**（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，4 P3 回写订正 + 2 观察，见 §11）+ **Step 5 IMPL 已实施**（见 [IMPL_p026](IMPL_p026_silent_exception_governance.md)；实测 687 passed / mypy 37 files 0 / black 116）
 
 ---
 
@@ -393,7 +393,7 @@ K 类 8 处（`data.py` ×3、`event_log.py` L278/L286/L313/L383、`walk_forward
 3. **D4.3**：`_stats` 自增**不加锁**（复审订正 F-S4-P026-3：锁为 RLock 可重入，「自死锁」原论证作废；结论由观测容忍度支撑）。
 4. **D5.2**：`agent_period_failures` 在 `run()` 开头重置，否则多次 run 累积。
 
-**下一步**：Step 5 IMPL（B1-B4 代码批 + B5 文档；实施以 §11 复审后文本为准）。
+**下一步**：Step 5 IMPL **已完成**（B1-B5，[IMPL_p026](IMPL_p026_silent_exception_governance.md)）；下一为 Step 6 IMPL 独立 Review（须异构基座 ≠ IMPL 作者 DeepSeek-V4.1-Flash）。
 
 ---
 

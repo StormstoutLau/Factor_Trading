@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,29 @@ class FactorPipeline:
         """
         self.dm = data_manager
         self.cfg = config
+        # 异常旁路（P-026 D1）：默认未注入，注入后方可观测；形态同 DayErrorCollector.record
+        self._error_sink: Optional[Callable[[Any, str, BaseException], None]] = None
+        # 中性化跳过计数（P-026 D1）：按原因分桶，实例累计
+        self._neutralize_skip_counts: dict[str, int] = {"degenerate_columns": 0, "regression": 0}
         logger.info("因子处理管道初始化完成")
+
+    def set_error_sink(self, sink: Callable[[Any, str, BaseException], None]) -> None:
+        """注入异常旁路（P-026 D1）；接口与 DayErrorCollector.record 同形"""
+        self._error_sink = sink
+
+    @property
+    def neutralize_skip_counts(self) -> dict[str, int]:
+        """中性化跳过计数快照（degenerate_columns / regression）"""
+        return dict(self._neutralize_skip_counts)
+
+    def _report_error(self, date: Any, exc: BaseException) -> None:
+        """上报到旁路；本方法不得抛错（P-026 I2）"""
+        if self._error_sink is None:
+            return
+        try:
+            self._error_sink(date, "factor", exc)
+        except Exception:
+            logger.debug("因子异常旁路调用失败（已忽略）")
 
     def process(
         self, raw_factor: pd.DataFrame, tradable_mask: Optional[pd.DataFrame] = None
@@ -341,7 +363,10 @@ class FactorPipeline:
             try:
                 col_stds = np.std(X, axis=0)
                 X = X[:, col_stds > 1e-8]
-            except Exception:
+            except Exception as e:
+                logger.warning(f"日期 {date} 去常数列失败，跳过中性化: {e}")
+                self._neutralize_skip_counts["degenerate_columns"] += 1
+                self._report_error(date, e)
                 continue
 
             if X.shape[1] == 0:
@@ -365,6 +390,8 @@ class FactorPipeline:
 
             except Exception as e:
                 logger.warning(f"日期 {date} 中性化失败: {e}")
+                self._neutralize_skip_counts["regression"] += 1
+                self._report_error(date, e)
                 continue
 
         return result
