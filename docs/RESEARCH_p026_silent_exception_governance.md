@@ -4,13 +4,13 @@
 > **上游**: [PROGRESS §1.4](PROGRESS.md) U-P025-3；[RESEARCH_p025 §1](RESEARCH_p025_daily_loop_exception_semantics.md)（出界段列明 22 处构成）
 > **下游**: DESIGN_p026 → IMPL_p026 → CHECKLIST_p026
 > **代码证据时点**: HEAD `7ff7a4d`（2026-11-13，工作区干净）
-> **状态**: Step 1 调研完稿（待 Step 2 独立 Review）
+> **状态**: Step 1 调研完稿 + **Step 2 独立 Review 通过**（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1，1 P2 + 2 P3 回写订正 + 3 观察，见 §10）
 
 ---
 
 ## 1. 问题定义
 
-**核心问题**：P-025 已把回测主链路的**三层**静默（日循环 / 优化 / 执行）接入统一采集器并暴露 `run_diagnostics`，但 `core/` 内仍有 **18 处** catch-all 以「零日志 / debug 级 / 无计量 / 语义混淆」形态吞掉异常——其中 3 处位于**结果正确性受影响**的路径（因子中性化、风控 Guard、多窗口 Agent 期间设置）。
+**核心问题**：P-025 已把回测主链路的**三层**静默（日循环 / 优化 / 执行）接入统一采集器并暴露 `run_diagnostics`，但 `core/` 内仍有 **18 处** catch-all 待逐点裁决——其中 **10 处**以「零日志 / debug 级 / 无计量 / 语义混淆」形态吞掉异常（另 8 处为形态正确 / 有意容错的 K 类，见 §5），3 处位于**结果正确性受影响**的路径（因子中性化、风控 Guard、多窗口 Agent 期间设置）。
 
 **为什么现在**：U-P025-3 的触发条件写作「其中任一处产生可复现的静默错误」。本批 Step 1 读码证明条件**已成立且不需要事故**：
 
@@ -30,7 +30,7 @@
 
 | # | 事实 | 证据 |
 |---|------|------|
-| **P1** | **候选池实测**：全仓 `except Exception` **49 处**——`core/` 27、`agents/` 11、`filter/` 5、`scripts/` 2、`batch_backtest/` 2、`strategy_evaluation/` 1、`cli.py` 1 | E1 `Select-String -Path <dir>\*.py -Pattern "except Exception"` @`7ff7a4d` |
+| **P1** | **候选池实测**：生产代码 `except Exception` **49 处**——`core/` 27、`agents/` 11、`filter/` 5、`scripts/` 2、`batch_backtest/` 2、`strategy_evaluation/` 1、`cli.py` 1（tests 21 / tools 3 / examples 1 另有 25 处，不在候选口径；Step 2 复审逐文件复现 @`7c48d50`） | E1 `Select-String -Path <dir>\*.py -Pattern "except Exception"` @`7ff7a4d` |
 | **P2** | **core/ 27 处构成**：已埋点 3（engine_v2 L360 日循环 / L943 优化 / execution L339 执行）+ 采集器自身兜底 2（diagnostics L121 / L152，I3 契约要求）+ **待评估 22** | E3 [engine_v2.py](../core/engine_v2.py)、[execution.py](../core/execution.py)、[diagnostics.py](../core/diagnostics.py) |
 | **P3** | **22 处逐文件分布**：`event_log` 6 / `data` 3 / `config_v2` 3 / `global_contagion` 3 / `factor` 2 / `engine_plugins` 2 / `walk_forward_engine` 2 / `execution` 1，与 [RESEARCH_p025 §1 出界段](RESEARCH_p025_daily_loop_exception_semantics.md) 逐项吻合 | E1 grep + E3 对照 |
 | **P4** | **最严重形态（零日志）**：`factor.py` L344 `except Exception: continue`——去常数列（`np.std(X, axis=0)`）失败时**无日志、无计数**，该日中性化整体跳过；同函数 L366 有 `warning` 但同样无计数 | E3 [factor.py](../core/factor.py) L296-L370 |
@@ -41,7 +41,7 @@
 | **P9** | **审计链写入**：`_append_to_disk` 写失败 → `logger.error` 后**静默丢弃**（内存环形缓冲保留、磁盘 JSONL 缺失）；无失败计数 | E3 event_log.py L264-L270 |
 | **P10** | **分析模块静默兜底**：`global_contagion` 特征向量中心性失败 → **零日志**等权兜底（L433）；MST 失败 → **零日志**空边（L447）；Granger 失败 → `warning` + 返回 `causal=False`（L589，与「真无因果」不可区分） | E3 [global_contagion.py](../core/global_contagion.py) L424-L448、L582-L591 |
 | **P11** | **正确形态（零改动）**：`data.py` 三处均为 `logger.error + raise`（记录后重抛，不吞）；`event_log` 的 listener 隔离（L278/L286）、恢复失败 warning（L313）、快捷函数 `log_event`（L383）、`walk_forward` 回调失败（L214）属有意容错 | E3 逐点读码 |
-| **P12** | **静默路径测试覆盖近零**：9 个代表性 except 路径关键词在 `tests/*.py` 中 **7 项 0 命中**（仅「中性化失败」「自定义价格回调失败」各 1 处） | E1 `Select-String -Path tests\*.py -Pattern <关键词>` |
+| **P12** | **静默路径测试覆盖近零**：9 个代表性 except 路径关键词在 `tests/*.py` 中 **7 项 0 命中**（仅「中性化失败」「自定义价格回调失败」各 1 处）——复审注记（Step 2 观察-2）：前者命中为测试自身 except 打印（[test_phase2_factor.py L121-L123](../tests/test_phase2_factor.py#L121-L123)），**非** factor.py L344/L366 路径覆盖；后者为 execution L251 排除项的真实覆盖，有效路径覆盖更接近 1/9 | E1 `Select-String -Path tests\*.py -Pattern <关键词>` |
 
 **严重度重估**：
 
@@ -73,7 +73,7 @@
 
 | 方案 | 成本 | 收益 | 兼容 | 维护 | 升级潜力 | 短期 | 长期 |
 |------|------|------|------|------|----------|------|------|
-| **M-A 逐点三态裁决 + 分级显形（推荐）**<br>18 处逐点分为 K（保持 8）/ D（升级诊断 10），复用 `DayErrorCollector` 语义 + 各模块自有计数/字段；**不含 fail-fast** | 5 文件 + ≈120 行 + 10-12 测试 | 三处 P2 路径显形；审计链失败可辨；分析模块降级可见 | 高：只增计数/字段，正常路径零控制流变更 | 中：sink 注入（factor）+ 自有计数（其余） | 高：后续可统一汇入 EventLog（U-P025-1） | 1 批（4 提交） | 消费方无需改 |
+| **M-A 逐点三态裁决 + 分级显形（推荐）**<br>18 处逐点分为 K（保持 8）/ D（升级诊断 10），复用 `DayErrorCollector` 语义 + 各模块自有计数/字段；**不含 fail-fast** | 6 文件 + ≈120 行 + 10-12 测试（含 `walk_forward.py` 的 `WalkForwardResult` 字段，F-S2-P026-2） | 三处 P2 路径显形；审计链失败可辨；分析模块降级可见 | 高：只增计数/字段，正常路径零控制流变更 | 中：sink 注入（factor）+ 自有计数（其余） | 高：后续可统一汇入 EventLog（U-P025-1） | 1 批（4 提交） | 消费方无需改 |
 | M-B 仅提升日志级别（debug→warning、零日志补 warning） | 4 文件 + ≈20 行 | 中：日志可见，但**无计量、无结果字段** | 最高 | 低 | 低：仍是单点日志 | 1 批（1 提交） | 需二次改造为计量 |
 | M-C 新建 `core/degraded.py` 全局注册表 | 1 新文件 + 5 文件 + ≈180 行 | 高：统一降级清单 | 中：引入**全局可变状态**，测试隔离复杂 | 中 | 高 | 1 批 | 多实例/并发场景需加锁 |
 | M-D 全量 fail-fast | 5 文件 + ≈60 行 | 理论最高 | **低**：真实脏数据/缺 set_period 的 Agent 会中断 | 低 | 低 | 1 批 | 用户包 try 绕过 → 退化为无计量 |
@@ -96,8 +96,8 @@
 | 3 | `data.py` L605 | `logger.error + raise` | **K** | 同上（因子加载） |
 | 4 | `factor.py` L344 | `except Exception: continue`（**零日志**） | **D** | 至少 `warning` + `neutralize_skipped_days` 计数；经 sink 进 `run_diagnostics`（stage 新增 `factor`） |
 | 5 | `factor.py` L366 | `warning + continue` | **D** | 同上计数（与 #4 合并为同一计数器，区分 `degenerate` / `regression` 原因） |
-| 6 | `event_log.py` L160 | `warning` + 返回部分结果 | **D** | `stats()` 加 `read_failures`；`read/query` 返回值区分（或加 `last_read_error`） |
-| 7 | `event_log.py` L269 | `error` + 静默丢盘 | **D** | `stats()` 加 `write_failures`（审计链可辨） |
+| 6 | `event_log.py` L160 | `warning` + 返回部分结果 | **D** | **新增 `stats()` 方法**（EventLog 当前无此方法，F-S2-P026-1）承载 `read_failures`；`read/query` 返回值区分（或加 `last_read_error`） |
+| 7 | `event_log.py` L269 | `error` + 静默丢盘 | **D** | **新增 `stats()` 方法**承载 `write_failures`（审计链可辨） |
 | 8 | `event_log.py` L278 | `warning` + listener 隔离 | **K** | 有意容错（单 listener 不影响其他） |
 | 9 | `event_log.py` L286 | `warning` + type-listener 隔离 | **K** | 同上 |
 | 10 | `event_log.py` L313 | `warning` + 恢复失败置空 | **K** | 有日志且语义明确（首启/损坏可辨） |
@@ -139,6 +139,7 @@
 | **U-P026-3** | core 外 22 处后续分批 | 任一模块出现「静默错误」可复现实例 | `agents/` 11 与 `filter/` 5 优先（业务影响面） | E1 P1 |
 | **U-P026-4** | listener 类隔离容错是否需限流/告警 | listener 频繁抛错导致日志刷屏 | 不做（K 类保持） | E3 P11 |
 | **U-P026-5** | 是否引入跨模块统一采集器（替代 sink 注入） | 出现第三个需要 sink 注入的模块 | 本批用 sink 注入（P-025 先例），不建全局 | E3 P2 |
+| **U-P026-6** | `read()` 内层窄类型跳坏行（`except (json.JSONDecodeError, KeyError)`，[event_log.py L158-L159](../core/event_log.py#L158-L159)）是否纳入计量 | 不在 `except Exception` 口径内；DESIGN 决定是否顺带处理 | 顺带在 `stats()` 加 `skipped_lines` 计数 | E3 复审观察-3 |
 
 ---
 
@@ -163,4 +164,55 @@
 2. sink 注入模式对 fake 对象零破坏（P-025 D5 已验证同类形态）。
 3. `EventLog.stats()` / `WalkForwardResult` / `ContagionNetwork` 的消费方均为只读且容忍新增字段。
 
-**下一步**：Step 2 独立 Review（异构基座）→ DESIGN_p026（D/I/T 三层 + 验证矩阵）。
+**下一步**：Step 2 独立 Review **已通过**（§10）→ DESIGN_p026（D/I/T 三层 + 验证矩阵）。
+
+---
+
+## 10. Step 2 独立 Review（异构，2026-11-13）
+
+> **复审基座**: GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash（异质性约束满足）；复审时点 HEAD `7c48d50`，工作区干净。
+
+### 10.1 E1 机械复核（全过）
+
+| 项 | 复核方式 | 结果 |
+|----|----------|------|
+| git 终态 | `git log --oneline` / `git status --short` | HEAD `7c48d50`，工作区干净 ✓ |
+| P1 计数复现 | 逐文件 grep `except Exception`（全仓 43 文件 74 处） | 生产代码 = core 27 + agents 11 + filter 5 + scripts 2 + batch_backtest 2 + strategy_evaluation 1 + cli 1 = **49 ✓**；tests 21 / tools 3 / examples 1 另有 25 处（→ F-S2-P026-3 订正措辞） |
+| P2/P3 构成 | 逐文件核对 | core 27 = 已埋点 3 + 兜底 2 + 待评估 22 ✓；22 逐文件分布 ✓（execution 2 处 = 已埋点 L339 + 待评估 L251） |
+| 代码锚点 31 处 | 逐点 Read @`7c48d50` | **全部命中，零漂移**（factor L296/L341-345/L366-368、event_log L160/L177/L269/L278/L286/L313/L383、engine_plugins L157-162/L235-237、global_contagion L433/L447/L589、walk_forward_engine L185/L214、config_v2 L321/L380/L424、data L250/L317/L605、engine_v2 L360/L943、execution L251/L339、diagnostics L121/L152） |
+| 算术一致性 | 人工复核 | §5 K8+D10+F0+排除4=22 ✓；出界 11+5+1+2+2+1=22 ✓；严重度表「其余 7 处升级项」= D10−3 ✓ |
+| 内部链接 | 目标存在性检查 | PROGRESS.md / RESEARCH_p025 / 9 个 core/*.py / test_phase2_factor.py 全存在，0 broken ✓ |
+
+### 10.2 E2 门禁四项（全过）
+
+| 门禁 | 命令（Python312） | 读数 |
+|------|------------------|------|
+| pytest | `MPLBACKEND=Agg python -m pytest -q tests` | **671 passed**（106.88s，172 warnings，与基线一致） |
+| mypy（CI 口径） | `python -m mypy --explicit-package-bases --check-untyped-defs core` | **37 source files, no issues** |
+| black | `python -m black --check core` / `--check tests` | 37 + 78 files unchanged（与 F-R5-P025-2 修复后 README 计数一致） |
+| 基线核对 | 对照 671 / 37 / 78 | 全部一致，无漂移 ✓ |
+
+### 10.3 E3 幻觉排除（全过）
+
+| 锚点 | 复验方式 | 结果 |
+|------|----------|------|
+| A1 PEP 20 | 本地 `import this` 直读 | 「Errors should never pass silently. / Unless explicitly silenced.」逐字命中 ✓ |
+| A2 CWE-390 | mitre.org 直读 | 「The product detects a specific error, but takes no actions to handle the error.」逐字命中；Abstraction: Base ✓ |
+| A3 root logger | 本地 `logging.root.level` 实证 | root_level=30 == WARNING=30 ✓（与文档引文语义一致） |
+| A4 AWS fallback | aws.amazon.com 直读 | 四策略 Retry / Proactive retry / Failover / Fallback ✓；ARCHITECTURE LEVEL 300 ✓；引文「Given these pitfalls we encountered in distributed fallback, we now almost always prefer alternatives to fallback.」逐字命中 ✓ |
+| P12 覆盖声明 | tests/ 关键词 grep 复现 | 8 个零命中关键词全部 0；「中性化失败」「自定义价格回调失败」各 1 处 ✓（语义抽检 → 观察-2） |
+
+### 10.4 E4 发现与处置
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| **F-S2-P026-1** | **P2** | §5 #6/#7 引用**不存在的 `EventLog.stats()` 方法**——EventLog 方法全清单（grep `def|class`）无 stats/get_stats | 订正为「**新增 `stats()` 方法**」（#6/#7 已回写） |
+| F-S2-P026-2 | P3 | M-A 成本行「5 文件」低估：#17 的 `agent_period_failures` 落在 [walk_forward.py L219-L231](../core/walk_forward.py#L219-L231) 的 `WalkForwardResult`（当前仅 `window_results` 字段，不在原 5 文件内） | 成本行订正为 **6 文件**（已回写） |
+| F-S2-P026-3 | P3 | P1「全仓 49 处」措辞不精确（tests 21 / tools 3 / examples 1 另有 25 处） | 订正为「生产代码 49 处」+ 口径注记（已回写） |
+| 观察-1 | — | §1「18 处 catch-all 吞掉异常」口径混用（含 K 类 data×3 记录后重抛，不吞异常；实际「吞」为 D 类 10 处） | §1 措辞已订正；§5 表为准 |
+| 观察-2 | — | P12「中性化失败」命中为测试自身 except 打印（[test_phase2_factor.py L121-L123](../tests/test_phase2_factor.py#L121-L123)），非 factor.py L344/L366 路径覆盖——有效路径覆盖更接近 1/9，且唯一真覆盖为排除项 execution L251 | P12 已补复审注记；强化本批动机 |
+| 观察-3 | — | `read()` 内层 `except (json.JSONDecodeError, KeyError): continue`（[event_log.py L158-L159](../core/event_log.py#L158-L159)）窄类型跳坏行无计数——不在 `except Exception` 口径 | 登记 **U-P026-6**（倾向 `stats()` 加 `skipped_lines`，DESIGN 裁决） |
+
+### 10.5 复审结论
+
+**pass**——0 P1；1 P2 + 2 P3 均已回写订正（不改 K8/D10/F0 裁决结构与 M-A 选型），3 观察登记（观察-3 落 U-P026-6）。**Step 3 DESIGN_p026 可启动**。
