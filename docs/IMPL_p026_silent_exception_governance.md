@@ -2,7 +2,7 @@
 
 > **批次**: P-026 · **T1**（`core/` 行为契约 + 新增可观测字段与方法，零 fail-fast）
 > **上游**: [DESIGN_p026](DESIGN_p026_silent_exception_governance.md)（D1-D8 / I1-I7 / V1-V6 / §11 Step 4 独立 Review）
-> **状态**: Step 6 独立复审 **pass**（2026-11-13，GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，1 P3 已订正 §2，3 观察登记，见 §10）
+> **状态**: Step 6 独立复审 **pass**（2026-11-13，GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，1 P3 已订正 §2，3 观察登记，见 §10）+ **Step 7 CHECKLIST 已完稿**（45 项零预填，见 [CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md)）
 > **代码证据时点**: 实施前 HEAD `bbb55bc`（2026-11-13，工作区干净）
 
 ---
@@ -206,7 +206,7 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 
 ## 9. 下一步
 
-**Step 7 CHECKLIST 落稿**：按 §10 复审后文本核 P-026 全链路（RESEARCH → DESIGN → IMPL → CHECKLIST）一致性，产出 [CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md)（含 F-I-P026-1 的 DESIGN V1 口径 683→687 订正）；随后 Step 8 一致性 Review → Step 9 TDD → Step 10 ADD 审计 → RULE-5 异构终审。
+**Step 7 已完稿**：[CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md)（45 项零预填；含 F-I-P026-1 的 DESIGN V1 口径 683→687 交接项）。下一为 **Step 8 一致性 Review**（RESEARCH ↔ DESIGN ↔ IMPL ↔ CHECKLIST 四对对齐；须异构基座 ≠ 本 IMPL / DESIGN / CHECKLIST 作者 DeepSeek-V4.1-Flash），随后 Step 9 TDD 回填 → Step 10 ADD 审计 → RULE-5 异构终审。
 
 ---
 
