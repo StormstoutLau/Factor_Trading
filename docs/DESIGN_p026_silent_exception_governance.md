@@ -4,7 +4,7 @@
 > **上游**: [RESEARCH_p026](RESEARCH_p026_silent_exception_governance.md)（Step 2 独立 Review pass，§10）
 > **下游**: IMPL_p026 → CHECKLIST_p026
 > **代码证据时点**: HEAD `9c332cc`（2026-11-13，工作区干净）
-> **状态**: Step 3 设计完稿（待 Step 4 独立 Review）
+> **状态**: Step 3 设计完稿 + **Step 4 独立 Review 通过**（复审基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，4 P3 回写订正 + 2 观察，见 §11）
 
 ---
 
@@ -62,8 +62,8 @@ def neutralize_skip_counts(self) -> dict[str, int]:
     """中性化跳过计数快照（degenerate_columns / regression）"""
     return dict(self._neutralize_skip_counts)
 
-def _report_error(self, date: Any, reason: str, exc: BaseException) -> None:
-    """上报到旁路；本方法不得抛错（I2）"""
+def _report_error(self, date: Any, exc: BaseException) -> None:
+    """上报到旁路；本方法不得抛错（I2）；签名经 Step 4 复审订正（F-S4-P026-1）"""
     if self._error_sink is None:
         return
     try:
@@ -80,7 +80,7 @@ L341-L345（去常数列）：
 except Exception as e:
     logger.warning(f"日期 {date} 去常数列失败，跳过中性化: {e}")
     self._neutralize_skip_counts["degenerate_columns"] += 1
-    self._report_error(date, "degenerate_columns", e)
+    self._report_error(date, e)
     continue
 ```
 
@@ -90,11 +90,11 @@ L366-L368（回归中性化）：保留既有 warning 文案前缀「日期 {dat
 except Exception as e:
     logger.warning(f"日期 {date} 中性化失败: {e}")
     self._neutralize_skip_counts["regression"] += 1
-    self._report_error(date, "regression", e)
+    self._report_error(date, e)
     continue
 ```
 
-`reason` 仅用于内部计数分桶，**不进入** `DayErrorRecord`（保持 P-025 D2「分类只看 stage + 异常类型」不变式）。
+复审订正 **F-S4-P026-1**（P3）：初稿 `_report_error(date, reason, exc)` 的 `reason` 为死参数——分桶计数由调用方直接完成，sink 调用与 `DayErrorCollector.record` 同形只收 `(date, stage, exc)`、stage 硬编码 `"factor"`，`reason` 无消费点。签名已修订为 `_report_error(date, exc)`；分类信息**不进入** `DayErrorRecord`（保持 P-025 D2「分类只看 stage + 异常类型」不变式）。
 
 **D1.3 阶段词表扩展**（`core/diagnostics.py`）
 
@@ -110,6 +110,8 @@ if stage == "factor":
         return "data", False
     return "internal", False
 ```
+
+**raise 模式语义（复审订正 F-S4-P026-2）**：factor 分支的 `data`/`internal` 类别属于 `RAISE_CATEGORIES`——`day_error_mode="raise"` 时，setup 期因子异常将在首个交易日 `raise_if_needed()`（engine_v2 L364，全仓唯一调用点）抛出（记录 date 为因子日期）。属预期语义扩散（用户显式 opt-in fail-fast）；off/report 模式不受影响。
 
 **D1.4 接线时点（关键）**（`core/engine_v2.py` L228-L237 之间）
 
@@ -206,6 +208,8 @@ self._stats: dict[str, int] = {
 }
 ```
 
+初始化位置**必须早于 `self._recover_state()`（L75）**——恢复期 `skipped_lines` 自增依赖 `_stats` 已存在，否则构造期 AttributeError（复审观察 F-S4-P026-6；T11 坏行用例兜底）。
+
 **D4.2 自增点（4 处）**
 
 | 位置 | 计数键 |
@@ -223,7 +227,7 @@ def stats(self) -> dict[str, int]:
     return dict(self._stats)
 ```
 
-**不加锁**：`_append_to_disk` 在 `append` 已持 `self._lock` 时被调用，若内部再取锁会自死锁（`threading.Lock` 非可重入）；整数自增在 GIL 下足以满足计量精度。
+**不加锁**（复审订正 F-S4-P026-3）：初稿论证「`threading.Lock` 非可重入会自死锁」引用了错误锁类型——`self._lock` 实为 `threading.RLock()`（L61，可重入），重入不会死锁。结论仍成立，理由重写：write 路径自增点已在 `append` 的锁临界区内（RLock 保护）；read 路径两处自增点本不在任何锁内，加锁无法与之互斥；构造期 `_recover_state` 单线程；三计数器仅观测用途，GIL 下容忍极端并发丢增量，加锁收益趋零。
 
 **不改 `read/query` 返回值**——保持既有消费方零改动，`stats()` 是唯一观察出口。
 
@@ -294,7 +298,7 @@ K 类 8 处（`data.py` ×3、`event_log.py` L278/L286/L313/L383、`walk_forward
 | **T6** | fake pipeline 零破坏 | 注入无 `set_error_sink` 的 fake pipeline → `setup()` 不抛错（`getattr` 探测生效） |
 | **T7** | `EventLogPlugin._log` 失败 | 令 `event_log.append` 抛错 → `_error_count == 1`，`caplog` 记录 **WARNING** 级（非 DEBUG） |
 | **T8** | `GuardPlugin` 异常 | 令 `create_guard_context_from_engine` 抛错 → `check_trade` 返回 `(True, [])`；`get_stats()["error_count"] == 1` 且 `blocked_count` 不变 |
-| **T9** | `ContagionNetwork.degraded_components` | 令 `np.linalg.eigh` 与 `minimum_spanning_tree` 抛错 → `degraded_components == ["centrality", "mst"]`；正常路径为 `[]`；空市场早退仍为 `[]` |
+| **T9** | `ContagionNetwork.degraded_components` | 令 `np.linalg.eigh` 与 `minimum_spanning_tree` 抛错（后者 patch `core.global_contagion.minimum_spanning_tree`——L28 from-import 绑定，patch scipy 原名无效；复审订正 F-S4-P026-4）→ `degraded_components == ["centrality", "mst"]`；正常路径为 `[]`；空市场早退仍为 `[]` |
 | **T10** | `compute_granger_causality` 三路径 | 正常→`failed is False`；样本不足→`failed is False`；`monkeypatch` 抛错→`failed is True` |
 | **T11** | `EventLog.stats()` | 写盘失败（路径指向目录）→ `write_failures >= 1`；坏行文件（1 有效 + 1 截断 JSON）→ `skipped_lines >= 1`；`read()` 返回有效条目不变 |
 | **T12** | `WalkForwardResult.agent_period_failures` | fake agent 的 `set_period` 抛错 → `agent_period_failures >= 1`；不支持 `set_period` 的 agent → `== 0`；二次 `run()` 不累积 |
@@ -351,7 +355,7 @@ K 类 8 处（`data.py` ×3、`event_log.py` L278/L286/L313/L383、`walk_forward
 | R5 | 过度治理放大日志噪声 | R5 | K 类 8 处零改动；warning 只在异常时输出一次/日 | V6 |
 | R6 | golden 漂移 | R6 | 正常路径零改动 | V4 |
 | R7 | 计数多次 run 累积 | R7 | D7：WalkForward 每 `run()` 重置 | T12 |
-| R8 | `_stats` 加锁导致自死锁 | 新增 | D4.3 明确不加锁 | T11（写盘失败路径） |
+| R8 | `_stats` 加锁导致自死锁 | 新增 | D4.3 明确不加锁（复审订正：锁实为 RLock，「死锁」前提不成立；结论改由观测容忍度 + read 路径无锁支撑） | T11（写盘失败路径） |
 | R9 | 因子 sink 注入晚于 `_precompute_factors()` → 漏采 | 新增 | D1.4 硬性规定插入位置 | T5 端到端 |
 
 ---
@@ -386,7 +390,47 @@ K 类 8 处（`data.py` ×3、`event_log.py` L278/L286/L313/L383、`walk_forward
 **四个 P2 级设计约束**（Step 4 Review 重点核验）：
 1. **F-D-P026-2**：factor sink 必须早于 `_precompute_factors()`（L235→L237 之间）。
 2. **D2.2**：Guard **保持 fail-open**，只加计数，不改返回值。
-3. **D4.3**：`_stats` 自增**不加锁**（`append` 持锁时调用 `_append_to_disk`，重入会自死锁）。
+3. **D4.3**：`_stats` 自增**不加锁**（复审订正 F-S4-P026-3：锁为 RLock 可重入，「自死锁」原论证作废；结论由观测容忍度支撑）。
 4. **D5.2**：`agent_period_failures` 在 `run()` 开头重置，否则多次 run 累积。
 
-**下一步**：Step 4 独立 Review（需异构基座 ≠ 本 DESIGN 作者 DeepSeek-V4.1-Flash，即 GLM-5.3-Flash 会话）。
+**下一步**：Step 5 IMPL（B1-B4 代码批 + B5 文档；实施以 §11 复审后文本为准）。
+
+---
+
+## 11. Step 4 独立 Review 记录（2026-11-13）
+
+- **复审基座**: GLM-5.3-Flash ≠ DESIGN 作者 DeepSeek-V4.1-Flash（RULE-5 异质性成立）
+- **复审对象**: 本文件 @ 提交 `76f7e6e`（HEAD）
+
+### 11.1 E1 机械复核（pass）
+
+锚点逐点验证 32 处零漂移：factor.py L32-41 / L341-345（`except Exception: continue` 无 `as e`）/ L366-368；diagnostics.py L25-36（STAGES 10 值无 factor）/ L57-74（rebalance 分支 L61-70 → 通用判定 L71-74，插入点存在）/ L94（record 签名 `(date, stage, exc)`，sink 同形成立）/ L96-97（off 首行）/ L108+L165（counts 按 stage 分键，T5 依据）；engine_v2.py L224 / L228 / L235 / L237（插入空隙 L236）/ L287-288（executor sink 惯例）/ L364（`raise_if_needed` 唯一调用点）；engine_plugins.py L157-162（debug）/ L179-190（无 `_error_count`）/ L235-237（fail-open）/ L264-271（Guard `get_stats` 4 键已存在）；global_contagion.py L21（`field` 已导入）/ L63-72 / L397+L453（构造点）/ L424-434 / L437-448（两兜底形态与 D3.2/D3.3 一致）/ L568 / L574-575（早退无 `strength`）/ L588 / L589-591；event_log.py L61（**RLock**）/ L101-L112（append 持锁调 `_append_to_disk`）/ L158-159 / L160-161 / L269-270 / L304-305；walk_forward.py L219-231；walk_forward_engine.py L68 / L77（run 重置点）/ L178（hasattr set_period，T12 依据）/ L185-186 / L231。
+
+算术复核：变更面 8 core + 1 test；估行 +97/−13 代码 + 240 测试 = +337/−13；V1 671+12=683；black 115 = 37+78；§2 映射 10/10。措辞核查：D2.1「新增 get_stats」/ D2.2「追加 get_stats」与现状（EventLogPlugin 无 / GuardPlugin 有 L264）均正确。
+
+### 11.2 E2 门禁（pass）
+
+| 门禁 | 结果 |
+|------|------|
+| pytest（MPLBACKEND=Agg，Python312） | **671 passed, 172 warnings**（83.89s，与基线一致） |
+| mypy `--explicit-package-bases --check-untyped-defs core` | **37 files, no issues** |
+| black --check core tests | **115 files unchanged** |
+
+### 11.3 E3 幻觉排除（pass）
+
+A1 STAGES 无运行时使用（全仓 grep 唯一命中定义处，F-D-P026-3 属实）/ A2 EventLog 无 stats 方法（方法全清单）/ A3 Granger 早退无 strength（L575 实证）/ A4 executor `set_error_sink` 惯例存在（engine_v2 L287-288 + execution.py L185）/ A5 K 类锚点 L278 / L286 / L313 / L214 实证 / A6 §2 映射 D1-D8 ↔ RESEARCH §4/§5/§6/§8 逐条对应。
+
+### 11.4 E4 发现（0 P1 / 0 P2 / 4 P3 + 2 观察；P3 均已回写订正正文）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S4-P026-1 | P3 | D1.1 `_report_error(date, reason, exc)` 的 `reason` 为死参数：分桶计数由调用方直接完成，sink 调用硬编码 `"factor"`（与 record 同形只收 stage），reason 无消费点 | 签名修订为 `_report_error(date, exc)`，D1.2 两调用点同步 |
+| F-S4-P026-2 | P3 | raise 模式语义扩散未声明：factor 分支 data/internal ∈ `RAISE_CATEGORIES`，`day_error_mode="raise"` 时 setup 期因子异常将在首个交易日 `raise_if_needed()`（engine_v2 L364 唯一调用点）抛出，date 为因子日期 | D1.3 补语义声明；off/report 不受影响 |
+| F-S4-P026-3 | P3 | D4.3/R8/§10.3「不加锁」论证事实错误：`self._lock` 实为 `threading.RLock()`（event_log L61，可重入），「Lock 非可重入自死锁」前提不成立 | 结论「不加锁」维持，论证重写（write 在锁内 / read 无锁 / 构造期单线程 / 观测容忍丢增量） |
+| F-S4-P026-4 | P3 | T9 的 `minimum_spanning_tree` 为 global_contagion L28 from-import 绑定，patch 必须指向 `core.global_contagion.minimum_spanning_tree`，patch scipy 原名无效 | T9 断言要点补 patch 目标 |
+| F-S4-P026-5 | 观察 | `_recover_state` 外层 except（L313-314「EventLog recovery error」）不计入任何 stats 计数器，恢复整体失败对 `stats()` 不可见 | 本批不补（有 warning + 概率低）；登记 U 类字段治理时一并裁决 |
+| F-S4-P026-6 | 观察 | D4.1 `_stats` 初始化若置于 `__init__` 末尾，晚于 L75 `self._recover_state()` → 构造期 AttributeError | D4.1 补初始化时点约束（须早于 L75）；T11 坏行用例兜底 |
+
+### 11.5 结论
+
+**pass**——设计进入 Step 5 IMPL；实施以本文件 §11 复审后文本（D1.1 修订签名 / D1.3 raise 声明 / D4.1 初始化时点 / D4.3 重写论证 / T9 patch 目标）为准。
