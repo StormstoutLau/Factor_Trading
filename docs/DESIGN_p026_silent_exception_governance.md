@@ -286,7 +286,7 @@ K 类 8 处（`data.py` ×3、`event_log.py` L278/L286/L313/L383、`walk_forward
 
 合计 ≈ **+337 / -13**（代码 ≈97 行，测试 ≈240 行）。
 
-### 4.2 测试规格（12 项）
+### 4.2 测试规格（12 函数 / 16 实例，T1 参数化 5 例）
 
 | ID | 覆盖 | 断言要点 |
 |----|------|----------|
@@ -335,7 +335,7 @@ K 类 8 处（`data.py` ×3、`event_log.py` L278/L286/L313/L383、`walk_forward
 
 | ID | 契约 | 命令 / 判据 |
 |----|------|-------------|
-| **V1** | 全量测试不回归 | `MPLBACKEND=Agg python -m pytest -q tests` → **≥671 passed**（新增 12 项后 = 683） |
+| **V1** | 全量测试不回归 | `MPLBACKEND=Agg python -m pytest -q tests` → **≥687 passed**（671 基线 + 新增 **16 items** = 12 函数，T1 参数化 5 例；原稿「12 项后 = 683」经 Step 8 一致性 Review 订正，订正链 F-I-P026-1） |
 | **V2** | 类型门禁 | `python -m mypy --explicit-package-bases --check-untyped-defs core` → 37 files, no issues |
 | **V3** | 格式门禁 | `python -m black --check core tests` → unchanged |
 | **V4** | golden 不变 | G1-G7 逐字节对比 HEAD 产物，零漂移 |

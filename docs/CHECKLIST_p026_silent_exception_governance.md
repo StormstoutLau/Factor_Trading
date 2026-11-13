@@ -2,7 +2,7 @@
 
 > **批次**: P-026 · **T1**（`core/` 行为契约 + 新增可观测字段与方法，零 fail-fast）
 > **上游**: [IMPL_p026](IMPL_p026_silent_exception_governance.md)（B1-B5 / §4 精确变更实录 / §6 门禁 / §10 Step 6 复审）；[DESIGN_p026](DESIGN_p026_silent_exception_governance.md)（D1-D8 / I1-I7 / V1-V6 / T1-T12）
-> **状态**: Step 7 完稿（**45 项**零预填；实测列全部 `[待 Step 9]`）
+> **状态**: Step 7 完稿（**45 项**零预填；实测列全部 `[待 Step 9]`）+ **Step 8 一致性 Review pass**（2026-11-13，异构基座 GLM-5.3-Flash；2 P3 修复 + 1 观察，见 §11）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（Step 7 实测）**: `pytest --collect-only tests/test_p026_silent_exception_governance.py` **16 tests collected** / 全量 **687 passed**（671 + 16）/ mypy **37 files 0** / black **116 unchanged**
 
@@ -151,8 +151,35 @@
 | Step 3-4 设计 + Review | 通过 | [DESIGN §11](DESIGN_p026_silent_exception_governance.md)（异构 GLM-5.3-Flash；4 P3 回写 + 2 观察） | 2026-11-13 |
 | Step 5-6 实施规划 + Review | 通过 | [IMPL §10](IMPL_p026_silent_exception_governance.md)（异构 GLM-5.3-Flash；1 P3 回写 + 3 观察） | 2026-11-13 |
 | Step 7 验收清单 | 完稿（零预填 45 项） | §1-§8（作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
-| Step 8 一致性 Review | 待执行 | 须异构基座 ≠ DeepSeek-V4.1-Flash | — |
+| Step 8 一致性 Review | **pass**（2 P3 修复 + 1 观察） | §11（异构基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash） | 2026-11-13 |
 | Step 9 TDD 实施 | 待回填 | 45/45 目标 | — |
 | Step 10 ADD 审计 | 待执行 | 须异构基座 ≠ DeepSeek-V4.1-Flash | — |
 | RULE-5 异构复审 | 待执行 | — | — |
 | CI 回收 | 待回收 | — | — |
+
+---
+
+## 11. Step 8 一致性 Review 记录（2026-11-13）
+
+> **复审基座**: GLM-5.3-Flash ≠ 四文档作者 DeepSeek-V4.1-Flash（异质性成立）；范围 = RESEARCH ↔ DESIGN ↔ IMPL ↔ CHECKLIST 三对对齐（SPEC_PROCESS Step 8）。
+
+| 维度 | 结果 |
+|------|------|
+| 链接完整性 | ✅ 四文档全部相对链接（含 `../core/*.py` 代码锚点）**0 broken**（Python 脚本按链接所在目录解析重放） |
+| 计数一致性 | ✅ 687 / 671 / 16 items / 12 函数 / 173 warnings / +100/−10 / 37 files / 116 各文档口径一致；RESEARCH 671+172 与 DESIGN 671+172 为 Step 2/4 时点读数（正确）；`+337/−13` 为 DESIGN 估算值（偏差 F-I-P026-3/4 已声明） |
+| 编号连续性 | ✅ D1-D8 / I1-I7 / V1-V6 / T1-T12 / F-D-P026-1~4 / F-S4-P026-1~6 / F-I-P026-1~6 / U-P026-1~6 / F-S6-P026-1 / O-S6-P026-1~3 全部连续无断号 |
+| 45 项复核 | ✅ 七表行数机械计数 **A9/B4/C4/D5/E9/F8/G6 = 45**，与 §8 声明一致；实测列 45 处全部 `[待 Step 9]`、零 ✅ 预填 |
+| 三对对齐 | ✅ RESEARCH↔DESIGN：三处 P2 → D1/D2/D5 覆盖，D4 承接 U-P026-6，依据 §5 编号齐全；DESIGN↔IMPL：D1-D8→B1-B4 批次映射完整，§4 实录 8 文件锚点经 Step 6 diff 重放逐行对码；IMPL↔CHECKLIST：T1-T12 → A/B/C/D 组全覆盖，各组 DoR 引用 IMPL §4.x 均真实存在 |
+| 提交链 | ✅ `7c48d50→9c332cc→76f7e6e→bbb55bc→e79bf06→d6fabaa→6532b93` 与各文档状态行一致（`git log --oneline -8` 重放） |
+
+**发现与修复**：
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S8-P026-1 | P3 | DESIGN §6 V1 判据「新增 12 项后 = 683」与实测 687 不符——IMPL §7 F-I-P026-1 处置声明「CHECKLIST 阶段统一订正」，但 Step 7 仅在交接事项列出、未回改 DESIGN 原文 | **已订正** V1 判据为 **≥687 passed（16 items = 12 函数）**，注明订正链 F-I-P026-1 → Step 8 落地 |
+| F-S8-P026-2 | P3 | DESIGN §4.2 标题「测试规格（12 项）」与实测「12 函数 / 16 实例（T1 参数化 5 例）」口径不一（交接事项④） | **已订正**标题；§4.2 表格 T1-T12 行本身无需改动 |
+| O-S8-P026-1 | 观察 | DESIGN §11 Step 4 复审历史记录含「V1 671+12=683」算术复核——属当时时点正确结论，历史记录不篡改，保留；读者以订正后 §6 为准 | 保留不改 |
+
+**交接事项 7 条落实情况**（§9）：① **本步修复**（F-S8-P026-1）/ ② 已由 F-I-P026-3/4 声明落实 / ③ 已在 Step 6 落实（F-S6-P026-1）/ ④ **本步修复**（F-S8-P026-2）/ ⑤⑥⑦ 在 §8 / §9 / §10 已落实。
+
+**复审结论**: **pass**（0 P1 / 0 P2 / 2 P3 已修复 / 1 观察）。Step 9 TDD 可启动（45 项按 §1-§7 DoD 证据出口回填）。
