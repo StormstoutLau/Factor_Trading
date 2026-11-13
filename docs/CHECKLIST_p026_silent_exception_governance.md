@@ -2,7 +2,7 @@
 
 > **批次**: P-026 · **T1**（`core/` 行为契约 + 新增可观测字段与方法，零 fail-fast）
 > **上游**: [IMPL_p026](IMPL_p026_silent_exception_governance.md)（B1-B5 / §4 精确变更实录 / §6 门禁 / §10 Step 6 复审）；[DESIGN_p026](DESIGN_p026_silent_exception_governance.md)（D1-D8 / I1-I7 / V1-V6 / T1-T12）
-> **状态**: Step 7 完稿（**45 项**零预填）+ Step 8 一致性 Review pass + **Step 9 TDD 完成**（45/45 回填：44 ✅ / 1 ❌ G2 待 Step 10；F8 / G6 依 CI 回填；Step 9 发现并修复 **F-S9-P026-1**，见 §12）
+> **状态**: Step 7 完稿（**45 项**零预填）+ Step 8 一致性 Review pass + **Step 9 TDD 完成**（45/45 回填：44 ✅ / 1 ❌ G2 待 Step 10；F8 / G6 已依 CI run `43386673276` 回填 ✅；Step 9 发现并修复 **F-S9-P026-1**，见 §12）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（Step 9 实测）**: `pytest --collect-only tests/test_p026_silent_exception_governance.py` **16 tests collected** / 全量 **687 passed, 172 warnings** / mypy **37 files 0** / black **116 unchanged** / 红态 **14 failed + 2 passed**
 
@@ -97,7 +97,7 @@
 | F5 | black 门禁：**116 files unchanged**（115 + 新测试文件 1） | `python -m black --check core tests` 末行读数 | V3 | ✅ `116 files would be left unchanged`（补丁后复跑） |
 | F6 | 受影响面快速回归：`test_engine_plugins.py` / `test_phase2_factor.py` / `test_p025_day_error_diagnostics.py` 三文件改动前后同绿 | `pytest <三文件> -q` = **26 passed** | R2 / B4 | ✅ `pytest tests/test_engine_plugins.py tests/test_phase2_factor.py tests/test_p025_day_error_diagnostics.py -q` = **26 passed**；`test_decoupled_engine.py` 另 12 passed |
 | F7 | warnings 计数 **173**（172 + statsmodels `FutureWarning`，F-I-P026-6） | 全量末行 `173 warnings` | F-I-P026-6 | ✅ **172 warnings**（低于预期 173 共 1 条）：Step 9 移除 `verbose=False`（F-S9-P026-1）后 statsmodels `FutureWarning` 消失；相对 671 基线**零新增 warning** |
-| F8 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | V1 / G6 | [待 Step 9] |
+| F8 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | V1 / G6 | ✅ `gh run view 43386673276 --json conclusion,jobs` → **conclusion=success**；`test (3.10) / test (3.11) / test (3.12)` **三 job 全 success**（含 F-S9-P026-1 补丁） |
 
 ---
 
@@ -112,7 +112,7 @@
 | G3 | CHANGELOG `[Unreleased]` 记录四项行为变更（因子链路 / 插件层 / 传染分析 / EventLog 与 WF），含门禁读数 | 读回 `CHANGELOG.md` 对应条目 | B5 | ✅ `CHANGELOG.md` L46 `[Unreleased]` 含 P-026 四项行为变更（因子链路 / 插件层 / 传染分析 / EventLog 与 WF）+ 门禁读数 |
 | G4 | README 计数一致：**4 处 687**（L7 badge / L99 / L278 / L427 `79 files`）；`docs/ARCHITECTURE.md` L3 测试数 **687**（核心模块 27 不变） | `Select-String -Pattern '687'` 读数 | B5 | ✅ `Select-String '687' README.md` = **4 处**；`docs/ARCHITECTURE.md` = **1 处**（L3） |
 | G5 | 未决项与回退点登记完整：U-P026-1~6 + F-S6-P026-1 + O-S6-P026-1/2/3 有落点；RB1-RB5 文件级回退可行 | 读回 IMPL §7 / §10 / §8 与 PROGRESS 未决表 | IMPL §8 / §10 | ✅ U-P026-1~5 落 `PROGRESS §3.31` L777（U-P026-6 已由 DESIGN D4 采纳、落 IMPL §4.6，不再列为未决）；F-S6-P026-1 + O-S6-P026-1/2/3 落 IMPL §10 L228-L231；RB1-RB5 落 DESIGN §8 + IMPL §8 文件级回退表 |
-| G6 | 提交链完整且推送：代码提交 `e79bf06` → 复审回写 `d6fabaa` → Step 7/8/9/10 文档提交；CI run 回收成功 | `git log --oneline` + `gh run list` | B5 / F8 | [待 Step 9] |
+| G6 | 提交链完整且推送：代码提交 `e79bf06` → 复审回写 `d6fabaa` → Step 7/8/9/10 文档提交；CI run 回收成功 | `git log --oneline` + `gh run list` | B5 / F8 | ✅ `git log --oneline`：`e79bf06` → `d6fabaa` → `6532b93` → `664e24c` → `8756f9a`（Step 9），链条完整且已推送；`gh run list` 最新 run `43386673276`（headSha `8756f9a`）**success** |
 
 ---
 
@@ -122,7 +122,7 @@
 |----|------|
 | 验收项总数 | **45**（A 9 + B 4 + C 4 + D 5 + E 9 + F 8 + G 6，机械计数） |
 | 实测列 `[待 Step 9]` 数（Step 7 时点） | **45 处** = 45 验收单元格，**零 ✅ 预填** |
-| Step 9 回填后剩余 | **0 处**（44 ✅ + 1 ❌ G2 待 Step 10 收口；F8 / G6 依 CI 回填） |
+| Step 9 回填后剩余 | **0 处**（44 ✅ + 1 ❌ G2 待 Step 10 收口；F8 / G6 已依 CI run `43386673276` 回填 ✅） |
 
 > **RULE-2 统计溯源**：上表 45 由 §1-§7 七张表逐行机械计数得出（A1-A9 / B1-B4 / C1-C4 / D1-D5 / E1-E9 / F1-F8 / G1-G6），非估计值。
 > **本文件作者基座**: DeepSeek-V4.1-Flash（与 DESIGN / IMPL 作者同源）→ **Step 8 一致性 Review 与 Step 10 ADD 审计须由异构基座执行**（RULE-5）。
@@ -155,7 +155,7 @@
 | Step 9 TDD 实施 | **完成**（45/45 回填；红态 14 failed / 2 passed → 绿态 16 passed；全量 687 / mypy 37 / black 116） | §12（作者 DeepSeek-V4.1-Flash，非复审步） | 2026-11-13 |
 | Step 10 ADD 审计 | 待执行 | 须异构基座 ≠ DeepSeek-V4.1-Flash | — |
 | RULE-5 异构复审 | 待执行 | — | — |
-| CI 回收 | 待回收（Step 9 补丁推送后复跑） | — | — |
+| CI 回收 | 成功（run `43386673276`，3.10 / 3.11 / 3.12 三 job success） | — | 2026-11-13 |
 
 ---
 
@@ -220,10 +220,11 @@
 | F-S9-P026-2 | P3 | F7 预期要点 173 warnings，补丁后实测 **172**（移除 `verbose` 使 statsmodels `FutureWarning` 消失） | **接受**：172 ≤ 671 基线 + 0 新增，优于预期；F7 实测列已注明偏差，F-I-P026-6 同步订正为「Step 9 已消除」 |
 | O-S9-P026-1 | 观察 | E6 原文「新增 `self._*` 字段 5 处」，实测 **6 处**（`FactorPipeline` 为 `_error_sink` + `_neutralize_skip_counts` 双字段） | 不改验收项，实测列已注明「实测 6：factor 双字段」 |
 | O-S9-P026-2 | 观察 | G2（§1.4 P-026 行置 done + §3.31 Step 1-10）本质是 Step 10 收口动作，Step 9 无法提前置 done | 标 ❌ 并注明「待 Step 10」，Step 10 审计时复核 |
+| O-S9-P026-3 | 观察 | Step 5 起 CI 连续 4 次失败，根因是 F-S9-P026-1（本地 statsmodels 0.14.6 vs CI 0.15.0 的 API 漂移） | 补丁推送后 run `43386673276` **三 job 全 success**，F8 / G6 已回填 |
 
 ### 12.4 交接 Step 10
 
 1. **G2 必须收口**：在 `docs/PROGRESS.md` §1.4 新增 P-026 行（T1 / 四文档链接 / CI run id）并置 `done`；§3.31 补 Step 10 记录。
-2. **F8 / G6 依 CI**：Step 9 补丁提交推送后复跑 CI，三 job 全 success 方可回填 ✅。
+2. **F8 / G6 已闭合**：补丁提交 `8756f9a` 推送后 CI run `43386673276` 三 job 全 success（F8 / G6 已回填 ✅）。
 3. **审计基座**：Step 10 ADD 审计须由 **≠ DeepSeek-V4.1-Flash** 的异构基座执行（本 CHECKLIST / DESIGN / IMPL 同源）。
 4. **补丁留痕**：`core/global_contagion.py` 的 `verbose` 移除属 Step 9 实修补丁，已记入 [IMPL §11](IMPL_p026_silent_exception_governance.md)，Step 10 应重放该 diff。
