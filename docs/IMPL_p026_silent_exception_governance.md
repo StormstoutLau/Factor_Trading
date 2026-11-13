@@ -2,7 +2,7 @@
 
 > **批次**: P-026 · **T1**（`core/` 行为契约 + 新增可观测字段与方法，零 fail-fast）
 > **上游**: [DESIGN_p026](DESIGN_p026_silent_exception_governance.md)（D1-D8 / I1-I7 / V1-V6 / §11 Step 4 独立 Review）
-> **状态**: Step 5 完稿（待 Step 6 独立 Review，须异构基座 ≠ 本 IMPL 作者 DeepSeek-V4.1-Flash）
+> **状态**: Step 6 独立复审 **pass**（2026-11-13，GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2，1 P3 已订正 §2，3 观察登记，见 §10）
 > **代码证据时点**: 实施前 HEAD `bbb55bc`（2026-11-13，工作区干净）
 
 ---
@@ -25,7 +25,7 @@
 
 | ID | 批次 | 任务 | 对应 | 产出 |
 |----|------|------|------|------|
-| **B1** | 代码 | `factor.py` 旁路接口 + 双原因计数；`diagnostics.py` `STAGES`/`classify_day_error`；`engine_v2.py` setup 期 sink 注入 | D1.1-D1.4 | 3 文件 +42/−4 |
+| **B1** | 代码 | `factor.py` 旁路接口 + 双原因计数；`diagnostics.py` `STAGES`/`classify_day_error`；`engine_v2.py` setup 期 sink 注入 | D1.1-D1.4 | 3 文件 +42/−2 |
 | **B2** | 代码 | `engine_plugins.py`：`EventLogPlugin` 计数 + `_log` 升级 + `get_stats()`；`GuardPlugin` 计数 + 文案（**保持 fail-open**） | D2.1-D2.2 | 1 文件 +13/−2 |
 | **B3** | 代码 | `global_contagion.py`：`degraded_components` 字段 + 两兜底 warning/标记 + Granger 三路径 `failed` | D3.1-D3.4 | 1 文件 +20/−5 |
 | **B4** | 代码 | `event_log.py` `stats()` + 4 自增点；`walk_forward.py` 字段；`walk_forward_engine.py` 计数/重置/回填 | D4.1-D4.3 / D5.1-D5.2 | 3 文件 +25/−1 |
@@ -206,4 +206,28 @@ L228：`WalkForwardResult` 新增 `agent_period_failures: int = 0`（默认值�
 
 ## 9. 下一步
 
-**Step 6 独立 Review**（须异构基座 ≠ 本 IMPL 作者 **DeepSeek-V4.1-Flash**，即 GLM-5.3-Flash 会话）：核 E1 机械重放（diff 8 文件 / 687 passed / mypy 37 / black 116 / golden 零重录）、E2 红态重放（checkout 前 `8 文件` 于 HEAD → 预期 16 项红）、E3 幻觉排除（锚点与 §5 断言逐条对码）、E4 盲区扫描。
+**Step 7 CHECKLIST 落稿**：按 §10 复审后文本核 P-026 全链路（RESEARCH → DESIGN → IMPL → CHECKLIST）一致性，产出 [CHECKLIST_p026](CHECKLIST_p026_silent_exception_governance.md)（含 F-I-P026-1 的 DESIGN V1 口径 683→687 订正）；随后 Step 8 一致性 Review → Step 9 TDD → Step 10 ADD 审计 → RULE-5 异构终审。
+
+---
+
+## 10. Step 6 独立复审记录（2026-11-13）
+
+> **复审基座**: GLM-5.3-Flash ≠ IMPL 作者 DeepSeek-V4.1-Flash（异质性成立）；复审对象 = 本文件 @ 提交 `e79bf06`。
+
+| 维度 | 结果 |
+|------|------|
+| E1 机械复核 | ✅ `git show --stat` / `--numstat` 重放：15 files +744/−19、8 core **+100/−10** 与 §6 一致，§4.1-4.8 各文件行数逐一吻合；门禁三重放全过——pytest **687 passed, 173 warnings in 77.94s**、mypy **37 files 0**、black **116 unchanged**；B1-B4 五文件 diff 全量重放与 §4.1-4.8 声明逐行一致 |
+| E2 红态重放 | ✅ `git checkout bbb55bc -- <8 core 文件>` → 新测试 **14 failed, 2 passed**（失败均为「目标接口不存在/计数缺失」类：`AttributeError` `set_error_sink`/`neutralize_skip_counts`/`get_stats`/`degraded_components`/`stats`/`_agent_period_failures`、`KeyError` `failed`/`error_count`、T1 retryable 断言 `False` vs 旧 `('data', True)`）；2 passed 属红态预期不红——T1[exc4]（TypeError→internal，旧通用兜底恰好同结果）与 T6（旧引擎无注入调用，setup 天然不抛错）；恢复 HEAD 后 `git status` 干净 |
+| E3 幻觉排除 | ✅ T1-T12 断言与 §5 表格逐条对码一致；F-I-P026-2 属实（docstring L37 `base_engine` vs 实现 L52 `base_engine_class`）；F-I-P026-5 属实（L194 `distillation_config` 直接赋值无 None 守卫）——两条观察声明均为真实代码事实 |
+| E4 盲区扫描 | ✅ 8 文件全部 `except Exception` 块扫描：本批治理点全部带计量+日志；3 项范围外遗留见下表观察 |
+
+**发现与定级**：
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S6-P026-1 | P3 | §2 任务表 B1 产出「3 文件 +42/−4」删除行算术错误：numstat 实测 = factor −2 + diagnostics −0 + engine_v2 −0 = **−2**（+42 正确；作者将「修改行」重复计入删除行；B2 −2 / B3 −5 / B4 −1 正确，合计 −10 一致） | **已订正 §2 原文**（−4 → −2）；不影响代码与门禁结论 |
+| O-S6-P026-1 | 观察 | `walk_forward_engine.py` L218-219 窗口回调（`window_callbacks`）失败仅 warning、无计量——DESIGN D5 范围仅声明 agent period 失败计数 | 范围外遗留（有 warning 非完全静默），登记待「静默失败治理」第三批裁决 |
+| O-S6-P026-2 | 观察 | `event_log.py` L292/L300 listener 异常与 L328 recovery 外层 except 仅 warning、无计量——D4 三计数器范围仅含 read/write/skipped 窄类型路径 | 同上，登记待第三批裁决 |
+| O-S6-P026-3 | 观察 | `diagnostics.py` L129/L160 采集器自身失败仅 error 日志——属 P-025 I2 设计语义（sink 旁路自身容错），非缺陷 | 接受，无需处置 |
+
+**复审结论**: **pass**（0 P1 / 0 P2 / 1 P3 已订正 / 3 观察登记）。E1-E4 全维度通过，门禁三重放与 §6 完全一致，无幻觉、无范围外改动（numstat 15 files 均在声明面内）。
