@@ -309,7 +309,7 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 
 | 项 | 复核 | 结果 |
 |----|------|------|
-| I1 全仓 `except Exception`（七单元代码面） | agents 11（3+1+1+2+3+1）+ filter 5（4+1）+ stats 1 = **17 在治理面** + 零改动 6（`:1529` + scripts 2 + batch 2 + cli 1）= **22** | ✅ 与 RESEARCH §3 一一对应 |
+| I1 全仓 `except Exception`（七单元代码面） | agents 11（3+1+1+2+3+1）+ filter 5（4+1）+ stats 1 = **17**（= 计量 16 + `:1529` 零改动 1）+ scripts 2 + batch 2 + cli 1（零改动 5）= **22**（= 计量 16 + 零改动 6；Step 8 F-S8-P027-1 表述修正） | ✅ 与 RESEARCH §3 一一对应 |
 | 计量 16 | B1 5（custom 4 + universe 1）+ B2 9（agent_framework 2 + multi 3 + research 1 + auto 1 + guru 2）+ B3 2 = 16 | ✅ |
 | 测试 24 实例 | T1 5 + T2-T8 9（T4 含 3）+ T9 2 + T10 1 + T11 6 + T12 1 = 24；687+24=**711** | ✅ |
 | black / mypy | 116 + 1 测试文件 = **117**；变更面不含 `core/` → 37 files 保持 | ✅ |

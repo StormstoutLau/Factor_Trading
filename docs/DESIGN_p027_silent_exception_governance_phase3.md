@@ -222,7 +222,7 @@ except Exception as e:
 
 ## 6. 验证契约
 
-**Step 3 实测基线（HEAD `ad04dfe`，Python312）**：`pytest` **687 passed**（114.12s）/ `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / `black --check core tests` **116 unchanged**。目标态：**711 passed** / 37 / 116。
+**Step 3 实测基线（HEAD `ad04dfe`，Python312）**：`pytest` **687 passed**（114.12s）/ `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / `black --check core tests` **116 unchanged**。目标态：**711 passed** / 37 / **117**（116 基线 + 新增测试文件 1）。
 
 ```powershell
 # 1) 新增测试（红 → 绿）
