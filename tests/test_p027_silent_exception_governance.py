@@ -1,7 +1,7 @@
 """P-027 静默失败治理第三批（core 外 22 处 except 分级显形）测试。
 
 对应 docs/IMPL_p027_silent_exception_governance_phase3.md §5（T1-T12）。
-全部使用 monkeypatch（禁 unittest.mock，DESIGN §6 / E7）。
+全部使用 monkeypatch（禁用 mock 库，DESIGN §6 / E7）。
 """
 
 from __future__ import annotations

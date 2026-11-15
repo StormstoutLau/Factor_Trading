@@ -2,8 +2,8 @@
 
 > **批次**: P-027 · **T1**（`agents/` / `filter/` / `strategy_evaluation/`；零 fail-fast、零返回值语义变更）
 > **上游**: [DESIGN_p027](DESIGN_p027_silent_exception_governance_phase3.md)（D1-D7 / I1-I8 / §4 实现规格 / §7 风险 / §8 回退点 / §11 Step 4 独立 Review pass）
-> **状态**: **Step 6 独立 Review pass**（GLM-5.3-Flash 异构复审，见 §10）——代码与门禁结果待 Step 9 TDD 回填（RULE-1：不预填实测）
-> **代码证据时点**: HEAD `6d3e0b7`（2026-11-15，工作区干净）；§4 全部锚点为**实施前行号**，实施后行号漂移属预期
+> **状态**: **Step 9 TDD 实施完成**（2026-11-16，三批红绿闭环 + 门禁实测回填；见 §11）——Step 6 Review 记录见 §10
+> **代码证据时点**: 实施前 HEAD `6d3e0b7`（2026-11-15）→ 实施后 `7dfe755`（B3）；§4 全部锚点为**实施前行号**，实施后实测锚点见 §11.3
 
 ---
 
@@ -230,15 +230,15 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 
 ## 6. 门禁口径
 
-| 门禁 | 命令 | 预期（待 Step 9 实测） |
-|------|------|------------------------|
-| 新增测试 | `$py -m pytest tests/test_p027_silent_exception_governance.py -q` | 红 → **24 passed** |
-| 全量测试 | `$env:MPLBACKEND="Agg"; $py -m pytest -q` | **711 passed**（687 基线 + 24） |
-| 类型 | `$py -m mypy --explicit-package-bases --check-untyped-defs core` | **37 files 0 error**（`core/` 零改动） |
-| 形态 | `$py -m black --check core tests` | **117 unchanged**（116 + 新测试文件 1） |
-| 静态不变式 I1 | 七单元 `except Exception` 计数 | 合计仍 **22** |
-| 静态不变式 I4 | `git diff --stat` | 不含 `scripts/` / `batch_backtest/` / `cli.py` |
-| golden | `$py -m pytest tests -q -k golden` | G1-G7 全通过，`tests/golden/*.json` 零变更 |
+| 门禁 | 命令 | 预期 | 实测（2026-11-16，HEAD `7dfe755`） |
+|------|------|------|------------------------------|
+| 新增测试 | `$py -m pytest tests/test_p027_silent_exception_governance.py -q` | 红 → **24 passed** | ✅ **24 passed**（红态三批见 §11.2） |
+| 全量测试 | `$env:MPLBACKEND="Agg"; $py -m pytest -q` | **711 passed**（687 基线 + 24） | ✅ **711 passed** |
+| 类型 | `$py -m mypy --explicit-package-bases --check-untyped-defs core` | **37 files 0 error**（`core/` 零改动） | ✅ **37 files 0 error** |
+| 形态 | `$py -m black --check core tests` | **117 unchanged**（116 + 新测试文件 1） | ✅ **117 unchanged** |
+| 静态不变式 I1 | 七单元 `except Exception` 计数 | 合计仍 **22** | ✅ **22**（10 代码文件 17 处含 `:1529` 零改动 1 + scripts 2 + batch 2 + cli 1；`except` 行仅 2 处 `→ as e`，计数不变） |
+| 静态不变式 I4 | `git diff --stat` | 不含 `scripts/` / `batch_backtest/` / `cli.py` | ✅ 变更面 = 10 代码 + 1 测试，零改动面 diff 空 |
+| golden | `$py -m pytest tests -q -k golden` | G1-G7 全通过，`tests/golden/*.json` 零变更 | ✅ 全量 711 内含 golden 全绿；`git status --short tests/golden/` 空 |
 
 `$py` = `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（默认 `python` 指向 Anaconda 3.13，勿用）。
 
@@ -331,3 +331,57 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 - 0 P1 / 0 P2 / 3 P3（当轮修正）/ 1 观察（移交）→ **Step 6 Review pass**。
 - §4 全部锚点在实施前代码可精确落位；16+6=22 计量口径、24 测试实例、711/37/117 门禁算术自洽；A1-A7 七项注意项证据全部实证成立。
 - 下一 Step：**Step 7 CHECKLIST**（按 T1-T12 + I1-I8 落验收条件，实测列 `[待 Step 9]`）。
+
+---
+
+## 11. Step 9 TDD 实施记录（2026-11-16）
+
+### 11.1 批次与提交
+
+| 批次 | 内容 | 提交 |
+|------|------|------|
+| B1 | `filter/base.py` 三件套 + `filter/custom.py` 4 处 + `filter/universe_filter_clean.py` 三件套/清零/1 处；T1 | `b3f6b5e` |
+| B2 | `agents/` 6 文件计量 + 5 个 dict 出口 + `strategy_evaluation/stats.py` 出口（见 F-S9-P027-3）；T2-T8 / T11 / T12 | `6259e42` |
+| B3 | `strategy_evaluation/stats.py` + `agents/assumption_monitor.py` C 类显形；T9 / T10 | `7dfe755` |
+| B4 | 文档回填（本文件 §6/§11、CHECKLIST、PROGRESS、CHANGELOG、README、ARCHITECTURE） | 见 `git log` |
+
+### 11.2 红绿证据（先红后绿，逐批）
+
+| 批次 | 红态读数 | 绿态读数 |
+|------|----------|----------|
+| B1 | `5 failed`——`AttributeError: '<X>Filter' object has no attribute 'get_failure_stats'`（T1 全 5 参数集） | `5 passed` |
+| B2 | `15 failed, 5 passed`——`AttributeError: 'ResearchTeamAgent' object has no attribute 'get_failure_stats'` / `KeyError: 'failure_counts'` / `AttributeError: 'GuruDataLoader' object has no attribute 'get_failure_stats'` 等 | `21 passed`（T1 5 + T2-T8 8 + T11 6 + T12 1） |
+| B3 | `2 failed, 21 passed`——`assert {'half_life': 1} == {}`、`AttributeError: 'ReturnDistributionMonitor' object has no attribute 'get_failure_stats'` | `24 passed` |
+
+### 11.3 实施后锚点漂移（实测，HEAD `7dfe755`）
+
+| 文件 | 实施后位置 |
+|------|------------|
+| `filter/base.py` | `_failure_counts` L54；`_record_failure` L118；`get_failure_stats` L122 |
+| `filter/custom.py` | 4 处计量行 L72 / L143 / L272 / L331 |
+| `filter/universe_filter_clean.py` | 计数 L105；`_record_failure` L131 / `get_failure_stats` L135；`build_masks` 清零 L142；`custom_mask_build:{name}` L387 |
+| `agents/agent_framework.py` | `_failure_counts` L864；二方法 L891/L895；`rotation_analyzer_init` L934；`research_team_analysis` L1086（`logger.warning`）；`get_performance_summary` 出口 L1152 |
+| `agents/multi_strategy_engine.py` | 计数 L74；入口清零 L169；`daily_process` L173；`directional_optimize` L247；`neutral_optimize` L305；`run()` 出口 L171-173 |
+| `agents/research_team_v2.py` | 计数 L755；`role_analysis` L826；`get_team_report` 出口 L965 |
+| `agents/auto_parameter_optimizer.py` | 计数 L726；`decision_making` L809；`get_optimization_report` 出口 L861 |
+| `agents/guru_agent_v2.py` | `GuruDataLoader` 计数 L55（早于 `_load_all()`）；`guru_load` L78；`get_failure_stats` L81；类级计数 L157；入口清零 L497；`guru_create` L506；`get_creation_failure_stats` L515 |
+| `agents/assumption_monitor.py` | 计数 L108；`get_failure_stats` L115；`kpss_test` L207 |
+| `strategy_evaluation/stats.py` | 计数 L45；`half_life` L141；`get_failure_stats` L175；`calculate_all_stats` 出口 L196 |
+
+### 11.4 门禁实测
+
+见 §6 表（全部 ✅）：新增 **24 passed** / 全量 **711 passed** / mypy **37 files 0 error** / black **117 unchanged** / golden 零重录 / `except Exception` 合计 **22** / 零改动面 diff 空。
+
+### 11.5 实施期发现与偏差登记
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S9-P027-1 | P3 | T11 ⑥ 的对象是 `GuruDataLoader.get_failure_stats()`，其返回值**本身就是**计量 dict（该类无报告方法），不存在 `payload["failure_counts"]` 嵌套层 | 参数化用例引入 `nested` 标志：⑥ 断言「返回值为 dict」，其余 5 例断言「含 `failure_counts` 键」 |
+| F-S9-P027-2 | P3 | `agents/industry_rotation_v2.py` 在仓库中**不存在**（`research_team_v2` 顶层导入恒失败），`IndustryRotationAnalyzer` 无法直接 import patch | T2 以 `sys.modules` 注入替身模块（`research_team_v2` 指向 `agents.research_team_v2`）+ 合成 `IndustryRotationAnalyzer.__init__` 抛错，仍属 monkeypatch 口径、无 mock 库 |
+| F-S9-P027-3 | P3 | `strategy_evaluation/stats.py` 的 `calculate_all_stats` 出口是 T11 ⑤ 的前置，若严格置于 B3 会使 B2 提交带红 | 将 stats.py 的「计数器 + getter + 出口键」合入 B2（结构化出口面），「half_life 显形」仍按 B3 先行红态后补；B3 红态证据见 §11.2 |
+| F-S9-P027-4 | 观察 | E1 要求 `^def test_` = 12，实测 12；但辅助类 `_BrokenRole`/`_GoodRole` 的方法不计入，符合口径 | 无动作 |
+
+### 11.6 结论
+
+- 16 计量 + 6 零改动 = **22** 处口径零漂移；零 fail-fast、零返回值语义变更、零既有文案改写（唯一级别改动 `agent_framework.py` `debug → warning`，文案逐字）。
+- **Step 9 pass**，下一 Step：**Step 10 收口**（CI 回收 + 台账终态）。
