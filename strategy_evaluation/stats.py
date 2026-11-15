@@ -137,7 +137,9 @@ class FactorStatsCalculator:
                 return np.nan
             half_life = -np.log(2) / np.log(rho)
             return half_life
-        except Exception:
+        except Exception as e:
+            self._failure_counts["half_life"] = self._failure_counts.get("half_life", 0) + 1
+            logger.warning("IC 半衰期计算失败（返回 NaN）: %s", e, exc_info=True)
             return np.nan
 
     def calculate_turnover(

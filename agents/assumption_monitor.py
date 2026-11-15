@@ -105,11 +105,16 @@ class ReturnDistributionMonitor:
         self.window_size = window_size
         self.t_test_threshold = t_test_threshold
         self.kpss_threshold = kpss_threshold
+        self._failure_counts: dict[str, int] = {}
 
         # CUSUM状态
         self.cusum_pos: dict[int, float] = {}  # 正向累积和
         self.cusum_neg: dict[int, float] = {}  # 负向累积和
         self.cusum_baseline: dict[int, float] = {}  # 基准均值
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
 
     def _cusum_update(self, strategy_idx: int, ret: float) -> tuple[float, float]:
         """更新CUSUM统计量
@@ -198,7 +203,9 @@ class ReturnDistributionMonitor:
                     break
 
             return kpss_stat, p_value
-        except Exception:
+        except Exception as e:
+            self._failure_counts["kpss_test"] = self._failure_counts.get("kpss_test", 0) + 1
+            logger.warning("KPSS 检验失败（返回乐观默认值 0.0/1.0）: %s", e, exc_info=True)
             return 0.0, 1.0
 
     def check(self, returns_history: list[np.ndarray]) -> list[AssumptionCheck]:

@@ -323,3 +323,36 @@ def test_return_semantics_unchanged(monkeypatch):
     # 外层（agent）仅 1 次，内层（FundManager）仅 1 次：互不重复计数
     assert agent.get_failure_stats() == {"research_team_analysis": 1}
     assert fund_manager.get_failure_stats() == {"role_analysis": 1}
+
+
+# --------------------------------------------------------------- T9
+@pytest.mark.parametrize("mode", ["exception", "early_exit"])
+def test_half_life_exception_vs_early_exit(monkeypatch, mode):
+    """D3 / A5：异常路径计数 1、合法早退计数 0，两者返回值同为 nan。"""
+    calculator = FactorStatsCalculator(_frame(), _frame())
+    rng = np.random.default_rng(11)
+    ic_series = pd.Series(rng.normal(size=20), index=pd.bdate_range("2024-01-02", periods=20))
+
+    if mode == "exception":
+        monkeypatch.setattr(np, "corrcoef", _boom)
+        assert np.isnan(calculator.calculate_half_life(ic_series))
+        assert calculator.get_failure_stats() == {"half_life": 1}
+    else:
+        assert np.isnan(calculator.calculate_half_life(ic_series.iloc[:5]))
+        assert calculator.get_failure_stats() == {}
+
+
+# --------------------------------------------------------------- T10
+def test_kpss_exception(monkeypatch, caplog):
+    """D3 / A4：异常计数 1 且新增 1 条 WARNING；合法早退同值但计数 0。"""
+    monitor = ReturnDistributionMonitor()
+    assert monitor._kpss_test(np.zeros(30)) == (0.0, 1.0)
+    assert monitor.get_failure_stats() == {}
+
+    caplog.set_level(logging.DEBUG, logger="agents.assumption_monitor")
+    monkeypatch.setattr(np, "var", _boom)
+    result = monitor._kpss_test(np.random.default_rng(3).normal(size=30))
+
+    assert result == (0.0, 1.0)
+    assert monitor.get_failure_stats() == {"kpss_test": 1}
+    assert len([r for r in caplog.records if r.levelno == logging.WARNING]) == 1
