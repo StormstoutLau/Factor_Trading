@@ -2,7 +2,7 @@
 
 > **批次**: P-027 · **T1**（`agents/` / `filter/` / `strategy_evaluation/`；零 fail-fast、零返回值语义变更）
 > **上游**: [DESIGN_p027](DESIGN_p027_silent_exception_governance_phase3.md)（D1-D7 / I1-I8 / §4 实现规格 / §7 风险 / §8 回退点 / §11 Step 4 独立 Review pass）
-> **状态**: **Step 5 实施文档完稿**——本文为「实施规格」，代码与门禁结果待 Step 9 TDD 回填（RULE-1：不预填实测）
+> **状态**: **Step 6 独立 Review pass**（GLM-5.3-Flash 异构复审，见 §10）——代码与门禁结果待 Step 9 TDD 回填（RULE-1：不预填实测）
 > **代码证据时点**: HEAD `6d3e0b7`（2026-11-15，工作区干净）；§4 全部锚点为**实施前行号**，实施后行号漂移属预期
 
 ---
@@ -66,7 +66,7 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 
 | 锚点 | 变更 |
 |------|------|
-| L44-L49 `BaseFilter.__init__` | L49 `self._data_manager = None` 之后追加 `self._failure_counts: dict[str, int] = {}` |
+| L44-L53 `BaseFilter.__init__` | L53 `self._data_manager = None` 之后追加 `self._failure_counts: dict[str, int] = {}` |
 | L112-L115（`reset` 之前） | 新增 `_record_failure(self, key: str) -> None`：`self._failure_counts[key] = self._failure_counts.get(key, 0) + 1` |
 | 紧随其后 | 新增 `get_failure_stats(self) -> dict[str, int]`：`return dict(self._failure_counts)`（只读拷贝，防外部改写） |
 
@@ -80,7 +80,7 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
         return dict(self._failure_counts)
 ```
 
-**继承安全已实证**：`CompositeFilter.__init__`（L169）与 `custom.py` 四子类 `__init__`（L43 / L99 / L242 / L297）**全部显式调用 `super().__init__(config)`** → 下沉属性无 `AttributeError` 风险（Step 4 §11.1 关键疑点已排除，本 IMPL 二次逐行复核）。`MultiConditionFilter` 无 `__init__` 覆写，自动继承。
+**继承安全已实证**：`CompositeFilter.__init__`（L169）与 `custom.py` 四子类 `__init__`（L43 / L99 / L242 / L297）**全部显式调用 `super().__init__(config)`** → 下沉属性无 `AttributeError` 风险（Step 4 §11.1 关键疑点已排除，本 IMPL 二次逐行复核）。`MultiConditionFilter` 的 `__init__`（L153）同样显式调用 `super().__init__(config)`（L167），继承安全。
 
 ### 4.2 `filter/custom.py`（+4，每处 1 行）
 
@@ -252,7 +252,7 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 |----|------|--------|------|
 | **A1** | **P2** | `GuruDataLoader.__init__` 在 L55 就调用 `self._load_all()`；若计数初始化写在 L55 之后，`_load_all` 的 `except` 分支将 `AttributeError`（异常被自身 `except` 吞掉后二次失败） | 计数初始化**必须**插在 L54-L55 之间；T7 以坏 JSON 用例兜底 |
 | **A2** | P2 | `agent_framework.py` 有两个 `get_performance_summary`（L336 `BaseAgent` / L1138 `ResearchTeamAgent`） | 只改 L1138；改后用 `grep -n` 复核仅一处新增 `failure_counts` |
-| **A3** | P2 | `research_team_v2.py` 有 8 个 `__init__`（L59/L172/L357/L419/L472/L531/L583/L656/L753），只有 `FundManager`（L753）需要计数 | 按行号锚定，勿按「类名模糊匹配」批改 |
+| **A3** | P2 | `research_team_v2.py` 有 9 个 `__init__`（L59/L172/L357/L419/L472/L531/L583/L656/L753），只有 `FundManager`（L753）需要计数 | 按行号锚定，勿按「类名模糊匹配」批改 |
 | **A4** | P3 | `_kpss_test` 的合法早退（L189）与异常兜底（L202）返回值完全相同 | 计数是唯一区分手段；T10 断言早退不计数 |
 | **A5** | P3 | `calculate_half_life` 有 3 处合法早退（L124/L131/L136） | 只改 L139 的 `except`，早退分支一行不动；T9 覆盖 |
 | **A6** | P3 | `StrategyEngine.run()` 的返回由 `_generate_results()` 直接产出 | 改为「取 result → 追加键 → return」，不动 `_generate_results` 签名（DESIGN D4） |
@@ -278,3 +278,56 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 1. **Step 6 独立 Review**（异构基座 ≠ 本文作者）：核对 §4 锚点与 DESIGN §4.1 的 10 文件一一对应、接口签名可实现、计数口径 16+6=22、测试 24 实例可红可绿。
 2. **Step 7 CHECKLIST**：按 T1-T12 + I1-I8 逐项落验收条件（实测列一律 `[待 Step 9]`）。
 3. **Step 9 TDD**：按 B1 → B1t → B2 → B2t → B3 → B3t 逐批红绿，最后 B4 回填本文件 §6 实测列。
+
+---
+
+## 10. Step 6 独立 Review（2026-11-15）
+
+> **复审基座**: GLM-5.3-Flash（≠ 本文作者 DeepSeek-V4.1-Flash，异构要求满足）
+> **复审对象**: 本文件提交 `aafc7cd` 版本（§4 锚点对应实施前代码 `6d3e0b7`；两提交间代码文件零变更，仅 docs）
+> **方法**: E3 静态读码核验为主——10 代码文件逐锚点 Read/Grep 对拍 + I1 全仓 `except Exception` 计数 + 命名冲突扫描 + 注入路径实证
+> **结论**: **pass**（0 P1 / 0 P2 / 3 P3 当轮修正 / 1 观察移交）——满足进入 Step 7 CHECKLIST 条件
+
+### 10.1 锚点核验表（10 文件全部命中）
+
+| 文件 | 锚点 | 核验结果 |
+|------|------|----------|
+| `filter/base.py` | L44 `BaseFilter.__init__`；`self._data_manager = None`；L112-L115（`reset` L117 之前）；L169 `super().__init__(config)` | ✅（见 F1：`_data_manager` 实为 **L53**，已当轮修正） |
+| `filter/custom.py` | L43/L99/L242/L297 `super().__init__(config)`；L71/L141/L269/L327 `except` → `logger.error` → 全 `True` 返回 | ✅ 8/8 精确命中 |
+| `filter/universe_filter_clean.py` | L96 `__init__` / L104 `self.cfg = config` / L130 `build_masks` / L132 `logger.info` / L371-L372 | ✅ 5/5 精确命中 |
+| `agents/agent_framework.py` | L336（BaseAgent 同名）/ L804 / L924-L926 / L1074-L1076（`logger.debug` 实证）/ L1138 / L1529 | ✅ 6/6 精确命中 |
+| `agents/multi_strategy_engine.py` | L62/L69/L145/L148-L150/L159/L233/L290/L487（类边界） | ✅ 8/8 精确命中；全文件 `except Exception` 恰 3 处（grep 实证，归属核实成立） |
+| `agents/research_team_v2.py` | L753 / L825-L826（内层 handler 实证）/ L944 | ✅ 3/3 精确命中 |
+| `agents/auto_parameter_optimizer.py` | L723 / L807-L808 / L844 | ✅ 3/3 精确命中 |
+| `agents/guru_agent_v2.py` | L52-L55（A1 顺序敏感实证：L53 `data_dir` → L54 `_cache` → L55 `_load_all()`）/ L72-L73 / L75 / L123 类体 / L473 `@classmethod` / L484 / L491-L492 | ✅ 7/7 精确命中 |
+| `agents/assumption_monitor.py` | L90-L107（L107 `kpss_threshold`）/ L188-L189 早退 / L201-L202 异常 | ✅ 3/3 精确命中（A4 同值实证：均 `return 0.0, 1.0`） |
+| `strategy_evaluation/stats.py` | L43-L44 / L124 / L131 / L136 / L139-L140 / L183-L190 | ✅ 6/6 精确命中（A5 三早退实证） |
+
+零改动面抽查：`scripts/fetch_universe.py` L100/L118、`batch_backtest/engine.py` L107/L167、`cli.py` L136——grep 行号与 RESEARCH §3 清单逐一一致。
+
+### 10.2 计数、算术与可实现性复核
+
+| 项 | 复核 | 结果 |
+|----|------|------|
+| I1 全仓 `except Exception`（七单元代码面） | agents 11（3+1+1+2+3+1）+ filter 5（4+1）+ stats 1 = **17 在治理面** + 零改动 6（`:1529` + scripts 2 + batch 2 + cli 1）= **22** | ✅ 与 RESEARCH §3 一一对应 |
+| 计量 16 | B1 5（custom 4 + universe 1）+ B2 9（agent_framework 2 + multi 3 + research 1 + auto 1 + guru 2）+ B3 2 = 16 | ✅ |
+| 测试 24 实例 | T1 5 + T2-T8 9（T4 含 3）+ T9 2 + T10 1 + T11 6 + T12 1 = 24；687+24=**711** | ✅ |
+| black / mypy | 116 + 1 测试文件 = **117**；变更面不含 `core/` → 37 files 保持 | ✅ |
+| 命名冲突 | 全仓 grep `_record_failure` / `get_failure_stats` / `_failure_counts` / `_create_failure_counts` 仅 docs 3 文件命中，代码零冲突 | ✅ |
+| 注入可行性 | T2 patch `IndustryRotationAnalyzer.__init__`；T3 patch `fund_manager.make_decision`（L1041 调用点在 L1022 `try` 块内、内层 L825 仅捕 `role.analyze`，异常必达外层 L1074）；T7 坏 JSON；T8 patch `GuruAgentV2.__init__`；T9 patch `np.corrcoef`；T10 patch `np.var`——全部 `monkeypatch` 可达 | ✅ 禁 `unittest.mock` 满足 |
+| A1-A7 证据 | A1 顺序（L55 早于 L54 属性）、A2 双同名（L336/L1138）、A3 多 `__init__`（9 个实证）、A4 同值早退、A5 三早退、A6 `run` 末尾直返、A7 四子类全 True 返回——全部读码实证成立 | ✅ |
+
+### 10.3 发现与处置
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F1 | P3 | §4.1 称 `self._data_manager = None` 在 L49，实际 **L53**（`__init__` 区间实为 L44-L53） | 当轮修正锚点行号 |
+| F2 | P3 | §4.1 称「`MultiConditionFilter` 无 `__init__` 覆写」，实际 L153 有覆写且 L167 显式调用 `super().__init__(config)`；「继承安全」结论不变 | 当轮修正表述 |
+| F3 | P3 | §7 A3 称 8 个 `__init__`，所列行号实为 9 个（L59/L172/L357/L419/L472/L531/L583/L656/L753，grep 实证） | 当轮修正计数 |
+| O1 | 观察 | `tools/` 3 处 + `examples/` 1 处 `except Exception` 不在 RESEARCH §3 的 22 处清单（口径继承自 RESEARCH_p026 七单元：`tools/benchmark.py` / `tools/distillation_audit.py` / `tools/ui_dashboard.py` / `examples/run_full_backtest_fixed.py`）。IMPL 变更面正确无越界，疑为 E 类工具/示例脚本 | 移交 Step 7 CHECKLIST 确认归类，不阻塞本批 |
+
+### 10.4 复审结论
+
+- 0 P1 / 0 P2 / 3 P3（当轮修正）/ 1 观察（移交）→ **Step 6 Review pass**。
+- §4 全部锚点在实施前代码可精确落位；16+6=22 计量口径、24 测试实例、711/37/117 门禁算术自洽；A1-A7 七项注意项证据全部实证成立。
+- 下一 Step：**Step 7 CHECKLIST**（按 T1-T12 + I1-I8 落验收条件，实测列 `[待 Step 9]`）。
