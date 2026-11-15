@@ -754,6 +754,7 @@ class FundManager:
         self.name = "基金经理"
         self.roles: dict[str, BayesianResearchRole] = {}
         self.decisions: list["TeamDecision"] = []
+        self._failure_counts: dict[str, int] = {}
 
         # 风格配置
         self.style = style
@@ -823,6 +824,7 @@ class FundManager:
                 view = role.analyze(date, stock, data)
                 votes[role_name] = view
             except Exception as e:
+                self._record_failure("role_analysis")
                 logger.warning(f"{role_name} 分析失败: {e}")
 
         # 2. 加权汇总（考虑风格）
@@ -941,6 +943,14 @@ class FundManager:
             # 触发学习
             role.learn_from_outcome(prediction_correct, actual_return)
 
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清；except 块首行调用）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
+
     def get_team_report(self) -> dict[str, Any]:
         """获取团队报告"""
         return {
@@ -953,6 +963,7 @@ class FundManager:
             "team_size": len(self.roles),
             "roles": [r.get_views_summary() for r in self.roles.values()],
             "total_decisions": len(self.decisions),
+            "failure_counts": self.get_failure_stats(),
         }
 
 

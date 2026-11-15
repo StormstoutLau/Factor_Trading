@@ -879,6 +879,7 @@ class ResearchTeamAgent(BaseAgent):
         self.fund_manager: Any = None
         self.industry_analyzer: Any = None
         self.rotation_analyzer: Any = None
+        self._failure_counts: dict[str, int] = {}
 
         # 数据缓存
         self._price_data: pd.DataFrame | None = None
@@ -886,6 +887,14 @@ class ResearchTeamAgent(BaseAgent):
         self._mktcap_data: pd.DataFrame | None = None
 
         logger.info(f"投研团队Agent初始化: [{agent_id}] 基金经理风格={manager_style}")
+
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清；except 块首行调用）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
 
     def _init_research_team(self, data_manager: DataManager):
         """初始化投研团队"""
@@ -922,6 +931,7 @@ class ResearchTeamAgent(BaseAgent):
                     self._industry_data, self._price_data, self._mktcap_data
                 )
             except Exception as e:
+                self._record_failure("rotation_analyzer_init")
                 logger.warning(f"行业轮动分析器初始化失败: {e}")
                 self.rotation_analyzer = None
 
@@ -1072,7 +1082,8 @@ class ResearchTeamAgent(BaseAgent):
                 )
 
             except Exception as e:
-                logger.debug(f"投研团队分析{stock}失败: {e}")
+                self._record_failure("research_team_analysis")
+                logger.warning(f"投研团队分析{stock}失败: {e}")
                 continue
 
         # 按权重排序，取Top N
@@ -1138,6 +1149,7 @@ class ResearchTeamAgent(BaseAgent):
     def get_performance_summary(self) -> dict[str, Any]:
         """获取绩效摘要（扩展）"""
         summary = super().get_performance_summary()
+        summary["failure_counts"] = self.get_failure_stats()
 
         if self.fund_manager is not None:
             try:

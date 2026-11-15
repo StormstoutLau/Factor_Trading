@@ -42,6 +42,7 @@ class FactorStatsCalculator:
         """
         self.factor = factor_data
         self.returns = returns_data
+        self._failure_counts: dict[str, int] = {}
 
         # 对齐数据
         common_dates = self.factor.index.intersection(self.returns.index)
@@ -169,6 +170,10 @@ class FactorStatsCalculator:
 
         return pd.Series(turnovers, index=factor_data.index[1:], name="turnover")
 
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
+
     def calculate_all_stats(self) -> dict[str, Any]:
         """计算所有统计量
 
@@ -187,4 +192,5 @@ class FactorStatsCalculator:
             "turnover_std": turnover.std(),
             "ic_series": ic_series,
             "turnover_series": turnover,
+            "failure_counts": self.get_failure_stats(),
         }

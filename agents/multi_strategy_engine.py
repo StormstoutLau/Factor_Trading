@@ -108,8 +108,17 @@ class StrategyEngine:
         # 状态变量
         self._next_day_orders: list[dict] = []
         self._returns_matrix = self.dm.returns.values
+        self._failure_counts: dict[str, int] = {}
 
         logger.info(f"[{strategy_config.name}] 策略引擎初始化完成")
+
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清；except 块首行调用）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
 
     def _build_strategy_optimizer(self) -> BaseOptimizer:
         """构建策略专用优化器
@@ -142,10 +151,12 @@ class StrategyEngine:
         logger.info(f"[{self.strategy_cfg.name}] 开始回测...")
 
         # 主循环
+        self._failure_counts.clear()
         for i, date in enumerate(self.dm.trade_dates):
             try:
                 self._process_trading_day(date, i)
             except Exception as e:
+                self._record_failure("daily_process")
                 logger.error(f"[{self.strategy_cfg.name}] 处理交易日 {date} 时发生错误: {e}")
                 continue
 
@@ -156,7 +167,9 @@ class StrategyEngine:
         elapsed = time.perf_counter() - t0
         logger.info(f"[{self.strategy_cfg.name}] 回测完成，耗时: {elapsed:.2f}秒")
 
-        return self._generate_results()
+        result = self._generate_results()
+        result["failure_counts"] = self.get_failure_stats()
+        return result
 
     def _process_trading_day(self, date: pd.Timestamp, date_index: int):
         """处理单个交易日"""
@@ -231,6 +244,7 @@ class StrategyEngine:
             target_weights = self.optimizer.optimize(tradable_stocks, returns_data)
 
         except Exception as e:
+            self._record_failure("directional_optimize")
             logger.error(f"[{self.strategy_cfg.name}] 组合优化失败: {e}")
             return
 
@@ -288,6 +302,7 @@ class StrategyEngine:
             target_weights = combined_weights
 
         except Exception as e:
+            self._record_failure("neutral_optimize")
             logger.error(f"[{self.strategy_cfg.name}] 中性策略优化失败: {e}")
             return
 

@@ -52,6 +52,7 @@ class GuruDataLoader:
     def __init__(self, data_dir: str | Path = "gurus"):
         self.data_dir = Path(data_dir)
         self._cache: dict[str, dict] = {}
+        self._failure_counts: dict[str, int] = {}
         self._load_all()
 
     def _load_all(self):
@@ -70,7 +71,16 @@ class GuruDataLoader:
                 self._cache[guru_id] = data
                 logger.info(f"加载Guru数据: {guru_id} -> {data.get('name', 'Unknown')}")
             except Exception as e:
+                self._record_failure("guru_load")
                 logger.error(f"加载 {json_file} 失败: {e}")
+
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
 
     def get(self, guru_id: str) -> Optional[dict]:
         """获取Guru数据"""
@@ -142,6 +152,9 @@ class GuruAgentV2(BaseAgent):
 
     # 全局共享的数据加载器缓存（按目录隔离）
     _loader_cache: dict[str, GuruDataLoader] = {}
+
+    # 工厂创建失败计量（类级：create_all_gurus 为 classmethod，无实例载体）
+    _create_failure_counts: dict[str, int] = {}
 
     def __init__(
         self,
@@ -481,6 +494,7 @@ class GuruAgentV2(BaseAgent):
             for agent in all_gurus:
                 engine.register_agent(agent)
         """
+        cls._create_failure_counts.clear()
         loader = GuruDataLoader(data_dir)
         agents = []
 
@@ -489,10 +503,18 @@ class GuruAgentV2(BaseAgent):
                 agent = cls(guru_id=guru_id, initial_capital=initial_capital)
                 agents.append(agent)
             except Exception as e:
+                cls._create_failure_counts["guru_create"] = (
+                    cls._create_failure_counts.get("guru_create", 0) + 1
+                )
                 logger.error(f"创建 {guru_id} 失败: {e}")
 
         logger.info(f"成功创建 {len(agents)}/{len(loader.list_gurus())} 个GuruAgent")
         return agents
+
+    @classmethod
+    def get_creation_failure_stats(cls) -> dict[str, int]:
+        """只读工厂创建失败计量快照"""
+        return dict(cls._create_failure_counts)
 
     @classmethod
     def list_available_gurus(cls, data_dir: str | Path = "gurus") -> list[dict]:

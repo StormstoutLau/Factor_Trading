@@ -745,6 +745,9 @@ class AutoOptimizedFundManager:
         # 当前最佳参数
         self.current_params: dict = {}
 
+        # 降级失败计量
+        self._failure_counts: dict[str, int] = {}
+
     def initialize_optimization(self, base_config: dict):
         """初始化优化"""
         if self.pbt:
@@ -805,6 +808,7 @@ class AutoOptimizedFundManager:
                 view = role.analyze(date, stock, data)
                 votes[role_name] = view
             except Exception as e:
+                self._record_failure("decision_making")
                 logger.warning(f"{role_name} 分析失败: {e}")
 
         # 计算准确率调整后的权重
@@ -841,11 +845,20 @@ class AutoOptimizedFundManager:
 
         return decision
 
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清；except 块首行调用）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
+
     def get_optimization_report(self) -> dict:
         """获取优化报告"""
         report = {
             "current_params": self.current_params,
             "optimization_history": self.optimization_history,
+            "failure_counts": self.get_failure_stats(),
         }
 
         if self.pbt:
