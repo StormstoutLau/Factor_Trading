@@ -51,6 +51,7 @@ class BaseFilter(ABC):
         self.config = config or FilterConfig()
         self._mask: Optional[pd.DataFrame] = None  # 缓存的布尔掩码
         self._data_manager = None
+        self._failure_counts: dict[str, int] = {}
 
     @abstractmethod
     def build_mask(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -113,6 +114,14 @@ class BaseFilter(ABC):
         valid_stocks = self.get_valid_stocks(date)
         # 使用向量化交集操作
         return stock_codes.intersection(valid_stocks)
+
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清；子类在 except 块首行调用）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
 
     def reset(self):
         """重置过滤器状态"""

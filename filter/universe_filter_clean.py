@@ -102,6 +102,7 @@ class UniverseFilter:
         """
         self.dm = data_manager
         self.cfg = config
+        self._failure_counts: dict[str, int] = {}
 
         # 预计算信息
         self._prefix_info = {}
@@ -127,9 +128,18 @@ class UniverseFilter:
 
         logger.info("股票池过滤器初始化完成")
 
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清；子类在 except 块首行调用）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
+
     def build_masks(self):
         """构建所有过滤掩码"""
         logger.info("开始构建股票池过滤掩码...")
+        self._failure_counts.clear()
         self._warn_deprecated_thresholds()
         self._next_day_mode = self._resolve_next_day_mode(emit_warning=True)
 
@@ -369,6 +379,7 @@ class UniverseFilter:
                 self._custom_masks[filter_name] = mask
                 logger.info(f"自定义过滤 {filter_name} 构建完成")
             except Exception as e:
+                self._record_failure(f"custom_mask_build:{filter_name}")
                 logger.error(f"构建自定义过滤 {filter_name} 失败: {e}")
 
     def _apply_custom_filter(self, filter_name: str, filter_config: Dict[str, Any]) -> pd.DataFrame:

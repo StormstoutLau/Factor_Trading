@@ -69,6 +69,7 @@ class CustomFunctionFilter(BaseFilter):
             return mask
 
         except Exception as e:
+            self._record_failure("custom_function")
             logger.error(f"自定义过滤函数执行失败: {e}")
             # 返回全True，避免中断流程
             return pd.DataFrame(True, index=data.index, columns=data.columns)
@@ -139,6 +140,7 @@ class ExpressionFilter(BaseFilter):
             return mask
 
         except Exception as e:
+            self._record_failure("expression")
             logger.error(f"表达式执行失败: {e}")
             return pd.DataFrame(True, index=data.index, columns=data.columns)
 
@@ -267,6 +269,7 @@ class DynamicFilter(BaseFilter):
             return mask
 
         except Exception as e:
+            self._record_failure("dynamic")
             logger.error(f"动态过滤失败: {e}")
             return pd.DataFrame(True, index=data.index, columns=data.columns)
 
@@ -325,6 +328,7 @@ class ConditionalFilter(BaseFilter):
             return mask
 
         except Exception as e:
+            self._record_failure("conditional")
             logger.error(f"条件过滤失败: {e}")
             return pd.DataFrame(True, index=data.index, columns=data.columns)
 
