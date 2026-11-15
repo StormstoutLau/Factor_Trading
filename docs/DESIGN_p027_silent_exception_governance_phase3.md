@@ -14,9 +14,9 @@
 | **D1** | `filter/` 5 处：载体下沉 `BaseFilter`，补计量、**保留 fail-open** | 5 | `_failure_counts` + `_record_failure()` 在基类，4 子类各 1 行接入 |
 | **D2** | `agents/` 9 处：逐类实例计数器，补计量；**仅 1 处级别提升** | 9 | 6 个类各挂 `_failure_counts`，`debug` → `warning` 仅 `agent_framework.py:1074` |
 | **D3** | C 类 2 处：**补日志 + 补计量**（静默 → 显形），返回值不变 | 2 | `stats.py:139`、`assumption_monitor.py:201` 各 1 条 `logger.warning(..., exc_info=True)` |
-| **D4** | 结构化出口：6 个既有报告方法追加 `failure_counts` 键 + 4 个新只读方法 | — | 对齐 A 类范式（日志 + 结构化输出） |
+| **D4** | 结构化出口：**5** 个既有报告方法追加 `failure_counts` 键 + **5** 个新只读方法 | — | 对齐 A 类范式（日志 + 结构化输出） |
 | **D5** | E 类 4 处 + A 类 2 处：**零改动** | 6 | 进程边界与既有合规范式不动 |
-| **D6** | 计数生命周期：实例累计；**两个批量入口显式清零** | — | `StrategyEngine.run()`、`UniverseFilter.build_masks()` |
+| **D6** | 计数生命周期：实例累计；**三个批量入口显式清零** | — | `StrategyEngine.run()`、`UniverseFilter.build_masks()`、`GuruAgentV2.create_all_gurus()`（类级） |
 | **D7** | 文案与异常约定：不新增 raise、不改捕获类型、不改既有文案 | — | 仅新增 2 条 warning + 1 处级别提升 |
 
 **计量点合计 16 处**（B 14 + C 2）+ **零改动 6 处**（E 4 + A 2）= 22 处，与 RESEARCH §3 清单逐一对应。
@@ -255,7 +255,7 @@ Step 9 要求：E2 探针（`%TEMP%\p027_probe.py`）的能力**固化为 T9/T10
 | R-P027-2 | 设计约束 | 新计量字段与既有 `*_errors` 混淆 | 统一 `_failure_counts` / `get_failure_stats()` / `failure_counts` 键名 |
 | R-P027-3 | 测试约束 | mock 混用导致注入不可控 | 全部 `monkeypatch` fixture，禁 `unittest.mock` |
 | R-P027-4 | 新增 | `GuruAgentV2` 类级计数器跨调用污染 | `create_all_gurus` 入口 `clear()` + T8 断言二次调用不累加 |
-| R-P027-5 | 新增 | 递归/嵌套调用下计数可能重复累加 | 计量点均位于末级 handler（无嵌套 except 路径），E3 抽验确认 |
+| R-P027-5 | 新增 | 递归/嵌套调用下计数可能重复累加 | 已验证（Step 4 §11.3）：各计量点捕获**独立异常源**，内层 handler（如 `research_team_v2.py:825`）吞掉异常后继续，不冒泡至外层（`agent_framework.py:1074`），无重复计数；实现时 T5/T12 须分别构造内层/外层触发用例 |
 | O-S2-P027-1 | 观察 | 静态判据「无降级说明」存在注释载体 | 判据口径澄清为「无日志、无计数、无返回说明（注释/日志/文档任一载体）」，C 类 2 处三者皆无，结论不受影响（不改 Step 1 文档正文） |
 | O-S2-P027-2 | 观察 | 「不改文案」与「级别提升」口径张力 | D2/D7 裁决：允许级别提升、禁止文本与语义变更，仅 `:1074` 一处 |
 
@@ -291,3 +291,50 @@ Step 9 要求：E2 探针（`%TEMP%\p027_probe.py`）的能力**固化为 T9/T10
 - 所有决策项（R-P027-1~3、O-S2-P027-1/2）已在本文件裁决，无遗留待议项。
 - 变更面 10 代码文件 + 1 测试，T1 档位内；分 4 个可独立回退的提交单元。
 - **下一 Step：Step 4 独立 Review**（异构基座复核本设计：计量点覆盖、语义零变更、测试可红可绿）。
+
+---
+
+## 11. Step 4 独立 Review（异构，2026-11-15）
+
+> **复审基座**: GLM-5.3-Flash ≠ DESIGN 作者 DeepSeek-V4.1-Flash（异质性约束满足）；复审时点 HEAD `0ffb68a`，工作区干净。
+
+### 11.1 载体与出口存在性核验（E3 静态读码，全过）
+
+| 设计声明 | 代码实证 | 结果 |
+|----------|----------|------|
+| D1 `BaseFilter.__init__` 可挂载 | `filter/base.py:44`（`BaseFilter(ABC)` L37，现挂 `config/_mask/_data_manager`） | ✓ |
+| D1 4 子类归属 | `custom.py` L22 `CustomFunctionFilter`(except 71) / L77 `ExpressionFilter`(141) / L219 `DynamicFilter`(269) / L274 `ConditionalFilter`(327)；`MultiConditionFilter`(L146) 无 except | ✓ |
+| D1 继承链安全 | `CompositeFilter.__init__`（`base.py:158`）显式 `super().__init__(config)`（L169）→ 下沉 `_failure_counts` 后子类实例均具备属性，无 AttributeError 风险 | ✓ |
+| D1 `UniverseFilter` 非子类 | `universe_filter_clean.py:93` `class UniverseFilter:`（无括号继承）+ `build_masks` L130 → 自带三件套设计成立 | ✓ |
+| D2 6 类载体 | `ResearchTeamAgent`(L794) / `StrategyEngine`(multi_strategy_engine，run L135 返回 `dict[str, Any]`) / `FundManager`(L750) / `AutoOptimizedFundManager`(L716) / `GuruDataLoader`(L46) / `GuruAgentV2`(L123) 均存在 `__init__` 或可挂载点 | ✓ |
+| D2 classmethod 特例 | `guru_agent_v2.py:473-474` `@classmethod def create_all_gurus` → 类级计数器可行 | ✓ |
+| D4 5 出口真实存在 | `get_performance_summary`(agent_framework:1138，属 ResearchTeamAgent) / `run()` 返回值(mse:135) / `get_team_report`(rtv2:944) / `get_optimization_report`(apo:844) / `calculate_all_stats`(stats.py) | ✓ |
+| D7 文案锚点 | `agent_framework.py:1075` 原文 `投研团队分析{stock}失败: {e}` 逐字确认 | ✓ |
+
+注意：`agent_framework.py:336` 存在**另一处**同名 `get_performance_summary`（其他 Agent 类）——D4 仅声明 `:1138`（ResearchTeamAgent），无冲突，但 Step 5 实施时勿误改。
+
+### 11.2 算术与覆盖复核（全过）
+
+- 22 处 ↔ 设计映射：D1=5（filter 全部 B）+ D2=9（agents B）+ D3=2（C）= **16 计量**；D5=6（E 4 + A 2）**零改动**；16+6=22 ✓，无遗漏无越界。
+- 变更面 10 代码文件 + 1 测试 ✓；测试实例 5+1+1+3+1+1+1+1+2+1+6+1 = **24** ✓；I8 = 687+24 = **711** ✓。
+- D3「合法早退不计入」与 stats.py 上游 3 处早退（L124/L131/L136）几何一致 ✓。
+
+### 11.3 发现与处置（2 P3 已在本轮修正 + 1 观察关闭）
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S4-P027-1 | P3 | §1 D4 总览行写「6 既有 + 4 新只读」，与 D4 详表（**5** 追加键 + **5** 新方法）不一致 | 已修正 §1 与 PROGRESS 同步行（详表为准） |
+| F-S4-P027-2 | P3 | §1 D6 总览行写「**两个**批量入口清零」漏列 `GuruAgentV2.create_all_gurus()`，与 D6 详述（三处）及 R-P027-4 矛盾 | 已修正 §1 为三入口 |
+| O-S4-P027-1 | 观察（关闭） | R-P027-5 原表述「计量点均位于末级 handler」不精确——`:825`（内层）与 `:1074`（外层）构成调用链上下两层，但内层吞掉异常后继续，两层捕获**独立异常源**，计数不重复 | R-P027-5 处置列已改写为验证结论 + 实施注意项（T5/T12 分用例） |
+
+### 11.4 语义零变更与测试可实施性
+
+- D7 约束机检路径明确：I2（零 raise）可 `git diff` 关键词扫描；I6（文案逐字不变）可对 5 处既有日志行做 diff 白名单核对；I3 由 T1/T9/T10/T12 红绿双证。
+- 测试规格 12 函数全部可实施：注入点均为纯 Python 对象构造或 `monkeypatch.setattr`（无 I/O 依赖）；T8 类级重置经 fixture 调 `create_all_gurus` 前后计数对比；T11 参数化 6 出口断言 `isinstance(d, dict)`。
+- B1-B4 分批边界与文件清单一致，B3（C 类显形）可独立回退 ✓。
+
+### 11.5 结论与门禁
+
+**pass（含 2 P3 文档修正，已闭环）** —— 计量点覆盖 22/22、载体与出口 100% 实证、语义零变更可机检、测试可红可绿。**0 P1 / 0 P2 / 2 P3（已修）+ 1 观察（关闭）**。
+
+门禁四项：(a) 无 FALSIFIED 断言；(b) 2 P3 属文档算术缺陷（F-S4-P027-1/2），当轮修正后无遗留 OPEN；(c) 阻断性断言（覆盖映射、载体存在、super() 调用链）均有 E3 行级证据；(d) 无假设区遗留。**满足进入 Step 5 IMPL 的条件**。
