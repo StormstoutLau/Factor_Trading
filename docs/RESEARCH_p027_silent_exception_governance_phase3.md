@@ -145,3 +145,47 @@ E2 探针要点：先 attach **DEBUG 级**捕获 Handler（确保低级别日志
 ## 9. 下一 Step
 
 Step 2 Review（本文件的证据可重放性、分类归属、U-P024-4 结论）→ 通过后进入 Step 3 DESIGN。
+
+---
+
+## 10. Step 2 独立 Review（异构，2026-11-15）
+
+> **复审基座**: GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash（异质性约束满足）；复审时点 HEAD `b13e7d6`，工作区干净。
+
+### 10.1 E1 机械重放（全过）
+
+| 项 | 复核方式 | 结果 |
+|----|----------|------|
+| 22 处定位 | 逐目录 `Grep except Exception`（agents / filter / scripts / batch_backtest / strategy_evaluation / cli.py） | 行号与 §3 清单**逐行吻合**：agents 11（924/1074/1529/807/201/72/491/148/233/290/825）+ filter 5（371 + custom 71/141/269/327）+ scripts 2（100/118）+ batch_backtest 2（107/167）+ strategy_evaluation 1（139）+ cli 1（136）= **22 ✓** |
+| 算术一致性 | 人工复核 | §4 分类 A2 + B14 + C2 + E4 = 22 ✓；§0 分布 11+5+2+2+1+1 = 22 ✓ |
+| 内部链接 | 目标存在性检查 | [RESEARCH_p026](RESEARCH_p026_silent_exception_governance.md) / [PROGRESS](../PROGRESS.md) §1.4 / 各源文件路径全存在，0 broken ✓ |
+
+### 10.2 E2 / E4 重放（全过）
+
+| 项 | 复核方式 | 结果 |
+|----|----------|------|
+| E2 探针 | 重跑 `%TEMP%\p027_probe.py`（Python312，cwd 仓库根） | 输出与 §5 原文**逐字段一致**：`stats_calculate_half_life` → `nan` + `log_records=0`；`assumption_kpss_test` → `[0.0, 1.0]` + `log_records=0` ✓ |
+| E4 pandas | `python -c "import pandas; print(pandas.__version__)"` | **2.2.3** ✓（U-P024-4 触发条件 pandas 3.x 未成立） |
+| E4 mypy | `python -m mypy --explicit-package-bases filter` | **Success: no issues found in 10 source files** ✓（§6 结论复现） |
+
+### 10.3 E3 分类抽验（16 处全量读码，全过）
+
+| 分类组 | 抽验范围 | 判定 |
+|--------|----------|------|
+| A（2/2 全验） | `batch_backtest/engine.py` L104-112 / L164-172 | `logger.error` + `results[key] = {"error": str(e)}` 结构化输出，A 归属正确 ✓ |
+| B（8 处代表） | `custom.py:71`（error + fail-open 全 True + 行内注释）、`universe_filter_clean.py:371`（error 无降级返回）、`agent_framework.py:924`（warning + 置 None）、`:1074`（**debug** + continue）、`auto_parameter_optimizer.py:807`、`guru_agent_v2.py:72/491`、`multi_strategy_engine.py:148/233/290`、`research_team_v2.py:825` | 均有 `logger.*` 无计量，B / B− 归属正确 ✓；`custom.py:141/269/327` 与 L71 同构（E1 行号吻合 + Step 1 全量读码背书） |
+| C（2/2 全验） | `assumption_monitor.py:201`、`stats.py:139` | except 块无 `logger.*`、无计数、无降级说明，直接返回默认值，C 归属正确 ✓；静态要件成立与 E2 动态要件（0 记录）互证 |
+| E（4/4 全验） | `agent_framework.py:1529`（print + traceback）、`fetch_universe.py:100/118`（print warn/skip + 回退指引，脚本入口）、`cli.py:136`（print + `sys.exit(1)`） | 均为进程/脚本边界面向人工诊断，E 排除正确 ✓ |
+
+### 10.4 发现与处置
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| O-S2-P027-1 | 观察 | `filter/custom.py` 4 处 fail-open 在 `logger.error` 之外另有行内注释「# 返回全True，避免中断流程」（如 L73）——降级说明以**注释**形式存在。不改变 B 类归属（有日志），但提示 §1 静态要件三特征须区分「日志输出」与「注释说明」两种载体；C 类 2 处两者皆无，判据不受影响 | 登记，无动作 |
+| O-S2-P027-2 | 观察 | §4 处置方向「只补计量（不新增日志、不改文案）」与 §7.2「`agent_framework.py:1074` 由 `debug` 提升为 `warning`」并读时存在口径张力：级别提升 ≠ 文案变更，但 Step 3 DESIGN 应显式声明「B 类允许级别提升、禁止文案与语义变更」的边界，避免实施歧义 | 登记，交 Step 3 DESIGN 裁决 |
+
+### 10.5 结论与门禁
+
+**pass** —— 证据可重放（E1/E2/E4 全复现）、22 处分类归属零错误（16 处全量读码 + 6 处同构背书）、U-P024-4「不可合并」结论成立。**0 P1 / 0 P2 / 0 P3 + 2 观察**。
+
+门禁四项：(a) 无 FALSIFIED 断言；(b) 无 CONFLICT / STEP_GAP_OPEN；(c) 阻断性断言（触发成立、22 处分布、U-P024-4 结论）均有 E1-E4 双源证据；(d) 无假设区遗留。**满足进入 Step 3 DESIGN 的条件**。
