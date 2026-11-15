@@ -809,6 +809,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E2 运行时复现（双要件之动态证据）**: 仓库外探针 `%TEMP%\p027_probe.py`（`logging.Handler` 计数 + `monkeypatch` `np.corrcoef` / `np.var` 抛 `RuntimeError`）——`FactorStatsCalculator.calculate_half_life` → `return "nan"` / `log_records = 0`；`ReturnDistributionMonitor._kpss_test` → `return [0.0, 1.0]` / `log_records = 0`。两处均**静默返回乐观默认值**，且 `stats.py:139` 与上游 3 处合法早退（L124/L131 样本不足、L136 rho 越界）返回同值，调用方无法区分
 - **U-P024-4 合并判断撤回**: 实测 `pandas 2.2.3`（非 CI 侧 3.x）、`mypy --explicit-package-bases filter` = **Success: no issues found in 10 source files**（0 error），历史 21 errors / 7 files 不可复现 → **触发条件不成立，不并入本批**；U-P024-4 维持 pending，待 pandas 升级 3.x 时复核
 - **风险登记（交 Step 3 DESIGN 裁决）**: R-P027-1 `filter/custom.py` 4 处 fail-open 属既有降级语义，治理须显式登记而非改语义；R-P027-2 新增计量字段统一 `*_failures` 后缀，避免与既有 `*_errors` 混淆；R-P027-3 单测注入统一用 `monkeypatch` fixture，禁 `unittest.mock` 混用
+- **提交与门禁**: 提交 `84ca76b`（2 文件 +159/−1，docs-only）→ CI run `43710060316` **三 job success**（3.10 / 3.11 / 3.12，test + mypy 全绿）
 - **下一 Step**: **Step 2 Review**（对 RESEARCH_p027 做独立复审：证据可重放性 / 22 处分类归属 / U-P024-4 结论）；执行面 **T1**（`agents/` / `filter/` / `scripts/` / `batch_backtest/` / `strategy_evaluation/` / `cli.py`，零 fail-fast、零返回值语义变更）
 
 ---
