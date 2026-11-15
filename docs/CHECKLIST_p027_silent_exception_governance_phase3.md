@@ -2,7 +2,7 @@
 
 > **批次**: P-027 · **T1**（`agents/` / `filter/` / `strategy_evaluation/`；零 fail-fast、零返回值语义变更、零既有文案改写）
 > **上游**: [IMPL_p027](IMPL_p027_silent_exception_governance_phase3.md)（B1-B4 / §4 精确变更规格 / §5 测试 T1-T12 / §6 门禁 / §7 A1-A7 / §10 Step 6 复审 pass）；[DESIGN_p027](DESIGN_p027_silent_exception_governance_phase3.md)（D1-D7 / I1-I8 / §5 不变式 / §6 验证契约）；[RESEARCH_p027](RESEARCH_p027_silent_exception_governance_phase3.md)（§3 22 处清单 / §4 A-B-C-E 分类 / §5 E2 复现）
-> **状态**: **Step 9 TDD 实施完成**（2026-11-16，HEAD `7dfe755`）——44 项实测全回填（0 ❌）；门禁 24 passed / 711 passed / mypy 37 files 0 / black 117；CI run `43774985791` 三 job success（Step 8 Review 记录见 §10）
+> **状态**: **Step 9 TDD 实施完成**（2026-11-16，HEAD `7dfe755`）——44 项实测全回填（0 ❌）；门禁 24 passed / 711 passed / mypy 37 files 0 / black 117；CI run `43774985791` 三 job success（Step 8 Review 记录见 §10）；**Step 10 ADD 审计自审 pass**（`4974552`，99/A，0 P0-P2 + 1 P3；**同基座 → RULE-5 异构终审待补**，见 §12）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（Step 3 实测，HEAD `ad04dfe`，Python312）**: 全量 `pytest -q` **687 passed** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / `black --check core tests` **116 unchanged**
 > **代码证据时点**: 实施前 HEAD `6d3e0b7` → 实施后 `7dfe755`；实测锚点漂移见 IMPL §11.3
@@ -209,3 +209,102 @@ Step 6 移交的 `tools/` 3 处 + `examples/` 1 处 `except Exception`，读码�
 | 偏差登记 | F-S9-P027-1/2/3（P3）+ F-S9-P027-4（观察），详见 IMPL §11.5 |
 
 **结论**：44/44 ✅、0 ❌；RULE-1 零预填回溯成立（Step 7 时点 44 处占位 → Step 9 统一回填，F6 已于 Step 8 提前判定）。下一 Step：**Step 10 ADD 审计**（异构基座）。
+
+---
+
+## 12. Step 10 ADD 审计记录（2026-11-16）
+
+> **审计基座**: DeepSeek-V4.1-Flash（与 DESIGN / IMPL / CHECKLIST 作者**同源**）→ **RULE-5 异构条件不成立**。本记录定位为「机械自审（E1-E4 证据重放）」，**不等同异构终审**；批次关闭须由异基座复核后方可宣布。
+> **方法**: Phase 0 spec 质量门 → Phase 1 完整性盘点 → Phase 2 保真度比对（IMPL §4）→ Phase 3 必要性（diff 逐行归因）→ Phase 4 语义/生命周期 → E4 全仓盲区扫描（AST）。
+> **基线**: HEAD `4974552`（B4 文档提交）；代码 diff base `5f15989`（Step 9 实施前独立代码基线 `6d3e0b7`）；Python312 + `MPLBACKEND=Agg`。
+
+### 12.1 Phase 0 spec 质量门（DESIGN_p027）
+
+| 维度 | 得分 | 依据 |
+|------|------|------|
+| 可测试约束 | 1 | fail-open 全 `True` 掩码 / 早退计数 0 与异常计数 1 / 三入口 `clear()` / `except Exception` 恒 22——均为可判定命题 |
+| 模块映射 | 1 | D1→`filter/` 3 文件 / D2→`agents/` 6 文件 / D3→2 文件 / D4→5 出口 + 1 getter / D5→6 零改动点 / D6→3 入口，全 1:1 |
+| 接口契约 | 1 | `_record_failure(key)` / `get_failure_stats() -> dict[str, int]` / `get_creation_failure_stats()`（`@classmethod`）/ 出口键 `failure_counts` 均签名级明确 |
+| 修正项 | 1 | F-S8-P027-1~6 + F-S9-P027-1~4 全枚举并附回写位置 |
+| 跨模块契约 | 1 | I1-I8 + R-P027-1~5 + 零改动面清单（`scripts/` / `batch_backtest/` / `cli.py` / `:1529` / `core/` / golden） |
+| **合计** | **5/5 = Tier A** | 无 B 档封顶 |
+
+### 12.2 Phase 1 完整性盘点（E1 `grep` + E1 `pytest`）
+
+| 设计元素 | 应有 | 实测 | 证据 |
+|----------|------|------|------|
+| 计数器初始化 | 9 实例 + 1 类级 = **10** | **10**（`_failure_counts: dict[str, int]` ×9：`base:54` / `universe:105` / `agent_framework:882` / `auto_parameter_optimizer:749` / `assumption_monitor:108` / `guru_agent_v2:55` / `multi_strategy_engine:111` / `research_team_v2:757` / `stats:45`；`_create_failure_counts` ×1：`guru_agent_v2:157`） | `Select-String` 逐文件计数 = 10 |
+| 计量接入 | 16（filter 5 + agents 9 + C 2） | **16** | 键名逐字：`custom_function` / `expression` / `dynamic` / `conditional` / `custom_mask_build:{filter_name}` / `rotation_analyzer_init` / `research_team_analysis` / `daily_process` / `directional_optimize` / `neutral_optimize` / `role_analysis` / `decision_making` / `guru_load` / `guru_create` / `half_life` / `kpss_test` |
+| 结构化出口 | 5 键 + 1 直接 getter | **6** | `pytest -k structured_exits` = 6 passed |
+| 入口清零 | 3（`build_masks` / `run` / `create_all_gurus`） | **3** | `grep -n "_failure_counts.clear()"` + L497 |
+| 零改动面 | 6 点 | **6** | `git diff --name-only 5f15989..HEAD -- scripts batch_backtest cli.py core pyproject.toml tests/golden` = **空** |
+| 治理面计数 | 22 | **22**（17 + scripts 2 + batch 2 + cli 1） | 逐文件计数与 RESEARCH §3 吻合 |
+
+### 12.3 Phase 2 保真度（对照 IMPL §4，E3 读码 @`4974552`）
+
+| 检查项 | 结论 | 证据 |
+|--------|------|------|
+| 插入位置先于日志/返回（A7） | **pass** | `custom.py` 4 处计数为 `except` 块首行；`agent_framework.py` L1085 计数先于 L1086 `warning`；`stats.py` L141 先于 L142；`assumption_monitor.py` L207 先于 L208 |
+| 唯一级别改动 | **pass** | `logger.debug` → `logger.warning` 仅 1 处，文案 `投研团队分析{stock}失败: {e}` 逐字未改 |
+| 既有文案零改写 | **pass** | 生产 diff 删除行仅 **4 行**：1 处 `logger.debug(...)` 行（→ `warning`，文案逐字）、2 处 `except Exception:`（→ `as e`）、1 处 `return self._generate_results()`（→ 三行出口）；无任何既有文案行 |
+| 签名零变更 | **pass** | `_generate_results` / `get_performance_summary` / `get_team_report` / `get_optimization_report` / `calculate_all_stats` 的 `def` 行零改动（`get_performance_summary` 仍 2 处，`BaseAgent:336` 未触碰） |
+| 行数归因 | **pass** | 代码 10 文件 **+116/−4**、测试 1 文件 **+358**；每处新增行可回溯至 D1-D4/D6（估算偏差 ±1 行属 I 级，已由 F-S9 系列登记） |
+| 失败返回语义 | **pass** | T1 全 `True`、T9 `nan`、T10 `(0.0, 1.0)`、T12 `signals == ["A"]` 四组断言全绿 |
+
+### 12.4 Phase 3 必要性（diff 逐行归因）
+
+- 新增 `raise`：**0**（`git diff 5f15989..HEAD -- filter agents strategy_evaluation | grep '^\+.*raise '` = 0）。
+- 全部改动文件：10 代码 + 1 测试 + 6 文档（`IMPL` / `CHECKLIST` / `PROGRESS` / `CHANGELOG` / `README` / `ARCHITECTURE`），**无越界文件**。
+- 无「顺手重构」：无变量重命名、无 import 调整、无函数搬移；`get_failure_stats` 4 份实现均 3 行以内、未抽 mixin（DESIGN 明示避免跨层依赖）。
+
+### 12.5 Phase 4 语义与生命周期
+
+| 场景 | 结论 | 证据 |
+|------|------|------|
+| 单次构建生命周期 | **pass** | `build_masks()` 清零后首构建计数从 0 起（T1 5 passed）；`_build_custom_masks` 仅被 `build_masks` 调用（`grep` 唯一调用点） |
+| 跨调用不累加 | **pass** | `create_all_gurus` 连续两次调用均 `{guru_create: 1}`（T8）；`StrategyEngine.run` 入口清零（L154） |
+| 早退 vs 异常可区分 | **pass** | `half_life` 三早退计数 0 / 异常 1；`_kpss_test` `s2 < 1e-12` 早退计数 0 / 异常 1（同值 `(0.0, 1.0)`） |
+| 嵌套不重复 | **pass** | 内层 `role_analysis` 与外层 `research_team_analysis` 各 +1、互不串写（T12） |
+| getter 只读快照 | **pass** | 9 处实例 `get_failure_stats` + 1 处类级 `get_creation_failure_stats` 均 `return dict(...)`（`Select-String 'def get_failure_stats|def get_creation_failure_stats'` = 10） |
+| 出口键无冲突 | **pass** | `"failure_counts"` 字面键仅新增加入点；`_generate_results()` 原返回值不含同名键 |
+
+### 12.6 E4 盲区扫描（全仓 AST）
+
+- **脚本**（仓库外）：`%TEMP%\p027_step10_blindspot.py`；范围：仓库根 `*.py` 排除 `tests/` `examples/` `.venv*/` `build/` `dist/`；判据：处理器体内无 `raise` / `logger.*` / `print` / `_record_failure` / `*_counts` 自增 / error 聚合 `append` / `sys.exit`。
+- **读数**：扫描 **97 文件**，零可观测处理器 **21 项**；**本批 22 处口径内 = 0 项**（16 计量 + 6 零改动均有日志、退出码或结构化输出）。
+
+| 分类 | 数量 | 位置 | 处置 |
+|------|------|------|------|
+| `agents/` 同类静默 | 8 | `agent_framework.py` 971/981/991/1158（bare `except: pass`）；`multi_strategy_engine.py` 330/390/452（`KeyError` `continue`/`return`）；`strategy_allocator.py` 628（`LinAlgError` 静默伪逆） | **U-P027-1**（下一批候选） |
+| 可选依赖 import 降级 | 4 | `research_team_v2.py:27` / `filter/__init__.py:122` / `core/manifest.py:104` / `core/engine_v3_vector.py:53` | 显式设计（`None`/fallback 为声明式降级），只登记 |
+| `core/` 既有行为 | 3 | `engine_v2.py:597/1023`、`invariants.py:76` | 非本批范围（core 已由 P-026 治理），只登记 |
+| 工具 / 展示 / 存储 | 5 | `scripts/record_golden.py` 44/58/148、`tools/ui_dashboard.py` 141/717 | 非生产路径，只登记 |
+| 存储降级 | 1 | `factor_library/database.py:132`（parquet→csv） | P-022 已文档声明，只登记 |
+
+### 12.7 发现与分级
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-ADD-P027-1 | **P3** | `GuruAgentV2._create_failure_counts` 为**类属性且无锁**：并发调用 `create_all_gurus` 会出现入口 `clear()` 与自增竞争（计数丢失或串批）。当前全部调用点（CLI / batch / agent 工厂）均为单线程顺序执行，风险不触发 | 登记不改（避免引入设计外并发改造）；若后续并行批量，须加锁或改实例注入 |
+| O-S10-P027-1 | 观察 | `agents/` 8 处同类静默路径不在 22 处 `except Exception` 口径内（bare except / 窄类型） | 登记 **U-P027-1** |
+| O-S10-P027-2 | 观察 | 其余 13 处零可观测处理器（import 降级 4 / core 3 / scripts 3 / tools 2 / factor_library 1） | 只登记，不新增 U 项 |
+| O-S10-P027-3 | 观察 | C 类 2 处采用内联 `self._failure_counts[k] = ... + 1` 而非 `_record_failure`（DESIGN 定格的最小改动取舍，语义等价） | 不改 |
+
+**P0 = 0 / P1 = 0 / P2 = 0 / P3 = 1。**
+
+### 12.8 评分与门禁复核
+
+`score = 100 − (0×20 + 0×8 + 0×3 + 1×1) = 99` → **A**（Phase 0 = Tier A，无封顶）。
+
+| 门禁 | 实测（本次重跑） |
+|------|------------------|
+| 全量测试 | **711 passed**（exit 0） |
+| mypy | `--explicit-package-bases --check-untyped-defs core` → **37 files 0 error** |
+| black | `--check core tests` → **117 unchanged** |
+| golden | G1-G7 全绿，`git status --short tests/golden/` 空（零重录） |
+| 台账机械校验 | CHECKLIST 表项 `^| [A-F]\d+ |` = **44**、`✅` = 62 处（含条文引用）、`❌` = 3 处（均为「0 ❌」表述与 RULE-1 规则定义）、`[待 Step 9]` 仅 2 处定义/历史字面 |
+| 计数一致性 | README 4 处 + `ARCHITECTURE.md` L3 均 **711**；测试文件 **80** |
+
+### 12.9 审计结论
+
+**自审 pass（0 P0 / 0 P1 / 0 P2 / 1 P3 已登记 + 3 观察）。** 代码与 DESIGN D1-D7 + I1-I8 完全对齐；fail-open、早退语义、既有文案与签名四面守住；零改动面干净；E4 证明本批口径内无遗漏。**RULE-5 异构终审未执行**（审计基座与作者同源）→ 批次关闭以异基座复核通过为前提；复核重点建议：F-ADD-P027-1 类级计数并发面、12.6 的 `agents/` 8 项是否并入下一批。
