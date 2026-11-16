@@ -2,7 +2,7 @@
 
 > **批次**: P-029 · **T1**（`agents/` 3 文件；零 fail-fast、零返回值语义变更、零既有文案改写、**零新增日志**）
 > **上游**: [IMPL_p029](IMPL_p029_silent_exception_governance_phase4.md)（B1-B4 / §4 精确变更规格 / §5 V1-V7 / §6 门禁 / §7 A1-A7 / §10 Step 6 复审 pass）；[DESIGN_p029](DESIGN_p029_silent_exception_governance_phase4.md)（D1-D7 / I1-I8 / §5 不变式 / §6 验证契约 + F-S6-P029-4 注记）；[RESEARCH_p029](RESEARCH_p029_silent_exception_governance_phase4.md)（§3 八处清单 / §4 分类 / §5 E2 / §11 Step 2 复审）
-> **状态**: **Step 8 一致性 Review pass**（2026-11-16，复核基座 GLM-5.3-Flash ≠ Step 7 作者 DeepSeek-V4.1-Flash；机械五项全过 + 对齐矩阵无遗留 + 1 P3 当轮修正 + 1 观察，见 §10）｜Step 7 完稿（作者 DeepSeek-V4.1-Flash）
+> **状态**: **Step 9 TDD 实施完成**（2026-11-16，HEAD `58954bd`）——38 项实测全回填（**0 ❌**）；门禁 11 passed / 722 passed / mypy 37 files 0 / black 118 / golden 13 零重录；CI run `43824569283` 三 job success（Step 8 Review 记录见 §10）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 4 实测 @HEAD `23132cb`，Python312）**: 全量 `pytest -q` **711 passed** / `tests/` .py **80**（77 `test_*.py` + 3 `_` 辅助）/ `black --check core tests` **117 unchanged** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / I1 `except Exception` **22**
 > **目标读数（Step 9）**: **722 passed** / 测试文件 **81** / black **118** / mypy **37 files 0** / I1 恒 **22**
@@ -16,12 +16,12 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| A1 | S1：`prepare_factors` L971 bare except → 计数键 `price_cache` 1；`self._price_data` 仍为 `None`；`prepare_factors` 期间 WARNING+ **零记录** | `pytest -q -k cache_failure_counts` 含 price 参数集通过；caplog 断言（构造后 `caplog.clear()`） | D1 / V1 / IMPL §4.1 S1 | [待 Step 9] |
-| A2 | S2：L981 bare except → `industry_cache` 1；`self._industry_data` 仍 `None`；**损坏 pkl per-case**（本参数集仅写 `industry.pkl`） | 同一用例 industry 参数集；`{key: 1}` 精确断言（不含 `mktcap_cache`） | D1 / V1 / F-S6-P029-1 | [待 Step 9] |
-| A3 | S3：L991 bare except → `mktcap_cache` 1；`self._mktcap_data` 仍 `None`；本参数集仅写 `mktcap.pkl` | 同一用例 mktcap 参数集；`{key: 1}` 精确断言 | D1 / V1 / F-S6-P029-1 | [待 Step 9] |
-| A4 | S3b：`_init_research_team` 新增 `else` 分支，**挂 L928 的 `if`**（AST 校验 `orelse` 归属 `If` 而非 `Try`）→ `rotation_analyzer_skipped` 1；`rotation_analyzer is None`；无 `rotation_analyzer_init` 键；**零新增 warning** | `pytest -q -k rotation_analyzer_skipped` = 1 passed；AST 脚本打印归属节点类型 | D2 / V2 / IMPL§7-A1 / R-P029-4 | [待 Step 9] |
-| A5 | S4：bare except → `performance_summary_team_report` 1；`team_report` **不在** summary；`failure_counts` **同调含该键**（L1152 下移生效）；`agent_id` / `style` 等既有键仍在 | `pytest -q -k team_report_failure` = 1 passed（同调断言） | D3 / V3 / F-S4-P029-1 | [待 Step 9] |
-| A6 | bare except **零改写**：4 处 `except:` 行（L971/L981/L991/L1158）在 diff 中零变更；零新增 `logger.*`；`pass` 全部被计量行替换 | `git diff -U0 agents/agent_framework.py`：`except:` 行零增删；`^\+.*logger\.` = 0；4 处 `pass` 行零残留 | D7 / I1 / I6 / A3 | [待 Step 9] |
+| A1 | S1：`prepare_factors` L971 bare except → 计数键 `price_cache` 1；`self._price_data` 仍为 `None`；`prepare_factors` 期间 WARNING+ **零记录** | `pytest -q -k cache_failure_counts` 含 price 参数集通过；caplog 断言（构造后 `caplog.clear()`） | D1 / V1 / IMPL §4.1 S1 | ✅ V1 price 参数集 passed：`{price_cache: 1}`、`_price_data is None`、WARNING+ 0 条（红态 `{}` → 绿） |
+| A2 | S2：L981 bare except → `industry_cache` 1；`self._industry_data` 仍 `None`；**损坏 pkl per-case**（本参数集仅写 `industry.pkl`） | 同一用例 industry 参数集；`{key: 1}` 精确断言（不含 `mktcap_cache`） | D1 / V1 / F-S6-P029-1 | ✅ industry 参数集 passed：`{industry_cache: 1}`（精确断言不含 mktcap）、`_industry_data is None` |
+| A3 | S3：L991 bare except → `mktcap_cache` 1；`self._mktcap_data` 仍 `None`；本参数集仅写 `mktcap.pkl` | 同一用例 mktcap 参数集；`{key: 1}` 精确断言 | D1 / V1 / F-S6-P029-1 | ✅ mktcap 参数集 passed：`{mktcap_cache: 1}`、`_mktcap_data is None` |
+| A4 | S3b：`_init_research_team` 新增 `else` 分支，**挂 L928 的 `if`**（AST 校验 `orelse` 归属 `If` 而非 `Try`）→ `rotation_analyzer_skipped` 1；`rotation_analyzer is None`；无 `rotation_analyzer_init` 键；**零新增 warning** | `pytest -q -k rotation_analyzer_skipped` = 1 passed；AST 脚本打印归属节点类型 | D2 / V2 / IMPL§7-A1 / R-P029-4 | ✅ `-k rotation_analyzer_skipped` 1 passed；AST 实证 `If L928 orelse=['Expr']`、无 `Try.orelse`；计数 1 且无 init 键 |
+| A5 | S4：bare except → `performance_summary_team_report` 1；`team_report` **不在** summary；`failure_counts` **同调含该键**（L1152 下移生效）；`agent_id` / `style` 等既有键仍在 | `pytest -q -k team_report_failure` = 1 passed（同调断言） | D3 / V3 / F-S4-P029-1 | ✅ `-k team_report_failure` 1 passed；`team_report` 缺键 + 同调 `failure_counts` 含键（下移后 L1162）+ 既有键在 |
+| A6 | bare except **零改写**：4 处 `except:` 行（L971/L981/L991/L1158）在 diff 中零变更；零新增 `logger.*`；`pass` 全部被计量行替换 | `git diff -U0 agents/agent_framework.py`：`except:` 行零增删；`^\+.*logger\.` = 0；4 处 `pass` 行零残留 | D7 / I1 / I6 / A3 | ✅ diff 中 4 处 `except:` 行零变更；`^+.*logger\.` = 0；`pass` 零残留（实测 +7/−5，净 +2） |
 
 ---
 
@@ -31,10 +31,10 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| B1 | S5：L330 `except (KeyError, IndexError)` → `orders_missing_price` 1；**合法分支**（列/日期缺失走 L328-329 `continue`）计数 **0**；两例均不产生订单 | `pytest -q -k order_missing_price` = 2 passed（双参数集） | D4 / V4 / IMPL§7-A4 | [待 Step 9] |
-| B2 | S6：L390 `except KeyError` → `next_day_open_price` 1；`return` 后 `_next_day_orders` **长度不变**；WARNING+ 零记录 | `pytest -q -k open_price_failures` 含 next_day 参数集通过 | D4 / V5 / U-P029-2 | [待 Step 9] |
-| B3 | S7：L452 `except KeyError` → `pending_open_price` 1；`return` 后 `pending_queue` **长度不变**；WARNING+ 零记录 | 同一用例 pending 参数集通过 | D4 / V5 / U-P029-2 | [待 Step 9] |
-| B4 | 三处插入均为 `except` 块**首行 +1 行**，其后语句零 `-` 行；`run()` 出口 `failure_counts` 零改动仍存在 | `git diff multi_strategy_engine.py` 三 hunk 各 +1 / −0；读码 L171 出口未动 | D4 / D6 / IMPL §4.2 | [待 Step 9] |
+| B1 | S5：L330 `except (KeyError, IndexError)` → `orders_missing_price` 1；**合法分支**（列/日期缺失走 L328-329 `continue`）计数 **0**；两例均不产生订单 | `pytest -q -k order_missing_price` = 2 passed（双参数集） | D4 / V4 / IMPL§7-A4 | ✅ `-k order_missing_price` 2 passed（合法 `{}` / 异常 `{orders_missing_price: 1}`，两例均无订单） |
+| B2 | S6：L390 `except KeyError` → `next_day_open_price` 1；`return` 后 `_next_day_orders` **长度不变**；WARNING+ 零记录 | `pytest -q -k open_price_failures` 含 next_day 参数集通过 | D4 / V5 / U-P029-2 | ✅ next_day 参数集 passed：计数 1、`_next_day_orders` 保持 1 条、WARNING+ 0 |
+| B3 | S7：L452 `except KeyError` → `pending_open_price` 1；`return` 后 `pending_queue` **长度不变**；WARNING+ 零记录 | 同一用例 pending 参数集通过 | D4 / V5 / U-P029-2 | ✅ pending 参数集 passed：计数 1、队列长度不变、WARNING+ 0 |
+| B4 | 三处插入均为 `except` 块**首行 +1 行**，其后语句零 `-` 行；`run()` 出口 `failure_counts` 零改动仍存在 | `git diff multi_strategy_engine.py` 三 hunk 各 +1 / −0；读码 L171 出口未动 | D4 / D6 / IMPL §4.2 | ✅ numstat **+3/−0**（三 hunk 各 +1）；`run()` 出口 L171 零改动 |
 
 ---
 
@@ -44,11 +44,11 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| C1 | `MeanVarianceAllocator.__init__` 追加 `_failure_counts: dict[str, int] = {}`，**形参逐字零变更**；新增 `_record_failure` / `get_failure_stats`（含 docstring） | 读码 L604-608 与新增二方法；`git diff` 中 `def __init__(self, risk_aversion...` 行零变更 | D5 / D6 / I5 / M-A | [待 Step 9] |
-| C2 | S8：patch `np.linalg.inv` 抛 `LinAlgError` → `pinv_fallback` 1；权重仍归一（`sum ≈ 1.0`）；注释「如果奇异，使用伪逆」逐字保留 | `pytest -q -k pinv_fallback` = 1 passed；`git diff` 注释行零变更 | D5 / V6 / IMPL §4.3 | [待 Step 9] |
-| C3 | `get_failure_stats()` 返回 **拷贝**：外部改写返回值不影响内部计数 | 同一用例断言（`stats["pinv_fallback"] = 999` 后内部仍 1） | D5 / V6 / IMPL §4.3 | [待 Step 9] |
-| C4 | 正常路径零计数：正常求逆 → `get_failure_stats() == {}`；engine 侧 no-op 日处理后 `run()["failure_counts"] == {}` | `pytest -q -k normal_path_zero_counts` = 1 passed | D5 / V7 / IMPL§7-A7 | [待 Step 9] |
-| C5 | **M-A 边界**：`BaseAllocator`（L354-371）与其余 4 个子类（Hedge/FTRL/UCB/Thompson）**零改动** | `git diff strategy_allocator.py`：变更 hunk 全落在 `MeanVarianceAllocator` 区间（L582 起） | D5 / M-A / R-P029-5 | [待 Step 9] |
+| C1 | `MeanVarianceAllocator.__init__` 追加 `_failure_counts: dict[str, int] = {}`，**形参逐字零变更**；新增 `_record_failure` / `get_failure_stats`（含 docstring） | 读码 L604-608 与新增二方法；`git diff` 中 `def __init__(self, risk_aversion...` 行零变更 | D5 / D6 / I5 / M-A | ✅ 实测 L608 计数 / L610 `_record_failure` / L614 `get_failure_stats`；`__init__` def 行零变更（`^-\s*def ` = 0） |
+| C2 | S8：patch `np.linalg.inv` 抛 `LinAlgError` → `pinv_fallback` 1；权重仍归一（`sum ≈ 1.0`）；注释「如果奇异，使用伪逆」逐字保留 | `pytest -q -k pinv_fallback` = 1 passed；`git diff` 注释行零变更 | D5 / V6 / IMPL §4.3 | ✅ `-k pinv_fallback` 1 passed；权重和 1.0；注释 L639 逐字保留、无 `-` 行 |
+| C3 | `get_failure_stats()` 返回 **拷贝**：外部改写返回值不影响内部计数 | 同一用例断言（`stats["pinv_fallback"] = 999` 后内部仍 1） | D5 / V6 / IMPL §4.3 | ✅ 同一用例断言通过：改写返回 dict 后内部仍 `{pinv_fallback: 1}` |
+| C4 | 正常路径零计数：正常求逆 → `get_failure_stats() == {}`；engine 侧 no-op 日处理后 `run()["failure_counts"] == {}` | `pytest -q -k normal_path_zero_counts` = 1 passed | D5 / V7 / IMPL§7-A7 | ✅ `-k normal_path_zero_counts` 1 passed（engine `{}` + alloc `{}`，权重均归一） |
+| C5 | **M-A 边界**：`BaseAllocator`（L354-371）与其余 4 个子类（Hedge/FTRL/UCB/Thompson）**零改动** | `git diff strategy_allocator.py`：变更 hunk 全落在 `MeanVarianceAllocator` 区间（L582 起） | D5 / M-A / R-P029-5 | ✅ numstat **+10/−0**，hunk 全落 L608-616 / L638；`BaseAllocator` 与 4 子类零命中 |
 
 ---
 
@@ -58,14 +58,14 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| D1 | I1：十文件 AST 扫描 `except Exception` 合计仍 **22**（本批 9 处均为 bare / 窄类型） | IMPL §6 AST 单行命令（独立复跑）= `22` | I1 / IMPL §6 | [待 Step 9] |
-| D2 | I2：零新增 `raise` / 零 fail-fast | `git diff -- '*.py'` 中 `^+.*raise ` = 0（测试辅助可豁免，须登记） | I2 / D7 | [待 Step 9] |
-| D3 | I3：返回值语义零变更——缓存 `None` / 缺 `team_report` 键 / `continue` / `return` / pinv 权重域 | A1-A5 / B1-B3 / C2-C4 断言组合 | I3 / V1-V7 | [待 Step 9] |
-| D4 | I4：九面零改动（`filter/` / `core/` / `strategy_evaluation/` / `scripts/` / `batch_backtest/` / `cli.py` / `pyproject.toml` / `.github/` / `tests/golden/*.json`） | `git diff --name-only` 仅 3 代码 + 1 测试；九面零命中 | I4 / IMPL §1 | [待 Step 9] |
-| D5 | I5：既有签名不变——`prepare_factors` / `get_performance_summary` / `_generate_orders` / `_execute_next_day_orders` / `_process_pending_orders` / `allocate` / `MeanVarianceAllocator.__init__` 形参逐字；`get_performance_summary` 仍 **2 处**（L336 BaseAgent 勿动） | `git diff` 中 7 个 `def` 行零变更；`grep -n "def get_performance_summary"` 仍 2 处 | I5 / A2(IMPL) | [待 Step 9] |
-| D6 | I6：**零新增日志 + 既有文案逐字**——`git diff` 中 `logger.` 行 **0 增 0 删**；「如果奇异，使用伪逆」等既有注释零改写 | `git diff -U0 \| Select-String "logger\."` = 0；IMPL §4.3 注释行零变更 | I6 / D7 | [待 Step 9] |
-| D7 | I7：golden G1-G7 全过且 `tests/golden/*.json` **零改动**（零重录） | `pytest tests -q -k golden` 全绿；`git status --short tests/golden/` = 空 | I7 / IMPL §6 | [待 Step 9] |
-| D8 | I8：测试 **711 → 722**（+11）；测试文件 **80 → 81**；black **117 → 118**；mypy **37 files 0**（不变） | 全量末行 `722 passed`；文件计数 81；black `118 unchanged`；mypy `37 source files` | I8 / IMPL §6 | [待 Step 9] |
+| D1 | I1：十文件 AST 扫描 `except Exception` 合计仍 **22**（本批 9 处均为 bare / 窄类型） | IMPL §6 AST 单行命令（独立复跑）= `22` | I1 / IMPL §6 | ✅ AST 独立复跑 = **22** |
+| D2 | I2：零新增 `raise` / 零 fail-fast | `git diff -- '*.py'` 中 `^+.*raise ` = 0（测试辅助可豁免，须登记） | I2 / D7 | ✅ `^+.*raise ` = **0**（测试辅助无 raise） |
+| D3 | I3：返回值语义零变更——缓存 `None` / 缺 `team_report` 键 / `continue` / `return` / pinv 权重域 | A1-A5 / B1-B3 / C2-C4 断言组合 | I3 / V1-V7 | ✅ V1-V7 全绿（11 passed）：三缓存 `None` / team_report 缺键 / 双 `continue` / 双 `return` / pinv 权重和 1.0 |
+| D4 | I4：九面零改动（`filter/` / `core/` / `strategy_evaluation/` / `scripts/` / `batch_backtest/` / `cli.py` / `pyproject.toml` / `.github/` / `tests/golden/*.json`） | `git diff --name-only` 仅 3 代码 + 1 测试；九面零命中 | I4 / IMPL §1 | ✅ `git diff --name-only` = 3 代码 + 1 测试；九面零命中 |
+| D5 | I5：既有签名不变——`prepare_factors` / `get_performance_summary` / `_generate_orders` / `_execute_next_day_orders` / `_process_pending_orders` / `allocate` / `MeanVarianceAllocator.__init__` 形参逐字；`get_performance_summary` 仍 **2 处**（L336 BaseAgent 勿动） | `git diff` 中 7 个 `def` 行零变更；`grep -n "def get_performance_summary"` 仍 2 处 | I5 / A2(IMPL) | ✅ `^-\s*def ` = **0**；`get_performance_summary` 仍 **2 处**（L336 / L1151） |
+| D6 | I6：**零新增日志 + 既有文案逐字**——`git diff` 中 `logger.` 行 **0 增 0 删**；「如果奇异，使用伪逆」等既有注释零改写 | `git diff -U0 \| Select-String "logger\."` = 0；IMPL §4.3 注释行零变更 | I6 / D7 | ✅ `^+.*logger\.` 与 `^-.*logger\.` 均 **0**；注释 L639 零改写 |
+| D7 | I7：golden G1-G7 全过且 `tests/golden/*.json` **零改动**（零重录） | `pytest tests -q -k golden` 全绿；`git status --short tests/golden/` = 空 | I7 / IMPL §6 | ✅ `-k golden` **13 passed**；`git status --short tests/golden/` **空** |
+| D8 | I8：测试 **711 → 722**（+11）；测试文件 **80 → 81**；black **117 → 118**；mypy **37 files 0**（不变） | 全量末行 `722 passed`；文件计数 81；black `118 unchanged`；mypy `37 source files` | I8 / IMPL §6 | ✅ 全量 **722 passed** / 文件 **81** / black **118 unchanged** / mypy **37 files 0 error** |
 
 ---
 
@@ -75,15 +75,15 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| E1 | 新测试文件恰含 **7** 个 `test_*` 函数、**11** 个测试实例（V1 3 / V4 2 / V5 2 / V2/V3/V6/V7 各 1） | `pytest --collect-only -q tests/test_p029_silent_exception_governance.py` 末行 **11 tests collected**；`grep -c "^def test_"` = **7** | V1-V7 / IMPL §5 | [待 Step 9] |
-| E2 | 红态纪律：B1/B2/B3 三批先取红再取绿；红态读数记入 IMPL §11；**V4 合法参数与 V7 engine 侧在红态即通过属预期**（须在留档中标注，防误判为「红态不完整」） | 三批红态输出留档；IMPL §11 记录 | IMPL §5 红态纪律 | [待 Step 9] |
-| E3 | 新测试 **11 passed** | `pytest tests/test_p029_silent_exception_governance.py -q` = **11 passed** | V1-V7 | [待 Step 9] |
-| E4 | 全量回归 **722 passed**（711 基线 + 11） | `MPLBACKEND=Agg pytest -q` 末行 **722 passed** | I8 / §6 | [待 Step 9] |
-| E5 | mypy 门禁 **37 files 0 error**（`agents/` 不在门禁路径） | `python -m mypy --explicit-package-bases --check-untyped-defs core` 末行 | §6 | [待 Step 9] |
-| E6 | black 门禁 **118 files unchanged**（117 + 新测试文件 1） | `python -m black --check core tests` 末行 | §6 | [待 Step 9] |
-| E7 | 测试零 `unittest.mock`（统一 `monkeypatch`）；无仓库外脚本依赖（§5.1 探针能力已固化为 V1-V7） | `grep -n "unittest.mock\|^from mock" tests/test_p029_silent_exception_governance.py` = 0 命中 | DESIGN D7 / §5 | [待 Step 9] |
-| E8 | 受影响面快速回归：`agents/` / `core/` 相关既有测试同绿（**0 failed / 0 error**），P-027 套件（24 passed）与 P-026 套件不回归 | `pytest tests -q -k "agent or strategy_engine or strategy_alloc or portfolio or pending or p027 or p026"` 全绿（子集基线未单独登记，不比数值） | V1-V7 / 回归面 | [待 Step 9] |
-| E9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | §6 | [待 Step 9] |
+| E1 | 新测试文件恰含 **7** 个 `test_*` 函数、**11** 个测试实例（V1 3 / V4 2 / V5 2 / V2/V3/V6/V7 各 1） | `pytest --collect-only -q tests/test_p029_silent_exception_governance.py` 末行 **11 tests collected**；`grep -c "^def test_"` = **7** | V1-V7 / IMPL §5 | ✅ `--collect-only` **11 tests collected**；`^def test_` = **7** |
+| E2 | 红态纪律：B1/B2/B3 三批先取红再取绿；红态读数记入 IMPL §11；**V4 合法参数与 V7 engine 侧在红态即通过属预期**（须在留档中标注，防误判为「红态不完整」） | 三批红态输出留档；IMPL §11 记录 | IMPL §5 红态纪律 | ✅ 三批红态留档：B1 **5 failed** / B2 **3 failed 6 passed** / B3 **2 failed 9 passed**；豁免项已在 IMPL §11.2 标注 |
+| E3 | 新测试 **11 passed** | `pytest tests/test_p029_silent_exception_governance.py -q` = **11 passed** | V1-V7 | ✅ **11 passed** |
+| E4 | 全量回归 **722 passed**（711 基线 + 11） | `MPLBACKEND=Agg pytest -q` 末行 **722 passed** | I8 / §6 | ✅ **722 passed**（172 warnings） |
+| E5 | mypy 门禁 **37 files 0 error**（`agents/` 不在门禁路径） | `python -m mypy --explicit-package-bases --check-untyped-defs core` 末行 | §6 | ✅ **37 files 0 error** |
+| E6 | black 门禁 **118 files unchanged**（117 + 新测试文件 1） | `python -m black --check core tests` 末行 | §6 | ✅ **118 unchanged**（新文件首版未过，格式化后复检通过 —— F-S9-P029-1） |
+| E7 | 测试零 `unittest.mock`（统一 `monkeypatch`）；无仓库外脚本依赖（§5.1 探针能力已固化为 V1-V7） | `grep -n "unittest.mock\|^from mock" tests/test_p029_silent_exception_governance.py` = 0 命中 | DESIGN D7 / §5 | ✅ grep `unittest.mock` / `^from mock` = **0 命中** |
+| E8 | 受影响面快速回归：`agents/` / `core/` 相关既有测试同绿（**0 failed / 0 error**），P-027 套件（24 passed）与 P-026 套件不回归 | `pytest tests -q -k "agent or strategy_engine or strategy_alloc or portfolio or pending or p027 or p026"` 全绿（子集基线未单独登记，不比数值） | V1-V7 / 回归面 | ✅ **84 passed**（638 deselected；0 failed / 0 error；83 → 84 含新增 V4/V5 命中） |
+| E9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | §6 | ✅ CI run `43824569283` 三 job（3.10 / 3.11 / 3.12）success |
 
 ---
 
@@ -93,12 +93,12 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| F1 | 四文档齐备且互链：`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_p029_silent_exception_governance_phase4.md`，相对链接 0 broken | 机械校验脚本读数（相对链接数 / broken 数） | IMPL §2 B4 | [待 Step 9] |
-| F2 | PROGRESS §1.4 P-029 行置 `done`（T1 / 四文档链接 / CI run id）；§3.34 系列补齐 Step 7-10 记录（Step 9 记录落 **IMPL §11**） | 读回 §1.4 与 §3.34.x | IMPL §2 B4 / F-S6-P029-5 | [待 Step 9] |
-| F3 | CHANGELOG `[Unreleased]` 记录本批行为变更（`agents/` 9 计量 / 零新增日志 / 零 fail-fast），含门禁读数 | 读回 `CHANGELOG.md` `[Unreleased]` 对应条目 | IMPL §2 B4 | [待 Step 9] |
-| F4 | README 计数一致：**4 处**（L7 badge / L99 / L278 / L427 含「80 files」）与 `docs/ARCHITECTURE.md` L3——711 → **722**、80 → **81** files 同步 | `Select-String -Pattern '711\|722\|80 files\|81 files' README.md docs/ARCHITECTURE.md` 读数 | IMPL §2 B4 | [待 Step 9] |
-| F5 | 未决项与回退点登记完整：U-P029-2（S6/S7 重试语义）维持 pending；R-P029-4/5/6/7 有落点；O-S4-P029-1（非异常等权回退）/ O-S4-P029-2（文件数口径）/ F-I-P029-1（行数估算）/ O-I-P029-1 已登记；B1-B3 文件级回退可行 | 读回 IMPL §7 / §8 与 PROGRESS 未决表 | IMPL §7 / §8 | [待 Step 9] |
-| F6 | 提交链完整且推送：`e6daa05`（IMPL）→ `9614ba4`（Step 6 复审）→ `285d952`（回填）→ Step 7 文档提交 → Step 9 三批 + B4；CI run 逐次回收成功 | `git log --oneline` + `gh run list --limit 5` | IMPL §2 B4 | [待 Step 9] |
+| F1 | 四文档齐备且互链：`docs/{RESEARCH,DESIGN,IMPL,CHECKLIST}_p029_silent_exception_governance_phase4.md`，相对链接 0 broken | 机械校验脚本读数（相对链接数 / broken 数） | IMPL §2 B4 | ✅ 四文档齐备；Step 8 机械校验 9 条相对链接 **0 broken**（Step 9 未新增链接） |
+| F2 | PROGRESS §1.4 P-029 行置 `done`（T1 / 四文档链接 / CI run id）；§3.34 系列补齐 Step 7-10 记录（Step 9 记录落 **IMPL §11**） | 读回 §1.4 与 §3.34.x | IMPL §2 B4 / F-S6-P029-5 | ✅ §1.4 P-029 置 done（四文档 + CI `43824569283`）；§3.34.1-§3.34.8 覆盖 Step 1-9；Step 9 记录落 IMPL §11 |
+| F3 | CHANGELOG `[Unreleased]` 记录本批行为变更（`agents/` 9 计量 / 零新增日志 / 零 fail-fast），含门禁读数 | 读回 `CHANGELOG.md` `[Unreleased]` 对应条目 | IMPL §2 B4 | ✅ `[Unreleased] Changed` 首条 P-029：9 计量明细 + 三批红绿 + 722/81/118/37 与 I1/I2/I5/I6 读数 |
+| F4 | README 计数一致：**4 处**（L7 badge / L99 / L278 / L427 含「80 files」）与 `docs/ARCHITECTURE.md` L3——711 → **722**、80 → **81** files 同步 | `Select-String -Pattern '711\|722\|80 files\|81 files' README.md docs/ARCHITECTURE.md` 读数 | IMPL §2 B4 | ✅ README 4 处全部 711 → **722**（L7 / L99 / L278 / L427）且 L427「80 files → **81 files**」；ARCHITECTURE L3 **722 个** |
+| F5 | 未决项与回退点登记完整：U-P029-2（S6/S7 重试语义）维持 pending；R-P029-4/5/6/7 有落点；O-S4-P029-1（非异常等权回退）/ O-S4-P029-2（文件数口径）/ F-I-P029-1（行数估算）/ O-I-P029-1 已登记；B1-B3 文件级回退可行 | 读回 IMPL §7 / §8 与 PROGRESS 未决表 | IMPL §7 / §8 | ✅ U-P029-2 维持 pending；R-P029-4~7 + 两观察登记在案；IMPL §8 B1-B3 单文件回退可行（F-I-P029-1 / O-I-P029-1 已于 §11.5 闭环） |
+| F6 | 提交链完整且推送：`e6daa05`（IMPL）→ `9614ba4`（Step 6 复审）→ `285d952`（回填）→ Step 7 文档提交 → Step 9 三批 + B4；CI run 逐次回收成功 | `git log --oneline` + `gh run list --limit 5` | IMPL §2 B4 | ✅ 链路 `e6daa05` → `9614ba4` → `285d952` → `2a67a59` → `b2014aa` → `1f2f7b4` → `2080784` → `e86b09d`（B1）→ `7cf6718`（B2）→ `58954bd`（B3）→ B4；已推送，CI `43824569283` success |
 
 ---
 
@@ -107,7 +107,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **38**（A 6 + B 4 + C 5 + D 8 + E 9 + F 6 = 38，机械计数；ID 去重 38/38） |
-| 实测列 `[待 Step 9]` 数（Step 7 时点） | **38 处** = 38 验收单元格，**零 ✅ 预填**（全文机械计数 **40** 处 = 38 验收 + **2 合法字面引用**：本文档头「实测列规则」行 + 本行；与 P-027 §7 同口径） |
+| 实测列 `[待 Step 9]` 数 | Step 7 时点：**38 处**（= 38 验收单元格，零 ✅ 预填）；**Step 9 回填后：验收单元格 0 处待填**，全文仅余 **3 处合法字面引用**（文档头规则行 / 本行 / §10.1 记录） |
 | 覆盖映射（测试用例） | V1 **3/3**（A1/A2/A3）；V2 1/1（A4）；V3 1/1（A5）；V4 2/2（B1 双参数集）；V5 2/2（B2/B3）；V6 1/1（C2 + C3）；V7 1/1（C4）→ **11/11 实例全覆盖** |
 | 覆盖映射（不变式） | I1-I8 **8/8**（D1-D8 一一对应） |
 | 覆盖映射（设计决策） | D1→A1-A3 / D2→A4 / D3→A5 / D4→B1-B4 / D5→C1-C5 / D6→A5+B4+C1+C4 / D7→A6+D2+D6 全落点 |
@@ -138,7 +138,7 @@
 |------|------|------|------|
 | Step 7 验收清单作者 | DeepSeek-V4.1-Flash | 38 项完稿，零预填 | 2026-11-16 |
 | Step 8 一致性 Review | GLM-5.3-Flash（≠ Step 7 作者 DeepSeek-V4.1-Flash） | pass（机械五项全过 + 对齐矩阵无遗留；1 P3 当轮修正 F-S8-P029-1 + 1 观察，见 §10） | 2026-11-16 |
-| Step 9 TDD 执行 | 待定 | — | — |
+| Step 9 TDD 执行 | DeepSeek-V4.1-Flash（与上游同源） | pass：三批红→绿，11 passed，门禁 722/37/118 全绿 | 2026-11-16 |
 | Step 10 ADD 审计 + RULE-5 异构终审 | 待异构基座 | — | — |
 
 ---

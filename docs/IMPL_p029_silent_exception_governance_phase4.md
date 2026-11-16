@@ -2,8 +2,8 @@
 
 > **批次**: P-029 · **T1**（`agents/` 3 文件；零 fail-fast、零返回值语义变更、零既有文案改写、**零新增日志**）
 > **上游**: [DESIGN_p029](DESIGN_p029_silent_exception_governance_phase4.md)（D1-D7 / I1-I8 / V1-V5 / §4 规格 / §7 风险 / §8 回退点 / §11 Step 4 异构 Review pass，3 P3 已回写）
-> **状态**: **Step 6 独立 Review pass**（2026-11-16，复核基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2 + 5 P3 当轮修正，见 §10）｜Step 5 IMPL 完稿（作者 DeepSeek-V4.1-Flash）
-> **代码证据时点**: HEAD `23132cb`（代码与 `7045001` / `f802bbe` 一致，其后均为 docs-only）；§4 全部锚点为**实施前行号**
+> **状态**: **Step 9 TDD 实施完成**（2026-11-16，三批红绿闭环 + 门禁实测回填；见 §11）
+> **代码证据时点**: 实施前 HEAD `23132cb` → 实施后 `58954bd`（B3）；§4 全部锚点为**实施前行号**，实施后实测锚点见 §11.3
 
 ---
 
@@ -387,17 +387,20 @@ def _make_engine(signal: pd.DataFrame | None = None) -> StrategyEngine:
 
 ## 6. 门禁口径
 
-| 门禁 | 命令 | 基线（Step 4 实测） | 目标 |
-|------|------|---------------------|------|
-| 新增测试 | `$py -m pytest tests/test_p029_silent_exception_governance.py -q` | 红（0 收集于实施前） | **11 passed** |
-| 全量测试 | `$env:MPLBACKEND="Agg"; $py -m pytest -q` | **711** | **722 passed** |
-| 类型 | `$py -m mypy --explicit-package-bases --check-untyped-defs core` | **37 files 0** | **37 files 0**（`agents/` 不在门禁） |
-| 形态 | `$py -m black --check core tests` | **117 unchanged** | **118 unchanged** |
-| 测试文件数 | `Get-ChildItem tests -Recurse -Filter *.py \| Measure-Object` | **80** | **81** |
-| 静态不变式 I1 | AST 扫描十文件 `except Exception` | **22** | **22** |
-| 静态不变式 I4 | `git diff --stat` | — | 仅 3 代码 + 1 测试；九面 diff 空 |
-| 静态不变式 I6 | `git diff -U0 \| Select-String "logger\."` | — | **0 增 0 删** |
-| golden | `$py -m pytest tests -q -k golden` + `git status --short tests/golden/` | 全绿 | 全绿 + golden 目录空 |
+| 门禁 | 命令 | 基线（Step 4 实测） | 目标 | 实测（2026-11-16，HEAD `58954bd`） |
+|------|------|---------------------|------|------------------------------|
+| 新增测试 | `$py -m pytest tests/test_p029_silent_exception_governance.py -q` | 红（0 收集于实施前） | **11 passed** | ✅ **11 passed**（红态三批见 §11.2） |
+| 全量测试 | `$env:MPLBACKEND="Agg"; $py -m pytest -q` | **711** | **722 passed** | ✅ **722 passed**（172 warnings） |
+| 类型 | `$py -m mypy --explicit-package-bases --check-untyped-defs core` | **37 files 0** | **37 files 0**（`agents/` 不在门禁） | ✅ **37 files 0 error** |
+| 形态 | `$py -m black --check core tests` | **117 unchanged** | **118 unchanged** | ✅ **118 unchanged** |
+| 测试文件数 | `Get-ChildItem tests -Recurse -Filter *.py \| Measure-Object` | **80** | **81** | ✅ **81** |
+| 静态不变式 I1 | AST 扫描十文件 `except Exception` | **22** | **22** | ✅ **22** |
+| 静态不变式 I2 | `git diff` 中 `^+.*raise ` | — | 0 | ✅ **0** |
+| 静态不变式 I4 | `git diff --stat` | — | 仅 3 代码 + 1 测试；九面 diff 空 | ✅ 仅 3 代码 + 1 测试；九面零命中 |
+| 静态不变式 I5 | `git diff` 中 `^-\s*def ` | — | 0（签名零删改） | ✅ **0**；`get_performance_summary` 仍 2 处 |
+| 静态不变式 I6 | `git diff -U0 \| Select-String "logger\."` | — | **0 增 0 删** | ✅ **0**（`^+.*logger\.` / `^-.*logger\.` 均 0） |
+| golden | `$py -m pytest tests -q -k golden` + `git status --short tests/golden/` | 全绿 | 全绿 + golden 目录空 | ✅ **13 passed**（709 deselected）；golden 目录**空** |
+| 受影响面回归 | `$py -m pytest tests -q -k "agent or strategy_engine or strategy_alloc or portfolio or pending or p027 or p026"` | 83 collected | 0 failed / 0 error | ✅ **84 passed**（638 deselected；83 → 84 含新增 V4/V5 命中项） |
 
 `$py` = `C:\Users\Peng\AppData\Local\Programs\Python\Python312\python.exe`（默认 `python` 指向 Anaconda 3.13，勿用）。
 
@@ -510,3 +513,50 @@ A1（`else` 挂 L928 `if`）/ A2（L901-902 `_research_team_available` 守卫实
 - 0 P1 / 0 P2 / 5 P3（当轮修正）→ **Step 6 Review pass**。
 - §4 全部锚点在实施前代码可精确落位；9 计量口径、11 测试实例、722/81/118/37 门禁算术自洽；A1-A7 全部实证；P-027 回归面（T11/T12 + 711 基线）无破坏风险。
 - 下一 Step：**Step 7 CHECKLIST**（按 IMPL §5 测试用例 V1-V7 + I1-I8 落验收条件，实测列 `[待 Step 9]`；契约映射以 F-S6-P029-4 注记为准）。
+
+---
+
+## 11. Step 9 TDD 实施记录（2026-11-16）
+
+### 11.1 批次与提交
+
+| 批次 | 内容 | 提交 |
+|------|------|------|
+| B1 | `agent_framework.py`：S1-S3 + S3b `else` + S4（含 L1152 下移）；V1/V2/V3 | `e86b09d` |
+| B2 | `multi_strategy_engine.py`：S5-S7；V4/V5 | `7cf6718` |
+| B3 | `strategy_allocator.py`：三件套 + S8；V6/V7 | `58954bd` |
+| B4 | 文档回填（本文件 §6/§11、CHECKLIST、PROGRESS、CHANGELOG、README、ARCHITECTURE） | 见 `git log` |
+
+### 11.2 红绿证据（先红后绿，逐批）
+
+| 批次 | 红态读数 | 绿态读数 |
+|------|----------|----------|
+| B1 | `5 failed`——V1 三参数集 `assert {} == {key: 1}`、V2 `assert {} == {"rotation_analyzer_skipped": 1}`、V3 `assert {} == {"performance_summary_team_report": 1}` | `5 passed` |
+| B2 | `3 failed, 6 passed`——V4 异常参数 `{}`≠`{"orders_missing_price": 1}`、V5 双参数 `{}`；**V4 合法参数与 B1 五项在红态即通过（预期豁免）** | `9 passed` |
+| B3 | `2 failed, 9 passed`——`AttributeError: 'MeanVarianceAllocator' object has no attribute 'get_failure_stats'`（V6/V7 allocator 侧）；**V7 engine 侧红态即通过（预期豁免）** | `11 passed` |
+
+### 11.3 实施后锚点漂移（实测，HEAD `58954bd`）
+
+| 文件 | 实施后位置 |
+|------|------------|
+| `agents/agent_framework.py` | `rotation_analyzer_skipped` L938（`else` 挂 L928 `if`，AST 实证 `If.orelse=['Expr']`、无 `Try.orelse`）；`price_cache` L974 / `industry_cache` L984 / `mktcap_cache` L994；`performance_summary_team_report` L1160；`summary["failure_counts"]` L1162（下移后） |
+| `agents/multi_strategy_engine.py` | `orders_missing_price` L331；`next_day_open_price` L392；`pending_open_price` L455 |
+| `agents/strategy_allocator.py` | `_failure_counts` L608；`_record_failure` L610；`get_failure_stats` L614；`pinv_fallback` L638 |
+
+### 11.4 门禁实测
+
+见 §6 表（末列全部 ✅）：新增 **11 passed** / 全量 **722 passed** / mypy **37 files 0 error** / black **118 unchanged** / 测试文件 **81** / golden **13 passed 零重录** / I1 **22** / I2 **0** / I5 **0 删改**（`get_performance_summary` 仍 2 处）/ I6 **0** / 回归 **84 passed**。
+
+### 11.5 实施期发现与偏差登记
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S9-P029-1 | P3 | 新增测试文件首版未过 black（`import np` 顺序 + 单行超长 `parametrize`），`black --check` 报 `1 file would be reformatted` | 对**新增文件**执行 `black <file>` 后复检 **118 unchanged**；代码文件零改动 |
+| F-S9-P029-2 | 观察 | `black` 格式化后 `import numpy as np` 位置调整（第三方位序），不影响 lint 口径 | 无动作 |
+| F-I-P029-1 闭环 | — | `agent_framework.py` 实测 **+7/−5（净 +2）**，与 IMPL §4.1 预测「净 +2 / 变更 7」**逐字一致** | 假设验证成立 |
+| O-I-P029-1 闭环 | — | `strategy_allocator.py` 实测 **+10/−0**，与 IMPL 预测「≈+10」一致 | 假设验证成立 |
+
+### 11.6 结论
+
+- **9 计量**（S1-S8 + S3b）落地；零 fail-fast、零返回值语义变更、零新增日志（I6 = 0）、零捕获类型变更（4 处 bare 保持）、零新增 raise（I2 = 0）。
+- **Step 9 pass**，下一 Step：**Step 10 ADD 审计 + RULE-5 异构终审**。
