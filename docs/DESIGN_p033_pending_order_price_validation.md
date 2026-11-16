@@ -129,7 +129,7 @@ Step 2 B3 实测：全程无效价下，queue 长度在第 4 个交易日归零�
 
 | 位置 | 变更 |
 |------|------|
-| 模块级（`Trade` 之后、`ExecutionSimulator` 之前，约 L50） | 新增 `is_valid_price(price: Optional[float]) -> bool`，实现见 D1 |
+| 模块级（**`ExecutionSimulator` 类定义之前**，即 L152/153 空行处——`Trade`（L25-50）与 `ExecutionSimulator`（L153）之间为 `TradeLog` 类 L52-150，Step 4 F-S4-P033-1 精化） | 新增 `is_valid_price(price: Optional[float]) -> bool`，实现见 D1 |
 | `execute_order` L292-294 之后 | 插入守卫块（4 行，含 warning + `return False, None`） |
 | `execute_order` docstring（L274-289） | 补一句：「若解析后的执行价格为 `None` / `NaN` / `±inf` / `≤0`，返回 `(False, None)`，不写入 `trade_log`」 |
 
@@ -140,16 +140,16 @@ Step 2 B3 实测：全程无效价下，queue 长度在第 4 个交易日归零�
 | 位置 | 变更 |
 |------|------|
 | 导入行 L32 | `from core.execution import ExecutionSimulator` → `from core.execution import ExecutionSimulator, is_valid_price` |
-| `_process_pending_orders` L508（`open_price = ...` 之后） | 插入 3 行：`if not is_valid_price(open_price):` / `self._record_failure("pending_invalid_price")` / `continue` |
+| `_process_pending_orders` **L509 之后（`close_price` 赋值完成）、L511 夹紧块之前**（Step 4 F-S4-P033-1 精化） | 插入 3 行：`if not is_valid_price(open_price):` / `self._record_failure("pending_invalid_price")` / `continue` |
 
 ### 4.3 `core/engine_v2.py` —— queue 前置过滤
 
 | 位置 | 变更 |
 |------|------|
 | 导入行 L23 | `from core.execution import ExecutionSimulator` → `from core.execution import ExecutionSimulator, is_valid_price` |
-| `_process_pending_orders` L803（`open_price = ...` 之后） | 插入 3 行：`if not is_valid_price(open_price):` / `skipped_price.append(order.stock)` / `continue` |
+| `_process_pending_orders` **L808 之后（`close_price` 多行赋值完成）、L810 之前**（Step 4 F-S4-P033-1 精化） | 插入 3 行：`if not is_valid_price(open_price):` / `skipped_price.append(order.stock)` / `continue` |
 
-**不改**：`_force_liquidation` L563、V2 next-day L1140、agents next-day L451（D3）。
+**不改**：`_force_liquidation` L563、V2 next-day L1140、agents next-day L451（D3）。**顺序注记（Step 4）**：V2 queue 内部为 clamp（L792）→ 成员检查（L799）→ 取价（L803-808），与 agents（成员 → 取价 → 夹紧）顺序不同——既有语义，插入点均在 `execute_order` 之前，不受影响。
 
 ### 4.4 `execute_order` 守卫与 VWAP 的覆盖关系（B1 复核点）
 
@@ -186,7 +186,7 @@ Step 2 B3 实测：全程无效价下，queue 长度在第 4 个交易日归零�
 | V3 | agents queue 负价（参数 2） | `open=-5` / `-inf` | 零成交；`cash` 不变；`pending_invalid_price == 1`（覆盖 R2「现金 +500」） |
 | V4 | agents queue SELL NaN（持仓保留） | 先建仓 100 股，再入 SELL 100 单，`open=NaN` | 零成交；`qty == 100`（**不清零**）；`avg_cost == 10`；`cash` 不变 |
 | V5 | 重试 bounded | 全程 `open=NaN`，逐日跑 `_process_pending_orders` + `mark_expired` 8 日 | 订单在 ≤5 交易日内出队（`is_expired` 兜底）；总成交 0；`pending_invalid_price` 计数等于实际尝试天数 |
-| V6 | V2 queue NaN / 0（参数 2） | V2 `_process_pending_orders` 注入 1 张 BUY 单 | 零成交；`cash` 不变；`skipped_price` 含该股（经日志/内部名单断言） |
+| V6 | V2 queue NaN / 0（参数 2） | V2 `_process_pending_orders` 注入 1 张 BUY 单 | 零成交；`cash` 不变；`skipped_price` 含该股——**经 `caplog` 断言汇总日志「跳过N个缺少价格数据订单: A」（L836-839），`skipped_price` 为局部名单不可直接访问（Step 4 F-S4-P033-2 精化）** |
 | V7 | VWAP NaN（B1 回归锁） | `ExecutionPriceType.VWAP` + `high/low/volume=NaN`，open/close 合法 | `(False, None)`；`trade_log` 空（**第二入口已封**） |
 | V8 | 正常路径零误报（参数 2：agents / V2） | 合法价 10；agents queue 1 张 BUY、V2 queue 1 张 BUY | 成交 1 笔 `price=10`；`pending_invalid_price` 缺席或 0；`skipped_price` 空 |
 
@@ -241,3 +241,67 @@ B1 必须最先（B2/B3 依赖 `is_valid_price`）；B2/B3 相互独立。
 4. **计量键名与出口**：`pending_invalid_price` 与 V2 `skipped_price` 的不对称是否有更优解；
 5. **测试规格**：V1-V8 是否覆盖 R1/R2/R3 与 B1-B4 形态，红态豁免（V8）是否标注；
 6. **门禁目标**：748 / 83 / 120 / 37 / golden 13 零重录的口径是否由 17 实例推算正确。
+
+---
+
+## 12. Step 4 独立 Review 记录（异构基座 GLM-5.3-Flash，2026-11-16）
+
+> **复审基座**: **GLM-5.3-Flash**（≠ 本文件作者 DeepSeek-V4.1-Flash，RULE-5 成立）
+> **复审对象**: `9d3e4d7`（DESIGN_p033 提交版）；复审时点 HEAD `470efea`
+> **方法**: E1 锚点机械复核 + E2 独立探针（`%TEMP%\p033_step4_review_probe.py`，C1-C5）+ E3 §10 六项裁决
+
+### 12.1 E1 锚点机械复核
+
+| # | DESIGN 声称 | 实查 | 结果 |
+|---|-------------|------|------|
+| A1 | 守卫插入点 `execute_order` L292-294 之后、`try` 块内 | 读码 | ✅ |
+| A2 | CLOSE 分支 L221-225 仅判 `None`（NaN 不回退） | 读码 | ✅（C1 实锤） |
+| A3 | VWAP L238 `sum/len` 聚合 | 读码 | ✅（Step 2 B1 已实锤） |
+| A4 | CUSTOM L246 仅判 `>0`（`inf` 通过） | 读码 | ✅（C2 实锤） |
+| A5 | `np` 已导入 execution.py L16；新函数零 `except` | 读码 | ✅ |
+| A6 | agents 导入 L32 / 过滤点 L508 | 读码 | ⚠ 精化——精确锚点为 **L509 之后、L511 夹紧块之前** → F-S4-P033-1 |
+| A7 | V2 导入 L23 / 过滤点 L803 | 读码 | ⚠ 精化——精确锚点为 **L808 之后（close_price 多行赋值完成）、L810 之前**；且 V2 内部顺序 clamp(L792) → 成员检查(L799) → 取价(L803-808) 与 agents 不同（既有语义，不影响插入） | 
+| A8 | `is_valid_price` 置于「Trade 之后约 L50」 | **`TradeLog` 类占 L52-150**——精确锚点为 **`ExecutionSimulator` 类定义前（L152/153 间）** → F-S4-P033-1 |
+| A9 | V2 `skipped_price` 名单（L780 定义 / L836-839 汇总日志） | 读码 | ✅；**但为局部列表无 getter** → V6 断言方式精化 F-S4-P033-2 |
+| A10 | agents `_record_failure`（L126）可承接新键 | 读码 | ✅ |
+
+### 12.2 E2 独立探针（C1-C5，全部实锤）
+
+| 探针 | 构造 | 读数 | 结论 |
+|------|------|------|------|
+| C1 | CLOSE + open=10 合法、close=NaN | `success=True, price=nan, amount=nan` | **F-D3-P033-1 独立复现**——CLOSE 对 NaN 不回退，解析后守卫的必要性成立 |
+| C2 | CUSTOM + 回调返回 `inf` | `success=True, price=inf` | **L246 缺口实锤**（仅判 `>0` 不判有限），解析后守卫覆盖 |
+| C3 | CUSTOM + 回调返回 `None` | `success=True, price=10.0`（回退 open） | 既有正确行为基线（L248-250） |
+| C5 | 未知类型（构造后属性变异） | `success=False, trade=None` | **新证（O-S4-P033-3）**：该分支正常构造**不可达**（`__init__` L183 即校验枚举 `.value`）；变异后存在「`logger.info` 的 `.value` AttributeError → `success=False` 但 trade 已入 `trade_log`」既有 quirk（L330 add_trade 先于 L332 日志）——纯理论面，不影响 D1，登记不改 |
+| C4 | `is_valid_price` 语义表（V1 六值 + 10.0 + 1e-9） | 六无效值全 `False`、两合法值全 `True` | **V1 矩阵语义逐一对应**，守卫条件完备 |
+
+### 12.3 E3 §10 六项裁决
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | 守卫位置 | **成立且必要**——C1（CLOSE NaN）+ C2（CUSTOM inf）实锤「入参合法、解析价无效」两类形态；入参守卫会漏。**维持 D1 解析后守卫** |
+| 2 | 双层过滤冗余性 | **不冗余，维持 D1+D2**。D1 = 安全层（6 调用点 + 委托链 + 未来调用方 + VWAP）；D2 = 可观测层（`failure_counts` / skipped 归因，P-026~P-029 治理口径）。去 D2 则 queue 拒绝无计数；去 D1 则 agent_framework/委托链/VWAP 裸奔。两层共用 `is_valid_price` 无漂移。M-C 缺归因 |
+| 3 | 引擎预过滤口径 | **可接受，维持 `open_price` 口径**：① 与 next-day 两路径既有行为对称；② 默认 OPEN 下即执行价；③ 非 OPEN 下「open 无效但 close 有效」被拒属保守收窄（D1 本会放行）——差异仅非默认配置，登记 O-S4-P033-1。备选 type-aware 过滤引入引擎↔executor 配置耦合，收益边际 |
+| 4 | 计量不对称 | **维持**：V2 无 `_failure_counts` 基础设施（P-027 未下沉 V2；V2 用 DayErrorCollector + skipped 名单），强行对齐需 API 扩张。形态由既有基础设施决定 |
+| 5 | 测试规格 | **覆盖成立**：V1 ↔ C4 语义表逐一对应；V4=O-S2-P033-1（SELL 清零）/ V5=B3（bounded）/ V7=B1（VWAP）三新证均有回归锁；V8 红态豁免已标注。**1 处精化**：V6 断言须经 caplog（F-S4-P033-2）。R3 无测试锚点可接受（D6 不改判定，O-S4-P033-2） |
+| 6 | 门禁推算 | **全部正确**：731+17=**748** / 82+1=**83** / 119+1=**120**（新测试文件；`core/execution.py` 已计入 119）/ mypy 37 files 不变（无新文件）/ golden 13 零重录。提醒：新测试文件首轮须过 black（F-S9-P031-2 先例） |
+
+### 12.4 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S4-P033-1 | P3 | 三处插入锚点不精确：§4.1「Trade 之后约 L50」——其间实为 `TradeLog` 类（L52-150）；§4.2「L508 之后」——精化为 L509 后 / L511 前；§4.3「L803 之后」——精化为 L808 后 / L810 前 | **当轮回写 §4.1-4.3**（已回写） |
+| F-S4-P033-2 | P3 | V6 断言「`skipped_price` 含该股」不可直接断言——局部列表无 getter，须经 `caplog` 断言 L836-839 汇总日志 | **当轮回写 §6**（已回写） |
+| O-S4-P033-1 | 观察 | 非 OPEN 执行类型下，引擎预过滤保守收窄（open 无效但 close 有效 → 拒绝；D1 单独会放行）——与 next-day 对称的有意选择 | 登记（裁决 #3） |
+| O-S4-P033-2 | 观察 | R3（`close=0` 告警）无测试锚点——D6 不改判定、无行为可断言；U-P033-1 实施时须补 | 登记 |
+| O-S4-P033-3 | 观察 | C5 新证：未知类型分支正常构造不可达（构造期枚举校验）；变异后「trade 已入账但 success=False」为既有 quirk（add_trade 先于 logger）——理论面，不影响 D1 | 登记不改 |
+
+### 12.5 结论与 Step 5 前置条件
+
+**结论**: **pass**（0 P0/P1/P2 / 2 P3 当轮回写 / 3 观察）——守卫位置论证经 C1/C2 实锤成立、双层过滤不冗余、预过滤口径可接受、计量形态合理、测试规格覆盖完备、门禁推算正确。准予进入 **Step 5 IMPL**。
+
+**Step 5 IMPL 前置条件**:
+1. 按 §4 精化后锚点实现：`is_valid_price` 置于 `ExecutionSimulator` 类前；agents 过滤块在 L509/L511 之间；V2 过滤块在 L808/L810 之间；
+2. 守卫与前置过滤共用 `is_valid_price`（单一来源，双引擎导入同一名）；
+3. 新测试文件（V1-V8，17 实例）完稿后先跑 `black`（F-S9-P031-2 先例）；
+4. V6 断言用 `caplog`（L836-839 汇总日志文案）；V8 红态即通过须显式标注。
