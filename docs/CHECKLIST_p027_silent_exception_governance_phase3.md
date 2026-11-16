@@ -2,7 +2,7 @@
 
 > **批次**: P-027 · **T1**（`agents/` / `filter/` / `strategy_evaluation/`；零 fail-fast、零返回值语义变更、零既有文案改写）
 > **上游**: [IMPL_p027](IMPL_p027_silent_exception_governance_phase3.md)（B1-B4 / §4 精确变更规格 / §5 测试 T1-T12 / §6 门禁 / §7 A1-A7 / §10 Step 6 复审 pass）；[DESIGN_p027](DESIGN_p027_silent_exception_governance_phase3.md)（D1-D7 / I1-I8 / §5 不变式 / §6 验证契约）；[RESEARCH_p027](RESEARCH_p027_silent_exception_governance_phase3.md)（§3 22 处清单 / §4 A-B-C-E 分类 / §5 E2 复现）
-> **状态**: **Step 9 TDD 实施完成**（2026-11-16，HEAD `7dfe755`）——44 项实测全回填（0 ❌）；门禁 24 passed / 711 passed / mypy 37 files 0 / black 117；CI run `43774985791` 三 job success（Step 8 Review 记录见 §10）；**Step 10 ADD 审计自审 pass**（`4974552`，99/A，0 P0-P2 + 1 P3；**同基座 → RULE-5 异构终审待补**，见 §12）
+> **状态**: **Step 9 TDD 实施完成**（2026-11-16，HEAD `7dfe755`）——44 项实测全回填（0 ❌）；门禁 24 passed / 711 passed / mypy 37 files 0 / black 117；CI run `43774985791` 三 job success（Step 8 Review 记录见 §10）；**Step 10 ADD 审计自审 pass**（`4974552`，99/A，0 P0-P2 + 1 P3，见 §12）；**RULE-5 异构终审 pass**（GLM-5.3-Flash，`d381fd6` 基线，99/A，F-R5-P027-1 P3 当轮修正；**P-027 批次关闭**，见 §13）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（Step 3 实测，HEAD `ad04dfe`，Python312）**: 全量 `pytest -q` **687 passed** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / `black --check core tests` **116 unchanged**
 > **代码证据时点**: 实施前 HEAD `6d3e0b7` → 实施后 `7dfe755`；实测锚点漂移见 IMPL §11.3
@@ -302,9 +302,51 @@ Step 6 移交的 `tools/` 3 处 + `examples/` 1 处 `except Exception`，读码�
 | mypy | `--explicit-package-bases --check-untyped-defs core` → **37 files 0 error** |
 | black | `--check core tests` → **117 unchanged** |
 | golden | G1-G7 全绿，`git status --short tests/golden/` 空（零重录） |
-| 台账机械校验 | CHECKLIST 表项 `^| [A-F]\d+ |` = **44**、`✅` = 62 处（含条文引用）、`❌` = 3 处（均为「0 ❌」表述与 RULE-1 规则定义）、`[待 Step 9]` 仅 2 处定义/历史字面 |
+| 台账机械校验 | CHECKLIST 表项 `^| [A-F]\d+ |` = **44**、`✅` = 62 处（含条文引用）、`❌` = 5 处（初记 3 处系漏计 §12.8 自身行，实测修正见 §13 F-R5-P027-1；5 处均为「0 ❌」表述 / RULE-1 定义 / 审计记录自身文字，**零真实判定单元格**）、`[待 Step 9]` = 3 处（初记 2 处同因漏计，均为定义 / 历史记录字面，**零占位单元格**） |
 | 计数一致性 | README 4 处 + `ARCHITECTURE.md` L3 均 **711**；测试文件 **80** |
 
 ### 12.9 审计结论
 
 **自审 pass（0 P0 / 0 P1 / 0 P2 / 1 P3 已登记 + 3 观察）。** 代码与 DESIGN D1-D7 + I1-I8 完全对齐；fail-open、早退语义、既有文案与签名四面守住；零改动面干净；E4 证明本批口径内无遗漏。**RULE-5 异构终审未执行**（审计基座与作者同源）→ 批次关闭以异基座复核通过为前提；复核重点建议：F-ADD-P027-1 类级计数并发面、12.6 的 `agents/` 8 项是否并入下一批。
+
+---
+
+## 13. Step 10 RULE-5 异构终审记录（2026-11-16）
+
+> **审计基座**: **GLM-5.3-Flash**（≠ 四文档与 §12 自审作者 DeepSeek-V4.1-Flash）→ **RULE-5 异构条件成立**，本节为批次关闭前提的异构终审记录。
+> **方法**: 对 §12 全部证据独立重放（E1 diff 复核 / E1 门禁复跑 / E3 独立读码 / E4 盲区脚本重跑与逻辑审查）+ §12 结论独立裁定；不采信任何未经本基座复现的读数。
+> **基线**: HEAD `d381fd6`（Step 10 提交）；代码 diff base `5f15989`；Python312 + `MPLBACKEND=Agg`。
+
+### 13.1 E1-E4 重放结果
+
+| 证据面 | §12 声明 | 本基座复现 | 结论 |
+|--------|----------|------------|------|
+| E1 diff | 代码 10 文件 +116/−4、测试 +358、0 新增 `raise`、删除行 4 行全可解释 | `git diff --numstat 5f15989..HEAD` 逐文件相加 = **+116/−4**；`Select-String '^\+.*raise'` = **0**；`-U0` 删除行恰 **4 行**（1 debug 行 / 2 `except Exception:` / 1 `return` 三行出口） | **一致** |
+| E1 零改动面 | `scripts/ batch_backtest cli.py core pyproject.toml tests/golden` diff = 空 | 复现 = **空**；`git status --short tests/golden/` = 空 | **一致** |
+| E1 门禁 | 711 / 37 files / 117 / golden 零重录 | 复跑 **711 passed**（83.25s，exit 0）/ **37 source files no issues** / **117 files unchanged** / golden status 空 | **一致** |
+| E3 载体 | 10（9 实例 + 1 类级） | `Select-String '_failure_counts: dict'` = **10**，行号逐一吻合（base:54 / universe:105 / framework:882 / optimizer:749 / assumption:108 / guru:55 / engine:111 / v2:757 / stats:45 + 类级 guru:157） | **一致** |
+| E3 接入 | 16 | `_record_failure(` 14 处（custom×4 / universe:382 / guru_load:74 / role_analysis:827 / rotation:934 / team:1085 / engine:159+247+305 / decision:811）+ 内联 2 处（stats:141 `half_life` / assumption:207 `kpss_test`）= **16** | **一致** |
+| E3 出口/清零 | 6 出口 + 3 清零 | 出口键 `"failure_counts"` 5 处（framework:1152 / engine:171 / v2:966 / optimizer:861 / stats:197）+ guru 直接 getter = **6**；清零 universe:142 / engine:154 / guru:497 = **3** | **一致** |
+| E3 顺序约束 | A1 / A7 | guru L55 计数早于 L56 `_load_all()`；framework L1085 计数先于 L1086 `warning`（文案逐字）；`_generate_results` 原返回值无 `"failure_counts"` 键（字面 grep 仅命中新增接入点，无碰撞） | **一致** |
+| E4 盲区 | 97 文件 / 21 项 / 8+4+3+3+2+1 | 脚本重跑 **97 / 21**，逐项行号与 §12.6 表吻合；脚本判据审查：`logger.debug` 计为可观测与批次 B 类口径一致（无假阴性）；计数器命名不含 `_counts`/`_stats`/`error` 时仅产生假阳性（保守方向） | **一致** |
+
+### 13.2 §12 结论独立裁定
+
+| 项 | §12 裁定 | 本基座裁定 | 依据 |
+|----|----------|------------|------|
+| F-ADD-P027-1（P3 登记不改） | 类级计数无锁，并发风险 | **维持 P3** | 并发窗口真实（L497 `clear()` 与 L506 自增之间），但全仓调用点仅 `__main__` 演示（L576）与测试，单线程假设经 `grep create_all_gurus\(` 全量复核成立；加锁属设计外范围 |
+| U-P027-1（agents/ 8 项登记） | 下一批候选 | **维持登记** | 8 项均为 bare `except: pass` / 窄类型 `KeyError`·`LinAlgError`，不在 `except Exception` 口径内；其余 13 项（import 4 / core 3 / scripts 3 / tools 2 / 存储 1）分类与扫描输出逐一吻合 |
+| O-S10-P027-3（C 类内联计数） | 不改 | **维持** | 内联形态与 `_record_failure` 语义等价，属 DESIGN 最小改动取舍 |
+| Phase 0 质量门 5/5 | Tier A | **维持** | 独立检索 DESIGN 全文无「合理/适当/尽量/酌情」类模糊词 |
+
+### 13.3 异构发现
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-R5-P027-1 | **P3** | §12.8 台账机械校验读数漂移：`❌` 声明 3 处（实测 **5**）、`[待 Step 9]` 声明 2 处（实测 **3**）——漏计 §12.8 自身行内两处字面；5/3 处全部为定义、历史表述或审计记录自身文字，**零真实判定单元格受影响**，门禁与代码零关联 | **当轮修正**：§12.8 行已按实测改写并在本节留痕 |
+
+**P0 = 0 / P1 = 0 / P2 = 0 / P3 = 1（当轮已修）。**
+
+### 13.4 异构终审结论
+
+**pass（99/A）。** §12 自审全部证据在本基座下独立复现；两项预留复核重点（F-ADD-P027-1 并发面 / U-P027-1 处置）裁定均维持原结论；唯一发现 F-R5-P027-1 为审计记录自身文字计数漂移（P3），已当轮修正。**P-027 批次满足关闭条件：Step 1-10 全通过 + 异构终审 pass + 门禁绿 + CI 绿。**
