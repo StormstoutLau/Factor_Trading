@@ -313,8 +313,8 @@ class ExecutionSimulator:
                 )
                 return False, None
 
-            # 价格合理性检查
-            if close_price is not None:
+            # P-034 D1：价格合理性检查（close 无效时跳过——避免 inf 噪声 / 除零吞单 / NaN 静默）
+            if close_price is not None and is_valid_price(close_price):
                 price_diff_ratio = abs(execution_price - close_price) / close_price
                 if price_diff_ratio > 0.1:  # 10%阈值
                     logger.warning(

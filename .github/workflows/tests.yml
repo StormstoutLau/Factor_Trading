@@ -44,3 +44,16 @@ jobs:
 
       - name: Type check (mypy)
         run: python -m mypy --explicit-package-bases --check-untyped-defs core
+
+  lock-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.11.14"
+
+      - name: Check lockfile is up to date
+        run: uv lock --check

@@ -299,3 +299,48 @@ B3 ──→ B4（全量门禁 + 回填）
 1. CHECKLIST 按 V1-V5（12 实例）口径编制，**红态 3F/9P** 与四例回归保护显式登记；
 2. 门禁实测列引用 §11.2 读数（748 / 120 / 37 / 83），并注明 `.py` 全量口径（F-S6-P034-1）；
 3. Step 9 红绿留证须含 E3 的三例失败读数（F5 两读数），并与本节逐项对拍。
+
+---
+
+## 12. Step 9 实施记录（TDD 红→绿 + 门禁，2026-11-17）
+
+> **执行基座**: DeepSeek-V4.1-Flash；基线 HEAD `642ec60`；Python312 + `MPLBACKEND=Agg`。
+
+### 12.1 红→绿（F5 两读数）
+
+| 阶段 | 读数 |
+|------|------|
+| **红**（B1 未改） | **3 failed, 9 passed, 1 warning**——`[python-0]` `assert False is True` / `[numpy-0]` `assert [<LogRecord 差异=inf%>] == []` / `v4_zero_close_not_swallowed` `assert False is True` |
+| **绿**（B1 落地后） | **12 passed in 0.56s** |
+
+红态三例与 §11.3 E3 预览**逐项一致**。
+
+### 12.2 净行数（`git diff --cached --numstat` 实测）
+
+| 文件 | numstat |
+|------|---------|
+| `core/execution.py` | **+2 / −2** |
+| `.github/workflows/tests.yml` | **+14 / −1** |
+| `tests/test_p034_price_diff_guard.py` | **+136 / −0** |
+| `CHANGELOG.md` | **+2 / −1** |
+| `docs/ARCHITECTURE.md` | **+1 / −1** |
+| `docs/PROGRESS.md` | **+10 / −3** |
+| `docs/CHECKLIST_p034_ledger_diff_guard_and_lock_gate.md` | **+92 / −40** |
+| `docs/IMPL_p034_ledger_diff_guard_and_lock_gate.md` | **+33 / −0** |
+| **合计（8 文件）** | **+290 / −48** |
+
+> 代码面（3 文件 + 测试）= execution `+2/−2` + workflow `+14/−1` + 测试 `+136/−0` = **+152/−3**；文档面 5 文件 **+138/−45**。
+
+### 12.3 门禁与单一来源
+
+- 门禁：**760 passed**（43.53s）/ `tests/` .py **84**（`test_*.py` 81）/ black **121 unchanged** / mypy **37 files 0** / golden **13 零重录** / AST **22** / `core/` 新增 except **0** / `uv lock --check` **exit 0** / 回归子集 **86 passed**（13+24+11+9+17+12）。
+- 单一来源：`is_valid_price` **1 定义**（execution L153）+ **4 调用**（execution L309 / **L317 新增** / agents L512 / engine_v2 L811）。
+- 顺序敏感四项：L316 注释 → L317 条件 → L318 ratio；`is not None` 在 `and` 左侧；YAML `jobs = ['test','lock-check']`；台账 §1.4 L82-88。
+
+### 12.4 实施期发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S9-P034-1 | P3 | CHECKLIST E8 判据写「**≥ 74 passed**」——下限判据在 p034 的 12 例漏跑时仍成立，无法检出漂移 | **当轮修正**为「**86 passed**」精确等值（CHECKLIST E8 已改） |
+| F-S9-P034-2 | 观察 | 新测试文件首轮被 `black` 重排 1 文件（O-I-P034-1 预判成立） | 已格式化 |
+| O-S9-P034-1 | 观察 | `P-034` 行 `done` 待 Step 10 关闭后置 | Step 10 复核 |

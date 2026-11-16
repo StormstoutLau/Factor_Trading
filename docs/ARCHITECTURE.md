@@ -332,7 +332,7 @@ optimizer = PluginFactory.create("optimizer", "my_optimizer", config)
 | numba | Engine V3 JIT 加速 | 未声明；缺失时降级 `py_func` |
 | pyarrow / fastparquet | Parquet 读写（Factor_DB） | 未声明；缺失时降级 CSV |
 
-> `ta` / `tushare` / `akshare` 位于核心 `dependencies`（非可选）。修改 `[project].dependencies` 或 extras 后须运行 `uv lock` 并提交 `uv.lock`；CI 使用 pip，不校验锁。`uv sync` 默认不同步 extras，需 `--extra web` 或 `--all-extras`。
+> `ta` / `tushare` / `akshare` 位于核心 `dependencies`（非可选）。修改 `[project].dependencies` 或 extras 后须运行 `uv lock` 并提交 `uv.lock`；**CI 的 `lock-check` job 以 `uv lock --check` 校验锁与 pyproject 一致（失败即红，无 `|| true`）**，测试 job 仍用 pip 安装。`uv sync` 默认不同步 extras，需 `--extra web` 或 `--all-extras`。
 
 ---
 
