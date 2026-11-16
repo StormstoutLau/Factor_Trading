@@ -1122,7 +1122,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **范围**: **T1**（`core/execution.py` + `core/engine_v2.py` + `agents/multi_strategy_engine.py`）；`tracker` 与 `PendingOrderQueue` 零改动；golden 13 条全为合法价，预期零重录。
 - **遗留**: Step 2 须评估 0 价拒绝后的长期重试噪声（`mark_expired` 兜底时效）与 R3/VWAP NaN 是否同批；U-P031-2（BUY 现金夹紧）与 U-P014-3 仍独立挂起。
 - **下一 Step**: **Step 2 异构 Review**（须 GLM-5.3-Flash ≠ 本文件作者 DeepSeek-V4.1-Flash）。
-- **提交与 CI**: 提交后回填。
+- **提交与 CI**: 提交 `839f5b5`（2 文件 **+229/−1**：RESEARCH 新建 + PROGRESS §1.4/§3.37/§3.38）→ CI run `43887581920` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
