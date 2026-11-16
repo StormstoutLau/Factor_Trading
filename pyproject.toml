@@ -62,9 +62,10 @@ dev = [
     "pytest-cov>=4.1.0",
     "black~=26.0",
     "flake8>=6.0.0",
-    # P-036 B0：mypy 钉到 2.4.x。门禁读数对 minor 版本敏感——同一配置下
-    # 2.1.0 的 `core` 为 0 error，2.4.1 为 21 error（被 follow 的 filter/ 上报），
-    # 见 docs/RESEARCH_p036_mypy_check_surface_expansion.md R1。升级须显式提交。
+    # P-036 B0：mypy 钉到 2.4.x。使锁、CI、本地三方一致（B0 前本地 2.1.0 ≠ CI 2.4.1），
+    # 升级须显式提交。Step 2 更正（RESEARCH_p036 R1'）：门禁读数对 mypy 版本的「敏感性」
+    # 归因不成立（干净缓存下 2.1.0/2.4.1 均渗入 filter 21 条，主环境 core-follow=0 为
+    # 未归因的本地现象 O-P036-5）——钉版依据为可复现性卫生而非「已知会改变读数」。
     "mypy~=2.4.1",
     "isort>=5.12.0",
 ]

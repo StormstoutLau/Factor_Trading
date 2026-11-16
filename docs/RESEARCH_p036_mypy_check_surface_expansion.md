@@ -90,10 +90,12 @@ mypy --explicit-package-bases --check-untyped-defs core
 
 ### 4.2 合并读数（两种门禁设计）
 
-| 方案 | target 集 | 读数 |
-|------|-----------|------|
-| **B（filter 不豁免）** | `core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy` | **129 errors / 25 files**（检查 81 source files） |
-| **C（保留 `filter.*` 豁免）** | 同上减去 `filter` | **108 errors / 18 files**（检查 71 source files） |
+| 方案 | target 集 | 读数 | config 口径 |
+|------|-----------|------|-------------|
+| **B（filter 不豁免）** | `core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy` | **129 errors / 25 files**（检查 81 source files） | 无 override（TEMP ini） |
+| **C（保留 `filter.*` 豁免）** | 同上减去 `filter` | **108 errors / 18 files**（检查 71 source files） | **仓库 pyproject（override 生效）** |
+
+> **Step 2 更正注（F-S2-P036-1，P3）**：原表未注明两方案的 config 口径不同。Step 2 重放发现：**无 override config 下 C 方案同 target 集仍为 129 errors / 25 files**——filter 目标虽移除，其 21 条错误经 `core → filter` follow 仍渗入（E1c 重放实测）；「108 / 18」仅在仓库 config（`filter.* ignore_errors` 生效）下复现（E1e 实测 108/18/71 ✓）。**「去掉 filter 目标 ≠ 去掉 filter 错误」**——B3 批移除 override 当天门禁将新增 21 条计入，须在 DESIGN 预期中显式登记。
 
 ### 4.3 错误码分布（B 方案，129 条）
 
@@ -134,7 +136,9 @@ mypy --explicit-package-bases --check-untyped-defs core
 
 ## 5. 关键发现
 
-### R1（机制实锤）：根因是 **mypy 版本行为差异**，不是 pandas 类型桩
+### R1（~~机制实锤~~ **Step 2 更正：归因不成立，见下方 R1'**）：根因是 **mypy 版本行为差异**，不是 pandas 类型桩
+
+> **⚠️ F-S2-P036-2（P2，Step 2 异构复审更正）**：本节原始结论「mypy 版本行为差异」**已被 Step 2 控变量实验证伪**。原对照实验混杂了未控变量（主环境与 venv 的 site-packages 闭包差异 + 可能的缓存状态）。**原句保留如下，结论以 R1' 为准；§11 B0 的钉版决策保留、理由按 R1' 改写。**
 
 决定性对照实验（同一 config，仅换 mypy 版本）：
 
@@ -147,18 +151,40 @@ mypy --explicit-package-bases --check-untyped-defs core
 
 **pandas 类型桩假设被直接证伪**：`pandas 2.2.3` 与 `pandas 3.1.1` 的 `py.typed` 检测均为 `False`（`os.path.exists(pandas.__path__[0]+'/py.typed')`），且 `dev` extras 未声明 `pandas-stubs` → 两版本下 pandas 都是 `Any`，不可能产生 `union-attr` 这类需要具体类型的错误。
 
-### R2（P-024 归因失实）：原「X1-X4 验证 mypy 2.1.0/2.4.1 均 0」不成立
+### R1'（Step 2 控变量实验定论）：版本与 pandas 均非渗入变量；主环境 `core-follow = 0` 机制未归因
 
-- P-024 记录（[CHANGELOG](../CHANGELOG.md) `### CI` 条目 / `PROGRESS §3.28`）称：Step 9 首跑 CI 报 `filter/*` 21 errors，经 X1-X4 隔离实验判定「根因 pandas 3.1.1 类型桩，非 mypy 版本；mypy 2.1.0 / 2.4.1 均 0」。
-- 本轮实测：**mypy 2.4.1 无 override 时 `core` = 21 errors**，与 P-024 的 CI 读数完全一致；mypy 2.1.0 = 0。**结论方向相反**。
-- 影响：`filter.* ignore_errors` 的注释理由（「pandas 3.1.1 类型桩」）与事实不符；该 override 事实上掩盖的是 **`filter/` 自身的 21 条代码级类型错误**，而这些错误在 pandas 2.2.3 本地、2.1.0 下**把 filter 作为直接目标**即可复现（`mypy filter` = 21 errors）。
+Step 2 以四个隔离环境（p036r1 = mypy 2.1.0、p036r2 = mypy 2.4.1，均 pandas 可切换、numpy 钉 2.4.6、pydantic 2.14.3）+ 主环境（2.4.1 / pandas 2.2.3）重做对照，**全部删 `.mypy_cache` 后测量**：
+
+| 环境 | mypy | pandas | `core` 无 override（干净缓存） | `filter` 直检 |
+|------|------|--------|------------------------------|---------------|
+| p036r1 | 2.1.0 | 3.1.1 | **21 errors / 7 files** | 21 / 7 |
+| p036r1 | 2.1.0 | 2.2.3（降级二分） | **21 errors / 7 files** | 21 / 7 |
+| p036r2 | 2.4.1 | 3.1.1 | **21 errors / 7 files** | 21 / 7 |
+| p036r2 | 2.4.1 | 2.2.3（降级二分） | **21 errors / 7 files** | 21 / 7 |
+| 主环境 | 2.4.1 | 2.2.3 | **0**（删缓存后稳定复现；verbose 证实本地 filter 被解析） | 21 / 7 |
+
+定论四条：
+
+1. **`filter` 直检恒 21**（三环境 × 三组合）——21 条错误与 mypy 版本、pandas 版本、环境闭包**全部无关**，是 filter 自身的代码级类型错误（**R2/R3 强化确认**）。
+2. **干净缓存下 mypy 2.1.0 与 2.4.1 都渗入 21 条**（r1/r2 全象限）——「版本决定渗入与否」不成立；原 R1 的「2.1.0 = 0」读数是**主环境特有现象**，不是版本行为。
+3. **主环境 `core` 构建恒 0 而同环境 `filter` 直检恒 21**——同版本、同闭包、同一次删缓存下 follow-不报 vs 直检-报，机制**未能完全归因**：site-packages 劫持（无 `filter` 包拷贝，verbose 证实解析本地文件）、MYPY_CACHE_DIR（未设置）、缓存复用（已删）逐一排除；剩余嫌疑 = 主环境 site-packages 闭包中某依赖包的类型面差异（如 typing_extensions / numpy 桩与 pandas 交互），**登记 O-P036-5 待查**。正是该现象让「本地 0 / CI 渗入 21」的假象维持了自 P-024 以来的全部时间——它是两次误诊（pandas 桩、mypy 版本）的共同土壤。
+4. **CI 门禁语义不受影响**：CI 门禁走仓库 config（override 生效）且 CI 环境无缓存残留，绿读数稳定；本条只影响**取证口径**，不改门禁。
+
+**对 B0 的影响**：钉版决策**保留**（CI 实际 2.4.1 / 锁 / 本地三方一致 + 升级显式化的卫生价值独立成立），但 §11 中「版本敏感导致读数漂移」的理由**作废**，改写为「解析行为可能随版本变化（r1/r2 内部机制未归因的旁证）+ 环境可复现性」。
+
+### R2'（P-024 归因失实——维持并强化；X1-X3 口径澄清）
+
+- P-024 记录（[CHANGELOG](../CHANGELOG.md) `### CI` 条目 / `PROGRESS §3.28`）称：Step 9 首跑 CI 报 `filter/*` 21 errors，经 X1-X4 隔离实验判定「根因 pandas 3.1.1 类型桩，非 mypy 版本」。
+- **Step 2 定论**：21 条错误与 pandas 版本、mypy 版本、环境闭包**全部无关**（三环境直检恒 21，见 R1' 矩阵）——「pandas 3.1.1 类型桩」归因失实（两版 pandas `py.typed` 均为 `False`、`pandas-stubs` 未声明、`.pyi` 文件数同为 41），维持 Step 1 判定并强化。
+- **口径澄清（F-S2-P036-3，P3）**：P-024 的「X1-X3 验证 mypy 2.1.0 / 2.4.1 均 0」是**含 override 口径**的读数（override 生效下两版本确实均 0，本批 B0 后仍成立）；失实的是其**因果归因**（把 CI 渗入归给 pandas 桩），而非该读数本身。原 R2 引用该句时未注明口径，易误读为 P-024 断言无 override 亦为零——此处澄清。P-024 误诊的完整土壤 = **主环境 `core-follow = 0` 现象（O-P036-5）+ 含 override 口径的本地对照**：本地实验全部在「错误被吞」的环境里跑，CI 则在干净环境渗入。
+- 影响（不变）：`filter.* ignore_errors` 掩盖的是 **filter 自身的 21 条代码级类型错误**（`mypy filter` 直检在任何环境均可复现）；B3 修完后移除 override，门禁将新增 21 条（见 §4.2 更正注）。
 
 ### R3（U-P024-4 前提需重写）
 
 | 原前提 | 实测 |
 |--------|------|
-| 「`filter/` 在 pandas 3.x 下的 21 errors」 | 21 errors 与 pandas 版本**无关**：pandas 2.2.3 下 `mypy filter` 同为 **21 errors / 7 files**；成因是 mypy 2.4.x 的 follow 行为 + filter 自身类型缺陷 |
-| 「`core/` 0 条；本地 pandas 2.2.3 为 0」 | 仅当使用 mypy 2.1.0 时成立；CI 的 2.4.1 下 `core` 门禁之所以仍绿，**完全依赖** `filter.* ignore_errors` |
+| 「`filter/` 在 pandas 3.x 下的 21 errors」 | 21 errors 与 pandas 版本**无关**（Step 2 强化：pandas 2.2.3 / 3.1.1 直检同为 **21 errors / 7 files**）；「mypy 2.4.x 的 follow 行为」表述亦经 Step 2 更正——**2.1.0 干净缓存下同样渗入**（r1 全象限 21），渗入与版本无关 |
+| 「`core/` 0 条；本地 pandas 2.2.3 为 0」 | CI 的门禁绿**完全依赖** `filter.* ignore_errors`（Step 2 维持并强化——本地「0」还叠加主环境 core-follow = 0 现象，见 O-P036-5） |
 
 ### R4（真实缺陷面）：50 条 `union-attr` 是潜在 `AttributeError`
 
@@ -283,10 +309,10 @@ python -c "import pandas,os;print(os.path.exists(os.path.join(os.path.dirname(pa
 
 | 方案 | 约束 | 裁决 | 理由 |
 |------|------|------|------|
-| A | `mypy>=1.5.0,<3.0` | **拒绝** | 只挡 3.0；2.5/2.6 仍可漂移——而 R1 已实证 **2.1→2.4 就改变门禁读数（0 → 21）**，等于没解决 |
-| **B（采纳）** | **`mypy~=2.4.1`**（`>=2.4.1,<2.5`） | **采纳** | 钉到 patch 系列：行为变化概率最低、安全补丁仍可进；升级须显式提交（可审查） |
+| A | `mypy>=1.5.0,<3.0` | **拒绝** | 只挡 3.0；2.5/2.6 仍可漂移（~~原理由引用 R1「版本敏感」~~——Step 2 更正：R1 归因不成立，见 R1'；拒绝理由改依「锁与 CI / 本地三方一致 + 升级显式化」） |
+| **B（采纳）** | **`mypy~=2.4.1`**（`>=2.4.1,<2.5`） | **采纳** | 钉到 patch 系列：安全补丁仍可进；升级须显式提交（可审查）；使锁、CI、本地三方一致（B0 前本地 2.1.0 ≠ CI 2.4.1 为既成事实） |
 | C | `mypy==2.4.1` | 拒绝 | 冻结补丁修复；锁/本地任何 2.4.x 差异都要人工改，收益边际 |
-| D | 维持 `>=1.5.0` | 拒绝 | R1 实证门禁读数随 CI 解析漂移（CI 已装 2.4.1，本机仍 2.1.0） |
+| D | 维持 `>=1.5.0` | 拒绝 | 版本不钉 = 依赖解析随时间漂移（~~原理由引用 R1~~，Step 2 更正后维持拒绝的依据 = 可复现性卫生而非「已知会改变读数」） |
 
 ### 11.2 变更清单
 
@@ -314,3 +340,40 @@ python -c "import pandas,os;print(os.path.exists(os.path.join(os.path.dirname(pa
 - **未改变（显式）**：门禁 target 仍为 `core`；`filter.*` 仍豁免（B3 处置）；`agents/` 等 129 条错误未触碰。
 - **台账**：`U-P024-1` → done；`U-P036-1` → done；`U-P036-2~4` 仍 pending。
 - **残余风险**：2.4.x 内部补丁升级仍可能微调诊断（概率低）；若发生，`uv lock` + CI 会在同一次提交内暴露，不会静默漂移。
+- **Step 2 理由更正（F-S2-P036-2）**：本节与 `pyproject.toml` 注释中原引的「同一配置下 2.1.0 的 `core` 为 0 error，2.4.1 为 21 error」**不成立**（该对照混杂环境闭包差异，见 R1'）——钉版决策保留，理由改依「锁 / CI / 本地三方一致 + 升级显式化 + 可复现性」；`pyproject.toml` 注释已按此改写。
+
+---
+
+## 12. Step 2 异构 Review 记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座披露**: 复审基座 **GLM-5.3-Flash ≠ Step 1 作者 DeepSeek-V4.1-Flash** → **RULE-5 异构条件成立**（P-036 首个异构审查；先例 U-P032-1 / U-P034-3 同型）。复审对象 = 本文件 Step 1 版（`d8c1a3c`）+ B0 实施（`76174c2`）；复审时点 HEAD `ca7dd3e`。
+
+### 12.1 五项复核
+
+| ID | 复核项 | 结论 | 证据 |
+|----|--------|------|------|
+| E1 | 读数重放 | ✅（1 项口径缺陷 F-S2-P036-1） | 保真校验 `mypy --explicit-package-bases --check-untyped-defs core` → **Success 37 files** 与 CI 逐字一致；B 方案重放 **129 / 25 / 81** ✓；C 方案重放**不符**（129/25 ≠ 108/18）→ 定位为 config 口径未注明（§4.2 已回写）；`py.typed` 两版 pandas 均 `False` ✓ |
+| E2 | R1 对照实验控变量闭合（**新证**） | ❌→✅（**F-S2-P036-2，P2**） | 四象限 + pandas 二分实验（§5 R1' 矩阵，全部删缓存测量）：2.1.0 与 2.4.1 在 r1/r2 干净环境**均渗入 21 条**、pandas 2.2.3/3.1.1 无差 → 原对照混杂环境闭包变量，「版本行为差异」**证伪**；原「2.1.0 = 0」为主环境特有现象（机制未归因，O-P036-5） |
+| E3 | 机械对账 | ✅ | 错误码分布求和 50+34+11+8+6+4+3+3+3+3+1+1+1+1 = **129** ✓；分级 A50+B30+C46+3 = 129 ✓；M-B 分批 14+94+21 = 129 ✓；§4.2 B/C 读数与重放一致（口径更正后）✓；B0 后锁 `mypy 2.4.1` / `pyproject` `~=2.4.1` / 本地 `2.4.1` 三方一致 ✓ |
+| E4 | R4 缺陷面抽核 | ✅ | 抽核样本行在 B 重放输出中存在：`style_drift_analysis.py:250` / `style_reflection_engine.py:222`（3 条 union-attr）/ `agent_framework.py:1292`、`1334-1337`（`DataManager \| None → .get_adj_price`）——与正文引用逐字一致 |
+| E5 | 负向发现 N1-N3 复核 | ✅ | N1（py.typed 检测）复现 ✓；N2（INI 显式配置无 exit 2）复现 ✓（TEMP .toml 曾失败属配置格式问题，非目录名问题）；N3（verbose Parsing 本地 filter）复现 ✓ |
+
+### 12.2 发现分级与当轮处置
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S2-P036-2** | **P2** | **R1「mypy 版本行为差异」归因不成立**——原对照实验混杂环境变量；控变量重做后干净缓存下 2.1.0/2.4.1 均渗入 21 条（§5 R1'）。波及：R1 原表、R3「2.4.x follow 行为」表述、§11 B0 理由、`pyproject`/`ARCHITECTURE`/`CHANGELOG`/PROGRESS 中「2.1.0=0 / 2.4.1=21」表述 | **当轮回写**：§5 加 R1' 定论 + 原 R1 标记更正；R3 更正；§11.1/§11.4 理由改写；`pyproject.toml` 注释、`ARCHITECTURE §9.2`、CHANGELOG B0 条目同步改写；**B0 钉版决策保留**（理由改为三方一致 + 可复现性） |
+| **F-S2-P036-1** | P3 | §4.2 C 方案读数「108/18」未注明是**仓库 config（override 生效）口径**；无 override 下同 target 仍 129/25——「去目标 ≠ 去错误」，B3 移除 override 当天门禁新增 21 条须入 DESIGN 预期 | 当轮回写 §4.2（加 config 口径列 + 更正注） |
+| **F-S2-P036-3** | P3 | 原 R2 引用 P-024「X1-X3 验证 2.1.0/2.4.1 均 0」未注明该读数是**含 override 口径**（override 下两版本确实均 0 且至今成立）；失实的是归因而非读数——原引用易被误读为 P-024 断言无 override 亦为零 | 当轮回写 R2'（口径澄清段） |
+| O-S2-P036-1 | 观察 | **O-P036-5 登记**：主环境 `core` 构建（filter 被 follow 且解析本地文件）恒 0 错误、同环境 `filter` 直检恒 21——同版本同闭包下 follow-不报 vs 直检-报，机制未归因（site-packages 劫持 / 缓存 / MYPY_CACHE_DIR 已排除）；它是 P-024 两次误诊的共同土壤 | §1.4 建行 pending（条件触发：mypy 版本升级 / 深入排查需求） |
+| O-S2-P036-2 | 观察 | §4.2「B 方案」与 §6「B 级」字母碰撞（P-031 F-S8-P031-3 同型）；DESIGN 阶段引用时须加前缀（`§4.2-B` / `§6-B`） | 登记不改（Step 1 文档，改写留待 DESIGN 阶段统一） |
+| O-S2-P036-3 | 观察 | 复审期间 `%TEMP%` 的 p036ci2 venv 与 `mypy_p036.ini` 被系统清理——E1 重放前须重建配置文件；取证工件放 TEMP 的既有风险再次显形（P-025 E5 探针同教训） | 登记不改（取证脚本不入库为既定纪律） |
+| O-S2-P036-4 | 观察 | Step 1 环境矩阵中 venv numpy（2.5.5）≠ CI numpy（2.4.6），保真校验通过故影响评定为零；Step 2 的 r1/r2 已统一钉 numpy 2.4.6 消除该变量 | 登记不改（已在新实验中控制） |
+
+### 12.3 结论
+
+**结论**: **pass（带 1 P2 当轮更正）**——Step 1 的**全部机械读数可重放**（129/25、108/18 口径更正后、错误码、分级、集中度）、R2「filter 自身错误」**强化确认**（直检恒 21）、R4 缺陷面抽核一致、方案矩阵与低效排除结构完整；**唯 R1 机制归因被控变量实验证伪并已当轮改写**（F-S2-P036-2），B0 决策保留、理由修正。M-B 两级分批路线不受影响（B1 小模块 14 / B2 agents 94 / B3 filter 21 + 移除 override 时新增 21 条的预期登记）。
+
+**下一 Step**: Step 3 DESIGN（B0 理由已定稿；重点 = B1/B2/B3 分批边界、union-attr 修复策略裁决（R-P036-2 守卫 vs 保持原崩溃）、B3 移除 override 的 21 条预期登记、O-P036-5 是否单独立项）。
+
+**提交与 CI**: 本节记录提交后回填（占位）。
