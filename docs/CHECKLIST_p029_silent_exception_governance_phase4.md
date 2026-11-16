@@ -2,7 +2,7 @@
 
 > **批次**: P-029 · **T1**（`agents/` 3 文件；零 fail-fast、零返回值语义变更、零既有文案改写、**零新增日志**）
 > **上游**: [IMPL_p029](IMPL_p029_silent_exception_governance_phase4.md)（B1-B4 / §4 精确变更规格 / §5 V1-V7 / §6 门禁 / §7 A1-A7 / §10 Step 6 复审 pass）；[DESIGN_p029](DESIGN_p029_silent_exception_governance_phase4.md)（D1-D7 / I1-I8 / §5 不变式 / §6 验证契约 + F-S6-P029-4 注记）；[RESEARCH_p029](RESEARCH_p029_silent_exception_governance_phase4.md)（§3 八处清单 / §4 分类 / §5 E2 / §11 Step 2 复审）
-> **状态**: **Step 9 TDD 实施完成**（2026-11-16，HEAD `58954bd`）——38 项实测全回填（**0 ❌**）；门禁 11 passed / 722 passed / mypy 37 files 0 / black 118 / golden 13 零重录；CI run `43824569283` 三 job success（Step 8 Review 记录见 §10）
+> **状态**: **Step 10 ADD 审计 + RULE-5 异构终审通过，P-029 批次关闭**（2026-11-16，审计基座 GLM-5.3-Flash ≠ 四文档作者 DeepSeek-V4.1-Flash）——0 P0-P2 + 1 P3 当轮修正（F-R5-P029-1）；门禁独立复跑 722 passed / mypy 37 files 0 / black 118 / golden 13 / I1 = 22 全绿；盲区 silent **9 → 1**（见 §11；Step 8 Review 记录见 §10）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 4 实测 @HEAD `23132cb`，Python312）**: 全量 `pytest -q` **711 passed** / `tests/` .py **80**（77 `test_*.py` + 3 `_` 辅助）/ `black --check core tests` **117 unchanged** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / I1 `except Exception` **22**
 > **目标读数（Step 9）**: **722 passed** / 测试文件 **81** / black **118** / mypy **37 files 0** / I1 恒 **22**
@@ -59,7 +59,7 @@
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
 | D1 | I1：十文件 AST 扫描 `except Exception` 合计仍 **22**（本批 9 处均为 bare / 窄类型） | IMPL §6 AST 单行命令（独立复跑）= `22` | I1 / IMPL §6 | ✅ AST 独立复跑 = **22** |
-| D2 | I2：零新增 `raise` / 零 fail-fast | `git diff -- '*.py'` 中 `^+.*raise ` = 0（测试辅助可豁免，须登记） | I2 / D7 | ✅ `^+.*raise ` = **0**（测试辅助无 raise） |
+| D2 | I2：零新增 `raise` / 零 fail-fast | `git diff -- '*.py'` 中 `^+.*raise ` = 0（测试辅助可豁免，须登记） | I2 / D7 | ✅ 生产面（`agents/`）`^+.*raise ` = **0**；测试注入辅助含 **5 处** raise（V2 `AssertionError` / V3 `RuntimeError` ×2 / V4 `KeyError` / V6 `LinAlgError` 异常探针）豁免登记——初版实测「测试辅助无 raise」表述失实，Step 10 审计当轮修正（F-R5-P029-1，见 §11.8） |
 | D3 | I3：返回值语义零变更——缓存 `None` / 缺 `team_report` 键 / `continue` / `return` / pinv 权重域 | A1-A5 / B1-B3 / C2-C4 断言组合 | I3 / V1-V7 | ✅ V1-V7 全绿（11 passed）：三缓存 `None` / team_report 缺键 / 双 `continue` / 双 `return` / pinv 权重和 1.0 |
 | D4 | I4：九面零改动（`filter/` / `core/` / `strategy_evaluation/` / `scripts/` / `batch_backtest/` / `cli.py` / `pyproject.toml` / `.github/` / `tests/golden/*.json`） | `git diff --name-only` 仅 3 代码 + 1 测试；九面零命中 | I4 / IMPL §1 | ✅ `git diff --name-only` = 3 代码 + 1 测试；九面零命中 |
 | D5 | I5：既有签名不变——`prepare_factors` / `get_performance_summary` / `_generate_orders` / `_execute_next_day_orders` / `_process_pending_orders` / `allocate` / `MeanVarianceAllocator.__init__` 形参逐字；`get_performance_summary` 仍 **2 处**（L336 BaseAgent 勿动） | `git diff` 中 7 个 `def` 行零变更；`grep -n "def get_performance_summary"` 仍 2 处 | I5 / A2(IMPL) | ✅ `^-\s*def ` = **0**；`get_performance_summary` 仍 **2 处**（L336 / L1151） |
@@ -139,7 +139,7 @@
 | Step 7 验收清单作者 | DeepSeek-V4.1-Flash | 38 项完稿，零预填 | 2026-11-16 |
 | Step 8 一致性 Review | GLM-5.3-Flash（≠ Step 7 作者 DeepSeek-V4.1-Flash） | pass（机械五项全过 + 对齐矩阵无遗留；1 P3 当轮修正 F-S8-P029-1 + 1 观察，见 §10） | 2026-11-16 |
 | Step 9 TDD 执行 | DeepSeek-V4.1-Flash（与上游同源） | pass：三批红→绿，11 passed，门禁 722/37/118 全绿 | 2026-11-16 |
-| Step 10 ADD 审计 + RULE-5 异构终审 | 待异构基座 | — | — |
+| Step 10 ADD 审计 + RULE-5 异构终审 | GLM-5.3-Flash（≠ 四文档作者 DeepSeek-V4.1-Flash，RULE-5 异构成立；审计与终审合并一轮） | pass：0 P0 / 0 P1 / 0 P2 / 1 P3 当轮修正（F-R5-P029-1），99/A，门禁独立复跑全绿，**P-029 批次关闭**（见 §11） | 2026-11-16 |
 
 ---
 
@@ -209,3 +209,97 @@
 - **Step 8 一致性 Review pass**：机械五项全过、四处口径一致、F-S6-P029-4 映射无混用、对齐矩阵零遗留、E8 可执行性实证（83/711）。
 - 1 P3（F-S8-P029-1）当轮修正；1 观察登记。
 - **下一 Step：Step 9 TDD**——按 B1→B1t→B2→B2t→B3→B3t 逐批红绿（先核 IMPL§7-A1/A2/A3 三处顺序敏感项），最后 B4 回填本文件 38 项实测列 + IMPL §6/§11 + PROGRESS + CHANGELOG + README/ARCH 计数。
+
+---
+
+## 11. Step 10 ADD 审计 + RULE-5 异构终审（2026-11-16）
+
+> **审计基座**: **GLM-5.3-Flash**（≠ RESEARCH / DESIGN / IMPL / CHECKLIST 四文档作者 DeepSeek-V4.1-Flash）→ **RULE-5 异构条件天然成立**，ADD 审计与异构终审**合并为一轮**（区别于 P-027 的「同源自审 + 异基座终审」两段式）。
+> **方法**: Phase 0 spec 质量门 → Phase 1 完整性盘点 → Phase 2 保真度比对（IMPL §4）→ Phase 3 必要性（diff 逐行归因）→ Phase 4 语义/生命周期 → E1-E5 门禁独立复跑 + E4 盲区脚本复扫；不采信任何未经本基座复现的读数。
+> **审计对象**: 区间 `2080784..e8578c2`（5 提交：`e86b09d` / `7cf6718` / `58954bd` 三批代码 + `596e325` / `e8578c2` 两批文档）；审计时点 HEAD `e8578c2`；Python312 + `MPLBACKEND=Agg`。
+
+### 11.1 Phase 0 spec 质量门（DESIGN_p029）
+
+| 维度 | 得分 | 依据 |
+|------|------|------|
+| 可测试约束 | 1 | 9 键各自计数 1、缓存载体保持 `None`、S3b `else` AST 归属判定、S4 快照同调、getter 拷贝、正常路径 `{}`——均为可判定命题 |
+| 模块映射 | 1 | D1-D3→`agent_framework` 5 处 / D4→`multi_strategy_engine` 3 处 / D5-D6→`strategy_allocator` 三件套 + 1 处 / D7→约定面，全 1:1 |
+| 接口契约 | 1 | `_record_failure(key)` / `get_failure_stats() -> dict[str, int]`（拷贝）/ 出口键 `failure_counts` 均签名级明确 |
+| 修正项 | 1 | F-S6-P029-1~4 + F-S9-P029-1~2 全枚举并附回写位置（IMPL §10/§11） |
+| 跨模块契约 | 1 | I1-I8 + U-P029-2 + R-P029-4~7 + 九面零改动清单 |
+| **合计** | **5/5 = Tier A** | 无 B 档封顶 |
+
+### 11.2 Phase 1 完整性盘点（diff 形态 + 载体计数）
+
+| 设计元素 | 应有 | 实测 | 证据 |
+|----------|------|------|------|
+| 审计区间形态 | 5 提交 | **5** | `git log --oneline 2080784..e8578c2` 逐条列出 |
+| 全区间 diff | 10 文件 +398/−65 | **10 文件 +398/−65** | `git diff --stat` 末行；构成 = 3 代码 + 1 测试 + 6 文档（CHANGELOG / README / ARCHITECTURE / IMPL / CHECKLIST / PROGRESS） |
+| 代码 numstat | — | agent_framework **+7/−5** / multi_strategy **+3/−0** / allocator **+10/−0** / 测试 **+258/−0** | `git diff --numstat` 逐文件；agent_framework 收支平衡（S1-S4 四处 1:1 替换 + S3b else +2 + 快照下移移位 −1/+1） |
+| 计量接入 | 9 处 | **9**（引号键名逐一命中） | `agent_framework` L938/974/984/994/1160 + `multi_strategy_engine` L331/392/455 + `strategy_allocator` L638；P-027 遗留 5 处（L934/L1087/L159/L247/L305）零混淆 |
+| 出口 | 2 复用 + 1 getter | **3** | engine `run()` L171（复用）/ framework L1162（复用并下移）/ allocator L614（新增 getter） |
+| 零改动面 | 九面 | **九面零命中** | `git diff --name-only 2080784..e8578c2` = 10 文件全名单；`filter/` `core/` `strategy_evaluation/` `scripts/` `batch_backtest/` `cli.py` `pyproject.toml` `.github/` `tests/golden/` 零出现 |
+| 载体三件套 | allocator 新增 1 组 | **1** | L608/L610/L614；`BaseAllocator` 与 4 子类零改动（见 11.5 M-A 边界） |
+
+### 11.3 Phase 2 保真度（对照 IMPL §4，独立读码）
+
+| 锚点 | 结论 | 证据 |
+|------|------|------|
+| S1-S3（bare pass→计量） | **pass** | L974/L984/L994 三处 `_record_failure`；4 处 `except:` 行在 diff 中零变更（bare 保持，A3 纪律守住） |
+| S3b（else 挂 if） | **pass** | L937-938 新增 +2 行；`orelse` 归属 `If L928`（Step 9 AST 实证留档，本基座 diff 读码归属一致） |
+| S4（计量 + 快照下移） | **pass** | L1159-1160 计量 + L1162 `summary["failure_counts"]` 位于 try/except **之后**（11.6 盲区扫描 D 段逐行复核同调）；`fund_manager is None` 路径同样写入（T11 回归安全） |
+| S5-S7（except 首行 +1） | **pass** | L331/L392/L455 各 +1 行；合法 `continue`（L328-329）与异常 `continue` / 两处 `return` 逐字保留；numstat **+3/−0** |
+| S8（三件套 + pinv 计量） | **pass** | L608/L610/L614 + L638；注释「如果奇异，使用伪逆」L639 逐字保留、零 `-` 行 |
+| 签名零变更 | **pass** | 区间 diff `^-\s*def ` = **0**；`def get_performance_summary` 仍 2 处（L336 BaseAgent / L1151） |
+| 行数归因 | **pass** | 9 接入行 + S3b else 2 行 + S8 三件套 9 行 + 快照下移移位——每行可回溯 D1-D7 / IMPL §4，无游离行 |
+
+### 11.4 Phase 3 必要性（diff 逐行归因）
+
+- 新增 `raise`：**生产面 0**（`agents/` 3 文件区间 diff `^+.*raise ` = 0）；测试注入辅助 **5 处**（V2 `AssertionError` / V3 `RuntimeError` ×2 / V4 `KeyError` / V6 `LinAlgError`——构造异常注入被测路径的合法探针），豁免面逐项登记见 F-R5-P029-1。
+- 零新增日志：`agents/` 区间 diff 中 `logger.` 行 **0 增 0 删**（唯一命中为 S3b hunk 上下文行 `logger.warning(f"行业轮动分析器初始化失败: {e}")`，行首为空格 = 未变更）。
+- 无越界文件：10 文件名单全可归因（3 代码 = IMPL §4 范围；1 测试 = V1-V7；6 文档 = B4 回填范围）。
+- 无顺手重构：无变量重命名、无 import 调整、无函数搬移；`get_failure_stats` 为 3 行拷贝实现、未抽 mixin（与 P-027 四份实现形态一致）。
+
+### 11.5 Phase 4 语义与生命周期
+
+| 场景 | 结论 | 证据 |
+|------|------|------|
+| 出口同调（S4 下移语义） | **pass** | V3 断言 `team_report` 缺键 + `failure_counts` 同调含键；下移使 P-027 T11 断言恒真且更强（键恒存在） |
+| 合法分支不计数 | **pass** | V4 双参数（合法 `{}` / 异常 `{orders_missing_price: 1}`）——「只计异常」实证 |
+| getter 只读拷贝 | **pass** | V6：外部改写返回 dict 后内部计数不变 |
+| 正常路径零计数 | **pass** | V7：engine no-op `{}` + allocator 正常求逆 `{}`，双载体计数器不误报 |
+| M-A 边界（不下沉 BaseAllocator） | **pass** | 盲区扫描 C 段：5 子类（Hedge L374 / FTRL L419 / UCB L495 / Thompson L536 / MeanVariance L582）全部自有 `__init__` 且 `<- BaseAllocator`，继承谱系零污染 |
+| 队列语义零变更 | **pass** | V5：S6 `return` 后 `_next_day_orders` 长度不变 / S7 `return` 后队列长度不变（U-P029-2 重试语义维持登记不动） |
+
+### 11.6 E4 盲区扫描（复跑 Step 4 脚本 `%TEMP%\p029_step4_scan.py`）
+
+- **读数**：`agents/` ExceptHandler **handlers=22 / silent=1**——实施前 **silent=9** → 实施后 **1**，8 处计量站点全部转为可观测（body 含 `_record_failure`）。
+- **唯一残留**：`research_team_v2.py:27 except ImportError → 'IndustryRotationAnalyzer = None'` = 登记零改动点（可选依赖显式降级，`_research_team_available` 开关门控）。
+- **I1 对拍**：十文件 `except Exception` = **22**（scope 41 文件，与 11.7 门禁复跑一致）。
+- **S4 出口顺序**：脚本 D 段逐行输出 L1159 `except:` → L1160 计量 → L1162 出口 → L1163 `return`，同调顺序实证。
+
+### 11.7 E1-E5 门禁独立复跑（审计时点）
+
+| 门禁 | 命令 | 实测 |
+|------|------|------|
+| 全量测试 | `MPLBACKEND=Agg pytest -q` | **722 passed**（172 warnings，73.87s，exit 0） |
+| mypy | `--explicit-package-bases --check-untyped-defs core` | **37 files 0 error** |
+| black | `--check core tests` | **118 files unchanged** |
+| golden | `pytest tests -q -k golden` | **13 passed**；`git status --short tests/golden/` 空（零重录） |
+| I1 AST | IMPL §6 单行命令 | **22** |
+| 测试文件数 | `Get-ChildItem tests -Recurse -Filter *.py` | **81** |
+| CI | `gh run` | 三批代码 `43824569283` + B4 文档 `43825106609` 均 success |
+
+### 11.8 发现与分级
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-R5-P029-1 | **P3** | CHECKLIST D2 实测列初版表述失实：「`^+.*raise ` = 0（测试辅助无 raise）」——全区间 diff 实测测试注入辅助含 **5 处 raise**（V2/V3/V4/V6 异常探针）。I2 不变式的保护对象为生产面（`agents/` raise 新增 = 0 成立），但「测试辅助无 raise」字面不成立，违反实测列零失实纪律（同型于 P-027 F-R5-P027-1） | **当轮修正**：D2 实测列改写为「生产面 = 0 + 测试探针 5 处豁免登记」并在本节留痕 |
+| O-S10-P029-1 | 观察 | `research_team_v2.py:27` import 降级为 `agents/` 唯一残留静默点——属显式可选依赖设计（`None` + `_research_team_available` 开关门控，P-027 已登记「只登记」类）；如未来要求全量可观测，可改为计数 + 显式标记位 | 不改（设计声明面） |
+| O-S10-P029-2 | 观察 | U-P029-2（S6/S7 队列重试语义）维持 pending——本批纪律为「`return` 语义零变更」，重试语义属行为变更，须独立批次 | 维持登记 |
+
+**P0 = 0 / P1 = 0 / P2 = 0 / P3 = 1（当轮已修）。**
+
+### 11.9 终审结论
+
+**pass（99/A）。** 评分 `score = 100 − (0×20 + 0×8 + 0×3 + 1×1) = 99` → **A**（Phase 0 = Tier A，无封顶）。四文档基座链（RESEARCH / DESIGN / IMPL / CHECKLIST 全部 DeepSeek-V4.1-Flash）≠ 本审计基座 **GLM-5.3-Flash**，RULE-5 异构条件成立；E1-E5 全部证据在本基座独立复现，9 锚点落地无静默偏离，九面零改动守住；唯一发现 F-R5-P029-1 为文档实测列表述级（P3），已当轮修正。**P-029 批次满足关闭条件：Step 1-10 全通过 + 异构终审 pass + 门禁绿 + CI 绿。**
