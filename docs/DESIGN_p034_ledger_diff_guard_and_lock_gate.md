@@ -55,10 +55,9 @@
     steps:
       - uses: actions/checkout@v4
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.11.14"
-          enable-cache: true
       - name: Check lockfile is up to date
         run: uv lock --check
 ```
@@ -66,9 +65,11 @@
 | 要素 | 决策 | 依据 |
 |------|------|------|
 | 独立 job | **是** | 与 Python 版本无关（uv 是独立二进制）→ matrix 内会重复 3 次；独立 red 归因清晰 |
-| uv 版本 | **钉 `0.11.14`** | 与 `uv.lock` `revision = 3` 同源；避免 uv 二进制升级导致 `--check` 语义漂移（U-P021-3 锁升级节奏另行触发） |
+| action 版本 | **`@v10.3.3`（精确钉）** | **Step 4 修正（F-S4-P034-1）**：`gh api repos/astral-sh/setup-uv/releases/latest` 实测最新 **v10.3.3**；原稿 `@v6` 为过时主版本 |
+| uv 版本 | **钉 `0.11.14`** | 与 `uv.lock` `revision = 3` 同源；避免 uv 二进制升级导致 `--check` 语义漂移（U-P021-3 锁升级节奏另行触发）；`gh api repos/astral-sh/uv/releases/tags/0.11.14` 命中 |
+| `enable-cache` | **省略** | v10 `action.yml` 中该输入语义为 `'auto'`（仅 GitHub-hosted runner 且非 release/tag/push 事件启用），本 job 只做只读 `--check`，缓存收益可忽略 → 最小面 |
 | 失败语义 | **失败即 job 失败，禁 `|| true`** | P-024 教训：`|| true` 使门禁恒绿（假门禁） |
-| 降级链（F3） | `astral-sh/setup-uv@v6` 不可用 → `pip install uv==0.11.14` + `uv lock --check` | Step 6 须核验 action 版本真实性；U-P034-1 跟踪 |
+| 降级链（F3） | `astral-sh/setup-uv@v10.3.3` 不可用 → `pip install uv==0.11.14` + `uv lock --check` | U-P034-1 跟踪 |
 | 不改测试 job | 仍 `pip install ".[dev]"` | 本批只补门禁，不切安装路径（§7 低效排除 5） |
 
 **门禁有效性已在 Step 2 C4 实证**：临时目录改 `numpy` 约束 → `uv lock --check` exit 1（文案「The lockfile at 'uv.lock' needs to be updated, but '--check' was provided」）。
@@ -187,3 +188,64 @@ B1 与 B2 相互独立；B3 依赖 B1（U-P033-1 关闭）与 B2（门禁说明�
 4. V1-V5 是否覆盖 R1/R2/R3 三形态与 P-033 交互，红态豁免（V3 / V5）是否标注；
 5. 门禁推算（748+12=760 / 84 / 121 / 37 / 13 / 22）是否正确；
 6. 是否存在「无效 close 静默」导致的观测缺口（R-P034-1 是否已充分披露）。
+
+---
+
+## 9. Step 4 独立 Review 记录（2026-11-17）
+
+> **基座**: **DeepSeek-V4.1-Flash**——与本文作者**同源** → **RULE-5 异构条件不成立**，本轮为**同基座独立复审**（RULE-4 披露）；异构终审仍由 **U-P034-3** 跟踪。
+> **复审对象**: `8f7f05a`（DESIGN_p034 提交版）；复审时点 HEAD `8f7f05a`
+> **方法**: E1 锚点机械复核 + E2 外部事实核验（`gh api` 版本查询 + mypy 窄化正反例）+ E3 六项裁决
+
+### 9.1 E1 锚点机械复核（八项）
+
+| # | DESIGN 声称 | 实查 | 结果 |
+|---|-------------|------|------|
+| A1 | 差异校验 L316-324、守卫插入条件 | 读码 L316 `# 价格合理性检查` / L317 `if close_price is not None:` / L320-324 warning | ✅ |
+| A2 | P-033 守卫 L308-315 在前 | 读码 | ✅ |
+| A3 | `is_valid_price` 定义位置（L153-161）与签名 `Optional[float] -> bool` | 读码 | ✅ |
+| A4 | `execute_order` 签名含 `close_price: Optional[float] = None` | 读码 L280 | ✅ |
+| A5 | CI 现有单 job `test` + matrix + `pip install ".[dev]"` | `tests.yml` L9-46 | ✅ |
+| A6 | `uv.lock` `version = 1` / `revision = 3` | 头部 | ✅ |
+| A7 | §1.4 台账 8 处缺口位置（P-033 行 / U-P031-2 行 / 旧表 U-008） | 读码 L75/L80/L158 | ✅ |
+| A8 | 红态口径表（V1 2 红 / V4 1 红 / 其余通过 = 3 红 9 通过） | 按 §4 构造逐例推演，与 §4 表格自洽 | ✅ |
+
+### 9.2 E2 外部事实核验（三项）
+
+| 项 | 方法 | 读数 | 结论 |
+|----|------|------|------|
+| **mypy 窄化必要性** | `%TEMP%\p034_mypy_probe.py`：`good` = `is not None and is_valid_price(...)`；`bad` = 仅 `is_valid_price(...)` | `good` **0 error**；`bad` **2 errors**（`Unsupported operand types for / ("float" and "None")` + 同 for `-`） | **D1 保留 `is not None` 是必需而非冗余**（机械证据） |
+| **`setup-uv` 主版本** | `gh api repos/astral-sh/setup-uv/releases/latest --jq .tag_name` | **`v10.3.3`** | 原稿 `@v6` **过时** → **F-S4-P034-1 当轮回写** |
+| **uv `0.11.14` 存在性** | `gh api repos/astral-sh/uv/releases/tags/0.11.14 --jq .tag_name` | **`0.11.14`** 命中 | 钉版可解析 |
+| **v10 inputs 语义** | `gh api ".../contents/action.yml?ref=v10.3.3"` + base64 解码 | `version`（uv 版本）存在；`enable-cache` 描述为 `'auto' enables caching on GitHub-hosted runners except …` | `enable-cache: true` 语义已变 → **省略该输入**（最小面） |
+
+### 9.3 E3 六项裁决（对应 §8）
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | D1 条件写法与 mypy | **成立且必要**——E2 正反例机械证明 `is not None` 承担类型窄化；语义等价性由 Step 2 C3 逐位一致保证 |
+| 2 | D2 action 版本 | **原稿错误已修正**——`@v6` → `@v10.3.3`（精确钉）；`enable-cache` 省略；降级链保留 |
+| 3 | D3 台账处置完整性 | **成立**——8 处与 Step 1 §2.1 一一对应；无新增散落项（复扫 `U-P0` 前缀行全部有主行） |
+| 4 | V1-V5 覆盖与红态豁免 | **成立**——R1（V4 直判）/ R2（V1-`np0`）/ R3（V1 四例，诚实标注为回归保护）/ 合法价（V2 ×3）/ `None`（V3）/ P-033 交互（V5）；红态 3 / 通过 9 与批次口径自洽 |
+| 5 | 门禁推算 | **全部正确**——748 + 12 = **760**；83 + 1 = **84**；120 + 1 = **121**；mypy 37（无新源文件，测试文件不入门禁）；golden 13 零重录；AST 22（D1 为前置 `if`，零新增 except） |
+| 6 | 静默观测缺口 | **已充分披露**——R-P034-1 明写「若有人依赖该告警做监控会失信号」，并指向掩码层职责；O-P034-3 登记 `1e-9` 边界 |
+
+### 9.4 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S4-P034-1** | **P2** | D2 的 `astral-sh/setup-uv@v6` **过时**（实测最新 **v10.3.3**），且 v10 中 `enable-cache` 语义为 `'auto'`——照原稿落地会引用旧主版本并使用语义已变的输入 | **当轮回写 D2**（`@v10.3.3` + 省略 `enable-cache`，已改） |
+| O-S4-P034-1 | 观察 | `setup-uv` 提供 `quiet` 输入可抑制 info 级日志（本批 CI 无 `RUST_LOG`，不需要） | 登记 |
+| O-S4-P034-2 | 观察 | `version-file` 输入可自动从 `uv.toml` / `pyproject.toml` 读取 uv 版本；本批无 `uv.toml` → 仍显式 `version` | 登记 |
+| O-S4-P034-3 | 观察 | `is_valid_price` 对 `1e-9` 放行（极小正价）——语义一致的边界，非缺陷 | 登记（F-D3-P034-1 同源） |
+
+### 9.5 结论与 Step 5 前置条件
+
+**结论**: **pass**（0 P0/P1 / **1 P2 当轮回写** / 3 观察）——D1 经 mypy 正反例证明写法必要、D2 版本与输入语义经外部 API 核验并修正、D3 与 V1-V5 覆盖完备、门禁推算全对。
+**RULE-5 声明**: 同基座独立复审（作者=复审=DeepSeek-V4.1-Flash），异构终审登记 **U-P034-3** 不变。
+
+**Step 5 IMPL 前置条件**:
+1. D1 按 `if close_price is not None and is_valid_price(close_price):` 落地，**不得**省略 `is not None`；
+2. D2 按 `@v10.3.3` + `version: "0.11.14"` 落地，**省略** `enable-cache`，**禁 `|| true`**；
+3. 测试 12 实例按 §4 与红态口径表执行：B1 红态预期 **3 failed / 9 passed**（V1-2 + V4），逐批留证（F5 两读数）；
+4. 台账 8 处与 CHANGELOG / ARCHITECTURE §9.2 在 B3 一并回写。

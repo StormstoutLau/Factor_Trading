@@ -1270,6 +1270,16 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **不改项（D4）**: `TypeGuard` 改造 / 阈值可配置 / 文案格式 / `uv export`·`uv sync` / §1.4 全表重构——五项均拒绝并留理由。
 - **下一 Step**: **Step 4 独立 Review**（RULE-5 要求异构基座）；复核重点六项（D1 等价性与 mypy / D2 action 版本真实性 / D3 处置完整性 / V1-V5 覆盖与红态豁免 / 门禁推算 / 静默观测缺口披露）。
 
+### 3.39.3 P-034 Step 4 独立 Review 记录（2026-11-17）
+
+- **基座披露**: 复审基座 **DeepSeek-V4.1-Flash = 作者同源** → RULE-5 异构不成立，**同基座独立复审**（RULE-4 披露）；异构终审仍由 **U-P034-3** 跟踪。复审对象 `8f7f05a`。
+- **E1 锚点八项全命中**: 差异校验 L316-324 / P-033 守卫 L308-315 / `is_valid_price` L153-161 / `execute_order` 签名 L280 / `tests.yml` L9-46 / `uv.lock` 头 / 台账三处位置 / 红态口径表自洽。
+- **E2 外部事实核验三项**: ① **mypy 窄化正反例**——`good`（`is not None and is_valid_price`）**0 error**、`bad`（仅 `is_valid_price`）**2 errors**（`Unsupported operand types for / ("float" and "None")`）→ 保留 `is not None` **是必需而非冗余**（机械证据）；② `gh api` 实测 **`setup-uv` 最新 v10.3.3**（原稿 `@v6` 过时）+ **uv `0.11.14` 命中**；③ v10 `action.yml` 中 `enable-cache` 语义为 `'auto'` → 省略该输入。
+- **六项裁决**: ① D1 写法成立且必要 ② **D2 原稿错误已修正**（`@v6` → `@v10.3.3`）③ D3 与 Step 1 §2.1 一一对应、无新增散落 ④ V1-V5 覆盖 R1/R2/R3/合法价/`None`/P-033 交互，红态 3 / 通过 9 自洽 ⑤ 门禁推算全对（760 / 84 / 121 / 37 / 13 / 22）⑥ 静默观测缺口已披露（R-P034-1）。
+- **发现分级**: **0 P0/P1 / 1 P2 当轮回写（F-S4-P034-1 `setup-uv@v6` 过时 + `enable-cache` 语义变化）/ 3 观察**（O-S4-P034-1 `quiet` 输入 / O-S4-P034-2 `version-file` / O-S4-P034-3 `1e-9` 边界）。
+- **结论**: **pass**——准予进入 **Step 5 IMPL**；前置条件四项（D1 不得省略 `is not None` / D2 `@v10.3.3` 禁 `|| true` / 12 实例 + 红态 3F/9P 逐批留证 / 台账与 CHANGELOG·ARCHITECTURE 在 B3 回写）。
+- **下一 Step**: **Step 5 IMPL**。
+
 ---
 
 ## 4. 审查记录
