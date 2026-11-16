@@ -1214,10 +1214,10 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **单一来源核验**: `is_valid_price` 全仓 **1 定义 + 3 调用**（execution L309 / agents L512 / V2 L811）；`pending_invalid_price` **1 处写入**；V2 零新键（`skipped_price.append` 2 处 = 1 既有 + 1 新守卫）。
 - **顺序敏感五项**: ① 解析 L304-306 → 守卫 L308-315 → 告警 L316 ② 守卫 < amount L327 < add_trade L350 ③ agents close L509 → 守卫 L511-514 → clamp L517 ④ V2 close L804-808 → 守卫 L810-813 → clamp 告警 L815 ⑤ B1 先于 B2/B3——全过。
 - **实施期发现**: F-S9-P033-2（P3）B3t 首跑因新测试缺 `import logging` 致 3 failed（含 V8b），**当轮修复**后回到 2F/1P；F-S9-P033-1（观察）新测试首轮被 black 重排（O-I-P033-1 预判）；O-S9-P033-1（观察）B3t 红态仅由「汇总日志缺失」驱动——D1 安全层先于 D2 可观测层生效，反向印证双层防线。
-- **CHECKLIST 回填**: 39 项实测列 **38/39** 已回填（E9 CI 待回填），签字表 Step 9 行已落。
+- **CHECKLIST 回填**: 39 项实测列 **39/39** 全部回填（E9 于 CI 回收后回填），签字表 Step 9 行已落。
 - **文档同步**: README 4 处（L7 badge / L99 / L278 / L431）与 ARCHITECTURE L3 的测试计数 **731→748 / 82→83** 同步（P-031 F10 惯例）。
 - **下一 Step**: **Step 10 ADD 审计 + RULE-5 异构终审**（须 GLM-5.3-Flash）。
-- **提交与 CI**: 提交后回填。
+- **提交与 CI**: 提交 `31c5d36`（10 文件 **+419/−52**：代码 3 文件 +33/−3、新测试 +203、IMPL §11、CHECKLIST 39 项回填、PROGRESS §1.4/§3.38.8、CHANGELOG、README 4 处、ARCHITECTURE L3）→ CI run `43911402921` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 

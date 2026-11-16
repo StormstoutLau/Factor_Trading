@@ -2,7 +2,7 @@
 
 > **批次**: P-033 · **T1**（`core/execution.py` + `core/engine_v2.py` + `agents/multi_strategy_engine.py` + 新增账目测试）
 > **上游**: [IMPL_p033](IMPL_p033_pending_order_price_validation.md)（B1-B4 / §4 精确锚点 / §5 V1-V8 十七实例 / §6 fixture / §7 八项低效排除 / §8 回退点 / §12 Step 5 自检 / §13 Step 6 复审 pass）；[DESIGN_p033](DESIGN_p033_pending_order_price_validation.md)（D1-D6 / I1-I7 / V1-V8 / §12 Step 4 复审）；[RESEARCH_p033](RESEARCH_p033_pending_order_price_validation.md)（§3 R1-R3 / §6 调用点全表 / §7 M-A / §11 Step 2 复审）
-> **状态**: **Step 9 TDD 实施完成**（2026-11-17，DeepSeek-V4.1-Flash）——三批红→绿 **6F/1P → 6F/1P → 2F/1P**（全批 14F/3P）→ **17 passed**；门禁 **748 / 83 / 120 / 37 files 0 / golden 13 零重录 / AST 22** 全绿；验收 **39/39**（E9 CI 待回填）
+> **状态**: **Step 9 TDD 实施完成**（2026-11-17，DeepSeek-V4.1-Flash）——三批红→绿 **6F/1P → 6F/1P → 2F/1P**（全批 14F/3P）→ **17 passed**；门禁 **748 / 83 / 120 / 37 files 0 / golden 13 零重录 / AST 22** 全绿；验收 **39/39**（含 E9 CI run `43911402921` success）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 7 实测 @HEAD `204b15f`，Python312 + `MPLBACKEND=Agg`）**: 全量 `pytest -q` **731 passed**（Step 6 E2 实测 @`b837d5f`；Step 7 子集对拍 `57 passed + 674 deselected = 731` 一致）/ `tests/` .py **82** / `black --check core tests` **119 unchanged**（§13.3）/ `mypy --explicit-package-bases core` **37 files 0 error**（§13.3）/ `tests/golden/` **7** 份 json（13 条 golden 用例）/ `except Exception`（P-029 十文件口径）**22** / 回归子集 `-k "golden or p027 or p029 or p031"` **57 passed, 674 deselected**
 > **目标读数（Step 9）**: **748 passed** / 测试文件 **83** / black **120** / mypy **37 files 0** / golden **13 零重录** / `except Exception` 恒 **22**
@@ -88,7 +88,7 @@
 | E6 | golden **13 passed** 且 `tests/golden/*.json` 零改动（零重录）；**零改动面**全空：`core/tracker.py` / `core/pending.py` / `core/interfaces.py` / `core/target_positions.py` / `filter/` / `scripts/` / `cli.py` / `pyproject.toml` / `tests/test_p029_*.py` / `tests/test_p031_*.py` | `pytest -q -k golden`；`git status --short` 上述面空 | I3 / I6 / IMPL §1 | ✅ **13 passed / 735 deselected**；零改动面 `git status` 全空 |
 | E7 | 测试零 `unittest.mock`（统一 `monkeypatch` / 直接注入）；fixture F1-F6 全部落在新文件内，**不修改**既有 `test_p027*` / `test_p029*` / `test_p031*` | `Select-String "unittest.mock"` = 0；`git diff --name-only tests/` 仅新增 1 文件 | IMPL §6 约束 / §7 | ✅ `unittest.mock` **0**；`tests/` 仅新增 `test_p033_order_price_validation.py` |
 | E8 | 受影响面快速回归：`-k "golden or p027 or p029 or p031"` **57 passed / 0 failed / 0 error**（基线 57，量化不回归） | 该子集输出末行 | 回归面 / §1 基线 | ✅ **57 passed, 691 deselected**（0 failed / 0 error） |
-| E9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | 交付纪律 | [待 CI 回填] |
+| E9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | 交付纪律 | ✅ CI run `43911402921` **success**（3.10 / 3.11 / 3.12 三 job 全绿） |
 | E10 | 四文档互链 0 broken；`PROGRESS` §1.4 P-033 行更新 + §3.38.7 Step 9 记录；`CHANGELOG` `[Unreleased]` 记录本批行为变更（**1 处语义修正** + **1 个新计数键** + 零公开签名变更） | 机械校验链接数/broken 数；读回 §1.4 与 CHANGELOG | IMPL §2 B4 / 台账惯例 / F-S8-P033-1 | ✅ 四文档互链成立；PROGRESS §1.4 + §3.38.8（Step 8 已占用 §3.38.7，F-S8-P033-1 二次修正）；CHANGELOG `[Unreleased] Changed` 首条 P-033 |
 | E11 | 未决/观察登记完整：`U-P033-1~3` / `R-P033-1~3` / `O-D-P033-1~2` / `F-D3-P033-1~2` / `F-I-P033-1~4` + `O-I-P033-1` / `F-S2-P033-1~2` + `O-S2-P033-1~2` / `F-S4-P033-1~2` + `O-S4-P033-1~3` / `F-S6-P033-1` + `O-S6-P033-1~2` 全部有落点 | 读回 DESIGN §7 / IMPL §9 / §13.6 / RESEARCH §11.6 / PROGRESS 未决表 | DESIGN §7 / IMPL §9 | ✅ 全部有落点；本轮新增 `F-S9-P033-1~2` + `O-S9-P033-1` 落 IMPL §11.5 |
 | E12 | 行号漂移登记：Step 9 后三文件被改函数实测行号 vs IMPL §4 实施前锚点（`013c4d3` 代码面），差异逐项登记（F-I 惯例） | IMPL §11 新增漂移表 | IMPL §4 / §11 | ✅ IMPL §11.4 漂移表 **9 行 / 18 项**全登记 |
@@ -100,7 +100,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **39**（A 7 + B 8 + C 5 + D 7 + E 12 = 39，机械计数；ID 去重 39/39） |
-| 实测列 `[待 Step 9]` 数 | **0 处单元格待填**（38/39 ✅ 已回填，E9 待 CI 回填 `[待 CI 回填]`）；全文仅余 1 处合法占位（E9）+ 1 处字面规则说明（头部规则行）+ 签字表 Step 10 行 2 处占位 |
+| 实测列 `[待 Step 9]` 数 | **0 处待填**（**39/39 ✅ 全部回填**）；全文 `[待 Step 9]` 仅余 1 处字面规则说明（头部规则行）+ 签字表 Step 10 行 2 处占位 |
 | 覆盖映射（测试用例） | V1 → A6；V2 → B4；V3 → B5；V4 → B6；V5 → B7；V6 → C4；V7 → A7；V8 → B8 + C5 —— **8/8 用例 ID、17/17 实例全覆盖** |
 | 覆盖映射（不变式） | I1→D1 / I2→D2 / I3→D3 / I4→D4 / I5→D5 / I6→D6 / I7→D7 —— **7/7** |
 | 覆盖映射（设计决策） | DESIGN-D1→A1-A3+A5-A7 / DESIGN-D2→B1-B8+C1-C5 / DESIGN-D3→A4 / DESIGN-D4→D4 / DESIGN-D5→B3+B7 / DESIGN-D6→E11（R3 仅登记 + U-P033-1）—— **6/6**（A4 专归 DESIGN-D3，F-S8-P033-3 消除区间重叠） |
