@@ -1088,6 +1088,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **盲区扫描**: agents/ handlers=22，严格启发 silent=2（`research_team_v2.py:27` P-029 登记点 + `agent_framework.py:1543` demo 入口 print+traceback 可观测、P-027 登记零改动面 `:1529` 行号漂移）——均早于本批且已登记；P-031 **零新增静默路径**（6 新计数站点全带 `_record_failure`，typed except 不计入 I1）。
 - **发现分级**: **0 P0/P1/P2 + 1 P3 当轮修正 + 2 观察**——**F-R5-P031-1**（P3：IMPL §11.2「新测试文件 +270（未计入 numstat）」与提交后实测 **+272** 不符且原注记前提失效 → 当轮修正该单元格）/ O-R5-P031-1（PROGRESS「≈270 行」为约数，历史记录不回改）/ O-R5-P031-2（盲区 silent 读数为定义依赖，P-029「silent=1」与本轮「silent=2」差异已对账登记）。
 - **结论**: **pass**——**P-031 批次关闭**；U-P031-1~4 与 O-P031-1~3 随批次归档，触发条件不变。完整记录见 [CHECKLIST_p031 §11](CHECKLIST_p031_strategy_engine_order_accounting.md)。
+- **提交与 CI**: 提交 `c1fed32`（3 文件 +123/−4，docs-only，含 F-R5-P031-1 当轮修正）→ CI run `43867147356` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
