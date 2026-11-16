@@ -141,10 +141,10 @@ S8 MeanVarianceAllocator: weights=[0.3333, 0.6667] has_counter=False log_delta=0
   - 证据等级：E2（探针 `has_counter=False`、0 日志）
 
 - **U-P029-1（P3）S3b 是否纳入本批**
-  - 判据：`_init_research_team` L928 条件不满足时是否新增 warning
+  - 判据：`_init_research_team` L928 条件不满足时是否新增可观测载体
   - 触发：Step 3 DESIGN 裁决
-  - 当前倾向：**纳入**（1 条 warning，指出「行业/价格缓存缺失，跳过轮动分析器」，是 S1-S3 的必要解释项）；若纳入则本批为「8 计量 + 1 新增日志」
-  - 证据等级：E3（读码 L928-L936 无 `else` 分支）
+  - 当前倾向：**纳入**；**形态经 Step 2 异构裁定修正（F-S2-P029-1）**——采用**计量键 `rotation_analyzer_skipped`（`else` 分支 1 行 `_record_failure`），不加 warning**：跳过可能是合法形态（`industry.pkl` 为可选数据，S2 本身即容缺失），每次运行刷 warning 与 U-P026-4 限流关切同源；计数与 S1-S3 的 `*_cache` 键在出口相邻，运维可对拍「缓存失败 → 跳过」因果链，且零日志噪声
+  - 证据等级：E3（读码 L928-L936 无 `else` 分支）+ E2（Step 2 复扫）
 
 - **U-P029-2（P3）S6/S7 队列重试语义**
   - 判据：开盘价缺失后订单保留重试是否为有意设计
@@ -180,3 +180,58 @@ S8 MeanVarianceAllocator: weights=[0.3333, 0.6667] has_counter=False log_delta=0
 2. E2 读数原文重跑（`%TEMP%\p029_probe.py`）；
 3. S8 分类裁决（R-P029-1）与 S3b 纳入裁决（U-P029-1）；
 4. 是否遗漏 `agents/` 同型站点（E4 复扫）。
+
+---
+
+## 11. Step 2 独立 Review（异构，2026-11-16）
+
+> **审计基座**: **GLM-5.3-Flash**（≠ RESEARCH_p029 作者 DeepSeek-V4.1-Flash）→ RULE-5 异构条件成立。
+> **基线**: HEAD `eeec92b`（Step 1 回填提交）；Python312 + `MPLBACKEND=Agg`。
+> **门禁**: 本步为 docs-only 回写，零 Python 改动；全量读数引用 Step 1 CI run `43787578197`（711 passed，三 job success）。
+
+### 11.1 E1 重放：8 处行号与异常类型（全过）
+
+| ID | §3 声明 | 本基座复现 | 结论 |
+|----|---------|------------|------|
+| S1-S3 | `agent_framework.py:969-972 / 974-982 / 984-992`，bare `except:` | `Select-String 'except:'` = L971 / L981 / L991，均落在声明区间 | **一致** |
+| S4 | `agent_framework.py:1154-1159`，bare `except:` | L1158 | **一致** |
+| S5 | `multi_strategy_engine.py:325-331`，`(KeyError, IndexError)` → `continue` | L330 | **一致** |
+| S6 | `multi_strategy_engine.py:388-391`，`KeyError` → `return` | L390 | **一致** |
+| S7 | `multi_strategy_engine.py:449-453`，`KeyError` → `return` | L452 | **一致** |
+| S8 | `strategy_allocator.py:625-630`，`np.linalg.LinAlgError` → pinv | L628 | **一致** |
+| S3b | `agent_framework.py:928` 条件分支无 `else` 日志 | L928 `if self._industry_data is not None and self._price_data is not None:` → L929 直接 `try`，L936 后即 L938 团队创建，无 `else` | **一致** |
+
+bare ×4 / 窄类型 ×3 / `LinAlgError` ×1 的口径统计与 U-P027-1 登记完全吻合。
+
+### 11.2 E2 探针重跑（逐字一致）
+
+`%TEMP%\p029_probe.py` 重跑 7 行输出与 §5 原文**逐字一致**（S1-3 三缓存 `None` + log_delta=2 为管道/合成器初始化日志；S4 `has_team_report=False`；S5 目标持仓空；S6/S7 静默 `return` 且队列保留；S8 `weights=[0.3333, 0.6667]` + `has_counter=False`）。日志归因复核：2 条日志出自 `FactorPipeline` / `FactorCombiner` 构造器（`try` 块之前），与异常无关——§9 负向发现的归因正确。
+
+### 11.3 E4 复扫（独立重写脚本，无遗漏）
+
+本基座**不依赖 Step 10 脚本**，重写 AST 扫描（`%TEMP%\p029_rescan.py`，判据与 P-027 口径同形）：`agents/` 22 个 except 处理器中**零可观测 9 处** = U-P027-1 的 **8 项逐一命中**（行号与异常类型全同）+ `research_team_v2.py:27`（`ImportError → IndustryRotationAnalyzer = None`，属 P-027 §12.6 既有「显式 import 降级」分类，非同型站点）。**结论：`agents/` 无遗漏同型站点，8 项口径封闭。**
+
+### 11.4 两项裁决
+
+| 项 | RESEARCH 倾向 | 本基座裁定 | 依据 |
+|----|---------------|------------|------|
+| **R-P029-1（S8 分类）** | 判 B + 计量 | **维持判 B + 计量** | ① O-S2-P027-1 的「注释为载体」判据 formulated 于 C 类「同值降级」场景（返回乐观默认值，注释说明 what）；S8 的 pinv **改变数值路径**（近奇异矩阵下 inv 与 pinv 结果不同），属 P-025 F-D3-P025-1 同型「静默数值降级」——该先例已确立「文档说明 ≠ 运行期可观测」；② 行内注释说明设计意图（why），不说明本次是否发生（whether）；③ 治理成本 1 行 + 实例计数器，零行为变更 |
+| **U-P029-1（S3b 纳入）** | 纳入 + 1 条 warning | **纳入，形态修正为计量键 `rotation_analyzer_skipped`（`else` 分支 1 行），不加 warning**（**F-S2-P029-1，P3，当轮回写 §8**） | ① `industry.pkl` 为可选数据（S2 的 try/except 即容缺失），跳过是合法形态 → 每次运行 warning 属日志刷屏，与 U-P026-4 限流关切同源；② 计数与 S1-S3 `*_cache` 键在 `failure_counts` 出口相邻，因果链（缓存失败 → 跳过）可对拍；③ 零日志噪声、零行为变更。R-P029-3 实例级裁定同时维持 |
+
+**R-P029-2（S5 聚合单键）/ R-P029-3（S8 实例级）：均维持。** R-P029-2 补充：T 用例必须同时断言「L328 合法 `continue` 计数 0 / L330 异常 `continue` 计数 1」（§9 负向发现 1 的验收化）。
+
+### 11.5 发现与分级
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S2-P029-1 | **P3** | U-P029-1 形态：RESEARCH 建议 warning，异构裁定改为计量键（防合法缺失场景日志刷屏） | 当轮回写 §8 |
+| O-S2-P029-1 | 观察 | `agents/` 唯一额外零可观测点 `research_team_v2.py:27` 属既有 import 降级分类，非本批范围 | 维持 P-027 §12.6 裁决 |
+| O-S2-P029-2 | 观察 | S8 键名 `pinv_fallback` 与 P-027 C 类内联计数形态不同（将走 `_record_failure`）——Step 3 DESIGN 定稿时统一 | 移交 Step 3 |
+
+**P1 = 0 / P2 = 0 / P3 = 1（当轮已修）。**
+
+### 11.6 结论与下一 Step
+
+**Review pass。** 五项复核重点全部完成：E1 重放 8/8 一致、E2 逐字复现、E4 无遗漏、S8 维持判 B、S3b 纳入（形态修正为计量）。RESEARCH §1-§9 的事实陈述、分类算术（B 7 + 待裁决 1 + 观察 1）、方案矩阵与键名草案均可支撑 Step 3 DESIGN。
+
+**下一 Step**: **Step 3 DESIGN**——定稿口径：8 计量（S1-S8）+ S3b 计量键 `rotation_analyzer_skipped` = **9 计量 / 3 文件**；零新增日志（比 RESEARCH 原建议少 1 条 warning）、零 fail-fast、零返回值语义变更；新增载体仅 `MeanVarianceAllocator`（实例级三件套）；`except Exception` 合计恒 22。
