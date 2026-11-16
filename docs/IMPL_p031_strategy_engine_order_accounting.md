@@ -303,7 +303,7 @@ B1t+B2t+B3t+B4t → B5（全量门禁 + 文档回填）
 | V2 | NAV 时序（R1） | 1 股常量价 10、`daily`、恒定 `{"A": 1.0}`、10 个交易日；**成本零化**（`CostConfig(commission_rate=0, commission_min=0, stamp_tax_rate=0, slippage_pct=0)`） | 成交 **恰 1 笔**（旧实现 9 笔）；每日 `cash + Σqty×price == 初始资金`（NAV 恒定） |
 | V2b | nav 守卫（F-S4-P031-2） | `tracker._cash = 0`、无持仓 → nav=0 | **不抛异常**；`rebalance_nav_invalid == 1`；零订单 |
 | V3 | 超卖夹紧（R4，参数化 2） | 持仓 A=100；3×`SELL A 100`；`next_day` / `queue` 两路径；**成本零化** | 成交 **1 笔 100 股**；`oversell_blocked == 2`；`cash` 恰 **+1,000**（非 +3,000） |
-| V4 | 在途单（R3，参数化 2） | ① 撤销：两次 `_execute_rebalance` 间残留 1 张单；② 过期：订单创建日距当前 ≥ 6 自然日 | ① 撤销后 `_next_day_orders` 不含该股 + `next_day_orders_cancelled > 0`；② `next_day_orders_expired > 0` 且订单不再执行 |
+| V4 | 在途单（R3，参数化 2） | ① 撤销：两次 `_execute_rebalance` 间残留 1 张单；② 过期：**BUY 单**创建日距当前 ≥ 6 自然日（F-S6-P031-1：SELL 单 6 日**不过期**——6 < max_sell 10 且 vitality 0.5^(6/3)=0.25 > 0.125，探针实证） | ① 撤销后 `_next_day_orders` 不含该股 + `next_day_orders_cancelled > 0`；② `next_day_orders_expired > 0` 且订单不再执行 |
 | V5 | 中性（D2） | `direction="both"`，`long_weight=0.5` | 无 SELL 成交；`neutral_short_leg_skipped > 0`；`additional_info.neutral_short_leg == "unsupported"`；`__init__` 有 1 条 WARNING |
 | V6 | 正常路径（回归） | 常规多头两股调仓，全链路 `run()` | 6 个新计数键全 0；`orders_missing_price` / `next_day_open_price` 零误报 |
 
@@ -320,7 +320,7 @@ B1t+B2t+B3t+B4t → B5（全量门禁 + 文档回填）
 | F3 | `_make_engine(direction, enable_pending, zero_cost?)` | 组装 `StrategyConfig` + `BacktestConfig(enable_pending_orders=…, rebalance=RebalanceConfig(frequency="daily"), optimizer=OptimizerConfig(method="equal_weight", round_lot=True), cost=CostConfig(...))` | 优化器用 `equal_weight`（不依赖协方差）；V2/V3 用零成本（F-I-P031-7） |
 | F4 | `_seed_position(engine, stock, qty, price)` | 直接构造 `Trade` → `tracker.execute_trade` + `update_market_values` | 避免依赖成交路径 |
 | F5 | `_price_frame(mapping, dates)` | 生成可按 `.loc[date]` 切片、`.get(stock)` 取值的价格行 | V1-V5 |
-| F6 | `_days(n)` | 自然日间隔的 `DatetimeIndex`（用于 V4 过期：≥ 6 自然日） | `is_expired` 用自然日 |
+| F6 | `_days(n)` | 自然日间隔的 `DatetimeIndex`（用于 V4 过期） | `is_expired` 用自然日；过期用例须 **BUY ≥6** 自然日（SELL 须 ≥10，F-S6-P031-1） |
 
 **约束**：F1-F6 全部落在新文件内，**不修改** `tests/test_p029_silent_exception_governance.py` / `tests/test_p027_silent_exception_governance.py` / `tests/test_rebalance_exits.py`。
 
@@ -409,3 +409,72 @@ B1t+B2t+B3t+B4t → B5（全量门禁 + 文档回填）
 | S6 | 门禁口径 | 731 = 722 + 9；测试文件 82；black 119；mypy `core` 37 files 0（`agents/` 不在门禁路径） |
 | S7 | 签名可实现性 | `build_target_positions` / `compute_portfolio_value` / `cancel_orders` / `is_expired` / `execute_order(..., qty, ...)` 参数逐项核对（core 只读） |
 | S8 | 零新增 `except Exception` | D1 新增 `except (KeyError, IndexError)`；D2 保留原 try/except —— 合计恒 22 |
+
+---
+
+## 13. Step 6 实施 Review 记录（异构基座 GLM-5.3-Flash）
+
+### 13.1 基座与对象
+
+- **复审基座**: GLM-5.3-Flash（≠ IMPL 作者 DeepSeek-V4.1-Flash）——强于「同基座自查」（IMPL 头注原口径），RULE-5 精神在实施文档层提前兑现；RULE-5 终审仍按计划留在 Step 10。
+- **复审对象**: `0219047`（IMPL_p031 提交版）；复审时点 HEAD `4278179`（代码面与实施前 `96bed8d` 一致，仅 docs 变更）。
+- **方法**: E1 锚点机械复核 + E2 门禁基线独立复测 + E3 探针 + E4 六项复核重点裁决（IMPL §10）。
+
+### 13.2 E1 锚点机械复核（关键 12 项）
+
+| # | IMPL 声称 | 实查 | 结果 |
+|---|-----------|------|------|
+| A1 | 9 个函数起止行号（§4.1-4.9：L69 / L201 / L254 / L312 / L356 / L384 / L442 / L485 等） | grep `def ` 全量对表 | **全命中** |
+| A2 | import 区 L29-38（`PendingOrder` → L34、`target_positions` 插 L37 后） | L34 `core.pending` / L37 `core.tracker` | 命中 |
+| A3 | `__init__` `_failure_counts` L111 | L111 | 命中 |
+| A4 | `_execute_rebalance` 早退 L203-204、`daily_signal` L207 | L203-204 / L207 | 命中 |
+| A5 | `short_optimizer` 构建 L271-279、替换面 L292-302 | L271 注释 + L272-279 / L292-302 | 命中 |
+| A6 | queue 路径 `execute_pending_order` L475、`mark_executed` L481 | L475 / L481 | 命中 |
+| A7 | V2 `_clamp_sell_quantity` L671-688、queue 夹紧 L792、`execute_order(qty)` L815、撤销 L911-917、`_generate_rebalance_orders` L1063-1079 | engine_v2 逐项 | 全命中 |
+| A8 | `cancel_order`（单笔）pending.py L355、`is_expired` L202、`execute_order` execution.py L262、`execute_pending_order` 固定 `order.quantity` L407-414 | core 逐项 | 全命中 |
+| A9 | config `max_pending_days_buy=5 / sell=10` L376-377、`enable_pending_orders` L375 | L375-377 | 命中 |
+| A10 | 多策略循环调用点 L735/L751/L867/L882、`_generate_results` 直调 L786/L928 | grep 逐项 | 全命中 |
+| A11 | `build_target_positions` 拒 `total_value<=0` / 负权重（ValueError） | target_positions.py L76-80 | 命中 |
+| A12 | 仅 `test_p027`/`test_p029` 实例化 `StrategyEngine`（§12 S5） | grep tests 全量 | 命中（`test_strategy_allocator` 仅注释提及） |
+
+### 13.3 E2 门禁基线独立复测（HEAD `4278179`）
+
+| 门禁 | IMPL 声称（实施前基线） | 实测 | 结果 |
+|------|--------------------------|------|------|
+| pytest 收集 | 722 | **722 tests collected** | 一致 |
+| black `--check core tests` | 118 | **118 files would be left unchanged** | 一致 |
+| mypy `core` | 37 files 0 error | **Success: no issues found in 37 source files** | 一致 |
+| `tests/` .py 数 | 81 | 81（前轮实测，本会话内） | 一致 |
+
+### 13.4 E3 探针读数（`p031_s6_review_probe.py`，%TEMP%）
+
+- **nav 守卫形态** `not np.isfinite(nav) or nav <= 0`：nan / inf / -inf / 0.0 / -1.0 **全部触发**，10.0 通过 → §10 复核点 #5 成立（nan 经 `isfinite` 拦截、inf 经 `isfinite` 拦截，无 `inf > 0` 漏网）。
+- **`is_expired` 阈值**（半衰期 3）：BUY@6日 **True** / SELL@6日 **False**（6 < 10 且 vitality 0.25 > 0.125）/ SELL@10日 True / BUY@4日 False → **V4② 规格缺口实锤（F-S6-P031-1）**。
+
+### 13.5 E4 六项复核重点裁决（对应 §10）
+
+| # | §10 复核点 | 裁决 |
+|---|------------|------|
+| 1 | 双路径一致性 | **同形成立**：两路径共用 `_clamp_sell_quantity` 载体，键一致（`oversell_blocked`/`oversell_trimmed`）；两处差异均有裁决——queue blocked 调 `cancel_order`（队列簿记需状态迁移）、次日 blocked 直接丢弃（V2 P-014 同款）；调用形态差异由 F-I-P031-2 覆盖。无「只修一条」漏点 |
+| 2 | 撤销时序 | **正确**：§4.2 落点在信号索引早退（L203-204）之后、`daily_signal`（L207）之前——当日新单在其后才生成，不会被自撤销 |
+| 3 | domain 遍历开销 | **可接受**：O(n_stocks) 字典查找/再平衡，与 V2 L913-915 完全同构（先例）；`cancel_orders` 对无单股票 O(1) 早退（pending.py L444-445）；`_next_day_orders` 遍历为 O(簿长)。无可观测开销 |
+| 4 | 中性计数位置 | **正确**：`neutral_short_leg_skipped` 在 `long_optimizer.optimize` 成功之后、try 块内——optimize 抛错走 except，不误计；test_p027 `stats == {"neutral_optimize": 1}` 精确断言保真 |
+| 5 | nav 守卫可达性 | **成立**（E3 探针实证）：nan/±inf/0/负值全拦截 |
+| 6 | P-029 V4/V5 回归面 | **静态实证成立**：V4 exception 用例 `_MissingPriceFrame.loc` 抛 KeyError → 新入口 `except (KeyError, IndexError)` 命中；V4 legal 用例（ZZZ 缺价）→ `build_target_positions` 走「无价且空仓跳过」分支（target_positions.py L126），零订单零计数；V5 next_day 用例（`object()` 占位单）→ 价格切片先抛 KeyError 早退，过期过滤（切片后，F-I-P031-1）不触及占位单；V5 pending 用例 → 切片早退，队列语义不变。Step 9 实跑终证 |
+
+### 13.6 发现分级
+
+| 级别 | 数量 | 清单 |
+|------|------|------|
+| P0 / P1 / P2 | **0** | — |
+| P3（当轮回写） | **1** | **F-S6-P031-1**：§5 V4② 构造「≥6 自然日」未指定订单方向——SELL 单 6 日既未超 `max_pending_days_sell=10` 也未过半衰期（vitality 0.5^(6/3)=0.25 > 0.125，探针实证）→ 测试会**假红**。已回写 §5 V4 + §6 F6：过期用例显式 BUY 单（≥6 日；SELL 须 ≥10 日） |
+| 观察 | **3** | O-S6-P031-1：DESIGN D3 伪代码「夹紧后**重建订单**」vs IMPL「原单直调 `execute_order(qty)`」——成交路径语义等价（均成交 qty 股）；差异仅在次日路径执行失败后的重试簿记（原量 vs 夹紧量，重试时再夹紧兜底，无账目暴露），F-I-P031-2 已覆盖调用形态，本项补登语义论证。O-S6-P031-2：次日路径过期单仅从簿中丢弃、无 `mark_expired` 状态迁移（DESIGN D4 伪代码同款；V2 L740 有迁移）——agents 本地簿无 status 消费者，纯观感差异零账目影响。O-S6-P031-3：queue 路径价格无有效性校验（仅 `in open_prices` 成员检查，NaN/非正可透传）——**既有行为**（本批前后一致，V2 L799-808 同样无校验），非本批引入，T1 范围不改，候选后续批 |
+
+### 13.7 结论与 Step 7 前置条件
+
+**结论**: **pass**（0 P0/P1/P2 / 1 P3 当轮回写 / 3 观察）——实施规格与 DESIGN 语义闭环，锚点与门禁基线全部实证一致，准予进入 Step 7 CHECKLIST。
+
+**Step 7 前置条件**:
+1. CHECKLIST 验收项按 §5 回写后的 V1-V6+V2b（**9 实例**）口径编制，V4② 用 BUY 单 ≥6 自然日；
+2. 六组零预填（RULE-1），实测列引用本文件 §11 待回填表 + §13.2 基线读数（722 / 118 / 37 files 0 / 81 文件）；
+3. Step 9 红绿须逐批落 §11，含 P-029 V4/V5 回归面实跑终证（§10 复核点 #6）。
