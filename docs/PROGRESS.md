@@ -976,6 +976,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **负向发现（已排除）**: V2 不受影响——`engine_v2` 已用 `compute_portfolio_value` + `build_target_positions`（含调出清仓项）且在再平衡前撤销在途单；`G1.json` 在 `daily` 下仅 **4 笔**（买入 2 + 末日清仓 2）、NAV 恒 10,000,000，反证 V2 估值路径正确。
 - **文档**: [RESEARCH_p031](RESEARCH_p031_strategy_engine_order_accounting.md)（§3 四项缺陷 + 代码位置 / §4 复现矩阵 / §5 探针读数 / §7 方案矩阵 M-A/M-B/M-C 选 **M-A** 对齐 V2 语义 / §8 风险四元块 / §9 负向发现 / §10 Step 2 复核重点）；§1.4 新增 P-031 行（P1）、U-P029-2 转 in-progress。
 - **下一 Step**: **Step 2 独立 Review（异构基座）**——重点：四组读数重放、C1/C2 组件探针等价性、M-A 的 `value_buffer=0.985` 口径漂移、O1 是否升格、short/both 方向的同形影响。
+- **提交与 CI**: 提交 `a97ba1b`（2 文件 +253/−2，docs-only）→ CI run `43846628720` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
