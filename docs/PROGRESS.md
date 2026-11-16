@@ -1258,7 +1258,17 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **六项裁决**: ① 判档 T1 **成立**（CI 门禁 ∈ 判档规则 2 明列）② R1 **维持 P3**（C2 精化后按现行代码可达性）③ M-A **零合法价差异** ④ 保留 `is not None` **成立**（mypy 窄化必需；`TypeGuard` 需改 P-033 已验收签名 → 拒绝）⑤ CI 独立 job **成立**（1 次 vs matrix 3 次），`setup-uv` 版本真实性交 Step 6 ⑥ 台账处置**合先例**（P-028 / P-030 / P-032 / P-025-4）。
 - **发现分级**: **0 P0/P1/P2 / 1 P3 当轮回写（F-S2-P034-1）/ 4 观察**（O-S2-P034-1 `RUST_LOG=info` 致 131KB INFO 输出 / O-S2-P034-2 `setup-uv` 版本待 Step 6 / O-S2-P034-3 外部调用面 / O-S2-P034-4 `bool` vs `TypeGuard`）。
 - **结论**: **pass**——准予进入 **Step 3 DESIGN**；前置条件四项（M-A 形态 / CI 独立 job + 禁 `|| true` + Step 6 核验 / 测试规格覆盖 C1·C3·三类红态 / 台账 8 处处置）。
-- **下一 Step**: **Step 3 DESIGN**。
+
+### 3.39.2 P-034 Step 3 DESIGN 记录（2026-11-17）
+
+- **作者基座**: DeepSeek-V4.1-Flash（= Step 1/2 同源；Step 4 须异构，若同基座则披露 + 预留 U-P034-3）。基线 HEAD `47b7430`；[DESIGN_p034](DESIGN_p034_ledger_diff_guard_and_lock_gate.md) 完稿（D1-D4 / I1-I6 / V1-V5 **12 实例** / B1-B4 回退点 / 4 观察）。
+- **D1 差异校验守卫**: `if close_price is not None and is_valid_price(close_price):` 包裹 L318-324；保留 `is not None` **仅为 mypy 类型窄化**（`is_valid_price` 返回 `bool` 非 `TypeGuard`）；无效 close **静默跳过**（不计算 / 不告警 / 不改成交）；告警文案与 10% 阈值逐字不变。
+- **D2 CI 锁门禁**: 新增独立 job `lock-check`（**不进 matrix**）→ `astral-sh/setup-uv@v6` + `version: "0.11.14"` + `enable-cache: true` + `uv lock --check`；**禁 `|| true`**（P-024 假门禁教训）；测试 job 零改动（仍 `pip install ".[dev]"`）；降级链 `pip install uv==0.11.14`。
+- **D3 台账 8 处**: U-P033-1 → done（D1 承接）/ U-P033-2 + U-P014-3 → 合并至 U-P031-2 / U-P033-3 → 已裁决不采纳 / U-P014-1·U-P015-1·U-P016-1 → 建行 pending / U-008 → 合并至 U-P021-2；附则「批次关闭动作清单须检查 U-\* / O-\* 建行」。
+- **红态口径精化（自查，P-033 F-S8-P033-2 教训直接应用）**: V1 六参数中仅 **2 红**（`0.0` 抛异常吞单 / `np.float64(0)` 产生 `inf%`），其余 4 例（`nan` / `-5` / `inf` / `-inf`）**现状即无告警**——R3 的「静默」无法从外部与「跳过」区分，如实归为**回归保护**；V4 **1 红**；V2/V3/V5 全通过 → **全批 3 红 / 9 通过**。不伪造红态（P-031 F-S9-P031-3 先例）。
+- **门禁预测**: 748 → **760**（+12）/ tests 文件 83 → **84** / black 120 → **121** / mypy 37 files 0 / golden 13 零重录 / AST 22。
+- **不改项（D4）**: `TypeGuard` 改造 / 阈值可配置 / 文案格式 / `uv export`·`uv sync` / §1.4 全表重构——五项均拒绝并留理由。
+- **下一 Step**: **Step 4 独立 Review**（RULE-5 要求异构基座）；复核重点六项（D1 等价性与 mypy / D2 action 版本真实性 / D3 处置完整性 / V1-V5 覆盖与红态豁免 / 门禁推算 / 静默观测缺口披露）。
 
 ---
 
