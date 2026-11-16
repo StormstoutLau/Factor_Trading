@@ -307,14 +307,18 @@ results = engine.run()
 ### Multi-Agent Strategy
 
 ```python
-from agents.multi_strategy_engine import MultiStrategyEngine
+from agents.agent_framework import MultiAgentBacktestEngine
 from agents.guru_agent_v2 import GuruAgentV2
 
-engine = MultiStrategyEngine(config)
+engine = MultiAgentBacktestEngine(config)
 engine.register_agent(GuruAgentV2(guru_id="buffett"))
 engine.register_agent(GuruAgentV2(guru_id="soros"))
+engine.setup()
 results = engine.run()
 ```
+
+> 多策略（long / short / neutral 三腿并行）请用 `agents.multi_strategy_engine.MultiStrategyEngine`：
+> 构造后调 `run_sequential()` / `run_parallel(n_workers=3)` / `run_vectorized(...)`（该引擎固定按策略方向内建三条腿，无 `register_agent` API）。
 
 ### Multi-Source Fusion Analysis
 
