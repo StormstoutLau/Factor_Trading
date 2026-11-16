@@ -927,7 +927,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **对齐矩阵**: 八站点→D1-D7→IMPL §4.1-4.3→CHECKLIST A/B/C 组 + I1-I8→D1-D8 + R/U/O 项→F5，**零遗留落点**。
 - **E8 可执行性抽查**: `-k "agent or strategy_engine or strategy_alloc or portfolio or pending or p027 or p026"` 实测 **83/711 collected**——七关键词全命中。
 - **分级**: 0 P1 / 0 P2 / **1 P3（当轮修正）**——F-S8-P029-1 **A ID 双套**（CHECKLIST 验收项 A1-A6 与 IMPL §7 注意项 A1-A7 同名异义）→ 4 处行内锚点 + B 组 DoR 统一加 `IMPL§7-` 前缀 + A 组 DoR 补 ID 空间注记 + §8.3 统一；1 观察 O-S8-P029-1（RESEARCH 9 计量口径落 §11 推导链 + `research_team_v2.py` 粒度引用 `:27` vs `:25-28` 并存，登记不改）。
-- **提交与 CI**: 见收口回填。
+- **提交与 CI**: 提交 `1f2f7b4`（2 文件 +89/−9，docs-only）→ CI run `43822155305` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
