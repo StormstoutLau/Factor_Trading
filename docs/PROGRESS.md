@@ -876,7 +876,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **不变式**: I1 `except Exception` 恒 22 / I2 零 raise / I3 返回值语义零变更 / I4 零改动面九面 / I5 既有签名零变更 / **I6 零新增日志 + 既有文案逐字** / I7 golden 零重录 / I8 目标 **722 passed / 81 文件 / black 118 / mypy 37**。
 - **测试**: 7 函数 / 11 实例（V1 3 + V2 1 + V3 1 + V4 2 + V5 2 + V6 1 + V7 1），全部 `monkeypatch`，禁 mock 库；红态预期全失败。
 - **设计期核验**: `rotation_analyzer` 于 L881 初始化为 `None`（D2 不新增赋值）；`MeanVarianceAllocator` 无子类（R-P029-5 成立）；`BaseAllocator` 无 `__init__`（M-A 理由实证）；S4 出口已在 P-027 就绪（零出口改动）。
-- **提交与 CI**: 见收口回填。
+- **提交与 CI**: 提交 `0afcfec`（2 文件 +275/−1，docs-only）→ CI run `43790175885` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
