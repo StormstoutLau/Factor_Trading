@@ -1428,7 +1428,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **B0 处置**: 钉版决策**保留**、理由改写为「锁 / CI / 本地三方一致 + 可复现性」；`pyproject.toml` 注释 / ARCHITECTURE §9.2 / CHANGELOG 条目 / 本档 U-P024-1、U-P036-1 行同步更正。
 - **结论**: **pass（带 1 P2 当轮更正）**——Step 1 机械读数全部可重放、R2/R4 强化确认、方案矩阵不受影响；R1 归因更正已闭环。
 - **下一 Step**: **Step 3 DESIGN**（B1/B2/B3 分批边界 + union-attr 修复策略裁决 + B3 移除 override 的 21 条预期登记 + O-P036-5 是否单独立项）。
-- **提交与 CI**: 本节记录提交后回填（占位）。
+- **提交与 CI**: 提交 `32e8fc9`（5 文件 **+103/−23**：RESEARCH_p036 §5 R1'/R2'/§4.2/§11/§12 +77/−14 / PROGRESS +20/−4 / pyproject 注释 +4/−3 / CHANGELOG +1/−1 / ARCHITECTURE +1/−1）→ CI run `43939440126` **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
