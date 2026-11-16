@@ -1148,7 +1148,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **门禁预测**: 731 → **748 passed**（V1 参数 6 + V2 2 + V3 2 + V4 1 + V5 1 + V6 2 + V7 1 + V8 2 = **17 实例**）/ 测试文件 **82 → 83** / black **119 → 120** / mypy **37 files 0** / golden **13 零重录**。
 - **设计期发现**: F-D3-P033-1（CLOSE 分支 `close_price=NaN` 不回退 = 第二类「入参合法、解析价无效」，D1 已覆盖）/ F-D3-P033-2（`IExecutionSimulator` 协议无需扩，模块级函数即可）。
 - **下一 Step**: **Step 4 异构 Review**（须 GLM-5.3-Flash ≠ 本文件作者 DeepSeek-V4.1-Flash）；复核重点六项（守卫位置 / 双层是否过度 / 引擎预过滤口径 / 计量不对称 / 测试规格 / 门禁推算）。
-- **提交与 CI**: 提交后回填。
+- **提交与 CI**: 提交 `9d3e4d7`（2 文件 **+258/−1**：DESIGN 新建 + PROGRESS §1.4/§3.38.2）→ CI run `43893100625` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）；本批零代码，门禁持平 **731 passed / black 119 unchanged / mypy 37 files 0**。
 
 ---
 
