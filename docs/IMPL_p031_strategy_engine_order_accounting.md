@@ -304,7 +304,7 @@ B1t+B2t+B3t+B4t → B5（全量门禁 + 文档回填）
 | V2b | nav 守卫（F-S4-P031-2） | `tracker._cash = 0`、无持仓 → nav=0 | **不抛异常**；`rebalance_nav_invalid == 1`；零订单 |
 | V3 | 超卖夹紧（R4，参数化 2） | 持仓 A=100；3×`SELL A 100`；`next_day` / `queue` 两路径；**成本零化** | 成交 **1 笔 100 股**；`oversell_blocked == 2`；`cash` 恰 **+1,000**（非 +3,000） |
 | V4 | 在途单（R3，参数化 2） | ① 撤销：两次 `_execute_rebalance` 间残留 1 张单；② 过期：**BUY 单**创建日距当前 ≥ 6 自然日（F-S6-P031-1：SELL 单 6 日**不过期**——6 < max_sell 10 且 vitality 0.5^(6/3)=0.25 > 0.125，探针实证） | ① 撤销后 `_next_day_orders` 不含该股 + `next_day_orders_cancelled > 0`；② `next_day_orders_expired > 0` 且订单不再执行 |
-| V5 | 中性（D2） | `direction="both"`，`long_weight=0.5` | 无 SELL 成交；`neutral_short_leg_skipped > 0`；`additional_info.neutral_short_leg == "unsupported"`；`__init__` 有 1 条 WARNING |
+| V5 | 中性（D2） | `direction="both"`，`long_weight=0.5` | 无 SELL 成交；`neutral_short_leg_skipped > 0`；`additional_info.neutral_short_leg == "unsupported"`；`__init__` 有 1 条 WARNING；**买入名义 ≈ 0.5 × nav × 0.985（半仓、不重归一化——F-S8-P031-1 补）** |
 | V6 | 正常路径（回归） | 常规多头两股调仓，全链路 `run()` | 6 个新计数键全 0；`orders_missing_price` / `next_day_open_price` 零误报 |
 
 **红态纪律**：B1t/B2t/B3t/B4t 逐批先红后绿；V6 在红态即通过属预期（回归保护），须在 §11 显式标注。
@@ -394,6 +394,7 @@ B1t+B2t+B3t+B4t → B5（全量门禁 + 文档回填）
 | 门禁终态（pytest / mypy / black / golden） | `[待 Step 9]` |
 | 净行数实测（`git diff --numstat`） | `[待 Step 9]` |
 | P-029 V4/V5 回归面实证 | `[待 Step 9]` |
+| I1 AST 计数（复用 [IMPL_p029 §6](IMPL_p029_silent_exception_governance_phase4.md) 命令：十文件 `except Exception` 扫描） | `[待 Step 9]`（目标 22——D1 新增 `except (KeyError, IndexError)` 不计入；F-S8-P031-2 补命令源） |
 
 ---
 

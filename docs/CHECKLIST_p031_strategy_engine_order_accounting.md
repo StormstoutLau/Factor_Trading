@@ -34,7 +34,7 @@
 | B1 | 导入新增：`TargetPosition, build_target_positions, compute_portfolio_value`（L37 后）；`PendingOrder` 追加 L34；`core/` 零改动 | `git diff agents/multi_strategy_engine.py` 头部两端；`git status --short core/` 空 | D1 / D7 / I6 | [待 Step 9] |
 | B2 | `_generate_orders` 价格切片**统一一次** `try: ... .loc[date] except (KeyError, IndexError): _record_failure("orders_missing_price"); return`；原**逐股** `if stock in adj_close.columns` 分支删除 | 读码；`git diff` 中原 L325-332 逐股块为 `-` 行 | D1 / F-S4-P031-3 | [待 Step 9] |
 | B3 | `nav = compute_portfolio_value(cash, current>0, prices, market_values)`；守卫 `if not np.isfinite(nav) or nav <= 0: _record_failure("rebalance_nav_invalid"); return`，**置于** `build_target_positions` 之前 | 读码顺序（守卫行号 < targets 行号）；V2b 断言该键 1 | D1 / F-S4-P031-2 / §13.4 | [待 Step 9] |
-| B4 | `build_target_positions(..., round_lot=self.base_cfg.optimizer.round_lot)`，`value_buffer` 走默认 0.985（不显式传参）；`_generate_rebalance_orders` 签名改 `dict[str, TargetPosition]`，**先 SELL 后 BUY** 两轮循环 | 读码两函数；`git diff` 中签名行 1 处 `-`/`+` | D1 / 裁决 #3 / V2 语义 | [待 Step 9] |
+| B4 | `build_target_positions(..., round_lot=self.base_cfg.optimizer.round_lot)`，`value_buffer` 走默认 0.985（不显式传参）；`_generate_rebalance_orders` 签名改 `dict[str, TargetPosition]`，**先 SELL 后 BUY** 两轮循环 | 读码两函数；`git diff` 中签名行 1 处 `-`/`+` | D1 / 裁决 #3 / DESIGN-V2 语义 | [待 Step 9] |
 | B5 | V1 绿：持仓 A=1000、`target_weights={"B": 0.5}` → `_next_day_orders` 含 `SELL A 1000`；次日执行后 A=0、B>0 | `pytest -q -k exit_order` = 1 passed | V1 / I1 / R2 | [待 Step 9] |
 | B6 | V2 绿：1 股常量价 10、`daily`、恒定 100%、**零成本**、10 个交易日 → 成交**恰 1 笔**（旧实现 9 笔）；每日 `cash + Σqty×price == 初始资金` | `pytest -q -k nav_timing` = 1 passed | V2 / I3 / R1 / F-I-P031-7 | [待 Step 9] |
 | B7 | V2b 绿：`tracker._cash = 0` 且无持仓（nav=0）→ **不抛异常**、`rebalance_nav_invalid == 1`、零订单 | `pytest -q -k nav_guard` = 1 passed | V2b / F-S4-P031-2 | [待 Step 9] |
@@ -145,6 +145,54 @@
 | 角色 | 基座 | 结论 | 日期 |
 |------|------|------|------|
 | Step 7 验收清单作者 | DeepSeek-V4.1-Flash | 46 项完稿，零预填 | 2026-11-16 |
-| Step 8 一致性 Review | `[待 Step 8]`（须异构基座） | — | — |
+| Step 8 一致性 Review | GLM-5.3-Flash（≠ Step 7 作者 DeepSeek-V4.1-Flash，异构成立） | pass：机械五项全过 + 对齐矩阵七项全过；2 P3 当轮回写 IMPL（F-S8-P031-1/2）+ 1 P3 当轮修正（F-S8-P031-3），见 §10 | 2026-11-16 |
 | Step 9 TDD 执行 | `[待 Step 9]` | — | — |
 | Step 10 ADD 审计 + RULE-5 异构终审 | `[待 Step 10]`（须异构基座） | — | — |
+
+---
+
+## 10. Step 8 一致性 Review（异构基座 GLM-5.3-Flash，2026-11-16）
+
+> **异构性（RULE-5）**: 本文件作者 DeepSeek-V4.1-Flash（与 RESEARCH/DESIGN/IMPL 同源）≠ 本节复审基座 **GLM-5.3-Flash**。
+> **复审对象**: 本文件提交 `c913243` 版本（Step 7 收口）；复审时点 HEAD `a126379`
+> **方法**: 机械校验脚本（`%TEMP%\p031_step8_check.py`，独立编写）五项 + 对齐矩阵七项 + §8 交接五项逐条裁决
+
+### 10.1 E1 机械校验五项
+
+| # | 检查项 | 读数 | 结果 |
+|---|--------|------|------|
+| M1 | 相对链接 | 3 条 / **0 broken** | ✅ |
+| M2 | ID 闭环 | 46 行 / 46 唯一 / 无重复；分组 **A6+B8+C6+D6+E8+F12** 与 §7 声称精确一致 | ✅ |
+| M3 | 计数一致性 | `46`×10 / `731`×4 / `82`×3 / `119`×4 / `37 files 0`×4 / `13 零重录`×2——全部与正文口径自洽 | ✅ |
+| M4 | 零预填合规 | `[待 Step 9]` 机械匹配 **49** = 46 单元格 + 3 合法字面引用（L6 规则行 / §7 计数说明 / 签名表 Step 9 行）；`✅` **2** 次均为规则说明字面引用 | ✅ |
+| M5 | 角色引用形态 | 签名表四行齐备；Step 8/9/10 行均为 `[待 Step N]` 占位（本轮回填 Step 8 行） | ✅ |
+
+### 10.2 E2 对齐矩阵七项
+
+| # | 对拍项 | 落点 | 结果 |
+|---|--------|------|------|
+| A | **9 实例** | IMPL §2（计数口径）×3 / 本文件 F1 + §7 覆盖映射 ×5——V1 1 + V2 1 + V2b 1 + V3 2 + V4 2 + V5 1 + V6 1 = 9 | ✅ 三处一致 |
+| B | **4 修 1 降级** | RESEARCH §3（R1-R4 四缺陷）/ DESIGN §1（四行缺陷表 + D2 行）/ IMPL §1（「四处语义修正 + 一处显式降级」）/ 本文件 F10 + A-D 组标题 | ✅ 四处口径一致 |
+| C | **6 计数键** | DESIGN D6 / IMPL §2 / 本文件 A3+C2+C3+D3+D4+B3 三文档全含（RESEARCH 无键属预期——缺陷取证文档） | ✅ |
+| D | **731/82/119/37 链** | IMPL §1 ↔ 本文件头部 + E8 + F4-F5；基线 722/81/118/37 与 Step 6 §13.3 实测同源 | ✅ 三处一致 |
+| E | **V-ID 映射** | DESIGN 契约 V1-V6 ↔ IMPL 用例 V1-V6+**V2b**（唯一新增）；语义 1:1 对齐（V1 退出单 / V2 NAV / V3 夹紧 / V4 在途 / V5 中性 / V6 正常）；本文件锚点列除 B4 外全为用例 ID | ✅（B4 见 F-S8-P031-3） |
+| F | **顺序敏感五项** | ① 撤销位置→D1（IMPL §4.2 早退后/daily_signal 前）② 过期位置→D4（F-I-P031-1 切片后）③ 计数位置→A3（optimize 成功后）④ nav 守卫→B3（build_target_positions 前）⑤ B1→B2（IMPL §3 + DESIGN §8）——五项均已在 IMPL 定稿且本文件对应行引用 | ✅ |
+| G | **基线-目标读数链** | Step 6 §13.3（722/118/37/81 @4278179）↔ 本文件头部（@6a7771e，代码面一致）↔ 目标 731/82/119/37 | ✅ 无漂移 |
+
+### 10.3 E3 发现分级与当轮处置
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S8-P031-1 | P3 | 本文件 A2/A6 要求「半仓断言」（`target_weights.sum() <= 0.5 + 1e-9` / 买入名义半仓），但 IMPL §5 V5 断言列未列（全文「半仓」仅见于 §1 前提 6 与 §4.1 warning 文案）——规格缺口 | **当轮回写 IMPL §5 V5**：断言补「买入名义 ≈ 0.5 × nav × 0.985（半仓、不重归一化）」 |
+| F-S8-P031-2 | P3 | 本文件 E5 引用「AST 扫描 = 22」但 IMPL_p031 无命令定义（grep AST = 0）；P-029 先例命令在 [IMPL_p029 §6](IMPL_p029_silent_exception_governance_phase4.md)（十文件口径） | **当轮回写 IMPL §11**：增补「I1 AST 计数」待回填行（复用 P-029 命令，D1 新增 `except (KeyError, IndexError)` 不计入） |
+| F-S8-P031-3 | P3 | 本文件 B4 锚点列「V2 语义」实指 DESIGN 契约 V2（NAV 时序语义），违反 §8.2 自立的「DESIGN 契约引用须标 DESIGN-V*」规则 | **当轮修正**：B4 锚点列改「DESIGN-V2 语义」 |
+| 观察 | 3 | O-S8-P031-1：F1 写「函数数 ≤ 7」为估算上限（V3/V4 参数化后实际函数数 5-7 均可），Step 9 实测为准。O-S8-P031-2：A2 证据「`target_weights.sum()`」依赖测试捕获 `target_weights` 的实现方式（monkeypatch `_generate_orders` 或由订单名义反推），IMPL 未钉死实现——与 F-S8-P031-1 回写合并后由 Step 9 自由选择。O-S8-P031-3：本文件头注「与 IMPL §4 锚点基准 `96bed8d` 代码面一致」成立（`96bed8d..6a7771e` 全为 docs-only 提交），无需处置 |
+
+### 10.4 结论与 Step 9 前置条件
+
+**结论**: **pass**（0 P0/P1/P2 / 2 P3 当轮回写 IMPL / 1 P3 当轮修正本文件 / 3 观察）——四文档口径闭环，46 项验收可执行，准予进入 Step 9 TDD。
+
+**Step 9 前置条件**:
+1. V5 按回写后断言实现（含半仓名义校验，O-S8-P031-2 的实现方式自由）；
+2. §11 回填含「I1 AST 计数」行（F-S8-P031-2 命令源）；
+3. 五处顺序敏感核验（10.2-F）逐项留证；V6 红态即绿须显式标注（F2）。
