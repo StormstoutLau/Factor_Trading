@@ -1290,6 +1290,17 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **红态预算**: B1t 首跑 **3 failed / 9 passed**（V1 的 `0.0` 与 `np.float64(0)` + V4）；其余 9 例为回归保护，**不得**把四例「静默」误报为红态。
 - **下一 Step**: **Step 6 实施 Review**（RULE-5 要求异构基座）；复核重点六项（守卫条件 / 单一来源 1 定义 4 调用 / CI job 形态 / 台账 8 处 / 门禁推算 / 红态 3F/9P 口径）。
 
+### 3.39.5 P-034 Step 6 实施 Review 记录（2026-11-17）
+
+- **基座披露**: **DeepSeek-V4.1-Flash = 作者同源** → RULE-5 异构不成立，**同基座独立复审**（RULE-4）；异构终审仍由 **U-P034-3** 跟踪。复审对象 `05778d1`。
+- **E1 锚点十项全命中**: L316/L317 / L318-324 / `is_valid_price` L153-161 / `execute_order` L273·L280 / `tests.yml` L9-46 / `uv.lock` 头 / §1.4 三处（L81·L75·L158）/ CHANGELOG `### Changed` / ARCHITECTURE §9.2 L335 / golden 7 json。
+- **E2 门禁基线独立复测（四项）**: pytest **748 passed**（172 warnings，49.67s）/ black **120 unchanged** / mypy **37 files 0** / `tests/` .py **83**（`*.py` 全量）/ **80**（`test_*.py`）。
+- **E3 红态预览（`%TEMP%\p034_step6_red_probe.py` 模拟 12 实例，不改代码）**: **3 failed / 9 passed**——失败三例 = `V1[python-0.0]`（`success=False`/`trades=0`/`errors=1`）、`V1[np-0]`（`diff_warns=1` `inf%`）、`V4[close=0.0]`（吞单）；其余 9 例（V1 `nan`/`neg`/`inf`/`neg_inf` + V2×3 + V3 + V5）全部通过 → 与 IMPL §3 红态预算**逐项吻合**。
+- **六项裁决**: ① 守卫条件规格精确 ② 单一来源 1 定义（实施后 3 → 4 调用）③ CI job 形态成立（`@v10.3.3` / 无 `enable-cache` / 无 `|| true`）④ 台账 8 处规格完整可落地 ⑤ 门禁推算全对（760/84/121/37/13/22）⑥ 红态 3F/9P 经 E3 实证、四例回归保护未伪造。
+- **发现分级**: **0 P0/P1/P2 / 1 P3 当轮回写（F-S6-P034-1 `tests/` .py 计数口径未注明——`*.py` 83 vs `test_*.py` 80，§1 已补注）/ 2 观察**（O-S6-P034-1 V1/V4 断言重叠 / O-S6-P034-2 `np-0` 的 `RuntimeWarning` 修复后应消失）。
+- **结论**: **pass**——准予进入 **Step 7 CHECKLIST**；前置条件三项（12 实例口径 + 红态 3F/9P 与四例回归保护登记 / 门禁实测引用 §11.2 并注明 `.py` 全量口径 / Step 9 红绿须与 E3 逐项对拍）。
+- **下一 Step**: **Step 7 CHECKLIST**。
+
 ---
 
 ## 4. 审查记录

@@ -16,7 +16,7 @@
 | 变更文件（文档） | 本文件 / `docs/PROGRESS.md`（§1.4 台账 8 处 + §3.39.x）/ `CHANGELOG.md` / `docs/ARCHITECTURE.md`（§9.2 一句） |
 | 零改动面 | `core/engine_v2.py` / `core/tracker.py` / `core/pending.py` / `core/interfaces.py` / `agents/` / `filter/` / `scripts/` / `cli.py` / `pyproject.toml` / `uv.lock` / `tests/golden/*.json` / `tests/test_p029_*.py` / `tests/test_p031_*.py` / `tests/test_p033_*.py` |
 | 行为变更 | **1 处（仅诊断面）**：`close_price` 无效时差异校验跳过（不再产生 `inf%` 告警 / 不再抛 `ZeroDivisionError` / 不再静默计算 NaN 比值）；账目与成交结果**不变** |
-| 门禁口径 | `MPLBACKEND=Agg` + Python312：pytest **748 → 760**（+12）；`tests/` .py **83 → 84**；black `--check core tests` **120 → 121**；mypy `core` **37 files 0**（不变）；golden G1-G7 **13 零重录**；`except Exception` 恒 **22** |
+| 门禁口径 | `MPLBACKEND=Agg` + Python312：pytest **748 → 760**（+12）；`tests/` .py **83 → 84**（**口径 = `tests/` 下全部 `.py`**，含 `_golden_cases.py` / `_synth_fixture.py` / `_reference_impl.py` 等辅助模块；`test_*.py` 为 **80 → 81**——F-S6-P034-1）；black `--check core tests` **120 → 121**；mypy `core` **37 files 0**（不变）；golden G1-G7 **13 零重录**；`except Exception` 恒 **22** |
 
 **四条不可越界的前提**：
 
@@ -225,3 +225,77 @@ B3 ──→ B4（全量门禁 + 回填）
 4. **台账**：8 处是否全部落地，U-P031-2 / U-008 合并注记是否在位；
 5. **门禁预测**：760 / 84 / 121 / 37 / 13 / 22 是否可由 12 实例机械推出；
 6. **红态**：3F/9P 口径是否与 §3 一致，四例「静默」是否被如实标为回归保护。
+
+---
+
+## 11. Step 6 实施 Review 记录（2026-11-17）
+
+> **基座**: **DeepSeek-V4.1-Flash**——与本文作者**同源** → RULE-5 异构不成立，**同基座独立复审**（RULE-4 披露）；异构终审由 **U-P034-3** 跟踪。
+> **复审对象**: `05778d1`（IMPL_p034 提交版）；复审时点 HEAD `05778d1`
+> **方法**: E1 锚点机械复核 + E2 门禁基线独立复测 + E3 红态预览探针（`%TEMP%\p034_step6_red_probe.py`，不改代码模拟 12 实例断言）+ E4 六项裁决
+
+### 11.1 E1 锚点机械复核（十项）
+
+| # | IMPL 声称 | 实查 | 结果 |
+|---|-----------|------|------|
+| A1 | `core/execution.py` L316 `# 价格合理性检查` / L317 `if close_price is not None:` | 读码 | ✅ |
+| A2 | L318-324（ratio / 阈值 / warning）逐字 | 读码 | ✅ |
+| A3 | `is_valid_price` L153-161 签名 `Optional[float] -> bool` | 读码 | ✅ |
+| A4 | `execute_order` L273 def / L280 `close_price: Optional[float] = None` | 读码 | ✅ |
+| A5 | `tests.yml` L9-46 单 job + matrix + pip，零 uv | 读码 | ✅ |
+| A6 | `uv.lock` `version = 1` / `revision = 3` | 头部 | ✅ |
+| A7 | §1.4 P-034（L81）/ U-P031-2（L75）/ 旧表 U-008（L158） | 读码 | ✅ |
+| A8 | `CHANGELOG` `### Changed` 首条可插入位置 | 读码 | ✅ |
+| A9 | `ARCHITECTURE §9.2` L335 锁纪律句 | 读码 | ✅ |
+| A10 | golden 目录 7 份 json（13 用例）未变 | 读码 | ✅ |
+
+### 11.2 E2 门禁基线独立复测（四项，Python312 + `MPLBACKEND=Agg`）
+
+| 门禁 | IMPL 声称 | 实测 | 结果 |
+|------|-----------|------|------|
+| 全量 pytest | 748 | **748 passed, 172 warnings**（49.67s） | ✅ |
+| black `--check core tests` | 120 | **120 files would be left unchanged** | ✅ |
+| mypy `--explicit-package-bases --check-untyped-defs core` | 37 files 0 | **Success: no issues found in 37 source files** | ✅ |
+| `tests/` .py 数 | 83 | **83**（`*.py` 全量）/ **80**（`test_*.py`） | ✅（口径见 F-S6-P034-1） |
+
+### 11.3 E3 红态预览（12 实例模拟，不改代码）
+
+| 用例 | 结果 | 读数 |
+|------|------|------|
+| V1[python-0.0] | **FAIL** | `success=False` / `trades=0` / `errors=1`（R1 吞单） |
+| V1[np-0] | **FAIL** | `success=True` 但 `diff_warns=1`（R2 `inf%`） |
+| V1[nan] / V1[neg] / V1[inf] / V1[neg_inf] | PASS | 四例现状即无告警（回归保护，如实标注） |
+| V2[8.0] / V2[7.0] / V2[10.5] | PASS | 1 条 `25.00%` / 1 条 `42.86%` / 0 条 |
+| V3[None] | PASS | 零告警 |
+| V4[close=0.0] | **FAIL** | `success=False` / `trades=0` / `errors=1` |
+| V5[open=nan,close=0] | PASS | `success=False` / `guard=1` / `diff_warns=0` |
+| **汇总** | **3 failed / 9 passed** | 与 §3 红态预算**逐项吻合** |
+
+### 11.4 E4 六项裁决（对应 §10）
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | 守卫条件 | **规格精确**——L317 完整条件含 `is not None`；L318-324 零改动要求已列入 §4.6 |
+| 2 | 单一来源 | **成立**——`is_valid_price` 保持 1 定义；实施后调用点 3 → 4 |
+| 3 | CI job | **规格成立**——`@v10.3.3` / `version: "0.11.14"` / 无 `enable-cache` / 无 `|| true`；`test` job 零改动 |
+| 4 | 台账 8 处 | **规格完整**——7 行新增 + 2 处补注；行文本可直接落地 |
+| 5 | 门禁推算 | **全部正确**——748 + 12 = 760；83 + 1 = 84；120 + 1 = 121；37 不变；golden 13；AST 22 |
+| 6 | 红态 3F/9P | **E3 实测逐项吻合**；四例「静默」如实归为回归保护，未伪造红态 |
+
+### 11.5 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S6-P034-1 | P3 | §1 门禁口径「`tests/` .py 83 → 84」**未注明计数口径**——实测 `*.py`（含 `_golden_cases.py` / `_synth_fixture.py` / `_reference_impl.py` 等辅助）= **83**，而 `test_*.py` = **80**；若按后者核对会误判「83 失真」 | **当轮补注口径**（§1 已加「口径 = `tests/` 下全部 `.py`（含辅助模块）」） |
+| O-S6-P034-1 | 观察 | V1[python-0.0] 与 V4 断言重叠（同一行为两种断言） | 保留（V4 提供最直接读数，冗余无害） |
+| O-S6-P034-2 | 观察 | V1[np-0] 现状向 stderr 输出 `RuntimeWarning: divide by zero`（不影响断言）；修复后应消失 | 登记（非断言项） |
+
+### 11.6 结论与 Step 7 前置条件
+
+**结论**: **pass**（0 P0/P1/P2 / **1 P3 当轮回写** / 2 观察）——锚点十项全命中、门禁基线四项一致、红态预览与预测逐项吻合、六项裁决全过。
+**RULE-5 声明**: 同基座独立复审，异构终审登记 **U-P034-3** 不变。
+
+**Step 7 前置条件**:
+1. CHECKLIST 按 V1-V5（12 实例）口径编制，**红态 3F/9P** 与四例回归保护显式登记；
+2. 门禁实测列引用 §11.2 读数（748 / 120 / 37 / 83），并注明 `.py` 全量口径（F-S6-P034-1）；
+3. Step 9 红绿留证须含 E3 的三例失败读数（F5 两读数），并与本节逐项对拍。
