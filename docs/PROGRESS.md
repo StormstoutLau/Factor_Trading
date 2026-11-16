@@ -1412,6 +1412,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **验证（全绿）**: `uv lock --check` **exit 0**（148 packages）/ 门禁 `mypy core` **0 errors / 37 files** / **反证** `mypy filter` 直检 **21 errors / 7 files**（override 仍是门禁绿的唯一原因，非缺陷消失）/ `black --check core tests` **121 unchanged** / `pytest -q` **760 passed**（172 warnings，56.55s）。
 - **台账**: U-P024-1 → **done**；U-P036-1 → **done**；U-P036-2~4 建行 pending（按 D5 纪律，本批新增 U-\* 全部建行）。
 - **未做（显式）**: 门禁 target 未扩（仍 `core`）；`filter.*` 豁免未移除；`agents/` 等 129 条错误未触碰——留待 B1/B2/B3。
+- **提交与 CI**: 提交 `76174c2`（6 文件 **+307/−167**：`pyproject.toml` +7/−2 / `uv.lock` +240/−163 / RESEARCH_p036 §11 +42 / PROGRESS +15/−2 / CHANGELOG +1 / ARCHITECTURE +2）→ CI run `43938329499` **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
