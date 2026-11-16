@@ -262,7 +262,7 @@ def is_valid_price(price: Optional[float]) -> bool:
 | 公开签名删除 | 0 | ✅ `git diff \| Select-String '^-\s*def '` = **0** |
 | 零改动面（tracker / pending / interfaces / target_positions / golden / filter / scripts / cli / pyproject / test_p029* / test_p031*） | 空 | ✅ `git status --short` 全空 |
 
-**净行数（`git diff --numstat`）**: `core/execution.py` **+21/−1** / `agents/multi_strategy_engine.py` **+6/−1** / `core/engine_v2.py` **+6/−1** / `tests/test_p033_order_price_validation.py` **+203（新增）**。
+**净行数（`git diff --numstat`）**: `core/execution.py` **+21/−1** / `agents/multi_strategy_engine.py` **+6/−1** / `core/engine_v2.py` **+6/−1** / `tests/test_p033_order_price_validation.py` **+259（新增；Step 10 F-R5-P033-1 更正——原记 +203 为非空行计数偏差）**。
 
 ### 11.3 顺序敏感五项留证（CHECKLIST §7.3）
 
