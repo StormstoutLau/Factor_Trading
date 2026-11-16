@@ -936,7 +936,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **代码变更（3 文件）**: `agent_framework.py` **+7/−5（净 +2）**——S1-S3 三处 `pass` → 计量（bare 保持）、S3b `else` 挂 `If`（AST 实证 `If L928 orelse=['Expr']`、无 `Try.orelse`）、S4 计量 + `failure_counts` 快照下移；`multi_strategy_engine.py` **+3/−0**——S5/S6/S7 except 首行插入；`strategy_allocator.py` **+10/−0**——`MeanVarianceAllocator` 三件套 + `pinv_fallback`。
 - **门禁终态**: pytest **722 passed**（711 + 11，172 warnings）/ 测试文件 **81** / black **118 unchanged** / mypy **37 files 0 error** / golden **13 passed 零重录** / I1 **22** / I2 **0** / I5 `^-\s*def ` **0**（`get_performance_summary` 仍 2 处）/ I6 `logger.` 行 **0 增 0 删** / 零改动面九面 diff 空 / 回归子集 **84 passed**。
 - **实施期发现**: F-S9-P029-1（P3）新增测试文件首版未过 black（格式化后复检 118 unchanged）；F-S9-P029-2（观察）black 调整 `numpy` 导入位序。F-I-P029-1（净 +2 / 变更 7）与 O-I-P029-1（≈+10）**假设验证闭环**。
-- **提交与 CI**: 提交 `e86b09d` / `7cf6718` / `58954bd`（代码三批）+ B4 文档提交（见 `git log`）→ CI run `43824569283` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
+- **提交与 CI**: 代码三批 `e86b09d` / `7cf6718` / `58954bd` → CI run `43824569283` success；B4 文档 `596e325`（6 文件 +120/−60）→ CI run `43825106609` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
