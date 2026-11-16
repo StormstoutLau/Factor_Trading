@@ -2,7 +2,7 @@
 
 > **批次**: P-031 · **T1**（`agents/multi_strategy_engine.py` 单文件 + 新增账目测试）
 > **上游**: [IMPL_p031](IMPL_p031_strategy_engine_order_accounting.md)（B1-B5 / §4 逐函数规格 / §5 V1-V6+V2b / §6 fixture / §7 低效排除 / §8 回退点 / §9 F-I-P031-1~7 / §13 Step 6 复审 pass）；[DESIGN_p031](DESIGN_p031_strategy_engine_order_accounting.md)（D1-D7 / I1-I8 / V1-V6 / §12 Step 4 复审）；[RESEARCH_p031](RESEARCH_p031_strategy_engine_order_accounting.md)（§3 R1-R4 / §11 Step 2 复审）
-> **状态**: **Step 9 TDD 实施完成（46/46 ✅）**（2026-11-16，B1-B4 四批红→绿 + B5 门禁文档；门禁 **731 passed / 82 文件 / black 119 / mypy 37 files 0 / golden 13 零重录 / `except Exception` 22**）；Step 10 ADD 审计 + RULE-5 异构终审待执行
+> **状态**: **Step 10 ADD 审计 + RULE-5 异构终审通过，P-031 批次关闭**（2026-11-16，审计基座 GLM-5.3-Flash ≠ 四文档作者 DeepSeek-V4.1-Flash）——0 P0-P2 + 1 P3 当轮修正（F-R5-P031-1）+ 2 观察；门禁独立复跑 **731 passed / mypy 37 files 0 / black 119 / golden 13 零重录 / I1 = 22** 全绿（见 §11；Step 9 实施记录见 [IMPL §11](IMPL_p031_strategy_engine_order_accounting.md)、Step 8 Review 见 §10）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 7 实测 @HEAD `6a7771e`，Python312 + `MPLBACKEND=Agg`）**: 全量 `pytest -q` **722 passed**（172 warnings）/ `tests/` .py **81**（78 `test_*.py` + 3 `_` 辅助）/ `black --check core tests` **118 unchanged** / `mypy --explicit-package-bases core` **37 files 0 error** / `tests/golden/` **7** 份 json（13 条 golden 用例）/ `except Exception` 合计 **22**
 > **目标读数（Step 9）**: **731 passed** / 测试文件 **82** / black **119** / mypy **37 files 0** / golden **13 零重录** / `except Exception` 恒 **22**
@@ -147,7 +147,7 @@
 | Step 7 验收清单作者 | DeepSeek-V4.1-Flash | 46 项完稿，零预填 | 2026-11-16 |
 | Step 8 一致性 Review | GLM-5.3-Flash（≠ Step 7 作者 DeepSeek-V4.1-Flash，异构成立） | pass：机械五项全过 + 对齐矩阵七项全过；2 P3 当轮回写 IMPL（F-S8-P031-1/2）+ 1 P3 当轮修正（F-S8-P031-3），见 §10 | 2026-11-16 |
 | Step 9 TDD 执行 | DeepSeek-V4.1-Flash（与上游同源） | pass：四批红→绿（1F / 3F / 2F / 2F → 9 passed），门禁 **731 / 82 / 119 / 37 / golden 13 / I1 22** 全绿；3 项实施期发现（F-S9-P031-1 P3 修正 + 2 观察），见 IMPL §11 | 2026-11-16 |
-| Step 10 ADD 审计 + RULE-5 异构终审 | `[待 Step 10]`（须异构基座） | — | — |
+| Step 10 ADD 审计 + RULE-5 异构终审 | GLM-5.3-Flash（≠ 四文档作者 DeepSeek-V4.1-Flash，异构成立） | pass：Phase 0 5/5 Tier A + Phase 1-4 全过（11 hunk 零游离）+ E1-E5 独立复跑全绿；**0 P0-P2 + 1 P3 当轮修正（F-R5-P031-1）+ 2 观察**，见 §11 | 2026-11-16 |
 
 ---
 
@@ -196,3 +196,109 @@
 1. V5 按回写后断言实现（含半仓名义校验，O-S8-P031-2 的实现方式自由）；
 2. §11 回填含「I1 AST 计数」行（F-S8-P031-2 命令源）；
 3. 五处顺序敏感核验（10.2-F）逐项留证；V6 红态即绿须显式标注（F2）。
+
+---
+
+## 11. Step 10 ADD 审计 + RULE-5 异构终审（2026-11-16）
+
+> **审计基座**: **GLM-5.3-Flash**（≠ RESEARCH / DESIGN / IMPL / CHECKLIST 四文档作者 DeepSeek-V4.1-Flash）→ **RULE-5 异构条件天然成立**，ADD 审计与异构终审**合并为一轮**（同 P-029 先例）。
+> **方法**: Phase 0 spec 质量门 → Phase 1 完整性盘点 → Phase 2 保真度比对（IMPL §4 独立读码）→ Phase 3 必要性（diff 逐 hunk 归因）→ Phase 4 语义/生命周期 → E1-E5 门禁独立复跑 + 盲区扫描；不采信任何未经本基座复现的读数。
+> **审计对象**: 区间 `6a7771e..780197c`（**6 提交**：`c913243` / `a126379` / `3c2e3de` / `6eb016d` / `750674e` / `780197c`；代码面集中于 `750674e`）；审计时点 HEAD `780197c`；Python312 + `MPLBACKEND=Agg`。
+
+### 11.1 Phase 0 spec 质量门（DESIGN_p031）
+
+| 维度 | 得分 | 依据 |
+|------|------|------|
+| 可测试约束 | 1 | V1-V6+V2b 每条断言可机械判定（V2 恰 1 笔 / V3 cash 恰 +1,000 / V4① 域外保留 / V5 半仓 notional rel 0.02 / V6 6 键全 0）；6 计数键语义各自明确 |
+| 模块映射 | 1 | D1→§4.4+4.5 / D2→§4.1+4.3+4.9 / D3→§4.6-4.8 / D4→§4.2+4.7① / D5 无代码（§7 排除 #2）/ D6 出口表 / D7 零改动面——全 1:1 |
+| 接口契约 | 1 | IMPL §8 签名回退表 9 函数 + 6 键 snake_case 命名 + `additional_info.neutral_short_leg` 二值枚举，均签名级明确 |
+| 修正项 | 1 | F-S2-P031-1/2 + F-S4-P031-1~4 + F-I-P031-1~7 + F-S6-P031-1 + F-S8-P031-1~3 + F-S9-P031-1~3 全枚举且各有回写落点 |
+| 跨模块契约 | 1 | I1-I8 不变式 + U-P031-1~4 + O-P031-1~3 + D7 九面零改动清单（core / golden / filter / scripts / cli / pyproject 等） |
+| **合计** | **5/5 = Tier A** | 无 B 档封顶 |
+
+### 11.2 Phase 1 完整性盘点
+
+| 设计元素 | 应有 | 实测 | 证据 |
+|----------|------|------|------|
+| 审计区间形态 | 6 提交 | **6** | `git log --oneline 6a7771e..780197c` 逐条列出（4 docs-only + 1 代码 + 1 docs 回填） |
+| 全区间 diff | 8 文件 +714/−98 | **8 文件 +714/−98** | `git diff --numstat` 逐文件；构成 = 1 代码 + 1 测试 + 6 文档 |
+| 代码 numstat | — | `agents/multi_strategy_engine.py` **+133/−83** / 测试 **+272** | 逐文件实测；+272 与 IMPL §11.2 的偏差见 F-R5-P031-1 |
+| 6 计数键 | 6 键 8 站点 | **6 键 / 8 站点** | blocked ×2 / trimmed ×2 / cancelled ×1 / expired ×1 / skipped ×1 / nav_invalid ×1，逐行命中 |
+| 新增日志 | 1 条 init warning | **+1** | 区间 diff `^[+-].*logger\.` 仅 `+logger.warning(`（D6 口径） |
+| 新增 raise | 0 | **0** | 区间 diff `^\+.*\braise\b` 零命中（I2 零 fail-fast） |
+| 零改动面 | core / golden / filter / scripts / cli / pyproject | **零命中** | 区间 8 文件名单不含上述任何面；`git status --short core tests/golden` 空 |
+| 出口 | `additional_info.neutral_short_leg` | **1** | `_generate_results` L547-551（多策略两循环直调面覆盖） |
+
+### 11.3 Phase 2 保真度（对照 IMPL §4，独立读码九函数）
+
+| 锚点 | 结论 | 证据 |
+|------|------|------|
+| §4.1 `__init__` warning | **pass** | L113-117：仅 `direction == "both"` 分支，文案含 `unsupported`，签名零变更（V5 断言 1 条 / long 0 条） |
+| §4.2 双载体撤销 | **pass** | L217-232：位置在信号索引早退（L214-215）之后、`daily_signal`（L235）之前；`_next_day_orders` keep/drop + `pending_queue.cancel_orders`；`if dropped:` 计次数；queue 侧零新键 |
+| §4.3 中性腿禁用 | **pass** | `short_optimizer` 零残留（grep 0）；`neutral_short_leg_skipped` 在 optimize（L311）成功之后、try 内（L314）；`long_weights * long_weight` 无重归一化（L315）；`except Exception` + `neutral_optimize` 结构逐字保留（P-027 契约） |
+| §4.4 `_generate_orders` | **pass** | 统一价格切片 try（L328-332，typed `except (KeyError, IndexError)`）→ current 仅 qty>0 → `compute_portfolio_value`（L341-346）→ nav 守卫（L347-349）**先于** `build_target_positions`（L352）；`value_buffer` 未传（默认 0.985） |
+| §4.5 `_generate_rebalance_orders` | **pass** | 签名 `dict[str, TargetPosition]`（L361）；先 SELL（L365-368）后 BUY（L370-373）两轮；routing 双路径保持（L375-379） |
+| §4.6 `_clamp_sell_quantity` | **pass** | L385-394 与规格逐字一致；BUY 早退；无持仓返回 0 |
+| §4.7 次日路径 | **pass** | 空队列早退（L398-399）→ 开盘价切片（L401-405，P-029 S6 保留）→ **过期过滤在切片后**（L407-421，F-I-P031-1）→ mask → 夹紧（L455-461，blocked 丢弃 / trimmed）→ `execute_order(..., qty, ...)`；`mark_expired` 零状态迁移（O-S6-P031-2） |
+| §4.8 队列路径 | **pass** | 夹紧同形（L511-518）+ blocked 调 `cancel_order`（L515）+ 直调 `execute_order(..., qty, ..., close_price)`（L520-522，F-I-P031-2）；`mark_executed` 对原订单对象（L526）；`mark_expired` 保留（L528） |
+| §4.9 `_generate_results` | **pass** | L547-551：`"unsupported"`（both）/ `"not_applicable"`（long/short） |
+| 签名零变更 | **pass** | 区间 diff `^-\s*def ` 唯一 `_generate_rebalance_orders`（私有，IMPL §8 允许项）；公开三方法零删改 |
+| 行号漂移 | **pass** | §11.3 漂移表 11 项 vs 实测 def 行号逐项复核全命中（L74/L155/L212/L282/L325/L361/L385/L396/L478/L530/L130） |
+
+### 11.4 Phase 3 必要性（diff 逐 hunk 归因）
+
+区间代码 diff 共 **11 hunk**，逐一归因 IMPL §4 / D1-D7，**零游离行**：
+
+| hunk（旧→新） | 归因 |
+|---------------|------|
+| -31,9 +31,14 | 导入区（`PendingOrder` + `target_positions` 三名，B1 验收项） |
+| -110,6 +115,12 | D2 §4.1 init warning |
+| -203,6 +214,23 | D4 §4.2 双载体撤销（+17 行） |
+| -256,7 +284,8 / -268,16 +297,6 / -290,16 +309,10 | D2 §4.3（docstring + `short_optimizer` 删除 + 权重替换） |
+| -310,77 +323,76 | D1 §4.4-4.5 + D3 §4.6（`_generate_orders` 整函数替换 + 目标持仓路由 + `_clamp_sell_quantity` 新增，净 −1 行） |
+| -392,6 +404,22 | D4 §4.7① 过期过滤（+16 行） |
+| -424,8 +452,16 | D3 §4.7②③ 次日夹紧（+8 行） |
+| -472,8 +508,17 | D3 §4.8 队列夹紧（+9 行） |
+| -499,6 +544,11 | D2 §4.9 `additional_info`（+5 行） |
+
+### 11.5 Phase 4 语义/生命周期
+
+| 面 | 裁决 |
+|----|------|
+| 超卖生命周期 | 生成侧（D1 目标持仓）SELL 量 ≤ 持仓，天然不可超卖；执行侧夹紧兜底**陈旧单**（前日簿/注入单）——纵深防御成立；blocked 次日路径丢弃（P-014 V2 同款）、队列路径 `cancel_order` 状态迁移，两差异均有裁决 |
+| 撤销生命周期 | 撤销先于当日新单生成（同函数内 L217 < L322/323 生成点），无自撤销；域外保留与 V2 L911-917 同口径；queue 载体经 `cancel_orders(stock, date)` 内置 `logger.info` 事件 |
+| 过期生命周期 | 复用 `is_expired`（自然日 + 半衰期 3，BUY 5 / SELL 10）；过期单仅从簿丢弃、无状态迁移（agents 本地簿无 status 消费者，O-S6-P031-2 零账目影响）；退化日（整日无开盘价）推迟一天过期，有界且不可观测（F-I-P031-1） |
+| NAV 时序 | `compute_portfolio_value` 消费当日收盘价切片，消除「开盘成交后 get_total_value 不可信」窗口；守卫拦截 nan/±inf/0/负（Step 6 E3 探针实证），不抛 `ValueError` 入无 try 循环 |
+| 中性降级语义 | 半仓多头 + 半仓现金 + 双重披露（warning / 计数 / `additional_info`）；`short` 方向维持现状（U-P031-3）；`neutral_short_leg_skipped` 仅在 tradable 非空时可达（L246-248 早退在前） |
+
+### 11.6 E1-E5 门禁独立复跑（本基座全量重跑，不采信 Step 9 自报）
+
+| 门禁 | 目标 | 实测 |
+|------|------|------|
+| 全量 pytest | 731 | ✅ **731 passed**（172 warnings，43.66s） |
+| 新测试收集 | 9 实例 | ✅ **9 tests collected**（`^def test_` = 8，V3 参数化 +1） |
+| black `--check core tests` | 119 | ✅ **119 files would be left unchanged** |
+| mypy `--explicit-package-bases core` | 37 files 0 | ✅ **Success: no issues found in 37 source files** |
+| golden + P-027 + P-029 回归面 | 48 | ✅ **48 passed, 683 deselected**（13+24+11 口径精确） |
+| `tests/` .py 数 | 82 | ✅ **82** |
+| I1 AST `except Exception`（十文件命令） | 恒 22 | ✅ **22** |
+| 零改动面 | 空 | ✅ `git status --short core tests/golden` 空 |
+| CI（Step 9 两跑） | success | ✅ run `43864133531` + `43864567650` 各三 job success |
+
+### 11.7 盲区扫描（独立 AST 脚本 `%TEMP%\p031_step10_blindspot.py`）
+
+- **读数**：`agents/` ExceptHandler **handlers=22**；严格启发（body 无 `_record_failure` / 无 `logger.` / 无 `raise`）命中 **2** 处——`research_team_v2.py:27`（P-029 登记点：可选依赖显式降级）与 `agent_framework.py:1543`（`demo_multi_agent_backtest()` 入口 `except Exception: print(e) + traceback.print_exc()`——stdout 可观测，且属 **P-027 登记零改动面** `agent_framework.py:1529`，行号因 P-029 S3b/S4 上方 +14 行漂移至 :1543）。
+- **对账**：P-029 §11.6 的「silent=1」读数依赖其脚本定义（排除已登记点）；本基座严格启发下两点均浮出，**均早于 P-031 且均已登记**（O-R5-P031-2 观察），非本批引入。
+- **P-031 新增面**：D1 的 typed `except (KeyError, IndexError)` 不计入 I1（非 Name Exception）；全部 6 新计数站点均带 `_record_failure`——**零新增静默路径**。
+
+### 11.8 发现分级与当轮处置
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-R5-P031-1 | P3 | IMPL §11.2 门禁表「新测试文件 **+270**（未计入 numstat 因未跟踪）」与提交后实测不符——区间 numstat 实测 **+272**，且提交后该文件已计入 numstat、原注记前提失效（+270 为 Step 9 B5 期间提交前手工估算） | **当轮修正**：IMPL §11.2 该单元格改 +272 并注明修正来源 |
+| O-R5-P031-1 | 观察 | PROGRESS §3.36.8「≈270 行」为约数（实际 272）——历史记录不回改，以本表为准 | 不改 |
+| O-R5-P031-2 | 观察 | 盲区扫描严格启发下 agents/ silent=2（见 11.7）——P-029「silent=1」为定义依赖读数；两点均早于本批且已登记（P-027 零改动面 / P-029 O-S10-P029-1），P-031 零新增静默 | 不改（登记对账） |
+
+### 11.9 结论
+
+**结论**: **pass**（Phase 0 **5/5 Tier A** + Phase 1-4 全过 + E1-E5 门禁独立复跑全绿 + 盲区零新增；**0 P0/P1/P2 + 1 P3 当轮修正 + 2 观察**）——DESIGN D1-D7 / IMPL §4 与提交代码**语义与文本双闭环**，四项缺陷修复忠实落地且零改动面零越界，**P-031 批次关闭**。未决项 U-P031-1~4 与观察 O-P031-1~3 随批次归档，触发条件不变。
