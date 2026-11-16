@@ -934,6 +934,8 @@ class ResearchTeamAgent(BaseAgent):
                 self._record_failure("rotation_analyzer_init")
                 logger.warning(f"行业轮动分析器初始化失败: {e}")
                 self.rotation_analyzer = None
+        else:
+            self._record_failure("rotation_analyzer_skipped")
 
         # 创建团队成员
         self.fund_manager.add_role(DiscretionaryTrader())
@@ -969,7 +971,7 @@ class ResearchTeamAgent(BaseAgent):
         try:
             self._price_data = data_manager.get_adj_price("close", "forward")
         except:
-            pass
+            self._record_failure("price_cache")
 
         try:
             import pickle
@@ -979,7 +981,7 @@ class ResearchTeamAgent(BaseAgent):
                 with open(industry_path, "rb") as f:
                     self._industry_data = pickle.load(f)
         except:
-            pass
+            self._record_failure("industry_cache")
 
         try:
             import pickle
@@ -989,7 +991,7 @@ class ResearchTeamAgent(BaseAgent):
                 with open(mktcap_path, "rb") as f:
                     self._mktcap_data = pickle.load(f)
         except:
-            pass
+            self._record_failure("mktcap_cache")
 
         # 初始化投研团队
         self._init_research_team(data_manager)
@@ -1149,15 +1151,15 @@ class ResearchTeamAgent(BaseAgent):
     def get_performance_summary(self) -> dict[str, Any]:
         """获取绩效摘要（扩展）"""
         summary = super().get_performance_summary()
-        summary["failure_counts"] = self.get_failure_stats()
 
         if self.fund_manager is not None:
             try:
                 team_report = self.fund_manager.get_team_report()
                 summary["team_report"] = team_report
             except:
-                pass
+                self._record_failure("performance_summary_team_report")
 
+        summary["failure_counts"] = self.get_failure_stats()
         return summary
 
 
