@@ -1169,7 +1169,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **实施期裁决**: F-I-P033-1 `is_valid_price` 位置内聚于 `TradeLog` 后（`np` 已导入无前向依赖）/ F-I-P033-2 V5 断言改区间（`0 < count <= 5`）避免半衰期与日历耦合 / F-I-P033-3 agents 过滤置于 `close_price` 后保持语句零位移 / F-I-P033-4 V6 经 caplog（`skipped_price` 无 getter）/ O-I-P033-1 新测试首轮先 black。
 - **回归面与门禁预测**: 合法价零变化（golden 13 零重录硬门禁）；**731 → 748 passed** / 测试文件 **82 → 83** / black **119 → 120** / mypy **37 files 0** / `except Exception` 恒 **22**；零改动面含 `tracker` / `pending` / `interfaces` / `target_positions` / golden。
 - **下一 Step**: **Step 6 实施 Review**（须 GLM-5.3-Flash）；六项复核重点（守卫位置 / 单一来源 1 定义 3 调用 / 插入点 / 计量口径 / 合法价回归 / 静默面）。
-- **提交与 CI**: 提交后回填。
+- **提交与 CI**: 提交 `ca78f5f`（2 文件 **+248/−1**：IMPL 新建 + PROGRESS §1.4/§3.38.4）→ CI run `43900441923` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）；零代码，门禁持平 **731 passed / black 119 unchanged / mypy 37 files 0**。
 
 ---
 
