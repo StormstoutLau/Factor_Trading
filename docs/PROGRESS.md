@@ -1455,7 +1455,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **结论**: **pass（2 P2 + 2 P3 当轮更正）**；详见 [DESIGN_p036 §9](DESIGN_p036_mypy_check_surface_expansion.md)。
 - **台账同步**: U-P024-3 行 129 读数追加更正注；U-P024-4 行 follow 表述维持 Step 2 更正（Step 4 的 numpy 改判不涉 filter 21 条归因）。
 - **代码面零变更**（本 Step 仅文档回写）。
-- **提交与 CI**: `<待提交>` / CI run `<待回收>`。
+- **提交与 CI**: 提交 `de2f122`（2 文件 **+84/−22**：DESIGN_p036 +68/−20 / PROGRESS +16/−2）→ CI run `43947344164` **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 

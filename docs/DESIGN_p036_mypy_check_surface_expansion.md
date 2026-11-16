@@ -219,7 +219,7 @@ Step 3 记录「CI 口径 129 vs 本地 131（归因 pandas）」——**Step 4 
 
 ### 9.3 提交与 CI
 
-- 复审回写提交：`<待提交>`（DESIGN §9 + PROGRESS §3.41.5）
-- CI run：`<待回收>`
+- 复审回写提交：`de2f122`（2 文件 **+84/−22**：DESIGN_p036 +68/−20 / PROGRESS +16/−2——§9 复审记录 + D1/D2/D4/§5/§7 改写 + PROGRESS §3.41.5 与台账行同步）
+- CI run：[`43947344164`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/43947344164) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）
 
 <!-- Step 4 复审完成；下一 Step 5 IMPL（B1 先行） -->
