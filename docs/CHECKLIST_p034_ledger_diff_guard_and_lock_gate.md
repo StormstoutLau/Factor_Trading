@@ -2,7 +2,7 @@
 
 > **批次**: P-034 · **T1**（强制升级：新增 CI 门禁）
 > **上游**: [IMPL_p034](IMPL_p034_ledger_diff_guard_and_lock_gate.md)（B1-B4 / §4 精确锚点 / §5 V1-V5 十二实例 / §6 fixture / §7 七项低效排除 / §11 Step 6 复审 pass：1 P3 当轮回写 + 2 观察）；[DESIGN_p034](DESIGN_p034_ledger_diff_guard_and_lock_gate.md)（D1-D4 / I1-I6 / V1-V5 / §9 Step 4 复审）；[RESEARCH_p034](RESEARCH_p034_ledger_diff_guard_and_lock_gate.md)（R1-R5 / N1-N6 / §11 Step 2 复审）
-> **状态**: **Step 10 ADD 审计 + 终审通过，P-034 批次关闭**（2026-11-17；37/37 全部回填；审计基座 DeepSeek-V4.1-Flash = 作者同源，RULE-5 不成立 → 异构终审记 U-P034-3）——0 P0-P2 + 1 P3 当轮修正（F-R5-P034-1）+ 2 观察；门禁独立复跑 **760 passed / 84 / 121 / 37 files 0 / golden 13 零重录 / AST 22 / uv lock --check exit 0** 全绿（见 §11）
+> **状态**: **Step 10 ADD 审计 + 终审通过，P-034 批次关闭**（2026-11-17；37/37 全部回填；审计基座 DeepSeek-V4.1-Flash = 作者同源，RULE-5 不成立 → 异构终审记 U-P034-3）——0 P0-P2 + 1 P3 当轮修正（F-R5-P034-1）+ 2 观察；门禁独立复跑 **760 passed / 84 / 121 / 37 files 0 / golden 13 零重录 / AST 22 / uv lock --check exit 0** 全绿（见 §11）；**异构终审 pass（U-P034-3 补做，GLM-5.3-Flash，2026-11-17，见 §12）——P-034 过程链全闭合**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 6 实测 @`05778d1` 代码面，Step 7 对拍）**: 全量 `pytest -q` **748 passed**（172 warnings，49.67s）/ `tests/` .py **83**（**口径 = 全部 `.py`**，含辅助模块；`test_*.py` = 80）/ `black --check core tests` **120 unchanged** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / golden **13 用例**（7 份 json）/ `except Exception`（P-029 十文件口径）**22**
 > **目标读数（Step 9）**: **760 passed** / `tests/` .py **84**（`test_*.py` 81）/ black **121** / mypy **37 files 0** / golden **13 零重录** / `except Exception` 恒 **22**
@@ -131,6 +131,7 @@
 | Step 8 一致性 Review | DeepSeek-V4.1-Flash（= Step 7 作者同源，**同基座独立复审**；RULE-5 不成立，异构终审记 U-P034-3） | pass：机械五项全过 + 对齐矩阵 A-G 全过；1 P3 当轮修正（F-S8-P034-1）+ 2 观察，见 §9 | 2026-11-17 |
 | Step 9 TDD 执行 | DeepSeek-V4.1-Flash（与上游同源） | pass：红态 **3 failed / 9 passed**（三例与 IMPL §11.3 逐项一致）→ 绿 **12 passed**；门禁 **760 / 84 / 121 / 37 / golden 13 零重录 / AST 22** 全绿；1 P3 当轮修正（F-S9-P034-1）+ 2 观察，见 §10 | 2026-11-17 |
 | Step 10 ADD 审计 + 终审 | DeepSeek-V4.1-Flash（= 四文档作者同源，**同基座审计 + 同基座终审**；RULE-5 不成立，记 U-P034-3） | pass：Phase 0 **5/5 Tier A** + Phase 1-4 全过（2 hunk 零游离）+ E1-E5 独立复跑全绿；**0 P0-P2 + 1 P3 当轮修正（F-R5-P034-1 `O-P034-3` 引用幻觉）+ 2 观察**，见 §11 | 2026-11-17 |
+| U-P034-3 异构终审 | GLM-5.3-Flash（≠ 作者与五轮复审者 DeepSeek-V4.1-Flash，**异构成立**） | pass：E1-E5 五项独立复核全过（E4 运行期复验 **7/7 PASS**）+ **2 P3 当轮修正（F-U3-P034-1 审计区间口径 / F-U3-P034-2 台账建行缺口）** + 1 观察，见 §12 | 2026-11-17 |
 
 ---
 
@@ -256,8 +257,8 @@
 
 | 设计元素 | 应有 | 实测 | 证据 |
 |----------|------|------|------|
-| 审计区间 | 9 提交 | **9** | `git log fbed072..f2e719b` |
-| 全区间 diff | — | **10 文件 +1425 / −6** | `git diff --numstat`（代码 2 + 测试 +136 + 文档 7） |
+| 审计区间 | 9 提交 | **10**（区间端点 `fbed072..f2e719b` 实测；原记 9 与内容链 `fbed072..de0268d` 吻合——计数与 diff 两口径混用，U-P034-3 **F-U3-P034-1** 当轮更正，见 §12.2） | `git rev-list --count fbed072..f2e719b` |
+| 全区间 diff | — | **10 文件 +1425 / −7**（原记 −6，U-P034-3 实测更正，见 §12.2） | `git diff --shortstat fbed072..f2e719b`（代码 2 + 测试 +136 + 文档 7） |
 | 代码 hunk | — | **2** | `tests.yml @@ -43,4 +43,17`（新增 job）/ `execution.py @@ -313,8 +313,8`（条件替换） |
 | 新增 `raise` / `except` / `logger.`（代码面） | 0 / 0 / 0 | **0 / 0 / 0** | `git diff ... -- core/ .github/ tests/` 三条正则零命中 |
 | 公开签名删除 | 0 | **0** | `^-\s*def ` 零命中 |
@@ -322,6 +323,36 @@
 ### 11.9 结论
 
 **结论**: **pass**（Phase 0 **5/5 Tier A** + Phase 1-4 全过 + E1-E5 门禁独立复跑全绿 + 盲区零新增静默；**0 P0/P1/P2 + 1 P3 当轮修正 + 2 观察**）——DESIGN D1-D4 / IMPL §4 与提交代码**语义与文本双闭环**，两处代码 hunk 零游离，**P-034 批次关闭**。
-**RULE-5 声明**: 同基座审计与终审（异构不成立）；**U-P034-3 为唯一未闭合过程项**，随批归档、触发条件 = 非 DeepSeek 基座可用时。
+**RULE-5 声明**: 同基座审计与终审（异构不成立）；**U-P034-3 为唯一未闭合过程项**，随批归档、触发条件 = 非 DeepSeek 基座可用时。→ **2026-11-17 已由 GLM-5.3-Flash 补做 pass（见 §12）**。
 
 **提交与 CI**: 本节记录提交 `499524e`（3 文件 **+113/−6**，docs-only，含 F-R5-P034-1 当轮修正）→ CI run `43924423589` **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿，EXIT=0）。
+
+---
+
+## 12. U-P034-3 异构终审记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座披露**: 复审基座 **GLM-5.3-Flash ≠ 四文档作者与五轮复审者（Step 2/4/6/8/10）DeepSeek-V4.1-Flash** → **RULE-5 异构条件成立**，本节即 U-P034-3 预留的补做终审（先例 U-P032-1 同型）——P-034 全程首个异构审查，过程链最后一项未决随本节闭合。复审区间 `fbed072..7082c7a`（**12 提交**，`git rev-list --count` 实测）；复审时点 HEAD `7082c7a`。
+
+### 12.1 五项独立复核
+
+| ID | 复核项 | 结论 | 证据 |
+|----|--------|------|------|
+| E1 | 代码锚点重放 | ✅ | [execution.py](../core/execution.py) L316-317 条件 `if close_price is not None and is_valid_price(close_price):`（`is not None` 在 `and` 左侧，mypy 窄化保留）；L318-324 逐字未动；P-033 守卫 L308-314 在前；`is_valid_price` 定义 L153-161 未动。[tests.yml](../.github/workflows/tests.yml) `lock-check` job：`@v10.3.3` + `version: "0.11.14"`、无 `enable-cache`、无 `\|\| true`；`test` job L9-46 逐行未动 |
+| E2 | diff 面核验 | ✅（1 记录口径缺陷当轮修正） | 区间 **12 提交**（`git rev-list --count fbed072..7082c7a`）；代码面新增 `raise` / `except` / `logger.` 全 **0**；`^-\s*def ` 公开签名删除 **0**；零改动面（tracker / pending / interfaces / agents / filter / scripts / cli / pyproject / uv.lock / golden）零命中。**发现 F-U3-P034-1**：§11.2「9 提交 / −6」与区间端点实测不符（10 提交 / −7；9 与内容链 `fbed072..de0268d` 吻合——计数与 diff 两口径混用），§11.2 当轮补正 |
+| E3 | 门禁独立复跑 | ✅ | pytest **760 passed** / black **121 unchanged** / mypy **37 files 0** / 回归子集 `-k "golden or p027 or p029 or p031 or p033 or p034"` **86 passed** / P-034 套件 **12 passed** / `uv lock --check` **exit 0**；CI run `43925230603`（`7082c7a`）四 job（`lock-check` + 3.10 / 3.11 / 3.12）全 success |
+| E4 | 运行期复验（独立探针） | ✅ **7/7 PASS** | 本基座独立编写 `%TEMP%\p034_u_p0343_probe.py`（非复用 Step 9 测试集）：R1 吞单修复（`success=True trades=1 errors=0`）/ R2 噪声消除（`diff_warns=0`）/ R3 无效 close 静默跳过（nan / neg 均跳过）/ 合法价 25.00% 告警保留（`warns=1 text=True`）/ None 回归（`success=True`）/ P-033 守卫交互（`success=False guard=1`）/ `is_valid_price` 语义 **8/8** |
+| E5 | F-R5-P034-1 修正到位 | ✅ | `O-P034-3` 现存 5 处命中（本文 E11 行 / 签字表 Step 10 行 / §11.8 F-R5-P034-1 行、PROGRESS P-034 行 / §3.39.9 发现分级行）全部为「修正历史」合法引用；DESIGN §9.3 / §9.4 裸引用已清零（均改 `O-S4-P034-3`） |
+
+### 12.2 发现分级与当轮处置
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-U3-P034-1** | **P3** | **审计区间记录口径混用**：§11.2 记「审计区间 9 提交（证据 `git log fbed072..f2e719b`）/ 全区间 +1425/−6」——实测 `fbed072..f2e719b` = **10 提交、+1425/−7**；「9」仅与内容链 `fbed072..de0268d`（代码提交链终点）吻合，即计数按内容链、diff 按区间端点两口径被混写（同基座终审漏检，异构复审实测揪出） | **当轮修正**：§11.2 两行按区间端点实测值更正（10 提交 / −7）并注记内容链口径；PROGRESS §3.39.9 同步补正 |
+| **F-U3-P034-2** | **P3** | **D5 派生纪律执行缺口**：P-034 自立纪律「本批新增 U-\*/O-\* 是否已在 §1.4 建行」，但 U-P034-1（`setup-uv` 维护）/ U-P034-2（外部调用面）/ U-P034-3（异构终审预留）仅散落 §3.39.9 正文，未建 §1.4 行——散落正文同型问题第四次出现（P-030 / P-032 / P-034 台账收口之后，本批自身收尾仍漏） | **当轮修正**：PROGRESS §1.4 建三行（U-P034-1 pending / U-P034-2 pending / **U-P034-3 done**） |
+| O-U3-P034-1 | 观察 | 终审区间（12 提交）> 审计区间（10 提交）：差额 2 提交 = 终审记录（`499524e`）与 CI 回填（`7082c7a`）——审计后追加的流程提交，正常时序非矛盾 | 登记不改 |
+
+### 12.3 结论
+
+**结论**: **pass**（E1-E5 五项独立复核全过 + 运行期复验 **7/7**；**0 P0/P1/P2 + 2 P3 当轮修正 + 1 观察**）——**U-P034-3 关闭**，P-034 过程链（Step 1-10 + 五轮同基座复审 + 同基座终审 + 异构终审）**全闭合**；两项 P3 均为文档记录缺陷（零代码影响），批次维持关闭。
+
+**提交与 CI**: 本节记录提交后回填（占位）。
