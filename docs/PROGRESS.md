@@ -1330,7 +1330,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 
 - **执行基座**: DeepSeek-V4.1-Flash；基线 HEAD `642ec60`；Python312 + `MPLBACKEND=Agg`。
 - **红→绿（F5 两读数）**: 红 = **3 failed, 9 passed, 1 warning**——`[python-0]`（`assert False is True`）/ `[numpy-0]`（`差异=inf%` 告警残留）/ `v4_zero_close_not_swallowed`（`assert False is True`）；绿 = **12 passed in 0.56s**。红态三例与 IMPL §11.3 E3 预览逐项一致；九例回归保护红态即通过（未伪造红态）。
-- **改动面（8 文件 +290/−48）**: `core/execution.py` **+2/−2**（L316 注释 + L317 条件）/ `tests.yml` **+14/−1**（`lock-check` job）/ `tests/test_p034_price_diff_guard.py` **+136**（新增，5 函数 12 实例）/ `CHANGELOG` +2/−1 / `ARCHITECTURE` +1/−1 / `PROGRESS` +10/−3 / `CHECKLIST` +92/−40 / `IMPL` +33。
+- **改动面（8 文件 +316/−48，`git diff --numstat 642ec60..de0268d` 实测）**: `core/execution.py` **+2/−2**（L316 注释 + L317 条件）/ `tests.yml` **+14/−1**（`lock-check` job）/ `tests/test_p034_price_diff_guard.py` **+136**（新增，5 函数 12 实例）/ `CHANGELOG` +2/−1 / `ARCHITECTURE` +1/−1 / `PROGRESS` +24/−3 / `CHECKLIST` +92/−40 / `IMPL` +45。
 - **门禁（全绿）**: pytest **760 passed**（43.53s）/ `tests/` .py **84**（`test_*.py` 81）/ black **121 unchanged** / mypy **37 files 0** / golden **13 passed 零重录**（747 deselected）/ AST `except Exception` **22** / `core/` 新增 except **0** / `git diff` 签名删除 **0** / `uv lock --check` **exit 0** / 回归子集 `-k "golden or p027 or p029 or p031 or p033 or p034"` **86 passed**（13+24+11+9+17+12 口径精确）。
 - **单一来源**: `is_valid_price` **1 定义**（execution L153）+ **4 调用**（execution L309 / **L317 新增** / agents L512 / engine_v2 L811）——AST 实测。
 - **顺序敏感四项**: L316 注释 → L317 条件 → L318 ratio；`is not None` 在 `and` 左侧；YAML `jobs = ['test', 'lock-check']`；台账 §1.4 L82-88。

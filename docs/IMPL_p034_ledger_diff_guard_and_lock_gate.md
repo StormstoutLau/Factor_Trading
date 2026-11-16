@@ -315,7 +315,7 @@ B3 ──→ B4（全量门禁 + 回填）
 
 红态三例与 §11.3 E3 预览**逐项一致**。
 
-### 12.2 净行数（`git diff --cached --numstat` 实测）
+### 12.2 净行数（`git diff --numstat 642ec60..de0268d` 实测，提交后复核）
 
 | 文件 | numstat |
 |------|---------|
@@ -324,12 +324,13 @@ B3 ──→ B4（全量门禁 + 回填）
 | `tests/test_p034_price_diff_guard.py` | **+136 / −0** |
 | `CHANGELOG.md` | **+2 / −1** |
 | `docs/ARCHITECTURE.md` | **+1 / −1** |
-| `docs/PROGRESS.md` | **+10 / −3** |
+| `docs/PROGRESS.md` | **+24 / −3** |
 | `docs/CHECKLIST_p034_ledger_diff_guard_and_lock_gate.md` | **+92 / −40** |
-| `docs/IMPL_p034_ledger_diff_guard_and_lock_gate.md` | **+33 / −0** |
-| **合计（8 文件）** | **+290 / −48** |
+| `docs/IMPL_p034_ledger_diff_guard_and_lock_gate.md` | **+45 / −0** |
+| **合计（8 文件）** | **+316 / −48** |
 
-> 代码面（3 文件 + 测试）= execution `+2/−2` + workflow `+14/−1` + 测试 `+136/−0` = **+152/−3**；文档面 5 文件 **+138/−45**。
+> 代码面（3 文件 + 测试）= execution `+2/−2` + workflow `+14/−1` + 测试 `+136/−0` = **+152/−3**；文档面 5 文件 **+164/−45**。
+> **两次读数说明（F-R5 教训的当轮应用）**：提交前检查时点为 `+290/−48`（PROGRESS `+10/−3` / IMPL `+33/−0`，尚未含 §3.39.8 与本节）；提交后实测 `+316/−48`。**以提交后区间读数为准**。
 
 ### 12.3 门禁与单一来源
 
