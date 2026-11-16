@@ -55,7 +55,7 @@ B1t+B2t+B3t ──→ B4（全量门禁 + 文档）
 
 - **B1 必须最先**：B2/B3 的 `from core.execution import is_valid_price` 依赖 B1。
 - **B2 / B3 相互独立**，可并行；建议 B2 → B3（V6 的 caplog 断言依赖 V2 路径，与 B3 同批）。
-- **每批红态先跑**：B1t 红态 = 当前 `execute_order` 对 NaN/0/负/inf **成交**（**V1 5 failed / 1 passed**——`None` 入参经既有 TypeError 漏斗 L339 已返回 `(False, None)`，红态即通过须标注，Step 6 F-S6-P033-1）；B2t 红态 = agents queue 仍成交且无新键（**6 failed / 1 passed**，V8a 豁免）；B3t 红态 = V2 queue 仍成交且无「缺少价格数据」日志（**2 failed / 1 passed**，V8b 豁免）。全批红态 **14 failed / 3 passed**。
+- **每批红态先跑**：B1t 红态 = 当前 `execute_order` 对 NaN/0/负/inf **成交**（**批次 6 failed / 1 passed** = V1 5F/1P + V7 1F——`None` 入参经既有 TypeError 漏斗 L339 已返回 `(False, None)`，红态即通过须标注，Step 6 F-S6-P033-1 / Step 8 F-S8-P033-2 批次口径更正）；B2t 红态 = agents queue 仍成交且无新键（**6 failed / 1 passed**，V8a 豁免）；B3t 红态 = V2 queue 仍成交且无「缺少价格数据」日志（**2 failed / 1 passed**，V8b 豁免）。全批红态 **14 failed / 3 passed**（6+6+2=14F；1+1+1=3P）。
 
 ---
 
@@ -291,7 +291,7 @@ def is_valid_price(price: Optional[float]) -> bool:
 | `None` | **`success=False`（TypeError 漏斗 L339 兜底），trade_log 零入账** | **红态即通过** |
 | `NaN` / `inf` / `-inf` / `0.0` / `-5.0` | **全部 `success=True` 且入账**（trades_so_far 1→5） | 红态失败 ✅ |
 
-**结论**：IMPL §3「B1t 红态 = V1 全 6 例失败」**不准确**——实际 **5 failed / 1 passed**（None 经 `100 * None` TypeError 被既有 `except` 捕获）。全批红态合计 **14 failed / 3 passed**（V1-None、V8a、V8b 三例豁免）→ **F-S6-P033-1（P3）当轮回写**。
+**结论**：IMPL §3「B1t 红态 = V1 全 6 例失败」**不准确**——实际 **5 failed / 1 passed**（None 经 `100 * None` TypeError 被既有 `except` 捕获）。全批红态合计 **14 failed / 3 passed**（V1-None、V8a、V8b 三例豁免）→ **F-S6-P033-1（P3）当轮回写**。（Step 8 更正，F-S8-P033-2：B1t 批次含 V7，**批次级红态 6F/1P**——「5F/1P」为 V1 矩阵内读数；全批 14F/3P 不变。）
 
 ### 13.5 E4 六项复核重点裁决（对应 §10）
 
@@ -319,4 +319,4 @@ def is_valid_price(price: Optional[float]) -> bool:
 **Step 7 前置条件**:
 1. CHECKLIST 按 §5 V1-V8（17 实例）口径编制，红态豁免三例（V1-None / V8a / V8b）在红态纪律项显式登记；
 2. 实测列引用本文件 §13.3 基线读数（731 / 119 / 37 / 82）；
-3. Step 9 红绿须逐批落 §11（B1t 5F/1P → B2t 6F/1P → B3t 2F/1P → 748）。
+3. Step 9 红绿须逐批落 §11（B1t **6F/1P** → B2t 6F/1P → B3t 2F/1P → 748；Step 8 F-S8-P033-2 更正批次口径，V1 矩阵内 5F/1P）。
