@@ -55,7 +55,7 @@ B1t+B2t+B3t ──→ B4（全量门禁 + 文档）
 
 - **B1 必须最先**：B2/B3 的 `from core.execution import is_valid_price` 依赖 B1。
 - **B2 / B3 相互独立**，可并行；建议 B2 → B3（V6 的 caplog 断言依赖 V2 路径，与 B3 同批）。
-- **每批红态先跑**：B1t 红态 = 当前 `execute_order` 对 NaN/0 成交（V1 全 6 例失败）；B2t 红态 = agents queue 仍成交且无新键；B3t 红态 = V2 queue 仍成交且无「缺少价格数据」日志。
+- **每批红态先跑**：B1t 红态 = 当前 `execute_order` 对 NaN/0/负/inf **成交**（**V1 5 failed / 1 passed**——`None` 入参经既有 TypeError 漏斗 L339 已返回 `(False, None)`，红态即通过须标注，Step 6 F-S6-P033-1）；B2t 红态 = agents queue 仍成交且无新键（**6 failed / 1 passed**，V8a 豁免）；B3t 红态 = V2 queue 仍成交且无「缺少价格数据」日志（**2 failed / 1 passed**，V8b 豁免）。全批红态 **14 failed / 3 passed**。
 
 ---
 
@@ -151,7 +151,7 @@ def is_valid_price(price: Optional[float]) -> bool:
 
 | ID | 用例 | 构造 | 断言 |
 |----|------|------|------|
-| V1 | 守卫矩阵（参数 6） | 零成本 `ExecutionSimulator`；`open_price ∈ {None, NaN, inf, -inf, 0.0, -5.0}`；BUY 100 | 每例 `(False, None)`；`trade_log.get_trades() == []`；无异常抛出 |
+| V1 | 守卫矩阵（参数 6） | 零成本 `ExecutionSimulator`；`open_price ∈ {None, NaN, inf, -inf, 0.0, -5.0}`；BUY 100 | 每例 `(False, None)`；`trade_log.get_trades() == []`；无异常抛出。**红态：5 failed / 1 passed——`None` 经 TypeError 漏斗 L339 已返回 False（Step 6 F-S6-P033-1，豁免标注）** |
 | V2 | agents queue NaN / 0（参数 2） | 100 股 BUY 入队；`enable_pending_orders=True`；开盘价 NaN / 0；零成本 | 零成交；`cash == 10_000_000`；`len(get_pending_orders()) == 1`；`get_failure_stats()["pending_invalid_price"] == 1` |
 | V3 | agents queue 负价（参数 2） | 同上，`open ∈ {-5.0, -inf}` | 零成交；`cash` 不变；计数 == 1（覆盖 R2「现金 +500」） |
 | V4 | agents queue SELL NaN（持仓保留） | 先建仓 100 股 @10；入 SELL 100；`open=NaN` | 零成交；`qty == 100`；`avg_cost == 10.0`；`cash` 不变（覆盖 O-S2-P033-1「静默清零」） |
@@ -234,3 +234,89 @@ def is_valid_price(price: Optional[float]) -> bool:
 ## 11. Step 9 实施记录（TDD 三批红→绿 + 门禁）
 
 （待 Step 9 回填）
+
+---
+
+## 12. Step 5 自检
+
+| # | 检查项 | 结果 |
+|---|--------|------|
+| S1 | DESIGN D1-D6 全落点 | D1 §4.1+4.2 / D2 §4.3+4.4 / D3 §4.5 不改清单 / D4 §8 调用方表 / D5 §7-#6#7 / D6 §7-#8 —— **6/6** |
+| S2 | I1-I7 → 验证出口 | I1→V1/V7 / I2→V2-V6 / I3→V8+B4 门禁 / I4→V2/V5/V6 / I5→§8 A8+AST / I6→V2/V6 / I7→§1 门禁口径 —— **7/7** |
+| S3 | 红态可观测 | V1 五例（NaN/inf/-inf/0/-5）当前成交→红；**V1-None 经 TypeError 漏斗红态即通过**（Step 6 E3 实证，须标注）；V2-V6 当前成交→红；V7 当前成交→红；V8 回归保护红态即通过（标注） |
+| S4 | 锚点实查 | `TradeLog` L52-150 / `ExecutionSimulator` L153 / `execute_order` L262、解析 L292-294 / agents L32·L509·L511 / V2 L23·L808·L810 与 HEAD `013c4d3` 逐项核对命中 |
+| S5 | 既有回归面 | `test_execution_price.py` 十用例全合法价（10.0/11.0）；golden 13 条全合法价（N3 零非正价调用实证）；`test_p031` fixture 全合法价——行为变更不触及 |
+| S6 | 门禁口径 | 748 = 731 + 17；测试文件 83；black 120（新测试文件）；mypy `core` 37 files 0（无新文件） |
+| S7 | 签名可实现性 | `is_valid_price(Optional[float]) -> bool` 纯函数；`execute_order` 签名零变更；引擎导入行仅加名 |
+| S8 | 零新增 `except Exception` | 守卫与过滤块均为前置 `if`，不进异常漏斗——合计恒 22 |
+
+---
+
+## 13. Step 6 实施 Review 记录（异构基座 GLM-5.3-Flash）
+
+### 13.1 基座与对象
+
+- **复审基座**: **GLM-5.3-Flash**（≠ IMPL 作者 DeepSeek-V4.1-Flash，RULE-5 成立）
+- **复审对象**: `ca78f5f`（IMPL_p033 提交版）；复审时点 HEAD `b837d5f`（代码面与 `013c4d3` 一致，仅 docs 变更）
+- **方法**: E1 锚点机械复核 + E2 门禁基线独立复测 + E3 红态行为探针 + E4 六项复核重点裁决（IMPL §10）
+
+### 13.2 E1 锚点机械复核（关键 10 项）
+
+| # | IMPL 声称 | 实查 | 结果 |
+|---|-----------|------|------|
+| A1 | `is_valid_price` 插入点 L151-152（`TradeLog` L150 结束 / `ExecutionSimulator` L153） | 读码 L144-153 | ✅ 命中 |
+| A2 | 守卫插入点 L292-294（解析）之后、L296（差异告警注释）之前；`try` L290 / `except` L339 结构完整 | 读码 | ✅ 命中 |
+| A3 | docstring Returns 段 L287-289 | 读码 | ✅ 命中 |
+| A4 | agents 导入 L32 / 过滤点 L509 后、L511 前 | 读码 | ✅ 命中 |
+| A5 | V2 导入 L23 / 过滤点 L808 后、L810 前 | 读码 | ✅ 命中 |
+| A6 | `skipped_price` 局部名单 L780 / 汇总日志 L836-839（`logger.warning`） | 读码 | ✅ 命中（V6 caplog 可行） |
+| A7 | agents `_record_failure` L126 可承接新键 | 读码 | ✅ 命中 |
+| A8 | `np` 已导入 execution.py L16 | 读码 | ✅ |
+| A9 | 不改清单：agents next-day L451 / V2 next-day L1140 / 强平 L563 | 读码 | ✅ 三处 inline 判定在位 |
+| A10 | `_get_execution_price` L191-260 零改动 | 读码 | ✅ 五分支结构确认 |
+
+### 13.3 E2 门禁基线独立复测（HEAD `b837d5f`）
+
+| 门禁 | IMPL 声称（实施前基线） | 实测 | 结果 |
+|------|--------------------------|------|------|
+| 全量 pytest | 731 | **731 passed**（172 warnings，71.10s） | 一致 |
+| black `--check core tests` | 119 | **119 unchanged** | 一致 |
+| mypy `core` | 37 files 0 | **37 files 0** | 一致 |
+| `tests/` .py 数 | 82 | **82** | 一致 |
+
+### 13.4 E3 红态行为探针（V1 矩阵六值，当前 `execute_order`）
+
+| 入参 | 现行行为 | 红态判定 |
+|------|----------|----------|
+| `None` | **`success=False`（TypeError 漏斗 L339 兜底），trade_log 零入账** | **红态即通过** |
+| `NaN` / `inf` / `-inf` / `0.0` / `-5.0` | **全部 `success=True` 且入账**（trades_so_far 1→5） | 红态失败 ✅ |
+
+**结论**：IMPL §3「B1t 红态 = V1 全 6 例失败」**不准确**——实际 **5 failed / 1 passed**（None 经 `100 * None` TypeError 被既有 `except` 捕获）。全批红态合计 **14 failed / 3 passed**（V1-None、V8a、V8b 三例豁免）→ **F-S6-P033-1（P3）当轮回写**。
+
+### 13.5 E4 六项复核重点裁决（对应 §10）
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | 守卫位置 | **正确**——L292-294 解析后 / L296 告警前；`try` 结构未破坏（守卫为前置 `if`，非异常路径） |
+| 2 | 单一来源 | **规格成立**——1 定义（execution 模块级）+ 3 调用（executor / agents / V2）；全仓无第二套判定（grep `is_valid_price` 现 0 命中，实施后须复验 =1 处定义） |
+| 3 | 插入点 | **精确**——agents L509/L511、V2 L808/L810 均在 `execute_order` 之前；两引擎内部顺序差异（clamp 前后）不影响 |
+| 4 | 计量口径 | **正确**——agents 新键 1 处写入（`_record_failure`）；V2 复用 `skipped_price` 零新键；两口径经 Step 2 裁决 #4 |
+| 5 | 合法价回归 | **基线一致**（E2 四项复测）；golden 13 条 + 既有 731 测试全合法价（N3 + S5）→ 预期零重录零破坏 |
+| 6 | 静默面 | **规格成立**——新增 warning 2 类（executor 守卫 / V2 既有汇总）；零新增 `except`（规格 S8）；AST 22 预期恒定 |
+
+### 13.6 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S6-P033-1 | P3 | §3 B1t 红态描述「V1 全 6 例失败」失实——`None` 入参经既有 TypeError 漏斗（L339）红态即通过，实际 **5 failed / 1 passed**；全批红态 **14F/3P**（豁免三例：V1-None / V8a / V8b） | **当轮回写 §3 + §5 V1 行**（已回写） |
+| O-S6-P033-1 | 观察 | 守卫后 None 案例行为从「TypeError 静默漏斗」变为「显式守卫 warning」——对调用方同为 `(False, None)`，仅日志面变化，行为兼容 | 登记 |
+| O-S6-P033-2 | 观察 | 守卫消息用 `{execution_price!r}`——对 NaN/inf/None 输出 `nan`/`inf`/`None`（repr 形态），可读性可接受 | 登记 |
+
+### 13.7 结论与 Step 7 前置条件
+
+**结论**: **pass**（0 P0/P1/P2 / 1 P3 当轮回写 / 2 观察）——锚点十项全命中、门禁基线四项一致、红态预期修正后与实测吻合、六项复核重点全过，准予进入 **Step 7 CHECKLIST**。
+
+**Step 7 前置条件**:
+1. CHECKLIST 按 §5 V1-V8（17 实例）口径编制，红态豁免三例（V1-None / V8a / V8b）在红态纪律项显式登记；
+2. 实测列引用本文件 §13.3 基线读数（731 / 119 / 37 / 82）；
+3. Step 9 红绿须逐批落 §11（B1t 5F/1P → B2t 6F/1P → B3t 2F/1P → 748）。

@@ -1171,6 +1171,17 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **下一 Step**: **Step 6 实施 Review**（须 GLM-5.3-Flash）；六项复核重点（守卫位置 / 单一来源 1 定义 3 调用 / 插入点 / 计量口径 / 合法价回归 / 静默面）。
 - **提交与 CI**: 提交 `ca78f5f`（2 文件 **+248/−1**：IMPL 新建 + PROGRESS §1.4/§3.38.4）→ CI run `43900441923` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）；零代码，门禁持平 **731 passed / black 119 unchanged / mypy 37 files 0**。
 
+### 3.38.5 P-033 Step 6 实施 Review 记录（2026-11-16）
+
+- **复审基座**: **GLM-5.3-Flash**（≠ IMPL 作者 DeepSeek-V4.1-Flash，RULE-5 成立）；复审对象 `ca78f5f`（IMPL_p033 提交版）；复审时点 HEAD `b837d5f`（代码面与 `013c4d3` 一致）。
+- **E1 锚点机械复核（十项）**: 全命中——`is_valid_price` 插入点 L151-152 / 守卫 L292-294 后 L296 前（try L290 / except L339 完整）/ docstring L287-289 / agents L32·L509·L511 / V2 L23·L808·L810 / `skipped_price` L780·L836-839 / `_record_failure` L126 / `np` L16 / 不改清单三处（L451/L1140/L563）/ `_get_execution_price` L191-260。
+- **E2 门禁基线独立复测**: pytest **731 passed**（71.10s）/ black **119 unchanged** / mypy **37 files 0** / tests .py **82**——四项一致。
+- **E3 红态行为探针（V1 矩阵六值）**: `None` → **`success=False`（既有 TypeError 漏斗 L339 兜底）红态即通过**；`NaN/inf/-inf/0/-5` → 全部 `success=True` 且入账（红态失败）。**F-S6-P033-1（P3）**：IMPL §3「V1 全 6 例失败」失实——实际 **B1t 5F/1P**，全批红态 **14F/3P**（豁免三例 V1-None / V8a / V8b）→ 当轮回写 §3 + §5（已回写）。
+- **E4 六项裁决**: ① 守卫位置正确（前置 `if` 非异常路径）② 单一来源规格成立（1 定义 + 3 调用；实施后须复验 grep）③ 插入点精确（两引擎内部顺序差异不影响）④ 计量口径正确（agents 1 新键 / V2 零新键）⑤ 合法价回归基线一致（N3 + S5 双证）⑥ 静默面规格成立（warning 2 类 / AST 22 恒定）。
+- **发现分级**: **0 P0/P1/P2 / 1 P3 当轮回写 / 2 观察**（O-S6-P033-1 None 行为兼容性 / O-S6-P033-2 `!r` 消息形态）。
+- **结论**: **pass**——准予进入 **Step 7 CHECKLIST**；前置条件三项（17 实例口径 + 红态豁免三例登记 / 实测列引用 §13.3 / Step 9 红绿 B1t 5F/1P → B2t 6F/1P → B3t 2F/1P → 748）。
+- **提交与 CI**: 提交后回填。
+
 ---
 
 ## 4. 审查记录
