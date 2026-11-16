@@ -272,3 +272,45 @@ python -c "import pandas,os;print(os.path.exists(os.path.join(os.path.dirname(pa
 ## 10. 下一 Step
 
 **Step 2 Review（须异构基座）**：核验本文件全部读数的可重放性（§9 命令）、R1/R2 的对照实验是否成立、错误分级是否越界成结论、U-P036-1~4 四元块是否齐全。Review 通过后进入 Step 3 DESIGN（决定 M-B 分批边界、mypy 版本上界、filter 豁免处置）。
+
+---
+
+## 11. B0 子项裁决与实施记录（mypy 版本上界，2026-11-17）
+
+> 用户裁决「先钉 mypy 上界」→ 采纳 §7 **M-C 作为 M-B 的前置子项**独立落地；依赖真值源变更 → T1。本节即 B0 的设计取舍 + 实施 + 验证记录（Step 3/5/9/10 的 B0 面合并记录，整批其余子项仍走完整管线）。
+
+### 11.1 裁决与被拒方案
+
+| 方案 | 约束 | 裁决 | 理由 |
+|------|------|------|------|
+| A | `mypy>=1.5.0,<3.0` | **拒绝** | 只挡 3.0；2.5/2.6 仍可漂移——而 R1 已实证 **2.1→2.4 就改变门禁读数（0 → 21）**，等于没解决 |
+| **B（采纳）** | **`mypy~=2.4.1`**（`>=2.4.1,<2.5`） | **采纳** | 钉到 patch 系列：行为变化概率最低、安全补丁仍可进；升级须显式提交（可审查） |
+| C | `mypy==2.4.1` | 拒绝 | 冻结补丁修复；锁/本地任何 2.4.x 差异都要人工改，收益边际 |
+| D | 维持 `>=1.5.0` | 拒绝 | R1 实证门禁读数随 CI 解析漂移（CI 已装 2.4.1，本机仍 2.1.0） |
+
+### 11.2 变更清单
+
+| # | 对象 | 变更 |
+|---|------|------|
+| 1 | `pyproject.toml` `[project.optional-dependencies].dev` | `"mypy>=1.5.0"` → **`"mypy~=2.4.1"`** + 三行注释（含 R1 锚点与「升级须显式提交」） |
+| 2 | `pyproject.toml` `[[tool.mypy.overrides]] filter.*` 注释 | 更正 P-024 归因：21 条是 **filter 自身类型错误**（`mypy filter` 在 pandas 2.2.3 下同样复现），非「pandas 3.1.1 类型桩」；**B3 修完后移除本 override** |
+| 3 | `uv.lock` | `uv lock`：**mypy 2.1.0 → 2.4.1**；传递依赖 `ast-serialize 0.5.0→0.13.1` / `librt 0.11.0→0.16.1`；numstat **+240/−163** |
+| 4 | 本机 Python312 主环境 | `pip install "mypy~=2.4.1"` → **2.4.1**（与锁、CI 三方一致） |
+
+### 11.3 验证读数
+
+| 项 | 命令 | 读数 |
+|----|------|------|
+| 锁一致性 | `uv lock --check` | **exit 0**（Resolved 148 packages） |
+| 本地版本 | `mypy --version` | **2.4.1** |
+| 门禁口径 | `mypy --explicit-package-bases --check-untyped-defs core` | **0 errors / 37 files** |
+| 反证（override 是绿的唯一原因） | 同上 + 无 override 配置，target = `filter` | **21 errors / 7 files** |
+| 格式 | `black --check core tests` | **121 unchanged** |
+| 全量测试 | `pytest -q` | **760 passed**（172 warnings，56.55s） |
+
+### 11.4 影响与后续
+
+- **副作用（已披露）**：本地开发者 `pip install -e ".[dev]"` 会升到 2.4.x，无法再停留在 2.1.0；若有本地脚本依赖旧版 mypy 行为，需显式降级（不受本约束保护）。
+- **未改变（显式）**：门禁 target 仍为 `core`；`filter.*` 仍豁免（B3 处置）；`agents/` 等 129 条错误未触碰。
+- **台账**：`U-P024-1` → done；`U-P036-1` → done；`U-P036-2~4` 仍 pending。
+- **残余风险**：2.4.x 内部补丁升级仍可能微调诊断（概率低）；若发生，`uv lock` + CI 会在同一次提交内暴露，不会静默漂移。

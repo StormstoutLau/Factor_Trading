@@ -62,7 +62,10 @@ dev = [
     "pytest-cov>=4.1.0",
     "black~=26.0",
     "flake8>=6.0.0",
-    "mypy>=1.5.0",
+    # P-036 B0：mypy 钉到 2.4.x。门禁读数对 minor 版本敏感——同一配置下
+    # 2.1.0 的 `core` 为 0 error，2.4.1 为 21 error（被 follow 的 filter/ 上报），
+    # 见 docs/RESEARCH_p036_mypy_check_surface_expansion.md R1。升级须显式提交。
+    "mypy~=2.4.1",
     "isort>=5.12.0",
 ]
 web = [
@@ -110,8 +113,10 @@ disallow_untyped_defs = false
 ignore_missing_imports = true
 
 # `filter/` 不在类型检查门禁的声明范围内（门禁 target = core）。
-# core 会 import filter，mypy 会 follow 并把 filter 的错误计入 —— 故按模块声明
+# core 会 import filter，mypy（2.4.x）会 follow 并把 filter 的错误计入 —— 故按模块声明
 # 「解析类型、但不报告错误」，使门禁结果只反映 core（U-P024-3 / U-P024-4）。
+# P-036 更正：这 21 条是 filter 自身的类型错误（`mypy filter` 在 pandas 2.2.3 下同样复现），
+# 不是 P-024 记录的「pandas 3.1.1 类型桩」；B3 修完后应移除本 override。
 [[tool.mypy.overrides]]
 module = ["filter.*"]
 ignore_errors = true
