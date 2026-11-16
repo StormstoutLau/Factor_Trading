@@ -1192,7 +1192,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **覆盖映射**: 测试 **8/8 用例 ID、17/17 实例**；不变式 **7/7**；设计决策 **6/6**（DESIGN-D1→A / DESIGN-D2→B+C / DESIGN-D3→A4 / DESIGN-D4→D4 / DESIGN-D5→B3+B7 / DESIGN-D6→E11）。
 - **顺序敏感五项（Step 9 必做）**: ① 守卫在解析后、差异告警前；② 守卫在 `amount`/`Trade`/`add_trade` 前；③ agents 过滤在 L509 后 L511 前；④ V2 过滤在 L808 后 L810 前；⑤ B1 先于 B2/B3。
 - **下一 Step**: **Step 8 一致性 Review**（须 GLM-5.3-Flash）；交接事项七项（四文档口径 / 两套 ID 不混用 / 顺序敏感五项 / 红态豁免标注 / 行号漂移 E12 / black 先行 / AST 口径不含 `core/`）。
-- **提交与 CI**: 提交后回填。
+- **提交与 CI**: 提交 `e0aba52`（2 文件 **+150/−1**：CHECKLIST 新建 **+137** + PROGRESS §1.4/§3.38.6 **+13/−1**）→ CI run `43905254341` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）；零代码，门禁持平 **731 passed / black 119 unchanged / mypy 37 files 0**。
 
 ---
 
