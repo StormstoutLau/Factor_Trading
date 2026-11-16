@@ -854,7 +854,8 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **分类**: **B 7**（S1-S7）+ **待裁决 1**（S8：注释为载体但运行期不可见，建议判 B，R-P029-1）+ **观察 1**（S3b：`_init_research_team` L928 条件不满足时静默不建轮动分析器，U-P029-1 交 Step 3 裁决）。
 - **文档**: [RESEARCH_p029](RESEARCH_p029_silent_exception_governance_phase4.md) 完稿（§3 八处清单 / §4 分类 / §5 E2 原文 / §6 复用面 / §7 方案矩阵 M-A + 8 个键名草案 + 低效排除 / §8 风险四元块 / §9 负向发现 / §10 下一 Step）；§1.4 新增 P-029 行、U-P027-1 转 in-progress。
 - **约束**: 零 fail-fast、零返回值语义变更、零既有文案改写；`except Exception` 合计仍 **22**（8 处均非 `except Exception`）。
-- **提交与 CI**: 见本批收口记录（Step 1 文档提交后回填）。
+- **提交与 CI**: 提交 `9422a42`（2 文件 +193/−1，docs-only）→ CI run `43787578197` **三 job success**（3.10 / 3.11 / 3.12）。
+- **下一 Step**: **Step 2 独立 Review（异构基座）**——本文件作者基座 DeepSeek-V4.1-Flash，须由非作者基座复核（P-027 先例 GLM-5.3-Flash）；重点：8 处行号与异常类型重放、E2 探针重跑、S8 分类裁决（R-P029-1）、S3b 纳入裁决（U-P029-1）、`agents/` 同型站点 E4 复扫。
 
 ---
 
