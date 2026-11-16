@@ -77,6 +77,8 @@
 
 **为什么 R1 只判 P3（诚实降级）**：`close_price` 在生产三引擎的全部 8 个调用点均来自 pandas 横截面 `.loc[date]`，元素类型为 `np.float64`——numpy 除零返回 `inf` 而非抛异常，故 R1 **当前不可达**。R1 的可达条件 =「`execution_price` 与 `close_price` 同时为 Python `float` 且 close 为 0」，仅出现在外部直接调用 / 未来新调用方 / 手工注入场景。
 
+> **Step 2 精化（F-S2-P034-1，C2 实证）**：R1 的可达性对**取值写法**敏感——`row[stock]`（Series 索引）→ `np.float64`；**`row.to_dict()[stock]` 与 `dict(row.items())[stock]` → Python `float`**。故「生产不可达」的准确表述是「**当前 8 个调用点采用 Series 索引写法**故不可达」；一旦有人把取价改为 `to_dict()`（常见重构），R1 立即可达。这使修复理由从「纯理论」变为「防一次常规重构引入吞单」，但当前定级仍为 P3（按现行代码可达性）。
+
 > **但修复不因此降级**：R1 揭示的是「**诊断代码可以改变交易结果**」——观测逻辑不应有副作用。修复成本 = 1 个前置判定，与 R2/R3 同一个判定，无额外代价（IMPL §7 低效排除已核）。
 
 ### 2.3 任务 C：uv lock 门禁现状
@@ -256,3 +258,73 @@ pytest **748 passed** / `tests/` .py **83** / black `--check core tests` **120**
 4. **保留 `is not None` 的理由**（mypy 窄化）是否成立，是否应改用 `TypeGuard`；
 5. **CI 门禁**：独立 job + `setup-uv` 钉版是否是最小面；是否存在 `--check` 的已知误报形态；
 6. **台账**：8 处缺口的处置（合并 / 建行 / 标不采纳）是否符合 P-028 / P-030 / P-032 先例。
+
+---
+
+## 11. Step 2 独立 Review 记录（2026-11-17）
+
+> **基座**: **DeepSeek-V4.1-Flash**——与本文作者**同源** → **RULE-5 异构条件不成立**，本轮按 P-032 先例执行**同基座独立复审**（RULE-4 单视角披露），异构终审登记 **U-P034-3**（须非 DeepSeek 基座承接）。
+> **复审对象**: `279c86a`（RESEARCH_p034 提交版）；复审时点 HEAD `279c86a`
+> **方法**: E1 锚点重放（读码）+ E2 探针原样重放 + E3 独立探针四项新证（`%TEMP%\p034_step2_review_probe.py` C1-C3 + 临时目录锁漂移模拟 C4）
+
+### 11.1 E1 锚点重放（十二项）
+
+| # | RESEARCH 声称 | 实查 | 结果 |
+|---|---------------|------|------|
+| A1 | 差异校验 `core/execution.py` L316-324（`# 价格合理性检查` / `if close_price is not None` / ratio / `> 0.1` / warning） | 读码 L316-324 逐行命中 | ✅ |
+| A2 | P-033 守卫 L308-315 在差异校验**之前** | 读码 L308-315 → L316 | ✅ |
+| A3 | `except Exception` L359 覆盖差异校验（R1 吞单路径） | 读码 L302 `try` / L359 `except` 包围 L316-324 | ✅ |
+| A4 | `_get_execution_price` OPEN 直接 `return open_price`（无 `float()` 转换） | L229-230 | ✅（类型随入参） |
+| A5 | VWAP `sum(prices)/len(prices)` | L249 | ✅ |
+| A6 | CUSTOM 仅判 `> 0`、`cast(float, ...)` 运行期不转换 | L257-258 | ✅（回调返回 Python float 时保持 float） |
+| A7 | V2 `close_prices = self._exec_price(dm, "close").loc[date]` | L770-773 | ✅（Series） |
+| A8 | V2 queue 传 close（L804-808 → L820） | 读码 | ✅ |
+| A9 | agents `close_prices = ...get_adj_price("close", ...).loc[date]`（L489）→ L509 → L525 | 读码 | ✅ |
+| A10 | `agent_framework` L1345 `adj_close.loc[date, stock]` → L1420 | 读码 | ✅ |
+| A11 | CI `tests.yml` 单 job + matrix 3.10/3.11/3.12 + `pip install ".[dev]"`，零 uv | L9-46 逐行 | ✅ |
+| A12 | `uv.lock` `version = 1` / `revision = 3` / `requires-python = ">=3.10"` | 头部 5 行 | ✅ |
+
+### 11.2 E2 探针重放
+
+`%TEMP%\p034_step1_probe.py` 原样重跑：六形态读数与 §5 原文**逐字一致**（`close=0.0` → `success=False` / `np.float64(0)` → `inf` + 1 条告警 / NaN·负 → 零告警 / `close=8.0` → 25.00% 告警 / `open=NaN, close=0` → 守卫先行）。
+
+### 11.3 E3 独立探针（四项新证）
+
+| 探针 | 构造 | 读数 | 结论 |
+|------|------|------|------|
+| **C1** `is_valid_price` 语义表 | 12 值（None / py·np 的 0·负·正 / nan / ±inf / 1e-9） | 无效 8 值全 `False`、合法 4 值全 `True`（**含 `1e-9`**） | **零误伤**——极小正价仍放行；作为 close 判定同样正确 |
+| **C2** pandas 取值形态 → 类型 | `df.loc[date]` / `row[stock]` / `row.to_dict()` / `dict(row.items())` | Series → `np.float64`；**`to_dict` / `items` → Python `float`**；`np.float64 / Python 0.0` = **`inf`（不抛）**；`Python / Python 0.0` = `ZeroDivisionError` | **R1 可达性对取值写法敏感** → F-S2-P034-1 当轮回写 §2.2 |
+| **C3** M-A 等价性 | 合法 close（8.0 / 10.0 / 10.5）vs 无效（0 / NaN / -5 / np0） | 合法三例 `old == new` **逐位一致**、告警判定一致；无效四例 `SKIPPED` | M-A **零合法价行为差异** |
+| **C4** 锁漂移检出（临时目录，不动工作区） | 复制 pyproject + uv.lock → 改 `numpy>=1.23.0`→`>=1.24.0` → `uv lock --check` | **exit 1** + `The lockfile at 'uv.lock' needs to be updated, but '--check' was provided.`（基线未改副本 exit 0） | **门禁可真实变红**（P-024「假门禁」教训的正面实证） |
+
+### 11.4 E4 六项复核重点裁决（对应 §10）
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | 判档 T1 | **成立**——判档规则 2 明列「新增 / 删除 / 弱化任何门禁（hook / CI / 校验器判据）」；任务 C 新增 CI job 判据 → 强制 T1。三件合批不拆（拆批需二次立项 + 二次台账收口，收益为负） |
+| 2 | R1 定级 | **维持 P3**——C2 证实「不可达」依赖 Series 索引写法；按现行代码可达性定级（P2 门槛是生产可触发）。同时在 §2.2 精化披露「改 `to_dict()` 即触发」，使修复理由可审计 |
+| 3 | M-A 行为差异 | **零差异**——C3 逐位一致；无效 close 由「抛异常 / 噪声 / 静默」统一为「跳过」，是本批唯一有意行为变更（限诊断告警面，不触账目） |
+| 4 | `is not None` 保留 vs `TypeGuard` | **保留成立**——`is_valid_price` 返回 `bool`，mypy 不窄化 `Optional[float]`，`is not None` 用于类型窄化（非冗余判定）；改 `TypeGuard[float]` 需修改 P-033 已验收的公共签名与 3 个调用点，收益仅少写半个条件 → **拒绝**（O-S2-P034-4） |
+| 5 | CI 最小面 | **成立**——独立 job（1 次 vs matrix 3 次）；钉 `0.11.14`；禁 `\|\| true`；C4 已证可红。`setup-uv` action 版本真实性交 **Step 6** 核验（U-P034-1） |
+| 6 | 台账处置 | **符合先例**——U-P033-2/U-P014-3 并入 U-P031-2（P-028 合并 + 保留历史行）；U-P033-3 用「已裁决不采纳」（P-025-4 先例）；其余建行（P-030/P-032 惯例）；U-008 标「已合并至 U-P021-2」 |
+
+### 11.5 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S2-P034-1 | P3 | §2.2「R1 生产不可达」表述失准——不可达的前提是**Series 索引写法**；`to_dict()` / `dict(items())` 产生 Python `float`，改写法即可达（C2 实证） | **当轮回写 §2.2**（已补精化段） |
+| O-S2-P034-1 | 观察 | 本机 `RUST_LOG=info` 使 `uv lock --check` 输出 **131 KB / 1554 行** INFO 日志（CI 无该变量，判据不受影响） | 登记；CI 命令可加 `-q` 收敛日志（不影响退出码） |
+| O-S2-P034-2 | 观察 | `astral-sh/setup-uv` action 的主版本 / `0.11.14` 可解析性未在本轮核验 | 移交 Step 6（U-P034-1 已登记降级链 `pip install uv==0.11.14`） |
+| O-S2-P034-3 | 观察 | R1 修复后仍存在「`execution_price` 为 Python float + close 为 Python float 0」的**外部**调用面（本仓已安全） | U-P034-2 跟踪 |
+| O-S2-P034-4 | 观察 | `is_valid_price` 返回 `bool` 而非 `TypeGuard[float]`，调用方需自行 `is not None` 窄化 | 不改（避免动 P-033 已验收签名） |
+
+### 11.6 结论与 Step 3 前置条件
+
+**结论**: **pass**（0 P0/P1/P2 / **1 P3 当轮回写** / 4 观察）——判档 T1 成立、R1 定级经 C2 精化后维持、M-A 零合法价差异、CI 门禁经 C4 实证可红、台账处置合先例。
+**RULE-5 声明**: 本轮为**同基座独立复审**（作者与复审均为 DeepSeek-V4.1-Flash），异构条件不成立；**U-P034-3 登记异构终审预留**（须非 DeepSeek 基座）。
+
+**Step 3 DESIGN 前置条件**:
+1. 修复按 **M-A**：`if close_price is not None and is_valid_price(close_price):` 包裹差异校验（保留 `is not None` 仅为 mypy 窄化）；
+2. CI 采用**独立 job** `lock-check`：`astral-sh/setup-uv@v6`（`version: "0.11.14"`）+ `uv lock --check`，**禁 `|| true`**；Step 6 须给出 action 版本核验证据或降级为 `pip install uv==0.11.14`；
+3. 测试规格须覆盖 C1 语义表（合法 `1e-9` 与六类无效值）、C3 合法性等价、R1 吞单（红态）、R2 噪声（红态）、R3 静默（红态）、V8 回归（合法 25% 差异仍告警）；C4 属 CI job，不进 pytest；
+4. 台账 8 处按 §2.1 处置执行，Step 9 一并落地并在 §3.39 记录。

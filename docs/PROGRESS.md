@@ -1247,7 +1247,18 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **任务 A 缺口（8 处）**: U-P033-1~3 未建行 / U-P014-1·U-P014-3·U-P015-1·U-P016-1 仅存于批次文档 / U-008 与 U-P021-2 双源同项；处置 = U-P033-1 本批关闭、U-P033-2 + U-P014-3 并入 U-P031-2 单一跟踪源、U-P033-3 标「已裁决不采纳」、其余建行、U-008 标「已合并至 U-P021-2」。
 - **根因纪律（新增 D5）**: 三次同型（P-030 → P-032 → P-034）的成因均为「批次关闭只写 §3.x 正文、不建 §1.4 行」→ 批次关闭动作清单新增一项「本批新增 U-\* / O-\* 是否已在 §1.4 建行」。
 - **负向发现六项**: N1「R3 仅文案噪声」部分不成立（Python float 形态吞单）/ N2「生产可触发 R1」不成立（全 `np.float64`）/ N3「P-033 守卫已覆盖 close 无效」不成立（守卫判执行价，close 仅参与诊断）/ N4「既有测试依赖 close=0」不成立（grep 零命中）/ N5「CI 加 uv 影响测试 job」不成立（独立 job）/ N6「`--check` 受 Python 版本影响」不成立（uv 二进制，钉版本规避）。
-- **下一 Step**: **Step 2 独立 Review**（RULE-5 要求异构基座 GLM-5.3-Flash）；复核重点六项（判档 / R1 定级 / M-A 行为差异 / `is not None` 窄化 vs `TypeGuard` / CI 最小面与 `--check` 误报形态 / 台账处置是否合先例）。
+- **下一 Step**: ~~Step 2 独立 Review~~（已完成，见下）
+
+### 3.39.1 P-034 Step 2 独立 Review 记录（2026-11-17）
+
+- **基座披露**: 复审基座 **DeepSeek-V4.1-Flash = 作者同源** → **RULE-5 异构条件不成立**，按 P-032 先例执行**同基座独立复审**（RULE-4 单视角披露），异构终审登记 **U-P034-3**（须非 DeepSeek 基座）。复审对象 `279c86a`。
+- **E1 锚点十二项全命中**: 差异校验 L316-324 / P-033 守卫 L308-315 在前 / `except` L359 覆盖 / `_get_execution_price` 五分支（OPEN 无 float 转换、VWAP 聚合、CUSTOM 仅判 `>0`）/ V2 L770-773·L804-808·L820 / agents L489·L509·L525 / agent_framework L1345·L1420 / `tests.yml` L9-46 零 uv / `uv.lock` 头三字段。
+- **E2 探针重放**: 十场景（六形态）读数与 Step 1 §5 **逐字一致**。
+- **E3 独立探针四项新证**: **C1** `is_valid_price` 12 值语义表（无效 8 全 False / 合法 4 全 True，含 `1e-9` 零误伤）/ **C2** pandas 取值形态——Series 索引 → `np.float64`，**`to_dict()` / `dict(items())` → Python `float`**；`np.float64 / Python 0.0` = `inf`（不抛），`Python / Python 0.0` 才抛 → **R1 可达性对写法敏感**（F-S2-P034-1 当轮回写 §2.2）/ **C3** M-A 等价性——合法 close 三例 `old == new` 逐位一致、无效四例 SKIPPED / **C4 锁漂移检出实证**——临时目录改 `numpy>=1.23.0`→`>=1.24.0` → `uv lock --check` **exit 1**（文案「The lockfile at 'uv.lock' needs to be updated, but '--check' was provided」），副本未改 exit 0 → **门禁可真实变红**（P-024 假门禁教训正面实证）。
+- **六项裁决**: ① 判档 T1 **成立**（CI 门禁 ∈ 判档规则 2 明列）② R1 **维持 P3**（C2 精化后按现行代码可达性）③ M-A **零合法价差异** ④ 保留 `is not None` **成立**（mypy 窄化必需；`TypeGuard` 需改 P-033 已验收签名 → 拒绝）⑤ CI 独立 job **成立**（1 次 vs matrix 3 次），`setup-uv` 版本真实性交 Step 6 ⑥ 台账处置**合先例**（P-028 / P-030 / P-032 / P-025-4）。
+- **发现分级**: **0 P0/P1/P2 / 1 P3 当轮回写（F-S2-P034-1）/ 4 观察**（O-S2-P034-1 `RUST_LOG=info` 致 131KB INFO 输出 / O-S2-P034-2 `setup-uv` 版本待 Step 6 / O-S2-P034-3 外部调用面 / O-S2-P034-4 `bool` vs `TypeGuard`）。
+- **结论**: **pass**——准予进入 **Step 3 DESIGN**；前置条件四项（M-A 形态 / CI 独立 job + 禁 `|| true` + Step 6 核验 / 测试规格覆盖 C1·C3·三类红态 / 台账 8 处处置）。
+- **下一 Step**: **Step 3 DESIGN**。
 
 ---
 
