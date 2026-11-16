@@ -16,6 +16,9 @@ import pytest
 import agents.agent_framework as agent_framework_module
 import agents.research_team_v2 as research_team_module
 from agents.agent_framework import ResearchTeamAgent
+from agents.multi_strategy_engine import StrategyConfig, StrategyEngine
+from core.config import BacktestConfig
+from core.pending import OrderSide, PendingOrderQueue, create_pending_order
 
 STOCKS = ["A", "B", "C"]
 DATES = pd.bdate_range("2024-01-02", periods=3)
@@ -134,3 +137,81 @@ def test_team_report_failure():
     assert summary["failure_counts"] == {"performance_summary_team_report": 1}
     assert summary["agent_id"] == agent.agent_id
     assert "style" in summary
+
+
+# --------------------------------------------------------------- V4 / V5
+class _RaisingLoc:
+    def __getitem__(self, key):
+        raise KeyError("missing price")
+
+
+class _MissingPriceFrame:
+    """columns/index 正常但 .loc 取值必抛 KeyError。"""
+
+    columns = pd.Index(["A"])
+    index = pd.DatetimeIndex(DATES)
+    loc = _RaisingLoc()
+
+
+class _EngineDM:
+    def __init__(self, n_days: int = 1):
+        self.trade_dates = pd.bdate_range("2024-01-02", periods=n_days)
+        self.stock_codes = STOCKS
+        self.n_stocks = len(STOCKS)
+        self.returns = pd.DataFrame(0.0, index=self.trade_dates, columns=STOCKS)
+
+    def get_adj_price(self, field, adjustment_type):
+        return pd.DataFrame(10.0, index=self.trade_dates, columns=STOCKS)
+
+
+def _make_engine() -> StrategyEngine:
+    strategy_cfg = StrategyConfig(name="long", direction="long", target_count=2)
+    base_cfg = BacktestConfig(enable_pending_orders=False)
+    return StrategyEngine(
+        strategy_cfg,
+        base_cfg,
+        _EngineDM(),
+        None,
+        pd.DataFrame(0.0, index=DATES, columns=STOCKS),
+    )
+
+
+@pytest.mark.parametrize("case", ["legal", "exception"])
+def test_order_missing_price(monkeypatch, case):
+    """D4 / V4：合法缺列计 0、异常计 1；两例均不产生订单。"""
+    engine = _make_engine()
+
+    if case == "legal":
+        engine._generate_orders(DATES[0], 0, pd.Series({"ZZZ": 1.0}))
+        assert engine.get_failure_stats() == {}
+    else:
+        monkeypatch.setattr(engine.dm, "get_adj_price", lambda *a, **k: _MissingPriceFrame())
+        engine._generate_orders(DATES[0], 0, pd.Series({"A": 1.0}))
+        assert engine.get_failure_stats() == {"orders_missing_price": 1}
+
+    assert engine._next_day_orders == []
+    assert engine.pending_queue is None
+
+
+@pytest.mark.parametrize("case,key", [("next_day", "next_day_open_price"), ("pending", "pending_open_price")])
+def test_open_price_failures(monkeypatch, caplog, case, key):
+    """D4 / V5：S6/S7 各计 1，队列语义不变，零 WARNING 日志。"""
+    engine = _make_engine()
+    monkeypatch.setattr(engine.dm, "get_adj_price", lambda *a, **k: _MissingPriceFrame())
+
+    caplog.clear()
+    caplog.set_level(logging.WARNING, logger="agents.multi_strategy_engine")
+
+    if case == "next_day":
+        engine._next_day_orders = [{"order": object(), "create_date": DATES[0]}]
+        engine._execute_next_day_orders(DATES[0], 0)
+        assert len(engine._next_day_orders) == 1
+    else:
+        engine.pending_queue = PendingOrderQueue()
+        engine.pending_queue.add_order(create_pending_order("A", OrderSide.BUY, 100, DATES[0]))
+        before = len(engine.pending_queue.get_pending_orders())
+        engine._process_pending_orders(DATES[0], 0)
+        assert len(engine.pending_queue.get_pending_orders()) == before
+
+    assert engine.get_failure_stats() == {key: 1}
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []

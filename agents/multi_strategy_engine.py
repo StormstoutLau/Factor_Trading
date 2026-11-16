@@ -328,6 +328,7 @@ class StrategyEngine:
                 else:
                     continue
             except (KeyError, IndexError):
+                self._record_failure("orders_missing_price")
                 continue
 
             if close_price is None or pd.isna(close_price) or close_price <= 0:
@@ -388,6 +389,7 @@ class StrategyEngine:
         try:
             open_prices = self.dm.get_adj_price("open", self.base_cfg.adjustment_type).loc[date]
         except KeyError:
+            self._record_failure("next_day_open_price")
             return
 
         buyable_mask = (
@@ -450,6 +452,7 @@ class StrategyEngine:
             open_prices = self.dm.get_adj_price("open", self.base_cfg.adjustment_type).loc[date]
             close_prices = self.dm.get_adj_price("close", self.base_cfg.adjustment_type).loc[date]
         except KeyError:
+            self._record_failure("pending_open_price")
             return
 
         buyable_mask = self.universe.buyable.loc[date]
