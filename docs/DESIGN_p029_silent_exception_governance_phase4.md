@@ -2,7 +2,7 @@
 
 > **批次**: P-029 · **T1**（`agents/` 3 文件；零 fail-fast、零返回值语义变更、零既有文案改写、**零新增日志**）
 > **上游**: [RESEARCH_p029](RESEARCH_p029_silent_exception_governance_phase4.md)（§3 八处清单 / §4 分类 / §5 E2 / §8 风险四元块 / §11 Step 2 异构 Review pass，F-S2-P029-1 当轮修正）
-> **状态**: **Step 3 DESIGN 完稿**（2026-11-16，作者基座 DeepSeek-V4.1-Flash，HEAD `7045001`）
+> **状态**: **Step 4 异构 Review pass**（2026-11-16，复核基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2 + 3 P3 当轮回写 + 2 观察，见 §11）｜Step 3 完稿（作者 DeepSeek，HEAD `7045001`）
 > **设计口径**: 8 站点（S1-S8）+ S3b 跳过计量 = **9 计量 / 3 文件 / 0 新增日志 / 0 新增 raise**
 > **代码证据时点**: HEAD `7045001`（P-029 Step 2 收口）
 
@@ -20,7 +20,7 @@
 | **D6** | 出口与生命周期：复用既有 `failure_counts`；仅 S8 新增只读 getter | — | S1-S4 → `get_performance_summary`；S5-S7 → `run()`；S8 → `get_failure_stats()` |
 | **D7** | 约定：不新增 raise、不改捕获类型、不改既有文案、**不新增日志** | — | 唯一文本增量是 3 个新方法的 docstring |
 
-**计量点合计 9 处**（S1-S8 + S3b）+ **零改动 0 处**；`except Exception` 合计恒 **22**（本批全部为 bare / 窄类型，不进入该口径）。
+**计量点合计 9 处**（S1-S8 + S3b）+ **零改动 1 处**（`research_team_v2.py:25-28` 模块级 `except ImportError` 静默置 `None`——`agent_framework` 主路径经 L914 直连 import，失败时 L843-845 `logger.warning` 兜底，可观测；F-S4-P029-3 回写）；`except Exception` 合计恒 **22**（本批全部为 bare / 窄类型，不进入该口径；Step 4 E4 实测 41 文件 = 22）。
 
 ---
 
@@ -30,7 +30,7 @@
 |------------------------|----------|
 | S1-S3 E2：三缓存均 `None` + 0 条错误日志 | D1 只补计量；`None` 语义与后续 `_init_research_team` 条件判断不变 |
 | S3b：L928 条件不满足时静默跳过分析器 | D2 以 `else` 分支计 1 次；**不加 warning**（合法缺失形态，F-S2-P029-1） |
-| S4：`team_report` 静默缺键（同函数已有 `failure_counts` 出口） | D3 补计量后自动出现在既有出口，**零出口改动** |
+| S4：`team_report` 静默缺键（同函数已有 `failure_counts` 出口） | D3 补计量 + L1152 下移 1 行（F-S4-P029-1）→ **同调可见**于既有出口 |
 | S5：异常 `continue` 与合法 `continue` 同值 | D4 只计异常分支；T4 双参数断言（合法 0 / 异常 1） |
 | S6/S7：`return` 后队列保留（可能次日重试） | D4 只补计量，**不改队列与重试语义**（U-P029-2 维持） |
 | S8：`LinAlgError → pinv`，类无计数器 | D5 自备三件套；M-A（不下沉 `BaseAllocator`） |
@@ -80,9 +80,9 @@
 
 **不加 warning**（F-S2-P029-1 裁定）：`industry.pkl` 属可选数据，跳过为合法形态；计数可与 S1-S3 的 `*_cache` 键对拍因果链。`self.rotation_analyzer` 保持 `__init__` 的 `None`，不新增赋值。
 
-### D3 `agent_framework.py` S4：绩效摘要补计量
+### D3 `agent_framework.py` S4：绩效摘要补计量 + 快照下移
 
-**位置**：`get_performance_summary` L1154-L1159。
+**位置**：`get_performance_summary` L1149-L1161。两处微改（F-S4-P029-1）：
 
 ```python
         if self.fund_manager is not None:
@@ -91,9 +91,13 @@
                 summary["team_report"] = team_report
             except:
                 self._record_failure("performance_summary_team_report")
+
+        summary["failure_counts"] = self.get_failure_stats()  # L1152 下移至 try/except 之后
+        return summary
 ```
 
-`team_report` **仍不写入** summary；既有 `summary["failure_counts"]`（L1152，P-027）自动包含该键 → 零出口改动。
+- `team_report` **仍不写入** summary（返回语义零变更，I3）。
+- **L1152 下移**（原位于 try/except **之前**）：同调失败时计数进入本次返回值——否则 `performance_summary_team_report` 只在下一次调用可见，§6 V5「S1-S4 计数出现在出口」对 S4 同调不成立（F-S4-P029-1）。
 
 ### D4 `multi_strategy_engine.py` S5-S7：三处窄类型 except 补计量
 
@@ -144,7 +148,7 @@ class MeanVarianceAllocator(BaseAllocator):
 
 | 站点组 | 出口 | 是否改动 |
 |--------|------|----------|
-| S1-S4（含 S3b） | `ResearchTeamAgent.get_performance_summary()` 的 `failure_counts`（P-027 已加） | **零改动** |
+| S1-S4（含 S3b） | `ResearchTeamAgent.get_performance_summary()` 的 `failure_counts`（P-027 已加） | 复用既有出口；S4 同函数 L1152 下移 1 行（F-S4-P029-1，同调可见） |
 | S5-S7 | `StrategyEngine.run()` 返回值的 `failure_counts`（P-027 已加） | **零改动** |
 | S8 | 新增 `MeanVarianceAllocator.get_failure_stats()`（只读拷贝） | +1 getter |
 
@@ -166,7 +170,7 @@ class MeanVarianceAllocator(BaseAllocator):
 
 | 文件 | 新增行 | 变更性质 |
 |------|--------|----------|
-| `agents/agent_framework.py` | ≈ 8 | S1-S3 三处 `pass` → 1 行计量；S3b 新增 `else` 2 行；S4 `pass` → 1 行 |
+| `agents/agent_framework.py` | ≈ 9 | S1-S3 三处 `pass` → 1 行计量；S3b 新增 `else` 2 行；S4 `pass` → 1 行 + L1152 下移（−1/+1，F-S4-P029-1） |
 | `agents/multi_strategy_engine.py` | 3 | 三处 except 首行各 +1 |
 | `agents/strategy_allocator.py` | ≈ 12 | 计数器 + `_record_failure` + `get_failure_stats` + 1 行接入 |
 | `tests/test_p029_silent_exception_governance.py`（新增） | ≈ 260 | 7 函数 / 11 实例 |
@@ -177,9 +181,9 @@ class MeanVarianceAllocator(BaseAllocator):
 
 | 用例 | 函数 | 实例 | 断言 |
 |------|------|------|------|
-| V1 | `test_cache_failure_counts` | 3（参数化 price/industry/mktcap） | 各计数 1；对应缓存 `None`；`caplog` WARNING+ 零记录 |
+| V1 | `test_cache_failure_counts` | 3（参数化 price/industry/mktcap） | 各计数 1；对应缓存 `None`；`caplog` WARNING+ 零记录。**触发注记（F-S4-P029-2）**：industry/mktcap 须提供**存在但损坏**的 pkl——路径不存在时 `if industry_path.exists()` 短路、不进 except、计数 0（合法缺失由 S3b `rotation_analyzer_skipped` 承接） |
 | V2 | `test_rotation_analyzer_skipped` | 1 | 注入假 `research_team_v2` / `industry_rotation_v2`；`_industry_data=None` → `rotation_analyzer_skipped` 1、`rotation_analyzer is None` |
-| V3 | `test_team_report_failure` | 1 | `team_report` 不在 summary；计数 1；summary 仍含 `failure_counts` |
+| V3 | `test_team_report_failure` | 1 | `team_report` 不在 summary；计数 1；summary 的 `failure_counts` **同调含** `performance_summary_team_report`（F-S4-P029-1） |
 | V4 | `test_order_missing_price` | 2（合法缺列 / 异常） | 合法分支计数 **0**；异常分支计数 **1**；均无订单 |
 | V5 | `test_open_price_failures` | 2（S6 / S7 参数化） | 各计数 1；队列长度不变；返回 `None`；零 WARNING+ |
 | V6 | `test_pinv_fallback` | 1 | `pinv_fallback` 1；`get_failure_stats()` 为拷贝（改写返回值不影响内部）；权重归一 |
@@ -245,7 +249,7 @@ class MeanVarianceAllocator(BaseAllocator):
 
 ## 9. 设计期发现
 
-1. **S4 零出口改动**：`get_performance_summary` 已在 P-027 追加 `failure_counts`，本批 D3 的计数自动出现在出口——无需修改 D6 形态。
+1. **S4 出口同调滞后（F-S4-P029-1 修正）**：`get_performance_summary` 已在 P-027 追加 `failure_counts`，但 L1152 快照位于 S4 try/except **之前**——同调失败不计入本次返回值。修正：L1152 下移至 try/except 之后（D3），V5「计数出现在出口」对 S4 同调成立。
 2. **S5 双分支同值**：L328 合法 `continue` 与 L330 异常 `continue` 返回同值，T4 必须双参数断言才能证明「只计异常」。
 3. **S3b 语法落点**：`else` 必须挂在 L928 的 `if` 上（而非 L929 `try` 的 `else`），否则会在 `try` 成功时误计。
 4. **`MeanVarianceAllocator.__init__` 形参零变更**：只追加属性赋值，I5 成立。
@@ -262,3 +266,74 @@ class MeanVarianceAllocator(BaseAllocator):
 3. M-A 与 M-B 的取舍复核（`BaseAllocator` 无 `__init__` 的实证）；
 4. I8 计数（722 / 81 / 118 / 37）与测试规格函数数一致；
 5. 零新增日志是否与「可观测性」目标冲突（D2 只计量不加日志的裁定复核）。
+
+---
+
+## 11. Step 4 异构 Review（GLM-5.3-Flash）
+
+> **复核基座**: GLM-5.3-Flash（≠ 作者 DeepSeek-V4.1-Flash，RULE-5 合规）
+> **基线**: HEAD `f802bbe`（代码与 `7045001` / `0afcfec` 一致，`f802bbe` 仅 docs 回填）
+> **日期**: 2026-11-16
+> **结论**: **PASS —— 0 P1 / 0 P2，3 P3 已当轮回写，2 观察登记**
+
+### 11.1 E1 锚点机械核验（读码 @`f802bbe`，9/9 命中）
+
+| 站点 | DESIGN 锚点 | 实测 | 判定 |
+|------|-------------|------|------|
+| S1 | L971 bare except + `pass` | try 体 `get_adj_price("close","forward")` L970 → `except:` L971 → `pass` L972 | ✓ |
+| S2 | L981 | try L974-980（`industry.pkl` exists → pickle.load）→ `except:` L981 | ✓ |
+| S3 | L991 | try L984-990（`mktcap.pkl`）→ `except:` L991 | ✓ |
+| S3b | L928-L936 | `if` L928 → `try` L929 → `except Exception` L933-936（`rotation_analyzer_init`，P-027 既有）→ **无 else** | ✓ |
+| S4 | L1154-L1159 | `if` L1154 → `try` L1155-1157 → bare `except:` L1158 → `pass` L1159 | ✓ |
+| S5 | L330 | `try` L325 → 合法 `continue` L328-329 → `except (KeyError, IndexError):` L330 → `continue` L331 | ✓ |
+| S6 | L390 | `try` L388-389 → `except KeyError:` L390 → `return` L391 | ✓ |
+| S7 | L452 | `try` L449-451（open+close 双价）→ `except KeyError:` L452 → `return` L453 | ✓ |
+| S8 | L625-L630 | `try` L625-627（`inv`）→ `except np.linalg.LinAlgError:` L628 → 注释 L629 → `pinv` L630 | ✓ |
+
+键名 9 个互不冲突，且与 P-027 既有键（`rotation_analyzer_init` / `research_team_analysis` / `daily_process` / `directional_optimize` / `neutral_optimize` 等）零冲突；`get_failure_stats` 在 `strategy_allocator.py` 无同名（Grep 实查）；载体三件套已存在于 `ResearchTeamAgent`（L882/L891/L895）与 `StrategyEngine`（L111/L115/L119），B1/B2 无需新建。
+
+### 11.2 E2 基线门禁实测（I8 四元对拍）
+
+| 指标 | 实测基线 | I8 目标 | 算术 | 判定 |
+|------|----------|---------|------|------|
+| pytest collected | **711** | 722 | +11（V1 3 + V2 1 + V3 1 + V4 2 + V5 2 + V6 1 + V7 1） | ✓ |
+| tests/ 全 .py | **80**（77 `test_*.py` + 3 `_` 辅助） | 81 | +1 新测试文件 | ✓ |
+| black --check core tests | **117 files unchanged** | 118 | +1（117 = core 37 + tests 80，自洽） | ✓ |
+| mypy core | **37 files, 0 issues** | 37 | `agents/` 不在 mypy 门禁路径 → 不变 | ✓ |
+
+### 11.3 E4 独立扫描（自写 AST 脚本 `%TEMP%\p029_step4_scan.py`，不复用作者脚本）
+
+- `agents/` 除处理器 **handlers=22 / silent=9**：S1-S8（8）+ `research_team_v2.py:27`（import 降级 1）——与 Step 2 复扫一致，**无遗漏、无新增**。
+- `except Exception` 十文件范围（41 文件）= **22**，I1 成立；9 处目标均为 bare / 窄类型，实施后计数不变。
+- 继承谱系：`BaseAllocator` 5 子类（Hedge L374 / FTRL L419 / UCB L495 / Thompson L536 / MeanVariance L582）**均有自有 `__init__`**，`BaseAllocator` 自身无 `__init__`（L354-371 仅抽象 `allocate`）——M-B 需改 6 类并承担子类漏调 `super().__init__()` 的运行期风险，**M-A 裁决维持**。
+
+### 11.4 复核重点五项裁决
+
+| # | 重点 | 裁决 |
+|---|------|------|
+| 1 | 9 锚点 + 键名 | **pass**（11.1 全命中；键名零冲突） |
+| 2 | D2 `else` 挂 `if` 非 `try` | **pass**——L928 `if` 直下 L929 `try`，`else` 挂 `if` 在数据缺失时计数；若误挂 `try` 的 `else` 会在**成功**时误计（§9.3 判断正确）。语义链实测：`_price_data`/`_industry_data` 仅由 S1/S2 赋值 → `skipped` 与 `*_cache` 可对拍因果 |
+| 3 | M-A vs M-B | **pass，维持 M-A**（11.3 实证：5 子类均有自有 `__init__`，M-B 改 6 类 + 漏 super 风险） |
+| 4 | I8 四计数 | **pass**（11.2 实测算术成立） |
+| 5 | 零新增日志裁定（D2 不加 warning） | **pass**——`industry.pkl` 属可选数据，缺失为合法形态；warning 将在无行业数据的部署中每次运行刷屏（与 R-P029-4 同源）；计数 + `*_cache` 对拍已提供因果可见性。S1-S3 静默面同理（补日志属 I6 违规） |
+
+### 11.5 发现与回写
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S4-P029-1 | P3 | **S4 同调出口滞后**：L1152 `summary["failure_counts"]` 快照位于 S4 try/except **之前**，同调失败只在下一次调用可见——§6 V5「S1-S4 计数出现在出口」对 S4 同调不成立 | **已回写**：D3 增第 2 项微改（L1152 下移至 `return summary` 前）；§2 / D6 / §4.1 / V3 / §9.1 同步 |
+| F-S4-P029-2 | P3 | **V1 触发面歧义**：industry/mktcap 的 try 体在 `path.exists()` 为 False 时不进 except（缺失文件 → 计数 0，合法缺失由 S3b 承接）；V1 参数化须用**存在但损坏**的 pkl | **已回写**：§4.2 V1 补触发注记 |
+| F-S4-P029-3 | P3 | **静默面清点缺口**：E4 复扫 silent=9（8 站点 + `research_team_v2.py:25-28` import 降级），§1「零改动 0 处」与清点不符 | **已回写**：§1 改「零改动 1 处」并注明下游可观测路径（L914 直连 import → L843 warning → `available=False`） |
+| O-S4-P029-1 | 观察 | `MeanVarianceAllocator.allocate` L633-637 `sum(raw_weights) <= 0 → np.ones(n)/n` 等权回退为**非异常**静默降级，不在 except-判据扫描范围 | 登记：后续批次候选「非异常静默回退」判据扩展（与 U-P029-2 / R-P029-6 同列观察，不新增 U 项） |
+| O-S4-P029-2 | 观察 | I8「81 文件」口径未定义（实为 tests/ 全部 .py = 80；black 117 = core 37 + tests 80 自洽） | 登记：Step 7 CHECKLIST 沿用同口径并在实测列注记 |
+
+### 11.6 测试规格可行性抽核
+
+- **V2**：`sys.modules` 注入假 `research_team_v2` / `industry_rotation_v2` → `_research_team_available=True`（P-027 T2 同范式已验证，test_p027 L159）；`_industry_data=None` → else 计数。✓
+- **V4**：合法分支用空 `adj_close`（列/日期缺失 → L328-329 `continue` 计 0），异常分支注入 `KeyError` 计 1——双参数断言可落地。✓
+- **V6**：`monkeypatch np.linalg.inv` 抛 `LinAlgError`（`pinv` 走 SVD/lstsq 不受影响）；evaluator 以简单对象提供 `n` / `get_expected_returns` / `correlation_matrix` / `get_expected_variances`。✓
+- **V7**：`run()` 入口清零（L154）→ 正常数据全零计数；`MeanVarianceAllocator` 新鲜实例天然为空。✓
+
+### 11.7 结论
+
+**Step 4 PASS。** 3 P3 已当轮回写至本文件（§1 / §2 / D3 / D6 / §4 / §9），无 P1/P2；M-A / D2 / I8 / 零日志四项裁决维持。下一 **Step 5 IMPL** 以**回写后**的 D1-D7 与 I1-I8 为准，并继承两条观察（O-S4-P029-1/2）；IMPL 须覆盖 D3 的 L1152 下移（`agent_framework.py` 变更面 ≈9 行）与 V1 的损坏 pkl 触发注记。
