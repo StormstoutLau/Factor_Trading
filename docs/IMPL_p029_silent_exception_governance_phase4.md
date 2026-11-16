@@ -2,7 +2,7 @@
 
 > **批次**: P-029 · **T1**（`agents/` 3 文件；零 fail-fast、零返回值语义变更、零既有文案改写、**零新增日志**）
 > **上游**: [DESIGN_p029](DESIGN_p029_silent_exception_governance_phase4.md)（D1-D7 / I1-I8 / V1-V5 / §4 规格 / §7 风险 / §8 回退点 / §11 Step 4 异构 Review pass，3 P3 已回写）
-> **状态**: **Step 5 IMPL 完稿**（2026-11-16，作者基座 DeepSeek-V4.1-Flash；Step 6 须异构复核）
+> **状态**: **Step 6 独立 Review pass**（2026-11-16，复核基座 GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash；0 P1/P2 + 5 P3 当轮修正，见 §10）｜Step 5 IMPL 完稿（作者 DeepSeek-V4.1-Flash）
 > **代码证据时点**: HEAD `23132cb`（代码与 `7045001` / `f802bbe` 一致，其后均为 docs-only）；§4 全部锚点为**实施前行号**
 
 ---
@@ -37,7 +37,7 @@
 | **B2t** | 测试 | V4（参数化 2）/ V5（参数化 2） | V3 | +4 实例 |
 | **B3** | 代码 | `strategy_allocator.py`：`MeanVarianceAllocator` 三件套 + S8 计量（M-A） | D5 / D6 | 1 文件，**净 ≈+10 行** |
 | **B3t** | 测试 | V6 / V7 | V4-V5 | +2 实例 |
-| **B4** | 文档 | 门禁回归 + 本文件 §6/§10 实测回填 + `PROGRESS` §3.34.4 + `CHANGELOG` | — | docs |
+| **B4** | 文档 | 门禁回归 + 本文件 §6/§11 实测回填（F-S6-P029-5：§10 由 Step 6 Review 占用）+ `PROGRESS` Step 9 收口小节（编号顺延）+ `CHANGELOG` | — | docs |
 
 **计数口径**：B1 5 计量（S1/S2/S3/S3b/S4）+ B2 3 计量（S5/S6/S7）+ B3 1 计量（S8）= **9 计量**；零改动 1 处（`research_team_v2.py:25-28` import 降级，F-S4-P029-3）；测试 **11 实例** = V1 3 + V2 1 + V3 1 + V4 2 + V5 2 + V6 1 + V7 1 → `711 + 11 = 722`。
 
@@ -55,7 +55,7 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 - **B1 → B2 → B3 无代码依赖**：三个文件互不引用被测路径；每批独立提交、独立红绿、独立可回退（DESIGN §8）。
 - **B1 先行**：其 5 计量中有 2 处形态特殊（`else` 分支、快照下移），先落地可为 B2/B3 提供形态基准。
 - **B3 最后**：`get_failure_stats()` 为 `strategy_allocator.py` **首次引入**该命名，先行在 B1/B2 落地可确认命名习惯一致（P-027 先例）。
-- **每批提交前跑该批新增用例**（红态取证），补实现后再跑（绿态取证），证据记入 §10。
+- **每批提交前跑该批新增用例**（红态取证），补实现后再跑（绿态取证），证据记入 §11（F-S6-P029-5）。
 
 ---
 
@@ -207,7 +207,7 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 ```
 
 - **U-P029-2 维持**：S6/S7 的队列重试语义（`return` 后队列保留）本批不改。
-- 归属核实：三处均在 `StrategyEngine`（L62 起）；`MultiStrategyEngine`（L487 起）无 except。
+- 归属核实：三处均在 `StrategyEngine`（L62 起）；`MultiStrategyEngine`（**L502 起**，F-S6-P029-3 实测更正——L487 为 P-027 实施前旧号）其后零 except（grep 实证：全文件 try/except 恰 6 组 8 处，均在 L156-L452）。
 
 ### 4.3 `agents/strategy_allocator.py`（三件套 + 1 计量，净 ≈+10）
 
@@ -272,7 +272,6 @@ B1t + B2t + B3t ─→ B4（全量门禁 + 文档回填）
 from __future__ import annotations
 
 import logging
-import pickle
 import sys
 import types
 
@@ -346,7 +345,7 @@ def _make_engine(signal: pd.DataFrame | None = None) -> StrategyEngine:
 
 | ID | 测试函数 | 实例 | 注入方式 | 断言要点 |
 |----|----------|------|----------|----------|
-| V1 | `test_cache_failure_counts` | 3 | 参数化 `("price","price_cache")` / `("industry","industry_cache")` / `("mktcap","mktcap_cache")`；`monkeypatch.setattr(agent_framework_module, "FactorPipeline", _Pipe)` + `"FactorCombiner", _Comb`；假 DM：`load_factor` 返回帧、`get_adj_price` 按 case 抛错、`data_dir=tmp_path`；industry/mktcap 写**存在但损坏**的 pkl；`monkeypatch.setattr(agent, "_init_research_team", lambda dm: None)` | 计数 `{key: 1}`；对应缓存属性 `None`；构造后 `caplog.clear()`，`prepare_factors` 期间 **WARNING+ 零记录** |
+| V1 | `test_cache_failure_counts` | 3 | 参数化 `("price","price_cache")` / `("industry","industry_cache")` / `("mktcap","mktcap_cache")`；`monkeypatch.setattr(agent_framework_module, "FactorPipeline", _Pipe)` + `"FactorCombiner", _Comb`；假 DM：`load_factor` 返回帧、`get_adj_price` 按 case 抛错、`data_dir=tmp_path`；**损坏 pkl 按 case 写**（F-S6-P029-1）：price 例不写任何 pkl、industry 例仅损坏 `industry.pkl`、mktcap 例仅损坏 `mktcap.pkl`——否则三例互串破坏 `{key: 1}` 精确断言；`monkeypatch.setattr(agent, "_init_research_team", lambda dm: None)` | 计数 `{key: 1}`；对应缓存属性 `None`；构造后 `caplog.clear()`，`prepare_factors` 期间 **WARNING+ 零记录** |
 | V2 | `test_rotation_analyzer_skipped` | 1 | `monkeypatch.setitem(sys.modules, "research_team_v2", research_team_module)`；`industry_rotation_v2` 注入 fake 模块（`IndustryRotationAnalyzer` 为哑类）；`agent._research_team_available = True`；`_price_data=None` / `_industry_data=None` | `get_failure_stats() == {"rotation_analyzer_skipped": 1}`；`rotation_analyzer is None`；无 `rotation_analyzer_init` 键 |
 | V3 | `test_team_report_failure` | 1 | 本地类 `_BrokenFM.get_team_report()` 抛 `RuntimeError`；`agent.fund_manager = _BrokenFM()` | `"team_report" not in summary`；`summary["failure_counts"] == {"performance_summary_team_report": 1}`（**同调**，F-S4-P029-1）；`agent_id` / `style` 等既有键仍在 |
 | V4 | `test_order_missing_price` | 2 | ① 合法：`target_weights = pd.Series({"ZZZ": 1.0})` + 正常 DM ② 异常：`monkeypatch.setattr(engine.dm, "get_adj_price", lambda *a, **k: _MissingPriceFrame())` + `target_weights = pd.Series({"A": 1.0})` | ① `get_failure_stats() == {}` ② `== {"orders_missing_price": 1}`；两例均不产生订单（`_next_day_orders` 空、`pending_queue` 空/None） |
@@ -450,4 +449,64 @@ $py -c "import ast,pathlib;r=pathlib.Path('.');s=[p for d in ['agents','filter',
 
 1. **Step 6 独立 Review**（异构基座 ≠ 本文作者 DeepSeek）：核对 §4 三文件锚点与 DESIGN §4.1 一一对应、`f"..."` 键名 9 个可机检、V1-V7 注入路径可实现、I1/I8 算术自洽、A1-A7 七项注意项成立。
 2. **Step 7 CHECKLIST**：按 V1-V7 + I1-I8 落验收条件，实测列一律 `[待 Step 9]`（RULE-1 零预填），目标约 30+ 项。
-3. **Step 9 TDD**：按 B1 → B1t → B2 → B2t → B3 → B3t 逐批红绿，最后 B4 回填本文件 §6 实测列与 §10。
+3. **Step 9 TDD**：按 B1 → B1t → B2 → B2t → B3 → B3t 逐批红绿，最后 B4 回填本文件 §6 实测列与 §11（F-S6-P029-5）。
+
+---
+
+## 10. Step 6 独立 Review（GLM-5.3-Flash）
+
+> **复审基座**: GLM-5.3-Flash（≠ 本文作者 DeepSeek-V4.1-Flash，异构要求满足）
+> **复审对象**: 本文件提交 `e6daa05` 版本（§4 锚点对应实施前代码 `23132cb`；`e6daa05`→`50f3a01` 仅 docs）
+> **方法**: E1 三方锚点对拍（IMPL §4 ↔ 代码 ↔ DESIGN §4.1）+ E2 探针重放与 I1 独立复跑 + E3 测试规格逐项推演 + A1-A7 逐项核验
+> **结论**: **pass**（0 P1 / 0 P2 / 5 P3 当轮修正 / 0 新观察）——满足进入 Step 7 CHECKLIST 条件
+
+### 10.1 E1 锚点对拍（3 文件全部命中；行号 = 实施前 `23132cb`）
+
+| 文件 | IMPL §4 锚点 | 核验 |
+|------|--------------|------|
+| `agent_framework.py` | 载体 L882/L891-893/L895-897；S1-S3 L969-992（bare except L971/981/991 + `pass` L972/982/992）；S3b L928-936（L928 `if` 直下 L929 `try`、无 `else`）；S4 L1149-1161（L1152 快照先于 L1158 bare except）；L336 `BaseAgent` 同名方法禁区 | ✅ 5/5（Step 4 E1 逐行读码，代码零变更） |
+| `multi_strategy_engine.py` | 载体 L111/L115-117/L119-121；清零 L154；出口 L171；S5 L325-331（合法 continue L328-329 / except L330）；S6 L388-391（`failed_orders` 赋值 L435 不可达）；S7 L449-453 | ✅ 6/6（本 Review grep 重放：全文件 try/except 恰 6 组 8 处 = L156/158、L233/246、L281/304、L325/330、L388/390、L449/452，S5-S7 落位精确） |
+| `strategy_allocator.py` | `BaseAllocator` L354-371 无 `__init__`；`MeanVarianceAllocator` L582 / `__init__` L590-607 / `allocate` L609 / S8 L625-630（注释 L629）；注册表 L775；`get_failure_stats` 无同名 | ✅ 5/5 |
+
+DESIGN §4.1 ↔ IMPL §2/§4 一致性：3 文件、9 计量、9 键名逐字一致；唯一偏差为行数估算（F-I-P029-1 已登记，不算发现）。
+
+### 10.2 E2 重放与独立复核
+
+| 项 | 结果 |
+|----|------|
+| 作者探针 `%TEMP%\p029_step5_probe.py` 重放 | 7 组读数与 §5.1 **逐字一致**（V1/V2/V3 红态 `{}`；V3 `failure_counts == {}` 再证 F-S4-P029-1；V4 合法 `next_day=0`；V5-S6 kept=1、S7 queue kept=True；V6 正常/pinv 权重和均 1.0） |
+| I1 AST 独立复跑（IMPL §6 命令） | 输出 **22** ✅ |
+| `MultiStrategyEngine` except 归属 grep | class 定义实测 **L502**（§4.2 旧写 L487 → F-S6-P029-3 当轮修正）；其后零 try/except，归属结论成立 |
+| P-027 回归面（L1152 下移） | test_p027 T11 ① `ResearchTeamAgent().get_performance_summary()` 断言 `payload["failure_counts"]` 为 dict——下移后键**恒存在**（`fund_manager is None` 同样写入），T11 不受影响；T11 ② `_make_engine(signal=pd.DataFrame()).run()` 即 V7 engine 侧同形态，P-027 已绿 |
+
+### 10.3 E3 测试规格可实现性推演（V1-V7 逐项）
+
+| 用例 | 推演要点 | 判定 |
+|------|----------|------|
+| V1 | `FactorPipeline`/`FactorCombiner` 为 `agent_framework` 模块级名（patch 可达）；`_Pipe(dm,cfg)`/`_Comb(files,weights)`/`combine(dict)` 签名匹配 L956-957/L963/L966；损坏 pkl 走 `pickle.load` 抛错；caplog 语义见 A6 | ✅（**pkl 须按 case 写**，F-S6-P029-1） |
+| V2 | `research_team_v2` 注入 = P-027 T2 同范式（test_p027 L142）；`industry_rotation_v2` 仓库不可导入（P-027 F-S9-P027-2），fake 模块注入必要；L939-943 `add_role` 走真 `FundManager` 无碍 | ✅ |
+| V3 | `_BrokenFM` 直挂 `fund_manager`；`get_performance_summary` 仅判 `is not None`；下移后同调计数入返回值 | ✅ |
+| V4 | 合法例：`"ZZZ"` 不在 columns → L328-329 continue；异常例：`_MissingPriceFrame.loc` 抛 KeyError → L330；`_generate_rebalance_orders({})` 无订单 | ✅ |
+| V5 | S6 需预置 `_next_day_orders`（L385-386 早退守卫）——规格已含；S7 需 `PendingOrderQueue()` + `create_pending_order`（core.pending L295/L316/L567 实证可用） | ✅ |
+| V6 | `np.linalg.inv` 单参签名匹配 `allocate` 调用形态；`StrategyEvaluator(n_strategies=2)` 真实构造（Sigma=eye·0.01+1e-6，正常路径不触 `LinAlgError`）；pinv 走 SVD 不受 inv patch 影响 | ✅ |
+| V7 | no-op `_process_trading_day` 后 `_generate_results` 可用（P-027 T4 daily_process 同路径已绿）；monkeypatch 自动还原，V6/V7 无串扰 | ✅ |
+
+### 10.4 A1-A7 核验（7/7 实证成立）
+
+A1（`else` 挂 L928 `if`）/ A2（L901-902 `_research_team_available` 守卫实证）/ A3（bare 零改写 = I1 直接保证）/ A4（双分支同值）/ A5（管道依赖面与替身签名）/ A6（构造期 2 条 warning 早于 `prepare_factors`，探针复现）/ A7（no-op 固定无失败路径）。
+
+### 10.5 发现与处置（5 P3 全部当轮修正）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S6-P029-1 | P3 | §5 V1「industry/mktcap 写存在但损坏的 pkl」未限定 **per-case**——若三例共用同一 tmp_path 全量写损坏 pkl，price 例计数将含 `industry_cache`/`mktcap_cache`，`{key: 1}` 精确断言失败 | **已回写** §5 V1：price 例不写任何 pkl、industry 例仅 `industry.pkl`、mktcap 例仅 `mktcap.pkl` |
+| F-S6-P029-2 | P3 | §4.4 导入面 `import pickle` 未使用（损坏 pkl 以 `Path.write_bytes` 构造，规格无合法 pkl 场景） | **已回写** §4.4：删除该导入 |
+| F-S6-P029-3 | P3 | §4.2「`MultiStrategyEngine`（L487 起）」为 P-027 实施前旧号，当前实测 **L502**（P-027 在该文件 +12 行致漂移）；结论不变（其后零 except） | **已回写** §4.2 行号更正 |
+| F-S6-P029-4 | P3 | DESIGN §6「契约 V1-V5」与 §4.2 / IMPL §5「测试用例 V1-V7」ID 空间重叠，且「对应」列以旧称 T1-T7 引用——Step 7 落 CHECKLIST 有误配风险 | **已回写** DESIGN §6：补 1 行注记（两套 ID 对应关系，Step 7 以测试用例 V1-V7 为准） |
+| F-S6-P029-5 | P3 | §2 B4 / §3 / §9.3 的回填目标写「§6/§10」「PROGRESS §3.34.4」——§10 已由本 Review 占用（P-027 先例：§10=Step 6 / §11=Step 9），Step 9 记录应为 §11、PROGRESS 为收口时顺延新小节 | **已回写** §2 B4 / §3 / §9.3 三处目标更正 |
+
+### 10.6 复审结论
+
+- 0 P1 / 0 P2 / 5 P3（当轮修正）→ **Step 6 Review pass**。
+- §4 全部锚点在实施前代码可精确落位；9 计量口径、11 测试实例、722/81/118/37 门禁算术自洽；A1-A7 全部实证；P-027 回归面（T11/T12 + 711 基线）无破坏风险。
+- 下一 Step：**Step 7 CHECKLIST**（按 IMPL §5 测试用例 V1-V7 + I1-I8 落验收条件，实测列 `[待 Step 9]`；契约映射以 F-S6-P029-4 注记为准）。

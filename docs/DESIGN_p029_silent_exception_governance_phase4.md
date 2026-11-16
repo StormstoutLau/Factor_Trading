@@ -214,6 +214,8 @@ class MeanVarianceAllocator(BaseAllocator):
 
 ## 6. 验证契约（V1-V5）
 
+> 注（F-S6-P029-4，Step 6 回写）：本表 V1-V5 为**契约**局部编号，与 §4.2 / IMPL §5 的**测试用例** V1-V7 是两套 ID；「对应」列 T1-T7 即 §4.2 用例 V1-V7 的旧称（按序一一对应）。Step 7 CHECKLIST 以测试用例 V1-V7 为准。
+
 | ID | 契约 | 对应 |
 |----|------|------|
 | V1 | S1-S3 三缓存失败各计 1 次且零 WARNING 日志 | T1 |
