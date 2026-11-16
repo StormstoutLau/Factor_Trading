@@ -385,16 +385,75 @@ B1t+B2t+B3t+B4t → B5（全量门禁 + 文档回填）
 
 ---
 
-## 11. 待 Step 9 回填
+## 11. Step 9 实施记录（TDD 四批红→绿 + 门禁）
 
-| 项 | 状态 |
-|----|------|
-| 各批红态读数 | `[待 Step 9]` |
-| 各批绿态读数 | `[待 Step 9]` |
-| 门禁终态（pytest / mypy / black / golden） | `[待 Step 9]` |
-| 净行数实测（`git diff --numstat`） | `[待 Step 9]` |
-| P-029 V4/V5 回归面实证 | `[待 Step 9]` |
-| I1 AST 计数（复用 [IMPL_p029 §6](IMPL_p029_silent_exception_governance_phase4.md) 命令：十文件 `except Exception` 扫描） | `[待 Step 9]`（目标 22——D1 新增 `except (KeyError, IndexError)` 不计入；F-S8-P031-2 补命令源） |
+### 11.1 红态 / 绿态逐批读数
+
+| 批 | 用例 | 红态读数（实施前） | 绿态读数（实施后） |
+|----|------|--------------------|--------------------|
+| B1 | V5 | **1 failed**：`assert 0 == 1`（`__init__` WARNING 0 条；`neutral_short_leg_skipped` 缺失、`additional_info` KeyError） | **1 passed** |
+| B2 | V1 / V2 / V2b | **3 failed**：V1 `sells 0 == 1` / V2 **`实际 9 笔`**（与 RESEARCH R1 读数逐字一致）/ V2b `{} != {rebalance_nav_invalid: 1}` | **4 passed**（含 B1 的 V5） |
+| B3 | V3 双路径 | **2 failed**：两路径均 `assert 3 == 1`（每张 SELL 全成交） | **6 passed** |
+| B4 | V4①/② / V6 | **2 failed**：V4① 陈旧单仍在簿 / V4② `KeyError: 'next_day_orders_expired'`；**V6 红态即通过**（回归保护，按 §5 纪律标注） | **9 passed** |
+
+### 11.2 门禁终态（`MPLBACKEND=Agg` + Python312 @实施后）
+
+| 门禁 | 基线 | 目标 | 实测 |
+|------|------|------|------|
+| 全量 pytest | 722 | 731 | ✅ **731 passed**（172 warnings，42.70s） |
+| 新测试文件 | — | 9 | ✅ **9 passed** |
+| `tests/` .py 数 | 81 | 82 | ✅ **82** |
+| black `--check core tests` | 118 | 119 | ✅ **119 files would be left unchanged** |
+| mypy `core` | 37 files 0 | 不变 | ✅ **Success: no issues found in 37 source files** |
+| golden G1-G7 | 13 | 13 零重录 | ✅ **13 passed**（`git status --short tests/golden/` 空） |
+| P-027 + P-029 回归面 | 24 + 11 | 不回归 | ✅ 合计 **48 passed**（13 golden + 24 + 11，口径精确吻合） |
+| I1 `except Exception`（AST 十文件） | 22 | 恒 22 | ✅ **22** |
+| 零改动面 | — | `core/` + golden 空 | ✅ `git status --short core tests/golden` **空** |
+| 净行数（numstat） | — | 见 F-I-P031-6 | 代码 **+133/−83**；新测试文件 **+270**（未计入 numstat 因未跟踪） |
+
+### 11.3 行号漂移（实施后实测 vs §4 实施前锚点）
+
+| 函数 | §4 实施前 | 实施后 | 漂移 |
+|------|-----------|--------|------|
+| `__init__` | L69 | **L74** | +5 |
+| `run` | L144 | **L155** | +11 |
+| `_execute_rebalance` | L201 | **L212** | +11 |
+| `_execute_neutral_rebalance` | L254 | **L282** | +28 |
+| `_generate_orders` | L312 | **L325** | +13 |
+| `_generate_rebalance_orders` | L356 | **L361** | +5 |
+| `_clamp_sell_quantity` | 新增 | **L385** | — |
+| `_execute_next_day_orders` | L384 | **L396** | +12 |
+| `_process_pending_orders` | L442 | **L478** | +36 |
+| `_generate_results` | L485 | **L530** | +45 |
+| `get_failure_stats` | L119 | **L130** | +11 |
+
+### 11.4 顺序敏感五项留证（Step 8 §10.4 前置条件 3）
+
+| # | 核验项 | 实测 |
+|---|--------|------|
+| 1 | 撤销块在信号索引早退之后、`daily_signal` 之前 | 早退 L214-215 → 撤销块 **L217-232** → `daily_signal` **L235** ✅ |
+| 2 | 过期过滤在开盘价切片之后 | 切片 try L403-407 → 过期块 **L409-423** → `buyable_mask` L425 ✅ |
+| 3 | `neutral_short_leg_skipped` 在 optimize 成功之后 | optimize **L288** → 计数 **L291** → 权重 L292 ✅ |
+| 4 | nav 守卫在 `build_target_positions` 之前 | 守卫 **L330-332** → targets **L335** ✅ |
+| 5 | B1 先于 B2 落地 | 提交顺序：B1 → B2（V5 在 B2 前已绿，B2 落地后仍绿）✅ |
+
+### 11.5 残留检查
+
+| 项 | 命令 | 读数 |
+|----|------|------|
+| `short_weights` / `combined_weights` 残留 | `Select-String` | **0** |
+| `execute_pending_order` 在 agents 的调用 | `Select-String` | **0**（已改直调 `execute_order(qty)`） |
+| 双路径键同形 | `oversell_blocked` / `oversell_trimmed` 各 | **2 / 2** ✅ |
+| 公开签名删除 | `git diff \| ^-\s*def ` | 仅 `_generate_rebalance_orders`（私有，§8 允许） |
+| `mark_expired`（StrategyEngine 内） | `Select-String` | **2 调用 + 1 注释**（L176 `run()` 末尾 / L528 队列路径 / L407 注释）——修正 CHECKLIST D4 原「仅 1 处」表述（F-S9-P031-1） |
+
+### 11.6 实施期发现（Step 9）
+
+| ID | 级别 | 内容 | 处置 |
+|----|------|------|------|
+| F-S9-P031-1 | P3 | CHECKLIST D4 原判据「`mark_expired` 在 `StrategyEngine` 内仍仅 1 处」失实——`_process_pending_orders` 自 P-029 前即有 `mark_expired(date)`（L528），实际为 **2 调用 + 1 注释** | 回写 CHECKLIST D4 判据与实测；O-S6-P031-2 结论不变（`_execute_next_day_orders` 内确无状态迁移） |
+| F-S9-P031-2 | 观察 | `black` 首次运行重排 2 文件（引擎 + 新测试），新测试文件长行被拆分——格式化为纯机械差异，无语义变更 | 无需处置（门禁由红转绿） |
+| F-S9-P031-3 | 观察 | V6 在红态（B1-B3 已落地、B4 未落地）即通过——因撤销/过期仅在异常路径触发，属回归保护预期（§5 红态纪律已预登记） | 已标注，不计为红态缺陷 |
 
 ---
 

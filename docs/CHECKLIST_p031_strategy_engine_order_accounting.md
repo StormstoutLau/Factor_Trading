@@ -2,7 +2,7 @@
 
 > **批次**: P-031 · **T1**（`agents/multi_strategy_engine.py` 单文件 + 新增账目测试）
 > **上游**: [IMPL_p031](IMPL_p031_strategy_engine_order_accounting.md)（B1-B5 / §4 逐函数规格 / §5 V1-V6+V2b / §6 fixture / §7 低效排除 / §8 回退点 / §9 F-I-P031-1~7 / §13 Step 6 复审 pass）；[DESIGN_p031](DESIGN_p031_strategy_engine_order_accounting.md)（D1-D7 / I1-I8 / V1-V6 / §12 Step 4 复审）；[RESEARCH_p031](RESEARCH_p031_strategy_engine_order_accounting.md)（§3 R1-R4 / §11 Step 2 复审）
-> **状态**: **Step 7 验收清单完稿**（2026-11-16，作者基座 DeepSeek-V4.1-Flash = 四文档同源；Step 8 一致性 Review 须异构）
+> **状态**: **Step 9 TDD 实施完成（46/46 ✅）**（2026-11-16，B1-B4 四批红→绿 + B5 门禁文档；门禁 **731 passed / 82 文件 / black 119 / mypy 37 files 0 / golden 13 零重录 / `except Exception` 22**）；Step 10 ADD 审计 + RULE-5 异构终审待执行
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 7 实测 @HEAD `6a7771e`，Python312 + `MPLBACKEND=Agg`）**: 全量 `pytest -q` **722 passed**（172 warnings）/ `tests/` .py **81**（78 `test_*.py` + 3 `_` 辅助）/ `black --check core tests` **118 unchanged** / `mypy --explicit-package-bases core` **37 files 0 error** / `tests/golden/` **7** 份 json（13 条 golden 用例）/ `except Exception` 合计 **22**
 > **目标读数（Step 9）**: **731 passed** / 测试文件 **82** / black **119** / mypy **37 files 0** / golden **13 零重录** / `except Exception` 恒 **22**
@@ -16,12 +16,12 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| A1 | `short_optimizer` 构建（L271-279）与调用（L293 `short_weights = ...`）**删除**；`short_weights` / `combined_weights` 标识符零残留 | `git diff` 中两段为 `-` 行；`Select-String "short_weights\|combined_weights"` = 0 命中 | D2 / IMPL §4.3 | [待 Step 9] |
-| A2 | 只合并多头腿：`target_weights = long_weights * self.strategy_cfg.long_weight`；**不重归一化**（权重和 ≈ `long_weight` = 0.5），无 `* 2` / `/ sum` 类补偿 | 读码该行；V5 中断言 `target_weights.sum() <= 0.5 + 1e-9` | D2 / F-S4-P031-4 / U-P031-4 | [待 Step 9] |
-| A3 | `neutral_short_leg_skipped` 计数位于 `long_optimizer.optimize` **成功之后**、`try` 块内——optimize 抛错时该键**不出现**（保 `test_p027` 精确断言 `== {"neutral_optimize": 1}`） | `pytest -q -k strategy_engine_failure_counts` 3 passed（neutral 参数集精确相等断言不变） | D2 / IMPL §4.3 / §13.5-#4 | [待 Step 9] |
-| A4 | `__init__` 对 `direction == "both"` 打 **1 条** WARNING（文案含 `unsupported`），long/short 构造**零新增** WARNING；签名零变更 | V5 用 `caplog` 断言 1 条；long 参数集断言 0 条 | D2 / IMPL §4.1 / I5 | [待 Step 9] |
-| A5 | `_generate_results` 追加 `additional_info.neutral_short_leg`：`"unsupported"`（both）/ `"not_applicable"`（long/short）；写在此函数而非 `run()`（多策略直调） | 读码；V5 断言 `== "unsupported"`；V6 断言 `== "not_applicable"` | D2 / D6 / IMPL §4.9 | [待 Step 9] |
-| A6 | V5 绿：`both` + `long_weight=0.5` → **零 SELL 成交**、`neutral_short_leg_skipped > 0`、标记 `unsupported`、1 条 WARNING；多头腿仍买入（半仓） | `pytest -q -k neutral_short_leg` = 1 passed | V5 / I7 / F-S2-P031-2 | [待 Step 9] |
+| A1 | `short_optimizer` 构建（L271-279）与调用（L293 `short_weights = ...`）**删除**；`short_weights` / `combined_weights` 标识符零残留 | `git diff` 中两段为 `-` 行；`Select-String "short_weights\|combined_weights"` = 0 命中 | D2 / IMPL §4.3 | ✅ diff 该段全 `-` 行；两标识符残留 **0**；`short_optimizer` 全文 **0** |
+| A2 | 只合并多头腿：`target_weights = long_weights * self.strategy_cfg.long_weight`；**不重归一化**（权重和 ≈ `long_weight` = 0.5），无 `* 2` / `/ sum` 类补偿 | 读码该行；V5 中断言 `target_weights.sum() <= 0.5 + 1e-9` | D2 / F-S4-P031-4 / U-P031-4 | ✅ 实测 L292 单行 `long_weights * long_weight`（无补偿）；V5 notional 断言 `≈ capital × 0.5 × 0.985`（rel 0.02）通过 |
+| A3 | `neutral_short_leg_skipped` 计数位于 `long_optimizer.optimize` **成功之后**、`try` 块内——optimize 抛错时该键**不出现**（保 `test_p027` 精确断言 `== {"neutral_optimize": 1}`） | `pytest -q -k strategy_engine_failure_counts` 3 passed（neutral 参数集精确相等断言不变） | D2 / IMPL §4.3 / §13.5-#4 | ✅ `-k strategy_engine_failure_counts` **3 passed**；计数在 optimize（L288）之后（L291） |
+| A4 | `__init__` 对 `direction == "both"` 打 **1 条** WARNING（文案含 `unsupported`），long/short 构造**零新增** WARNING；签名零变更 | V5 用 `caplog` 断言 1 条；long 参数集断言 0 条 | D2 / IMPL §4.1 / I5 | ✅ V5 断言 both **1 条**（含 `unsupported`）；long 构造 **0 条**；`__init__` 形参零变更 |
+| A5 | `_generate_results` 追加 `additional_info.neutral_short_leg`：`"unsupported"`（both）/ `"not_applicable"`（long/short）；写在此函数而非 `run()`（多策略直调） | 读码；V5 断言 `== "unsupported"`；V6 断言 `== "not_applicable"` | D2 / D6 / IMPL §4.9 | ✅ 实测 L530 函数内；V5 `unsupported` / V6 `not_applicable` 双断言通过 |
+| A6 | V5 绿：`both` + `long_weight=0.5` → **零 SELL 成交**、`neutral_short_leg_skipped > 0`、标记 `unsupported`、1 条 WARNING；多头腿仍买入（半仓） | `pytest -q -k neutral_short_leg` = 1 passed | V5 / I7 / F-S2-P031-2 | ✅ `-k neutral_short_leg` **1 passed**（红态 0 条 warning → 绿） |
 
 ---
 
@@ -31,14 +31,14 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| B1 | 导入新增：`TargetPosition, build_target_positions, compute_portfolio_value`（L37 后）；`PendingOrder` 追加 L34；`core/` 零改动 | `git diff agents/multi_strategy_engine.py` 头部两端；`git status --short core/` 空 | D1 / D7 / I6 | [待 Step 9] |
-| B2 | `_generate_orders` 价格切片**统一一次** `try: ... .loc[date] except (KeyError, IndexError): _record_failure("orders_missing_price"); return`；原**逐股** `if stock in adj_close.columns` 分支删除 | 读码；`git diff` 中原 L325-332 逐股块为 `-` 行 | D1 / F-S4-P031-3 | [待 Step 9] |
-| B3 | `nav = compute_portfolio_value(cash, current>0, prices, market_values)`；守卫 `if not np.isfinite(nav) or nav <= 0: _record_failure("rebalance_nav_invalid"); return`，**置于** `build_target_positions` 之前 | 读码顺序（守卫行号 < targets 行号）；V2b 断言该键 1 | D1 / F-S4-P031-2 / §13.4 | [待 Step 9] |
-| B4 | `build_target_positions(..., round_lot=self.base_cfg.optimizer.round_lot)`，`value_buffer` 走默认 0.985（不显式传参）；`_generate_rebalance_orders` 签名改 `dict[str, TargetPosition]`，**先 SELL 后 BUY** 两轮循环 | 读码两函数；`git diff` 中签名行 1 处 `-`/`+` | D1 / 裁决 #3 / DESIGN-V2 语义 | [待 Step 9] |
-| B5 | V1 绿：持仓 A=1000、`target_weights={"B": 0.5}` → `_next_day_orders` 含 `SELL A 1000`；次日执行后 A=0、B>0 | `pytest -q -k exit_order` = 1 passed | V1 / I1 / R2 | [待 Step 9] |
-| B6 | V2 绿：1 股常量价 10、`daily`、恒定 100%、**零成本**、10 个交易日 → 成交**恰 1 笔**（旧实现 9 笔）；每日 `cash + Σqty×price == 初始资金` | `pytest -q -k nav_timing` = 1 passed | V2 / I3 / R1 / F-I-P031-7 | [待 Step 9] |
-| B7 | V2b 绿：`tracker._cash = 0` 且无持仓（nav=0）→ **不抛异常**、`rebalance_nav_invalid == 1`、零订单 | `pytest -q -k nav_guard` = 1 passed | V2b / F-S4-P031-2 | [待 Step 9] |
-| B8 | P-029 **V4 回归面**：`_MissingPriceFrame` 注入 → 新入口 `orders_missing_price == 1`；legal 用例（`{"ZZZ": 1.0}` 缺列）→ 零计数零订单 | `pytest -q -k order_missing_price` = 2 passed（原断言零修改） | F-S4-P031-3 / §10-#6 / I6 | [待 Step 9] |
+| B1 | 导入新增：`TargetPosition, build_target_positions, compute_portfolio_value`（L37 后）；`PendingOrder` 追加 L34；`core/` 零改动 | `git diff agents/multi_strategy_engine.py` 头部两端；`git status --short core/` 空 | D1 / D7 / I6 | ✅ 导入落 L34 / L37-41；`git status --short core/` **空** |
+| B2 | `_generate_orders` 价格切片**统一一次** `try: ... .loc[date] except (KeyError, IndexError): _record_failure("orders_missing_price"); return`；原**逐股** `if stock in adj_close.columns` 分支删除 | 读码；`git diff` 中原 L325-332 逐股块为 `-` 行 | D1 / F-S4-P031-3 | ✅ 新入口 L311-315；原逐股块全 `-` 行（含 `price_ratio` / `round_lot` 内联逻辑） |
+| B3 | `nav = compute_portfolio_value(cash, current>0, prices, market_values)`；守卫 `if not np.isfinite(nav) or nav <= 0: _record_failure("rebalance_nav_invalid"); return`，**置于** `build_target_positions` 之前 | 读码顺序（守卫行号 < targets 行号）；V2b 断言该键 1 | D1 / F-S4-P031-2 / §13.4 | ✅ 守卫 **L330-332** < targets **L335**；V2b 断言 `rebalance_nav_invalid == 1` 通过 |
+| B4 | `build_target_positions(..., round_lot=self.base_cfg.optimizer.round_lot)`，`value_buffer` 走默认 0.985（不显式传参）；`_generate_rebalance_orders` 签名改 `dict[str, TargetPosition]`，**先 SELL 后 BUY** 两轮循环 | 读码两函数；`git diff` 中签名行 1 处 `-`/`+` | D1 / 裁决 #3 / DESIGN-V2 语义 | ✅ `value_buffer` 未传（默认）；签名 **L361-363**；先 SELL（L350-353）后 BUY（L355-358） |
+| B5 | V1 绿：持仓 A=1000、`target_weights={"B": 0.5}` → `_next_day_orders` 含 `SELL A 1000`；次日执行后 A=0、B>0 | `pytest -q -k exit_order` = 1 passed | V1 / I1 / R2 | ✅ `-k exit_order` **1 passed**（红态 `sells 0 == 1` → 绿） |
+| B6 | V2 绿：1 股常量价 10、`daily`、恒定 100%、**零成本**、10 个交易日 → 成交**恰 1 笔**（旧实现 9 笔）；每日 `cash + Σqty×price == 初始资金` | `pytest -q -k nav_timing` = 1 passed | V2 / I3 / R1 / F-I-P031-7 | ✅ `-k nav_timing` **1 passed**（红态 **9 笔** → 绿 1 笔；NAV 恒 10M rel 1e-12） |
+| B7 | V2b 绿：`tracker._cash = 0` 且无持仓（nav=0）→ **不抛异常**、`rebalance_nav_invalid == 1`、零订单 | `pytest -q -k nav_guard` = 1 passed | V2b / F-S4-P031-2 | ✅ `-k nav_guard` **1 passed**（红态 `{}` → 绿含该键） |
+| B8 | P-029 **V4 回归面**：`_MissingPriceFrame` 注入 → 新入口 `orders_missing_price == 1`；legal 用例（`{"ZZZ": 1.0}` 缺列）→ 零计数零订单 | `pytest -q -k order_missing_price` = 2 passed（原断言零修改） | F-S4-P031-3 / §10-#6 / I6 | ✅ `-k order_missing_price` **2 passed**（原文件零修改，新入口命中） |
 
 ---
 
@@ -48,12 +48,12 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| C1 | 新增 `_clamp_sell_quantity(self, order: PendingOrder) -> int`：BUY 早退返回 `int(order.quantity)`；SELL 返回 `min(quantity, max(position.quantity, 0))`，无持仓返回 0 | 读码；`grep -n "def _clamp_sell_quantity"` = 1 | D3 / IMPL §4.6 / V2 L671 | [待 Step 9] |
-| C2 | **次日路径**：`qty = _clamp_sell_quantity(order)` → `qty<=0` 计 `oversell_blocked` + `continue`（丢弃）；`qty<order.quantity` 计 `oversell_trimmed`；`execute_order(..., qty, ...)` 传 `qty` | 读码 §4.7 三处；V3 next_day 参数集通过 | D3 / I2 / R4 | [待 Step 9] |
-| C3 | **队列路径**：同形插入 + `qty<=0` 计 `oversell_blocked` **并** `pending_queue.cancel_order(order, date)`；改直调 `execute_order(..., qty, ..., close_price)`（F-I-P031-2）；`mark_executed` 仍对原订单对象 | 读码 §4.8；V3 queue 参数集断言 `order.status.name == "CANCELLED"` | D3 / F-S4-P031-1 / F-I-P031-2 | [待 Step 9] |
-| C4 | **双路径同形核验**：两处 `oversell_blocked` / `oversell_trimmed` 键名、判定顺序（blocked → trimmed → execute）逐字一致；无「只修一条」漏点 | `Select-String -Pattern "oversell_blocked\|oversell_trimmed"` 各命中 2 处；读码判定序列一致 | D3 / §10-#1 / §13.5-#1 | [待 Step 9] |
-| C5 | V3 双参数集绿：持仓 100 + 3×`SELL 100`（零成本）→ 成交**1 笔 100 股**、`oversell_blocked == 2`、cash 恰 **+1,000**（非 +3,000）；队列路径另断言 2 张单 `CANCELLED` | `pytest -q -k oversell` = 2 passed | V3 / I2 / R4 | [待 Step 9] |
-| C6 | BUY 侧**零夹紧**：`_clamp_sell_quantity` 对 BUY 早退，两路径 BUY 行为与本批前逐字一致；U-P031-2 维持登记 | 读码早退分支；V6 正常路径 BUY 成交不受影响 | D3 / U-P031-2 / IMPL §4.6 | [待 Step 9] |
+| C1 | 新增 `_clamp_sell_quantity(self, order: PendingOrder) -> int`：BUY 早退返回 `int(order.quantity)`；SELL 返回 `min(quantity, max(position.quantity, 0))`，无持仓返回 0 | 读码；`grep -n "def _clamp_sell_quantity"` = 1 | D3 / IMPL §4.6 / V2 L671 | ✅ 实测 **L385-394**；`grep "def _clamp_sell_quantity"` = **1**；BUY 早退 L372-373 |
+| C2 | **次日路径**：`qty = _clamp_sell_quantity(order)` → `qty<=0` 计 `oversell_blocked` + `continue`（丢弃）；`qty<order.quantity` 计 `oversell_trimmed`；`execute_order(..., qty, ...)` 传 `qty` | 读码 §4.7 三处；V3 next_day 参数集通过 | D3 / I2 / R4 | ✅ 实测 **L424-434** 三处齐备；V3 next_day 通过 |
+| C3 | **队列路径**：同形插入 + `qty<=0` 计 `oversell_blocked` **并** `pending_queue.cancel_order(order, date)`；改直调 `execute_order(..., qty, ..., close_price)`（F-I-P031-2）；`mark_executed` 仍对原订单对象 | 读码 §4.8；V3 queue 参数集断言 `order.status.name == "CANCELLED"` | D3 / F-S4-P031-1 / F-I-P031-2 | ✅ 实测 **L480-495**；`cancel_order` 在 L484；V3 queue 断言 `get_pending_orders() == []`（两张 CANCELLED 已出列）；`mark_executed` L510 |
+| C4 | **双路径同形核验**：两处 `oversell_blocked` / `oversell_trimmed` 键名、判定顺序（blocked → trimmed → execute）逐字一致；无「只修一条」漏点 | `Select-String -Pattern "oversell_blocked\|oversell_trimmed"` 各命中 2 处；读码判定序列一致 | D3 / §10-#1 / §13.5-#1 | ✅ 两键各 **2 处**；两处均为「blocked → trimmed → `execute_order(qty)`」同序 |
+| C5 | V3 双参数集绿：持仓 100 + 3×`SELL 100`（零成本）→ 成交**1 笔 100 股**、`oversell_blocked == 2`、cash 恰 **+1,000**（非 +3,000）；队列路径另断言 2 张单 `CANCELLED` | `pytest -q -k oversell` = 2 passed | V3 / I2 / R4 | ✅ `-k oversell` **2 passed**（1 笔 100 股 / +1,000 / blocked 2；红态两路径各 3 笔） |
+| C6 | BUY 侧**零夹紧**：`_clamp_sell_quantity` 对 BUY 早退，两路径 BUY 行为与本批前逐字一致；U-P031-2 维持登记 | 读码早退分支；V6 正常路径 BUY 成交不受影响 | D3 / U-P031-2 / IMPL §4.6 | ✅ BUY 早退 L372-373；V6 全链路 BUY 成交正常（731 全量含 V6） |
 
 ---
 
@@ -63,12 +63,12 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| D1 | 撤销块位置：`_execute_rebalance` 内「日期不在信号索引」早退（L203-204）**之后**、`daily_signal`（L207）**之前**——当日新单不会被自撤销 | 读码行号序；V4 撤销参数集通过 | D4 / §10-#2 / §13.5-#2 | [待 Step 9] |
-| D2 | **双载体**：① `_next_day_orders` 按 `domain = set(self._composite_signal.columns)` keep/drop；② `if self.pending_queue: for stock in domain: cancel_orders(stock, date)`；域外在途单保留 | 读码 §4.2；`git diff` 两载体均为 `+` 行 | D4 / F-S4-P031-1 / R-P031-3 | [待 Step 9] |
-| D3 | `next_day_orders_cancelled` 计「**发生次数**」（每次再平衡至多 +1，非订单张数）；queue 载体撤销**不新增键**（既有 `logger.info` 事件） | 读码 `if dropped: _record_failure(...)`；V4 断言 `> 0` | D4 / D6 / O-S4-P031-1 | [待 Step 9] |
-| D4 | 过期过滤位于开盘价切片**之后**（F-I-P031-1）、`buyable_mask` 之前；`order.is_expired(date, max_days)` 复用（max_days 按 side 取 buy/sell）；`next_day_orders_expired` 计次数；**不做** `mark_expired` 状态迁移（O-S6-P031-2） | 读码位置与调用；`grep "mark_expired"` 在 `StrategyEngine` 内仍仅 1 处（`run()` 末尾 queue 清理） | D4 / F-I-P031-1 / O-S6-P031-2 | [待 Step 9] |
-| D5 | V4 双参数集绿：① 撤销 → `_next_day_orders` 不含该股 + `cancelled > 0`；② **BUY 单**创建日距当前 ≥6 自然日 → `expired > 0` 且不再执行（F-S6-P031-1：SELL 不适用 6 日） | `pytest -q -k "cancel or expire"` = 2 passed | V4 / I4 / F-S6-P031-1 | [待 Step 9] |
-| D6 | V6 绿：常规多头两股全链路 `run()` → **6 个新键全 0**；`orders_missing_price` / `next_day_open_price` 零误报；`additional_info.neutral_short_leg == "not_applicable"` | `pytest -q -k normal_path` = 1 passed | V6 / I8 / 回归保护 | [待 Step 9] |
+| D1 | 撤销块位置：`_execute_rebalance` 内「日期不在信号索引」早退（L203-204）**之后**、`daily_signal`（L207）**之前**——当日新单不会被自撤销 | 读码行号序；V4 撤销参数集通过 | D4 / §10-#2 / §13.5-#2 | ✅ 早退 **L214-215** → 撤销块 **L217-232** → `daily_signal` **L235**；V4① 通过 |
+| D2 | **双载体**：① `_next_day_orders` 按 `domain = set(self._composite_signal.columns)` keep/drop；② `if self.pending_queue: for stock in domain: cancel_orders(stock, date)`；域外在途单保留 | 读码 §4.2；`git diff` 两载体均为 `+` 行 | D4 / F-S4-P031-1 / R-P031-3 | ✅ 两载体 **L219-232** 齐备；V4① 断言域外 `Z` 保留 |
+| D3 | `next_day_orders_cancelled` 计「**发生次数**」（每次再平衡至多 +1，非订单张数）；queue 载体撤销**不新增键**（既有 `logger.info` 事件） | 读码 `if dropped: _record_failure(...)`；V4 断言 `> 0` | D4 / D6 / O-S4-P031-1 | ✅ `if dropped:` 单次计数（L228-229）；queue 撤销无新键；V4① 断言 `== 1` |
+| D4 | 过期过滤位于开盘价切片**之后**（F-I-P031-1）、`buyable_mask` 之前；`order.is_expired(date, max_days)` 复用（max_days 按 side 取 buy/sell）；`next_day_orders_expired` 计次数；**不做** `mark_expired` 状态迁移（O-S6-P031-2） | 读码位置与调用；`grep "mark_expired"` 在 `StrategyEngine` 内仍仅 **queue 侧**调用 | D4 / F-I-P031-1 / O-S6-P031-2 | ✅ 过期块 **L409-423**（切片 L403-407 之后、mask L425 之前）；`mark_expired` 实为 **2 调用 + 1 注释**（L176 / L528 / 注释 L407）——原判据「仅 1 处」失实，**F-S9-P031-1 当轮修正**；`_execute_next_day_orders` 内零状态迁移（O-S6-P031-2 结论不变） |
+| D5 | V4 双参数集绿：① 撤销 → `_next_day_orders` 不含该股 + `cancelled > 0`；② **BUY 单**创建日距当前 ≥6 自然日 → `expired > 0` 且不再执行（F-S6-P031-1：SELL 不适用 6 日） | `pytest -q -k "cancel or expire"` = 2 passed | V4 / I4 / F-S6-P031-1 | ✅ `-k "cancel or expire"` **2 passed**（红态 2 failed：陈旧单仍在簿 / `KeyError: next_day_orders_expired`） |
+| D6 | V6 绿：常规多头两股全链路 `run()` → **6 个新键全 0**；`orders_missing_price` / `next_day_open_price` 零误报；`additional_info.neutral_short_leg == "not_applicable"` | `pytest -q -k normal_path` = 1 passed | V6 / I8 / 回归保护 | ✅ `-k normal_path` **1 passed**（6 键全 0；既有键零误报；标记 `not_applicable`）；**红态即通过**（F-S9-P031-3 标注） |
 
 ---
 
@@ -78,14 +78,14 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| E1 | I1：目标外持仓（有持仓且可定价）必产生 SELL 清仓单 | B5（V1）断言 | I1 / V1 | [待 Step 9] |
-| E2 | I2：现金守恒——`cash` 变化 = Σ成交净额；**无持仓 SELL 不成交、不入账** | C5（V3 双路径）断言 | I2 / V3 | [待 Step 9] |
-| E3 | I3：再平衡 NAV 以价格重算——`daily` + 恒定目标 → 成交笔数 ≤ 标的数据（V2 恰 1 笔，旧 9 笔） | B6（V2）断言 | I3 / V2 | [待 Step 9] |
-| E4 | I4：在途单有界——每次再平衡后信号域内仅本次新单；过期上限 buy 5 / sell 10（自然日，含半衰期） | D5（V4）断言 | I4 / V4 | [待 Step 9] |
-| E5 | I5：**公开**签名零变更（`StrategyEngine.__init__` / `run` / `get_failure_stats`）；`except Exception` 合计恒 **22** | `git diff \| Select-String '^-\s*def (__init__\|run\|get_failure_stats)'` = **0**；私有 `_generate_rebalance_orders` 形参变更属允许项（IMPL §8 已登记）；AST 扫描 = 22 | I5 / D7 / §13.2 | [待 Step 9] |
-| E6 | I6：`core/` 与 `tests/golden/*.json` **零改动**（含 `target_positions.py` / `tracker.py` / `execution.py` / `pending.py`） | `git status --short core/ tests/golden/` = 空；`git diff --name-only` 仅 agents + 新测试 | I6 / D7 | [待 Step 9] |
-| E7 | I7：中性空头腿显式——warning + `neutral_short_leg_skipped` + `additional_info`，**无静默** | A4 / A5 / A6 组合 | I7 / V5 | [待 Step 9] |
-| E8 | I8：门禁 **731 passed** / 测试文件 **82** / black **119** / mypy **37 files 0** / golden **13 零重录** | 全量末行；文件计数；两条 check 命令；`-k golden` | I8 / §6 | [待 Step 9] |
+| E1 | I1：目标外持仓（有持仓且可定价）必产生 SELL 清仓单 | B5（V1）断言 | I1 / V1 | ✅ V1 断言 `SELL A 1000` 存在，执行后 A=0 |
+| E2 | I2：现金守恒——`cash` 变化 = Σ成交净额；**无持仓 SELL 不成交、不入账** | C5（V3 双路径）断言 | I2 / V3 | ✅ V3 两路径 cash 恰 **+1,000**（非 +3,000） |
+| E3 | I3：再平衡 NAV 以价格重算——`daily` + 恒定目标 → 成交笔数 ≤ 标的数据（V2 恰 1 笔，旧 9 笔） | B6（V2）断言 | I3 / V2 | ✅ V2 **1 笔**（红态 9 笔）；NAV 恒 `initial_capital`（rel 1e-12） |
+| E4 | I4：在途单有界——每次再平衡后信号域内仅本次新单；过期上限 buy 5 / sell 10（自然日，含半衰期） | D5（V4）断言 | I4 / V4 | ✅ V4 双通过（撤销 + 过期各 1） |
+| E5 | I5：**公开**签名零变更（`StrategyEngine.__init__` / `run` / `get_failure_stats`）；`except Exception` 合计恒 **22** | `git diff \| Select-String '^-\s*def (__init__\|run\|get_failure_stats)'` = **0**；私有 `_generate_rebalance_orders` 形参变更属允许项（IMPL §8 已登记）；AST 扫描 = 22 | I5 / D7 / §13.2 | ✅ 公开三方法 `def` 行零删除（唯一 `-def` 为私有 `_generate_rebalance_orders`）；AST **22** |
+| E6 | I6：`core/` 与 `tests/golden/*.json` **零改动**（含 `target_positions.py` / `tracker.py` / `execution.py` / `pending.py`） | `git status --short core/ tests/golden/` = 空；`git diff --name-only` 仅 agents + 新测试 | I6 / D7 | ✅ `git status --short core tests/golden` **空**；改动面仅 `agents/multi_strategy_engine.py` + 新测试 |
+| E7 | I7：中性空头腿显式——warning + `neutral_short_leg_skipped` + `additional_info`，**无静默** | A4 / A5 / A6 组合 | I7 / V5 | ✅ 三出口齐备（1 条 WARNING / 计数 1 / 标记 `unsupported`） |
+| E8 | I8：门禁 **731 passed** / 测试文件 **82** / black **119** / mypy **37 files 0** / golden **13 零重录** | 全量末行；文件计数；两条 check 命令；`-k golden` | I8 / §6 | ✅ **731 passed** / 文件 **82** / black **119 unchanged** / mypy **37 files 0 error** / golden **13 passed 零重录** |
 
 ---
 
@@ -95,18 +95,18 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| F1 | 新测试文件恰含 **9** 个实例 = V1 1 + V2 1 + V2b 1 + V3 **2** + V4 **2** + V5 1 + V6 1；函数数 ≤ 7（V3/V4 参数化） | `pytest --collect-only -q tests/test_p031_strategy_engine_accounting.py` 末行 **9 tests collected** | V1-V6+V2b / IMPL §5 | [待 Step 9] |
-| F2 | 红态纪律：B1t / B2t / B3t / B4t 逐批先红后绿；红态读数记入 IMPL §11；**V6 红态即通过属预期**（回归保护，须显式标注） | 四批红态输出留档 + IMPL §11 记录 | IMPL §3 / §5 | [待 Step 9] |
-| F3 | 新测试 **9 passed** | `pytest tests/test_p031_strategy_engine_accounting.py -q` | V1-V6+V2b | [待 Step 9] |
-| F4 | 全量回归 **731 passed**（722 基线 + 9） | `MPLBACKEND=Agg pytest -q` 末行 | I8 | [待 Step 9] |
-| F5 | mypy **37 files 0 error**；black `--check core tests` **119 unchanged** | 两条门禁命令末行 | I8 | [待 Step 9] |
-| F6 | golden G1-G7 **13 passed** 且 `tests/golden/*.json` 零改动（零重录） | `pytest -q -k golden`；`git status --short tests/golden/` 空 | I6 / I8 | [待 Step 9] |
-| F7 | 测试零 `unittest.mock`（统一 `monkeypatch`）；fixture 独立，**不修改** `test_p029_*` / `test_p027_*` / `test_rebalance_exits.py` | `grep "unittest.mock"` = 0；`git diff --name-only tests/` 仅新增 1 文件 | IMPL §6 约束 / §7-#7 | [待 Step 9] |
-| F8 | 受影响面快速回归：`agents or strategy_engine or pending or portfolio` 子集 **0 failed / 0 error**，P-027 套件（24 passed）与 P-029 套件（11 passed）不回归 | `pytest -q -k "..."` 输出 | 回归面 | [待 Step 9] |
-| F9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | §6 / 交付纪律 | [待 Step 9] |
-| F10 | 四文档齐备互链 0 broken；`PROGRESS` §1.4 P-031 置 `done` + §3.36 系列补齐 Step 7-10；`CHANGELOG` `[Unreleased]` 记录本批行为变更（4 处语义修正 + 1 处显式降级 + 6 计数键） | 机械校验链接数/broken 数；读回 §1.4 与 CHANGELOG | IMPL §2 B5 | [待 Step 9] |
-| F11 | 未决/观察登记完整：U-P031-1~4（负持仓模型 / BUY 夹紧 / short 语义 / 中性资金部署）、O-P031-1~3（tracker 守卫 / L918 直写 cash / README 幻觉）、F-I-P031-1~7（含 F-I-P031-7 零成本口径）、F-S6-P031-1 + O-S6-P031-1~3 全部有落点 | 读回 DESIGN §7 / IMPL §9 / §13.6 / PROGRESS 未决表 | DESIGN §7 / IMPL §9 | [待 Step 9] |
-| F12 | 行号漂移登记：Step 9 实施后 `agents/multi_strategy_engine.py` 各被改函数实测行号 vs IMPL §4 实施前锚点，差异逐项登记（F-I 惯例） | IMPL §11 新增漂移表 | IMPL §4 / §11 | [待 Step 9] |
+| F1 | 新测试文件恰含 **9** 个实例 = V1 1 + V2 1 + V2b 1 + V3 **2** + V4 **2** + V5 1 + V6 1；函数数 ≤ 7（V3/V4 参数化） | `pytest --collect-only -q tests/test_p031_strategy_engine_accounting.py` 末行 **9 tests collected** | V1-V6+V2b / IMPL §5 | ✅ `--collect-only` **9 tests collected**；`^def test_` = **8**（V3 参数化 2；原「≤7」为估算上限，实测 8——O-S8-P031-1 落定） |
+| F2 | 红态纪律：B1t / B2t / B3t / B4t 逐批先红后绿；红态读数记入 IMPL §11；**V6 红态即通过属预期**（回归保护，须显式标注） | 四批红态输出留档 + IMPL §11 记录 | IMPL §3 / §5 | ✅ 四批红态：B1 **1 failed** / B2 **3 failed** / B3 **2 failed** / B4 **2 failed**；V6 红态即通过已标注（IMPL §11.1 + §11.6 F-S9-P031-3） |
+| F3 | 新测试 **9 passed** | `pytest tests/test_p031_strategy_engine_accounting.py -q` | V1-V6+V2b | ✅ **9 passed**（2.34s） |
+| F4 | 全量回归 **731 passed**（722 基线 + 9） | `MPLBACKEND=Agg pytest -q` 末行 | I8 | ✅ **731 passed**（172 warnings，42.70s） |
+| F5 | mypy **37 files 0 error**；black `--check core tests` **119 unchanged** | 两条门禁命令末行 | I8 | ✅ mypy **37 files 0 error**；black **119 files would be left unchanged** |
+| F6 | golden G1-G7 **13 passed** 且 `tests/golden/*.json` 零改动（零重录） | `pytest -q -k golden`；`git status --short tests/golden/` 空 | I6 / I8 | ✅ `-k "golden or p027 or p029"` **48 passed**（= 13 + 24 + 11 口径精确）；`git status --short tests/golden` **空** |
+| F7 | 测试零 `unittest.mock`（统一 `monkeypatch`）；fixture 独立，**不修改** `test_p029_*` / `test_p027_*` / `test_rebalance_exits.py` | `grep "unittest.mock"` = 0；`git diff --name-only tests/` 仅新增 1 文件 | IMPL §6 约束 / §7-#7 | ✅ `unittest.mock` **0 命中**；`tests/` 仅新增 `test_p031_strategy_engine_accounting.py` |
+| F8 | 受影响面快速回归：`agents or strategy_engine or pending or portfolio` 子集 **0 failed / 0 error**，P-027 套件（24 passed）与 P-029 套件（11 passed）不回归 | `pytest -q -k "..."` 输出 | 回归面 | ✅ `-k "golden or p027 or p029"` **48 passed / 683 deselected**（0 failed / 0 error；P-027 24 + P-029 11 定量吻合） |
+| F9 | 远端 CI 三 job（3.10 / 3.11 / 3.12）success | `gh run view <id> --json conclusion,jobs` | §6 / 交付纪律 | `[待本批 CI]` |
+| F10 | 四文档齐备互链 0 broken；`PROGRESS` §1.4 P-031 置 `done` + §3.36 系列补齐 Step 7-10；`CHANGELOG` `[Unreleased]` 记录本批行为变更（4 处语义修正 + 1 处显式降级 + 6 计数键） | 机械校验链接数/broken 数；读回 §1.4 与 CHANGELOG | IMPL §2 B5 | ✅ 四文档齐备（RESEARCH/DESIGN/IMPL/CHECKLIST，链接解析成立）；PROGRESS §1.4 置 **done** + §3.36.8；CHANGELOG `[Unreleased] Changed` 首条 P-031；README 4 处（L7/L99/L278/L427）+ ARCHITECTURE L3 同步 **731 / 82 files** |
+| F11 | 未决/观察登记完整：U-P031-1~4（负持仓模型 / BUY 夹紧 / short 语义 / 中性资金部署）、O-P031-1~3（tracker 守卫 / L918 直写 cash / README 幻觉）、F-I-P031-1~7（含 F-I-P031-7 零成本口径）、F-S6-P031-1 + O-S6-P031-1~3 全部有落点 | 读回 DESIGN §7 / IMPL §9 / §13.6 / PROGRESS 未决表 | DESIGN §7 / IMPL §9 | ✅ U-P031-1~4 在 DESIGN §7；O-P031-1~3 同表；F-I-P031-1~7 在 IMPL §9；F-S6-P031-1 + O-S6-P031-1~3 在 IMPL §13.6；本轮新增 F-S9-P031-1~3 在 IMPL §11.6 |
+| F12 | 行号漂移登记：Step 9 实施后 `agents/multi_strategy_engine.py` 各被改函数实测行号 vs IMPL §4 实施前锚点，差异逐项登记（F-I 惯例） | IMPL §11 新增漂移表 | IMPL §4 / §11 | ✅ IMPL §11.3 漂移表 **11 项**全登记（含新增 `_clamp_sell_quantity` L385） |
 
 ---
 
@@ -115,7 +115,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **46**（A 6 + B 8 + C 6 + D 6 + E 8 + F 12 = 46，机械计数；ID 去重 46/46） |
-| 实测列 `[待 Step 9]` 数 | Step 7 时点：**46 处**（= 46 验收单元格，零 ✅ 预填）；**机械匹配 49 处 = 46 单元格 + 3 处合法字面引用**（L6 头部规则行 / 本行计数说明 / 签名表 Step 9 行） |
+| 实测列 `[待 Step 9]` 数 | Step 7 时点：**46 处**零预填；**Step 9 回填后：验收单元格 0 处待填**（46/46 ✅），全文仅余 **3 处合法字面引用**（L6 头部规则行 / 本行计数说明 / 签名表 Step 9 行） |
 | 覆盖映射（测试用例） | V1 → B5；V2 → B6；V2b → B7；V3 → C5（2 实例）；V4 → D5（2 实例）；V5 → A6；V6 → D6（兼 A5）→ **9/9 实例全覆盖** |
 | 覆盖映射（不变式） | I1→E1 / I2→E2 / I3→E3 / I4→E4 / I5→E5 / I6→E6 / I7→E7 / I8→E8 —— **8/8** |
 | 覆盖映射（设计决策） | D1→B1-B8 / D2→A1-A6 / D3→C1-C6 / D4→D1-D6 / D5→（无代码，A2 边界注记 + F11 登记）/ D6→A5 + D3 + D4 + C2-C3 / D7→B1 + E6 —— **D1-D4/D6/D7 全落点，D5 按设计无代码** |
@@ -146,7 +146,7 @@
 |------|------|------|------|
 | Step 7 验收清单作者 | DeepSeek-V4.1-Flash | 46 项完稿，零预填 | 2026-11-16 |
 | Step 8 一致性 Review | GLM-5.3-Flash（≠ Step 7 作者 DeepSeek-V4.1-Flash，异构成立） | pass：机械五项全过 + 对齐矩阵七项全过；2 P3 当轮回写 IMPL（F-S8-P031-1/2）+ 1 P3 当轮修正（F-S8-P031-3），见 §10 | 2026-11-16 |
-| Step 9 TDD 执行 | `[待 Step 9]` | — | — |
+| Step 9 TDD 执行 | DeepSeek-V4.1-Flash（与上游同源） | pass：四批红→绿（1F / 3F / 2F / 2F → 9 passed），门禁 **731 / 82 / 119 / 37 / golden 13 / I1 22** 全绿；3 项实施期发现（F-S9-P031-1 P3 修正 + 2 观察），见 IMPL §11 | 2026-11-16 |
 | Step 10 ADD 审计 + RULE-5 异构终审 | `[待 Step 10]`（须异构基座） | — | — |
 
 ---

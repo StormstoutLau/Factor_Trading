@@ -31,9 +31,14 @@ from core.config import BacktestConfig, OptimizerConfig
 from core.data import DataManager
 from core.execution import ExecutionSimulator
 from core.factor import FactorCombiner, FactorPipeline
-from core.pending import OrderSide, PendingOrderQueue, create_pending_order
+from core.pending import OrderSide, PendingOrder, PendingOrderQueue, create_pending_order
 from core.portfolio import BaseOptimizer, EqualWeightOptimizer, build_optimizer
 from core.rebalance import BaseTrigger, build_trigger
+from core.target_positions import (
+    TargetPosition,
+    build_target_positions,
+    compute_portfolio_value,
+)
 from core.tracker import PositionTracker
 from filter.universe_filter_clean import UniverseFilter
 from agents.strategy_allocator import StrategyAllocationManager
@@ -109,6 +114,12 @@ class StrategyEngine:
         self._next_day_orders: list[dict] = []
         self._returns_matrix = self.dm.returns.values
         self._failure_counts: dict[str, int] = {}
+
+        if strategy_config.direction == "both":
+            logger.warning(
+                f"[{strategy_config.name}] direction='both' 的空头腿不支持（账目模型无负持仓结算），"
+                "本次回测仅执行多头腿（半仓多头 + 半仓现金），结果标记 neutral_short_leg=unsupported"
+            )
 
         logger.info(f"[{strategy_config.name}] 策略引擎初始化完成")
 
@@ -203,6 +214,23 @@ class StrategyEngine:
         if date not in self._composite_signal.index:
             return
 
+        # P-031 D4：再平衡刷新订单簿（信号域内在途单撤销，域外保留）
+        domain = set(self._composite_signal.columns)
+        if self._next_day_orders:
+            keep: list[dict] = []
+            dropped = 0
+            for item in self._next_day_orders:
+                if item["order"].stock in domain:
+                    dropped += 1
+                else:
+                    keep.append(item)
+            self._next_day_orders = keep
+            if dropped:
+                self._record_failure("next_day_orders_cancelled")
+        if self.pending_queue:
+            for stock in domain:
+                self.pending_queue.cancel_orders(stock, date)
+
         # 获取因子信号
         daily_signal = self._composite_signal.loc[date]
 
@@ -256,7 +284,8 @@ class StrategyEngine:
     ):
         """执行中性策略再平衡
 
-        同时做多高分股票和做空低分股票
+        P-031 D2：空头腿显式禁用（账目模型不支持可结算空头），仅执行多头腿，
+        权重按 ``long_weight`` 缩放（半仓多头 + 半仓现金，不重归一化）。
         """
         # 多头部分：选高分
         long_optimizer = EqualWeightOptimizer(
@@ -264,16 +293,6 @@ class StrategyEngine:
                 method=self.base_cfg.optimizer.method,
                 target_count=self.strategy_cfg.target_count,
                 select_top=True,
-                max_weight=self.base_cfg.optimizer.max_weight,
-            )
-        )
-
-        # 空头部分：选低分
-        short_optimizer = EqualWeightOptimizer(
-            OptimizerConfig(
-                method=self.base_cfg.optimizer.method,
-                target_count=self.strategy_cfg.target_count,
-                select_top=False,
                 max_weight=self.base_cfg.optimizer.max_weight,
             )
         )
@@ -290,16 +309,10 @@ class StrategyEngine:
                 returns_data = None
 
             long_weights = long_optimizer.optimize(tradable_stocks, returns_data)
-            short_weights = short_optimizer.optimize(tradable_stocks, returns_data)
 
-            # 合并权重：多头为正，空头为负
-            combined_weights = pd.Series(0.0, index=tradable_stocks.index)
-            for stock, w in long_weights.items():
-                combined_weights[stock] = w * self.strategy_cfg.long_weight
-            for stock, w in short_weights.items():
-                combined_weights[stock] = -w * self.strategy_cfg.short_weight
-
-            target_weights = combined_weights
+            # P-031 D2：空头腿显式禁用——账目模型不支持可结算空头（N1 幻影现金）
+            self._record_failure("neutral_short_leg_skipped")
+            target_weights = long_weights * self.strategy_cfg.long_weight
 
         except Exception as e:
             self._record_failure("neutral_optimize")
@@ -310,76 +323,75 @@ class StrategyEngine:
         self._generate_orders(date, date_index, target_weights)
 
     def _generate_orders(self, date: pd.Timestamp, date_index: int, target_weights: pd.Series):
-        """生成交易订单"""
-        current_value = self.tracker.get_total_value()
+        """生成交易订单（价格重算 NAV + 目标持仓并集，含调出标的的清仓项）"""
+        # 1. 调仓日收盘价（切片失败 → 统一计量后跳过本次调仓）
+        try:
+            prices = self.dm.get_adj_price("close", self.base_cfg.adjustment_type).loc[date]
+        except (KeyError, IndexError):
+            self._record_failure("orders_missing_price")
+            return
 
-        # 获取收盘价
-        adj_close = self.dm.get_adj_price("close", self.base_cfg.adjustment_type)
+        # 2. 价格重算 NAV（tracker.get_total_value 在开盘成交后、日终盯市前不可信）
+        positions = self.tracker.get_all_positions()
+        current = {
+            stock: int(position.quantity)
+            for stock, position in positions.items()
+            if int(position.quantity) > 0
+        }
+        nav = compute_portfolio_value(
+            self.tracker.get_cash(),
+            current,
+            prices,
+            {stock: position.market_value for stock, position in positions.items()},
+        )
+        if not np.isfinite(nav) or nav <= 0:
+            self._record_failure("rebalance_nav_invalid")
+            return
 
-        target_positions = {}
-        for stock, weight in target_weights.items():
-            target_value = weight * current_value
-            current_position = self.tracker.get_position(stock)
-            current_quantity = current_position.quantity if current_position else 0
+        # 3. 目标持仓（并集含调出标的的清仓项）
+        targets = build_target_positions(
+            target_weights,
+            current,
+            prices,
+            nav,
+            round_lot=self.base_cfg.optimizer.round_lot,
+        )
+        self._generate_rebalance_orders(date, targets)
 
-            try:
-                if stock in adj_close.columns and date in adj_close.index:
-                    close_price = adj_close.loc[date, stock]
-                else:
-                    continue
-            except (KeyError, IndexError):
-                self._record_failure("orders_missing_price")
-                continue
+    def _generate_rebalance_orders(self, date: pd.Timestamp, targets: dict[str, TargetPosition]):
+        """生成再平衡订单（先卖出含清仓与减仓，再买入）"""
+        orders = []
 
-            if close_price is None or pd.isna(close_price) or close_price <= 0:
-                continue
+        for target in targets.values():
+            trade_qty = target.target_quantity - target.current_quantity
+            if trade_qty < 0:
+                orders.append(create_pending_order(target.stock, OrderSide.SELL, -trade_qty, date))
 
-            price_ratio = target_value / close_price
-            if pd.isna(price_ratio) or np.isinf(price_ratio):
-                continue
-
-            if self.base_cfg.optimizer.round_lot:
-                target_quantity = int(abs(price_ratio) / 100) * 100 * (1 if weight >= 0 else -1)
-            else:
-                target_quantity = int(price_ratio)
-
-            target_positions[stock] = {
-                "current_quantity": current_quantity,
-                "target_quantity": target_quantity,
-                "price": close_price,
-                "weight": weight,
-            }
-
-        # 生成订单
-        self._generate_rebalance_orders(date, target_positions)
-
-    def _generate_rebalance_orders(self, date: pd.Timestamp, target_positions: dict):
-        """生成再平衡订单"""
-        for stock, position_info in target_positions.items():
-            current_qty = position_info["current_quantity"]
-            target_qty = position_info["target_quantity"]
-
-            if current_qty == target_qty:
-                continue
-
-            trade_qty = target_qty - current_qty
-
+        for target in targets.values():
+            trade_qty = target.target_quantity - target.current_quantity
             if trade_qty > 0:
-                order = create_pending_order(stock, OrderSide.BUY, trade_qty, date)
-                if self.pending_queue:
-                    self.pending_queue.add_order(order)
-                else:
-                    self._execute_order_next_open(order, date)
-            elif trade_qty < 0:
-                order = create_pending_order(stock, OrderSide.SELL, abs(trade_qty), date)
-                if self.pending_queue:
-                    self.pending_queue.add_order(order)
-                else:
-                    self._execute_order_next_open(order, date)
+                orders.append(create_pending_order(target.stock, OrderSide.BUY, trade_qty, date))
+
+        for order in orders:
+            if self.pending_queue:
+                self.pending_queue.add_order(order)
+            else:
+                self._execute_order_next_open(order, date)
 
     def _execute_order_next_open(self, order, date: pd.Timestamp):
         """延迟到次日开盘执行"""
         self._next_day_orders.append({"order": order, "create_date": date})
+
+    def _clamp_sell_quantity(self, order: PendingOrder) -> int:
+        """卖出数量按可卖持仓夹紧（P-031 D3）；BUY 原样返回。"""
+        if order.side != OrderSide.SELL:
+            return int(order.quantity)
+
+        position = self.tracker.get_position(order.stock)
+        available = max(int(position.quantity), 0) if position is not None else 0
+        if available <= 0:
+            return 0
+        return min(int(order.quantity), available)
 
     def _execute_next_day_orders(self, date: pd.Timestamp, date_index: int):
         """执行次日开盘订单"""
@@ -391,6 +403,22 @@ class StrategyEngine:
         except KeyError:
             self._record_failure("next_day_open_price")
             return
+
+        # P-031 D4：过期过滤（含半衰期，与队列 mark_expired 同语义）
+        max_buy = self.base_cfg.max_pending_days_buy
+        max_sell = self.base_cfg.max_pending_days_sell
+        active = []
+        expired = 0
+        for order_info in self._next_day_orders:
+            order = order_info["order"]
+            max_days = max_buy if order.side == OrderSide.BUY else max_sell
+            if order.is_expired(date, max_days):
+                expired += 1
+                continue
+            active.append(order_info)
+        self._next_day_orders = active
+        if expired:
+            self._record_failure("next_day_orders_expired")
 
         buyable_mask = (
             self.universe.buyable.loc[date] if hasattr(self.universe, "buyable") else None
@@ -424,8 +452,16 @@ class StrategyEngine:
                 failed_orders.append(order_info)
                 continue
 
+            # P-031 D3：卖出数量按可卖持仓夹紧（次日路径）
+            qty = self._clamp_sell_quantity(order)
+            if qty <= 0:
+                self._record_failure("oversell_blocked")
+                continue
+            if qty < order.quantity:
+                self._record_failure("oversell_trimmed")
+
             success, trade = self.executor.execute_order(
-                order.stock, order.side, order.quantity, date, open_price
+                order.stock, order.side, qty, date, open_price
             )
 
             if success and trade:
@@ -472,8 +508,17 @@ class StrategyEngine:
             open_price = open_prices[order.stock]
             close_price = close_prices[order.stock] if order.stock in close_prices else None
 
-            success, trade = self.executor.execute_pending_order(
-                order, date, open_price, close_price
+            # P-031 D3：卖出数量按可卖持仓夹紧（默认主路径）
+            qty = self._clamp_sell_quantity(order)
+            if qty <= 0:
+                self._record_failure("oversell_blocked")
+                self.pending_queue.cancel_order(order, date)
+                continue
+            if qty < order.quantity:
+                self._record_failure("oversell_trimmed")
+
+            success, trade = self.executor.execute_order(
+                order.stock, order.side, qty, date, open_price, close_price
             )
 
             if success and trade:
@@ -499,6 +544,11 @@ class StrategyEngine:
             "metrics": metrics,
             "tracker": self.tracker,
             "executor": self.executor,
+            "additional_info": {
+                "neutral_short_leg": (
+                    "unsupported" if self.strategy_cfg.direction == "both" else "not_applicable"
+                )
+            },
         }
 
 
