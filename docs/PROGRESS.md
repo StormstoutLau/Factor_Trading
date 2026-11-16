@@ -1104,7 +1104,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **处置（4 项）**: ① U-P029-2 → **done**（P-031 承接：四缺陷修复 + 防线下沉 + 722→731）；② §1.4 新增 **U-P031-1~4** 四行（P2×1 + P3×3，触发条件各自独立）；③ README Multi-Agent 示例改 `MultiAgentBacktestEngine`（`register_agent` / `setup` / `run` 真实链）+ 补 `MultiStrategyEngine` 真实 API 注记——**O-P031-3 关闭**；④ CHANGELOG `[Unreleased] Changed` 追加本批条目。
 - **门禁**: 零代码、零测试、零门禁变更——全量 `pytest -q` **731 passed** 持平 / `black --check core tests` **119 unchanged** / `mypy --explicit-package-bases core` **37 files 0**。
 - **遗留**: 下一 T1 候选为 **O-S6-P031-3**（queue 路径价格有效性校验，NaN/非正透传，V2 L799-808 同样无校验——需 Step 1 探针定级是否双引擎同修）；U-P031-1~4 条件触发类挂起。
-- **提交与 CI**: 提交后回填。
+- **提交与 CI**: 提交 `dde5485`（3 文件 +23/−3，docs-only）→ CI run `43883325472` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
