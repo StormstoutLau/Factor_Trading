@@ -886,7 +886,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E4 独立扫描**（自写 `%TEMP%\p029_step4_scan.py`，不复用作者脚本）: `agents/` handlers=22 / **silent=9**（8 站点 + `research_team_v2.py:27` import 降级）——无遗漏、无新增；`except Exception` 41 文件 = **22**（I1 成立）；`BaseAllocator` 5 子类均有自有 `__init__`、基类无 `__init__`（M-A 实证）。
 - **五项裁决全 pass**: 锚点键名 / D2 `else` 挂 `if`（误挂 `try` 的 `else` 会在成功时误计）/ M-A 维持（M-B 需改 6 类 + 漏 super 风险）/ I8 四计数 / 零新增日志裁定（可选数据缺失 warning 将刷屏，与 R-P029-4 同源）。
 - **分级**: 0 P1 / 0 P2 / **3 P3（当轮回写 DESIGN）**——F-S4-P029-1 S4 出口同调滞后（L1152 快照先于 try/except，V5 对 S4 同调不成立 → D3 增 L1152 下移微改，§2/D6/§4.1/V3/§9.1 同步）/ F-S4-P029-2 V1 触发面（缺失文件不进 except，须用存在但损坏的 pkl → §4.2 V1 补注记）/ F-S4-P029-3 静默面清点（§1「零改动 0 处」→「1 处」，`research_team_v2.py:25-28` import 降级下游经 L914→L843 可观测）；2 观察——O-S4-P029-1 `allocate` L633-637 非异常等权回退（「非异常静默回退」判据扩展候选）/ O-S4-P029-2 I8「81 文件」口径注记。
-- **提交与 CI**: 见收口回填。
+- **提交与 CI**: 提交 `ce5911c`（2 文件 +97/−12，docs-only）→ CI run `43792545570` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
