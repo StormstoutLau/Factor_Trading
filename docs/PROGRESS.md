@@ -1278,7 +1278,17 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **六项裁决**: ① D1 写法成立且必要 ② **D2 原稿错误已修正**（`@v6` → `@v10.3.3`）③ D3 与 Step 1 §2.1 一一对应、无新增散落 ④ V1-V5 覆盖 R1/R2/R3/合法价/`None`/P-033 交互，红态 3 / 通过 9 自洽 ⑤ 门禁推算全对（760 / 84 / 121 / 37 / 13 / 22）⑥ 静默观测缺口已披露（R-P034-1）。
 - **发现分级**: **0 P0/P1 / 1 P2 当轮回写（F-S4-P034-1 `setup-uv@v6` 过时 + `enable-cache` 语义变化）/ 3 观察**（O-S4-P034-1 `quiet` 输入 / O-S4-P034-2 `version-file` / O-S4-P034-3 `1e-9` 边界）。
 - **结论**: **pass**——准予进入 **Step 5 IMPL**；前置条件四项（D1 不得省略 `is not None` / D2 `@v10.3.3` 禁 `|| true` / 12 实例 + 红态 3F/9P 逐批留证 / 台账与 CHANGELOG·ARCHITECTURE 在 B3 回写）。
-- **下一 Step**: **Step 5 IMPL**。
+
+### 3.39.4 P-034 Step 5 IMPL 记录（2026-11-17）
+
+- **作者基座**: DeepSeek-V4.1-Flash（= 上游同源；Step 6 须异构，若同基座则披露）。基线 HEAD `a0db635`；[IMPL_p034](IMPL_p034_ledger_diff_guard_and_lock_gate.md) 完稿（B1-B4 / §4 逐文件锚点 / §5 V1-V5 12 实例 / §6 四 fixture / §7 七项低效排除 / §8 回退点 / §9 三项实施期裁决）。
+- **B1 代码规格**: `core/execution.py` L316-317 → 注释改「P-034 D1：价格合理性检查（close 无效时跳过——避免 inf 噪声 / 除零吞单 / NaN 静默）」+ 条件改 `close_price is not None and is_valid_price(close_price)`；L318-324（ratio / 阈值 / warning）**逐字不动**；估 **+2/−1**。
+- **B2 CI 规格**: `tests.yml` 末尾新增 `lock-check` job（`astral-sh/setup-uv@v10.3.3` + `version: "0.11.14"`，**省略 `enable-cache`**，`uv lock --check`，**禁 `|| true`**）；`test` job 逐行不动；估 **+12/−0**。
+- **B3 台账规格（8 处逐行文本已定稿）**: 新增 **7 行**（U-P033-1 done / U-P033-2 已合并 / U-P033-3 已裁决不采纳 / U-P014-1 pending / U-P014-3 已合并 / U-P015-1 pending / U-P016-1 pending）+ U-P031-2 行尾补注「单一跟踪源」+ 旧表 U-008 行尾补注「并入 U-P021-2」= 8 处处置全部落位。
+- **B3 同步**: `CHANGELOG [Unreleased] Changed` 首条（价格差异校验守卫 + CI 锁门禁，748 → 760）+ `ARCHITECTURE §9.2` L335「CI 使用 pip，不校验锁」订正为「`lock-check` job 以 `uv lock --check` 校验（失败即红）」。
+- **测试规格**: V1 无效 close 六参数 / V2 合法三参数（`8.0`→25.00%、`7.0`→42.86%、`10.5`→零）/ V3 `None` / V4 R1 吞单 / V5 P-033 交互；fixture 四项独立、零 `unittest.mock`。
+- **红态预算**: B1t 首跑 **3 failed / 9 passed**（V1 的 `0.0` 与 `np.float64(0)` + V4）；其余 9 例为回归保护，**不得**把四例「静默」误报为红态。
+- **下一 Step**: **Step 6 实施 Review**（RULE-5 要求异构基座）；复核重点六项（守卫条件 / 单一来源 1 定义 4 调用 / CI job 形态 / 台账 8 处 / 门禁推算 / 红态 3F/9P 口径）。
 
 ---
 
