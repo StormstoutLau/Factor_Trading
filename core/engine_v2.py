@@ -20,7 +20,7 @@ from core.analytics import generate_report
 from core.change_report import LayerDumper
 from core.config import BacktestConfig
 from core.data import DataManager
-from core.execution import ExecutionSimulator
+from core.execution import ExecutionSimulator, is_valid_price
 from core.invariants import InvariantViolationError, check_all
 from core.manifest import build_manifest, write_manifest
 from core.metrics import METRICS_METHOD
@@ -806,6 +806,11 @@ class BacktestEngineV2:
                 if close_prices is not None and order.stock in close_prices
                 else None
             )
+
+            # P-033 D2：开盘价有效性过滤（与 next-day 路径同口径）
+            if not is_valid_price(open_price):
+                skipped_price.append(order.stock)
+                continue
 
             if qty < order.quantity:
                 logger.warning(

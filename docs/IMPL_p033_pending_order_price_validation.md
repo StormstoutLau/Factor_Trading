@@ -233,7 +233,70 @@ def is_valid_price(price: Optional[float]) -> bool:
 
 ## 11. Step 9 实施记录（TDD 三批红→绿 + 门禁）
 
-（待 Step 9 回填）
+> **执行基座**: DeepSeek-V4.1-Flash（与四文档同源）；基线 HEAD `e53f560`（Step 8 收口）；Python312 + `MPLBACKEND=Agg`。
+
+### 11.1 三批红→绿（批次级口径，F-S8-P033-2）
+
+| 批次 | 实施内容 | 红态实测 | 绿态实测 |
+|------|----------|----------|----------|
+| **B1t** | V1 矩阵 6 + V7 VWAP NaN | **6 failed / 1 passed**（V1 五例 NaN/inf/-inf/0/-5 均成交入账 + V7 成交；`None` 经 `100 * None` TypeError 漏斗 L339 返回 `(False, None)` → **红态即通过，豁免**） | **7 passed** |
+| **B2t** | V2 两参数 + V3 两参数 + V4 + V5 + V8a | **6 failed / 1 passed**（agents queue 六例仍成交且无 `pending_invalid_price`；V8a **红态即通过，豁免**） | **14 passed**（累计） |
+| **B3t** | V6 两参数 + V8b | **2 failed / 1 passed**（V2 queue 两例零成交但缺「缺少价格数据」汇总日志——D1 已兜底、D2 未落地；V8b **红态即通过，豁免**） | **17 passed** |
+
+**全批红态 14 failed / 3 passed** = 6F + 6F + 2F 与 1P + 1P + 1P，与 Step 8 F-S8-P033-2 修正口径**逐项吻合**。
+
+### 11.2 门禁复跑（Step 9 实施后）
+
+| 门禁 | 目标 | 实测 |
+|------|------|------|
+| 全量 pytest | 748 | ✅ **748 passed**（172 warnings，45.47s） |
+| 新测试收集 | 17 实例 / 8 函数 | ✅ **17 tests collected**（`^def test_` = **8**，V1/V2/V3/V6/V8 五处参数化） |
+| 新测试绿 | 17 passed | ✅ **17 passed**（2.16s） |
+| black `--check core tests` | 120 | ✅ **120 files would be left unchanged**（新测试文件首轮重排 1 文件，O-I-P033-1 先例） |
+| mypy `--explicit-package-bases core` | 37 files 0 | ✅ **Success: no issues found in 37 source files** |
+| golden | 13 零重录 | ✅ **13 passed, 735 deselected**；`tests/golden/` 零改动 |
+| `tests/` .py 数 | 83 | ✅ **83** |
+| 回归子集 `-k "golden or p027 or p029 or p031"` | 57 | ✅ **57 passed, 691 deselected**（0 failed / 0 error） |
+| AST `except Exception`（十文件口径） | 22 | ✅ **22** |
+| `core/` 新增 `except`（F-S8-P033-5） | 0 | ✅ `git diff core/execution.py` 中 `^\+.*\bexcept\b` = **0** |
+| 公开签名删除 | 0 | ✅ `git diff \| Select-String '^-\s*def '` = **0** |
+| 零改动面（tracker / pending / interfaces / target_positions / golden / filter / scripts / cli / pyproject / test_p029* / test_p031*） | 空 | ✅ `git status --short` 全空 |
+
+**净行数（`git diff --numstat`）**: `core/execution.py` **+21/−1** / `agents/multi_strategy_engine.py` **+6/−1** / `core/engine_v2.py` **+6/−1** / `tests/test_p033_order_price_validation.py` **+203（新增）**。
+
+### 11.3 顺序敏感五项留证（CHECKLIST §7.3）
+
+| # | 约束 | 实测 | 结果 |
+|---|------|------|------|
+| ① | 守卫在解析后、差异告警前 | `execution_price` **L304-306** → 守卫 **L308-315** → `# 价格合理性检查` **L316** | ✅ |
+| ② | 守卫在 `amount` / `Trade` / `add_trade` 前 | 守卫 **L308** < `amount` **L327** < `add_trade` **L350** | ✅ |
+| ③ | agents 过滤在 L509 后、L511（clamp）前 | `open_price` **L508** / `close_price` **L509** → 守卫 **L511-514** → clamp **L517** | ✅ |
+| ④ | V2 过滤在 L808 后、L810（clamp 告警）前 | `close_price` 赋值 **L804-808** → 守卫 **L810-813** → clamp 告警 **L815** | ✅ |
+| ⑤ | B1 先于 B2/B3 | B1t 红→绿（7 passed）后方实施 B2 / B3（导入依赖） | ✅ |
+
+**单一来源**: `is_valid_price` 全仓 **1 处定义**（`core/execution.py:153`）+ **3 处调用**（execution L309 / agents L512 / engine_v2 L811），零第二套 `pd.isna` 组合。
+
+### 11.4 行号漂移登记（F-I 惯例）
+
+| 文件 | 锚点 | 实施前 | 实施后 | 漂移 |
+|------|------|--------|--------|------|
+| `core/execution.py` | `is_valid_price`（新增） | — | **L153** | 新增 11 行 |
+| `core/execution.py` | `class ExecutionSimulator` | L153 | **L164** | +11 |
+| `core/execution.py` | `_get_execution_price` | L191-260 | **L202-271** | +11 |
+| `core/execution.py` | `execute_order` def / docstring / try / except | L262 / L287-289 / L290 / L339 | **L273 / L298-300 / L302 / L359** | +11 / +11 / +12 / +20 |
+| `core/execution.py` | 守卫插入点 | L292-294 之后 | **L308-315** | — |
+| `agents/multi_strategy_engine.py` | 导入 L32 / `_record_failure` / `_clamp_sell_quantity` / `_execute_next_day_orders` / `_process_pending_orders` | L32 / L126 / L385 / L396 / L478 | **L32（改行）/ L126 / L385 / L396 / L478** | 0（插入点在函数体内） |
+| `agents/multi_strategy_engine.py` | 过滤块 / `mark_expired` | L509-511 之间 / L528 | **L511-514 / L533** | 下游 +5 |
+| `core/engine_v2.py` | 导入 L23 / `_force_liquidation` / `_clamp_sell_quantity` / `_process_pending_orders` | L23 / L510 / L671 / L752 | **L23（改行）/ L510 / L671 / L752** | 0（强平守卫 L563 原位） |
+| `core/engine_v2.py` | 过滤块 / 汇总日志 / `_execute_next_day_orders` | L808-810 之间 / L836-839 / L1091 | **L810-813 / L841-844 / L1096** | 下游 +5（next-day 守卫 **L1145**） |
+
+### 11.5 实施期发现
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S9-P033-1 | 观察 | 新测试文件首轮被 `black` 重排（1 文件）——O-I-P033-1 预判成立，非缺陷 | 已格式化，门禁 120 unchanged |
+| F-S9-P033-2 | P3 | B3t 首跑红态异常：新测试文件缺 `import logging` → `caplog.set_level` 抛 `NameError`，致 3 failed（含 V8b）而非预期 2F/1P——**测试自身缺陷**，与 B3 守恒无关 | **当轮修复**（补 `import logging`）后重跑，红态回到 **2F/1P** 与预测一致 |
+| O-S9-P033-1 | 观察 | B3t 红态实证：即使 D2 未落地，D1 守卫已使 V6 的「零成交/现金不变」断言成立——红态仅由「汇总日志缺失」驱动，反向印证**双层防线**（D1 安全层先于 D2 可观测层生效） | 登记（DESIGN-D2 预期） |
 
 ---
 

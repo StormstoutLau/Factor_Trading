@@ -150,6 +150,17 @@ class TradeLog:
         }
 
 
+def is_valid_price(price: Optional[float]) -> bool:
+    """价格是否可成交：有限且为正。
+
+    None / NaN / ±inf / <=0 均视为无效（P-033 D1 单一判定口径，
+    供执行入口与两引擎 queue 路径共用）。
+    """
+    if price is None:
+        return False
+    return bool(np.isfinite(price) and price > 0)
+
+
 class ExecutionSimulator:
     """交易执行模拟器
 
@@ -285,13 +296,22 @@ class ExecutionSimulator:
             volume: 成交量（可选，用于VWAP）
 
         Returns:
-            (是否成功, 交易记录)
+            (是否成功, 交易记录)。若解析后的执行价格为 None / NaN / ±inf / <=0，
+            返回 (False, None)，不写入 trade_log。
         """
         try:
             # 根据执行价格类型确定执行价格
             execution_price = self._get_execution_price(
                 date, stock, side, open_price, close_price, high_price, low_price, volume
             )
+
+            # P-033 D1：执行价格有效性守卫（None / NaN / ±inf / <=0 → 不成交、不入账）
+            if not is_valid_price(execution_price):
+                logger.warning(
+                    f"{stock}在{date}执行价格无效: {execution_price!r}，"
+                    "订单未成交（P-033 价格守卫）"
+                )
+                return False, None
 
             # 价格合理性检查
             if close_price is not None:

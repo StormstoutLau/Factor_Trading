@@ -29,7 +29,7 @@ import pandas as pd
 from core.analytics import PerformanceAnalyzer, generate_report
 from core.config import BacktestConfig, OptimizerConfig
 from core.data import DataManager
-from core.execution import ExecutionSimulator
+from core.execution import ExecutionSimulator, is_valid_price
 from core.factor import FactorCombiner, FactorPipeline
 from core.pending import OrderSide, PendingOrder, PendingOrderQueue, create_pending_order
 from core.portfolio import BaseOptimizer, EqualWeightOptimizer, build_optimizer
@@ -507,6 +507,11 @@ class StrategyEngine:
 
             open_price = open_prices[order.stock]
             close_price = close_prices[order.stock] if order.stock in close_prices else None
+
+            # P-033 D2：开盘价有效性过滤（与 next-day 路径同口径）
+            if not is_valid_price(open_price):
+                self._record_failure("pending_invalid_price")
+                continue
 
             # P-031 D3：卖出数量按可卖持仓夹紧（默认主路径）
             qty = self._clamp_sell_quantity(order)
