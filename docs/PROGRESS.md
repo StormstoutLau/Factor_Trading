@@ -896,7 +896,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **实施注意项**: A1 `else` 缩进对齐 `if`（AST 校验归属）/ A2 V2 须先置 `_research_team_available=True` / A3 bare except 零改写（I1 恒 22）/ A4 S5 双参数 / A5 测试替身面 / A6 `caplog.clear()` 规避构造期 2 条 warning / A7 V7 no-op 日处理固定无失败路径。
 - **实施期发现**: F-I-P029-1（P3）DESIGN §4.1「agent_framework ≈9 新增行」实为「变更 7 行 / 净 +2」——本文件已按净增标注，Step 9 以 `git diff --numstat` 回填；O-I-P029-1（观察）`strategy_allocator` 估算 ≈12 vs 实测 ≈10（空行余量）。
 - **I1 复核命令已实证**: AST 十文件扫描输出 **22**（命令写入 IMPL §6，可独立复跑）。
-- **提交与 CI**: 见收口回填。
+- **提交与 CI**: 提交 `e6daa05`（2 文件 +464/−1，docs-only）→ CI run `43817469869` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
