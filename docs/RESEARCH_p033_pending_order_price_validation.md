@@ -74,6 +74,8 @@ P-031 Step 6 实施 Review 的 O-S6-P031-3 观察项（[IMPL_p031 §13.6](IMPL_p
 
 **后果**：`get_total_value()` 恒 NaN → P-031 D1 的 nav 守卫 `not np.isfinite(nav)` 每次再平衡命中 → `rebalance_nav_invalid` 逐日累积、**不再生成任何订单**（组合静默冻结）；同时 `trades_df` 与绩效指标全部 NaN。这是「一次坏价格 → 整条回测报废且无恢复路径」。
 
+**SELL 侧新形态（Step 2 B2 新证，O-S2-P033-1）**：有持仓时 SELL 单遇 `open=NaN` 同样成交——`cash=NaN, qty=0`：现金污染与 BUY 对称，且**持仓被静默清零**（`realized_pnl=NaN`），比 BUY 侧更隐蔽。
+
 ### R2（P2）开盘价 `≤ 0` → 免费持仓 / 幻影现金
 
 | 证据 | 读数 |
@@ -142,12 +144,24 @@ P-031 Step 6 实施 Review 的 O-S6-P031-3 观察项（[IMPL_p031 §13.6](IMPL_p
 
 | 面 | 读数 | 依据 |
 |----|------|------|
-| 生产调用点 | **5 处** | `agent_framework.py:1420` / `multi_strategy_engine.py:463,520` / `engine_v2.py:566,815`；另有 `execute_pending_order`（execution L389-414）→ `execute_order` 委托链（V2 fallback L884） |
+| 生产调用点 | **6 直接调用 + 1 委托链**（Step 2 F-S2-P033-1 修正：原「5 处」漏列 `engine_v2.py:1161` 且未区分守卫面） | 见下表 |
 | 默认配置可达 | **是** | `enable_pending_orders=True` 为默认（config L375）→ queue 为主路径；`create_default_engine` → V2 |
 | 价格缺失形态 | 两类 | ① `NaN`（数据缺口 / 新股 / 退市边界）；② `0`（停牌日价格写 0；`suspend.pkl` 缺失时 P-010 约定掩码默认 `0=正常` → 掩码不再兜底） |
-| 后果等级 | R1 **P1** / R2 **P2** | P1：单次触发即不可恢复（NaN 无逆运算）；P2：需 0/负价形态，产生幻影净值但仍可继续运行 |
+| 后果等级 | R1 **P1** / R2 **P2** | P1：单次触发即不可恢复（NaN 无逆运算，含 SELL 侧仓位静默清零——Step 2 B2 新证）；P2：需 0/负价形态，产生幻影净值但仍可继续运行 |
 | 与既有批次关系 | 非回归 | P-031 修复 SELL 侧超卖（`_clamp_sell_quantity`），未覆盖价格有效性；P-029 仅计量（`pending_open_price` 只覆盖日期切片缺失） |
-| 测试破坏面 | **0** | 全仓 `execute_order(` 调用 37 处，`0.0` / `nan` / 负价入参 **零命中**（grep 实证） |
+| 测试破坏面 | **0** | 全仓 `execute_order(` 调用 37 处，`0.0` / `nan` / 负价入参 **零命中**（grep 实证，Step 2 独立复核 0 hits） |
+
+**调用点全表（守卫面标注——Step 2 F-S2-P033-1 回写）**：
+
+| # | 调用点 | 路径 | 前置守卫 | M-A 后 |
+|---|--------|------|----------|--------|
+| 1 | `core/engine_v2.py:815` | queue 主路径 | **无**（L799 仅成员检查） | 守卫接管 + `skipped_price` 计量 |
+| 2 | `agents/multi_strategy_engine.py:520` | queue 主路径 | **无**（L505 仅成员检查） | 守卫接管 + `pending_invalid_price` 计数 |
+| 3 | `agents/agent_framework.py:1420` | 多 Agent 聚合信号执行 | **无**（上游 L1340 亦仅成员检查） | 守卫接管（`if success and trade` 优雅跳过） |
+| 4 | `core/engine_v2.py:1161` | next-day | 有（L1140 `None/isna/<=0`） | 双保险（前置已拦，守卫为兜底） |
+| 5 | `agents/multi_strategy_engine.py:463` | next-day | 有（L451 同形） | 双保险 |
+| 6 | `core/engine_v2.py:566` | 强平 / 退市结算 | 有（L563 `pd.isna or <=0`，B4 实证） | 双保险 |
+| 7 | `core/execution.py:407` | `execute_pending_order` 委托链（V2 fallback L884 等） | 继承调用方 | 守卫兜底（N4） |
 
 ---
 
@@ -156,13 +170,13 @@ P-031 Step 6 实施 Review 的 O-S6-P031-3 观察项（[IMPL_p031 §13.6](IMPL_p
 | 维度 | **M-A（推荐）** | M-B | M-C |
 |------|-----------------|-----|-----|
 | 形态 | `execute_order` 入口守卫（`not isfinite or <= 0` → warning + `return False, None`）**+** 两引擎 queue 路径显式前置过滤与计量 | 仅两引擎 queue 路径各自加守卫，`core/execution.py` 零改动 | 仅 `execute_order` 守卫，引擎层零改动 |
-| 覆盖面 | **全部 5 个调用点 + 未来调用方 + VWAP NaN 入口** | 仅两处 queue；`agent_framework:1420` 与 VWAP 分支仍裸奔 | 全覆盖，但无归因 |
-| 可观测 | 引擎层计数（agents 新键 / V2 复用 `skipped_price`）+ warning | 同左（两处） | 仅 warning |
+| 覆盖面 | **全部 6 个直接调用点 + 委托链 + 未来调用方 + VWAP 内部聚合 NaN 入口（B1 实锤 `success=True, price=NaN`——M-B 则 VWAP 裸奔）** | 仅两处 queue；`agent_framework:1420` 与 VWAP 分支仍裸奔 | 全覆盖，但无归因 |
+| 可观测 | 引擎层计数（agents 新键 `pending_invalid_price` / V2 复用 `skipped_price`）+ warning | 同左（两处） | 仅 warning |
 | 行为变更面 | `core/execution.py` 一次（合法价零影响） | `core/engine_v2.py` + `agents` 双处 | `core/execution.py` 一次 |
-| 重复代码 | 无（守卫单点） | 两份同形判定（易漂移，P-031 F-S4 先例） | 无 |
+| 重复代码 | 无（守卫单点） | 两份同形判定（易漂移，P-031 F-S4-P031-1 先例） | 无 |
 | 测试破坏面 | **0**（无 0/NaN 价调用） | 0 | 0 |
 | 复杂度 | 低 | 中 | 低 |
-| 缺口 | 需在 5 个调用点确认 `False` 分支语义（均已具备：保留重试） | 未来新调用方仍需自觉 | 无法区分「拒绝原因」，静默 |
+| 缺口 | 需在调用点确认 `False` 分支语义（Step 2 裁决 #6：逐一成立） | 未来新调用方仍需自觉 | 无法区分「拒绝原因」，静默 |
 
 **推荐 M-A**：守卫单点收口（与 P-014「执行侧夹紧」同层哲学：账目入口拒绝非法价），引擎层补计量保证可归因。`False` 返回在各调用点的既有语义天然正确——V2 queue 保留订单（下日重试）、V2 next-day 入 `failed_orders`、agents 两路径均不 `mark_executed`。
 
@@ -207,6 +221,74 @@ P-031 Step 6 实施 Review 的 O-S6-P031-3 观察项（[IMPL_p031 §13.6](IMPL_p
 
 ---
 
-## 11. Step 2 独立 Review 记录
+## 11. Step 2 独立 Review 记录（异构基座 GLM-5.3-Flash，2026-11-16）
 
-（待 Step 2 回填）
+> **复审基座**: **GLM-5.3-Flash**（≠ 本文件作者 DeepSeek-V4.1-Flash，RULE-5 成立）
+> **复审对象**: `839f5b5`（RESEARCH_p031 提交版）；复审时点 HEAD `0615a6c`
+> **方法**: E1 代码锚点重放 + E2 探针重放（`%TEMP%\p031_step1_probe.py` 原样重跑）+ E3 复审基座独立探针（`%TEMP%\p033_step2_review_probe.py`，四项新证）+ E4 负向发现独立复核 + E5 §10 六项复核重点裁决
+
+### 11.1 E1 代码锚点重放（全过 + 一处盘点修正）
+
+| # | RESEARCH 声称 | 实查 | 结果 |
+|---|---------------|------|------|
+| A1 | agents queue 仅成员检查（L505）→ execute_order（L520）；next-day 已校验（L451） | grep 逐行 | ✅ 全命中 |
+| A2 | V2 queue 仅成员检查（L799）→ execute_order（L815）；next-day 已校验（L1140） | grep 逐行 | ✅ 全命中 |
+| A3 | `execute_order` 无价格有效性校验（L262-344）；L296-304 仅 close 差异告警；L307 amount | `isfinite\|pd.isna` 在 execution.py **零命中** | ✅ |
+| A4 | `execute_pending_order`（L389）委托 `execute_order`（L407） | 读码 | ✅ N4 成立 |
+| A5 | tracker cash 变异（L202/L204）+ `update_market_values` NaN 跳过（L234） | 读码 | ✅ N6 成立 |
+| A6 | `enable_pending_orders=True` 默认（config L375） | 读码 | ✅ |
+| A7 | §6「生产调用点 5 处」 | **实测 6 直接调用 + 1 委托链**：漏列 `engine_v2.py:1161`（next-day，有 L1140 守卫）；且未区分守卫面——**有守卫 3**（强平 L563 / 两 next-day）/ **无守卫 3**（V2 queue L815 / agents queue L520 / agent_framework L1420——后者上游 L1340 亦仅成员检查） | **不一致 → F-S2-P033-1（P3 当轮回写）** |
+
+### 11.2 E2 探针重放（十场景读数逐字一致）
+
+`p033_step1_probe.py` 原样重跑：A1-A6 / V1-V3 全部读数与 RESEARCH §5 **逐字一致**（含 A2b 默认成本 `cash=9999995`、A3 `cash=10000500`、A6/V3 对照组 `n_trades=0 / retained=1`）。R1/R2/R3 定级的实证基础成立。
+
+### 11.3 E3 复审基座独立探针（四项新证）
+
+| 探针 | 构造 | 读数 | 结论 |
+|------|------|------|------|
+| **B1** | `ExecutionPriceType.VWAP` + open/close=10 合法、high/low/volume 全 NaN | `success=True, price=NaN` | **第二 NaN 入口实锤**——`_get_execution_price` 内部聚合 NaN，守卫在 `execute_order` 入口可单点覆盖（回答复核点 #5：M-A 同批自然覆盖，M-B 则 VWAP 裸奔） |
+| **B2** | SELL 侧 queue + open=NaN（有持仓 100 股） | `cash=NaN, qty=0`（仓位**凭空消失** + realized_pnl=NaN） | R1 框架内新形态：SELL NaN 污染方向与 BUY 对称，且**持仓被静默清零**——比 BUY 侧更隐蔽（登记 O-S2-P033-1） |
+| **B3** | 无效价订单保留重试模拟（M-A 修复后行为），全程 NaN 开盘价跑 8 日 | `queue_len_by_day=[(1,1),(2,1),(3,1),(4,0),...]`，`trades=0` | **重试有界**：`mark_expired` 半衰期（3）+ max_days（5）约 **4 个交易日排空**——回答复核点 #4：0 价拒绝后无长期噪声风险（登记 O-S2-P033-2） |
+| **B4** | V2 `_force_liquidation` + close=NaN（有持仓） | `liquidated=0, qty=100, cash=9999000` | 强平路径 L563 既有守卫实证成立（NaN 价不强制平仓、持仓保留） |
+
+### 11.4 E4 负向发现独立复核（§9 全部成立）
+
+| ID | 复核方式 | 结果 |
+|----|----------|------|
+| N1 | E2 重放 A6/V3 对照组 | ✅ 零成交、订单保留 |
+| N2 | E2 重放 A5 | ✅ `inf` 告警不抛异常 |
+| N3 | 本基座独立 grep（tests/examples/core/agents 全量） | ✅ `execute_order` 非正价入参 **0 命中** |
+| N4 | E1-A4 读码 | ✅ 委托链成立 |
+| N5 | `git diff 6a7771e..750674e` 价格判定行审计 | ✅ queue 判定（L505）未被 P-031 触及；**细节补全**——P-031 D1 曾删除生成侧逐股 `close_price` 校验（`- if close_price is None or pd.isna(...) or <= 0`），由 `build_target_positions` 内部无价跳过承接（Step 6 §13.5-#6 已实证）→ 价格处理全景：生成侧归 `build_target_positions`、执行侧归夹紧、**queue 有效性归本批** |
+| N6 | E1-A5 读码 | ✅ 污染源在 `execute_trade` |
+
+### 11.5 §10 六项复核重点裁决
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | 定级 | **R1 P1 维持 / R2 P2 维持，不合并**。理由：触发条件可分离（NaN = 数据缺口常态；0/负 = 脏数据），后果可分离（NaN 不可逆冻结 vs 幻影净值可继续运行）；M-A 守卫一次覆盖两者，合并定级无工程收益。B2 新证（SELL 仓位消失）强化 R1 的 P1 判定 |
+| 2 | M-A 越界性 | **改 `core/execution.py` 属 T1 可接受**（判档规则 1；先例 P-014/P-022/P-025 均改 core/）。M-B（仅引擎双处守卫）有 P-031 F-S4-P031-1 同型漂移风险（两份同形判定）且 VWAP 入口裸奔（B1 实锤）；M-C 无法归因。**维持 M-A** |
+| 3 | 计量口径 | agents 新键定名 **`pending_invalid_price`**（与 P-029 S7 `pending_open_price` 命名风格一致：路径 + 缺陷类别）；V2 复用 `skipped_price` 名单 + 既有 `logger.warning`（L836-839 形态）；零新增 `failure_counts` 之外出口 |
+| 4 | 0 价重试噪声 | **bounded 成立**（B3：约 4 交易日排空）——`mark_expired` 半衰期兜底与 P-014/P-031 语义同源；无需额外降噪机制 |
+| 5 | R3 与 VWAP | **VWAP 入口随 M-A 同批覆盖**（B1 实锤：守卫在 `execute_order` 入口天然拦住内部聚合 NaN）；R3（`close=0` 告警噪声）无账目污染，仅登记不改 |
+| 6 | 回归面 | **5 调用点 `False` 语义逐一成立**：V2 queue（不入 `executed_orders` → 订单留队重试）/ V2 next-day（`failed_orders` 保留）/ agents 两路径（不 `mark_executed`，留簿/留队）/ agent_framework（`if success and trade` 优雅跳过）/ V2 强平（已有 L563 守卫，不经过新守卫路径）/ fallback 委托链（`False → fallback_success=False`）。无一处依赖「无效价必成交」 |
+
+### 11.6 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S2-P033-1 | P3 | §6 调用点盘点不准确：实为 **6 直接调用 + 1 委托链**（漏列 `engine_v2.py:1161`），且未区分守卫面（有守卫 3 / 无守卫 3，agent_framework L1420 上游 L1340 亦仅成员检查） | **当轮回写 §6**：调用点全表 + 守卫面标注 |
+| F-S2-P033-2 | P3 | §2/§7 提及 VWAP 第二入口但未实证——B1 实锤 `success=True, price=NaN` | **当轮回写 §7**：M-A 行补 VWAP 实锤，强化「M-B 则 VWAP 裸奔」 |
+| O-S2-P033-1 | 观察 | B2 新证：SELL 侧 NaN 使持仓静默清零 + realized_pnl=NaN（R1 框架内新形态，不单独定级） | 登记于 §3 R1 |
+| O-S2-P033-2 | 观察 | B3 新证：无效价重试约 4 交易日被 `mark_expired` 排空（bounded） | 登记于 §10 裁决 #4 |
+
+### 11.7 复审结论
+
+**结论**: **pass**（0 P0/P1/P2 / 2 P3 当轮回写 / 2 观察）——R1（P1）/ R2（P2）定级成立、M-A 方案边界合法且为唯一无裸奔面解、计量口径一致、重试噪声有界、回归面语义逐一成立。准予进入 **Step 3 DESIGN**。
+
+**Step 3 DESIGN 前置条件**:
+1. 按 M-A 实现：`execute_order` 入口守卫（`open_price is None or not isfinite or <= 0` → warning + `return False, None`），VWAP 内部聚合价同样经过该出口（B1 已证单点可达）；
+2. 计量按裁决 #3：agents 新键 `pending_invalid_price`（queue 路径，except/continue 形态外的前置过滤 + 计数）+ V2 复用 `skipped_price`；
+3. 两引擎 queue 路径守卫**先行于成员检查之后、execute_order 之前**（与 next-day 的 L451/L1140 同形，保持路径间对称）；
+4. 测试规格须覆盖：B1 VWAP NaN / B2 SELL NaN / B3 bounded 重试 / A1-A4 四形态 / V6 正常路径零误报（守卫不触发）。
