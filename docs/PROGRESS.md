@@ -1379,6 +1379,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **变更**: ① `U-P024-2` → **done**（P-034 承接；C4 实证门禁可红 / 16 run 全绿）；② `U-P021-1`（已合并至 U-P024-2）追加关闭指针注；③ **D5 派生纪律扩展**——批次关闭动作清单定为两项：**(a)** 本批新增 U-\*/O-\* 是否已在 §1.4 建行；**(b)** 本批实现/承接的既有台账项是否已转 done / 已合并；④ [CHANGELOG](../CHANGELOG.md) `[Unreleased] Changed` 追加本批条目。
 - **核验**: §1.4 pending 计数 **31 → 30**（`Grep` 机械复测）；U-P024-2 状态字段为 `done`；D5 扩展文本落于 DESIGN_p034 D3 附则 + 本节两处。
 - **门禁持平（实测 @ 修改前工作区全绿态）**: `pytest -q` **760 passed**（172 warnings，51.38s）/ `black --check core tests` **121 unchanged** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error**——零代码变更，读数与 P-034 终态一致。
+- **提交与 CI**: 提交 `c8fa759`（3 文件 **+15/−2**，docs-only：PROGRESS §1.4 U-P024-2 done + U-P021-1 关闭指针 + P-035 行 + §3.40 / DESIGN_p034 D3 附则扩展注 / CHANGELOG 条目）→ CI run `43934945348` **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
