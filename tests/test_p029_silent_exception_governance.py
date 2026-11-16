@@ -12,11 +12,13 @@ import types
 
 import pandas as pd
 import pytest
+import numpy as np
 
 import agents.agent_framework as agent_framework_module
 import agents.research_team_v2 as research_team_module
 from agents.agent_framework import ResearchTeamAgent
 from agents.multi_strategy_engine import StrategyConfig, StrategyEngine
+from agents.strategy_allocator import MeanVarianceAllocator, StrategyEvaluator
 from core.config import BacktestConfig
 from core.pending import OrderSide, PendingOrderQueue, create_pending_order
 
@@ -193,7 +195,9 @@ def test_order_missing_price(monkeypatch, case):
     assert engine.pending_queue is None
 
 
-@pytest.mark.parametrize("case,key", [("next_day", "next_day_open_price"), ("pending", "pending_open_price")])
+@pytest.mark.parametrize(
+    "case,key", [("next_day", "next_day_open_price"), ("pending", "pending_open_price")]
+)
 def test_open_price_failures(monkeypatch, caplog, case, key):
     """D4 / V5：S6/S7 各计 1，队列语义不变，零 WARNING 日志。"""
     engine = _make_engine()
@@ -215,3 +219,40 @@ def test_open_price_failures(monkeypatch, caplog, case, key):
 
     assert engine.get_failure_stats() == {key: 1}
     assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+
+
+# --------------------------------------------------------------- V6 / V7
+def _singular(matrix):
+    raise np.linalg.LinAlgError("singular")
+
+
+def test_pinv_fallback(monkeypatch):
+    """D5 / V6：奇异矩阵走 pinv 计 1，权重归一，getter 为拷贝。"""
+    alloc = MeanVarianceAllocator()
+    evaluator = StrategyEvaluator(n_strategies=2)
+    monkeypatch.setattr(np.linalg, "inv", _singular)
+
+    weights = alloc.allocate(evaluator)
+
+    assert alloc.get_failure_stats() == {"pinv_fallback": 1}
+    assert abs(float(np.sum(weights)) - 1.0) < 1e-9
+
+    stats = alloc.get_failure_stats()
+    stats["pinv_fallback"] = 999
+    assert alloc.get_failure_stats()["pinv_fallback"] == 1
+
+
+def test_normal_path_zero_counts(monkeypatch):
+    """D5 / V7：正常路径两载体零计数、权重归一。"""
+    engine = _make_engine()
+    monkeypatch.setattr(engine, "_process_trading_day", lambda date, i: None)
+
+    result = engine.run()
+
+    assert result["failure_counts"] == {}
+
+    alloc = MeanVarianceAllocator()
+    weights = alloc.allocate(StrategyEvaluator(n_strategies=2))
+
+    assert alloc.get_failure_stats() == {}
+    assert abs(float(np.sum(weights)) - 1.0) < 1e-9

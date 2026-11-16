@@ -605,6 +605,15 @@ class MeanVarianceAllocator(BaseAllocator):
         self.lambda_turnover = turnover_penalty
         self.min_w = min_weight
         self.max_w = max_weight
+        self._failure_counts: dict[str, int] = {}
+
+    def _record_failure(self, key: str) -> None:
+        """记录一次降级失败（只增不清）"""
+        self._failure_counts[key] = self._failure_counts.get(key, 0) + 1
+
+    def get_failure_stats(self) -> dict[str, int]:
+        """只读失败计量快照"""
+        return dict(self._failure_counts)
 
     def allocate(
         self, evaluator: StrategyEvaluator, current_weights: Optional[np.ndarray] = None
@@ -626,6 +635,7 @@ class MeanVarianceAllocator(BaseAllocator):
             Sigma_inv = np.linalg.inv(Sigma)
             raw_weights = Sigma_inv @ mu
         except np.linalg.LinAlgError:
+            self._record_failure("pinv_fallback")
             # 如果奇异，使用伪逆
             raw_weights = np.linalg.pinv(Sigma) @ mu
 
