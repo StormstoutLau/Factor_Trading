@@ -906,7 +906,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E3 测试规格推演（V1-V7 逐项）**: 全部 ✅——V1 模块级 patch 可达 + 替身签名匹配；V2 = P-027 T2 同范式（`industry_rotation_v2` 仓库不可导入，fake 注入必要）；V5 S6 需预置 `_next_day_orders`（L385-386 守卫）；V6 `np.linalg.inv` 单参匹配 + 真实 `StrategyEvaluator` 正常路径不触 `LinAlgError`；V7 `_generate_results` 可用（P-027 T4 同路径已绿）。
 - **A1-A7**: 7/7 实证成立。
 - **分级**: 0 P1 / 0 P2 / **5 P3（当轮修正）**——F-S6-P029-1 V1 损坏 pkl 未限定 per-case（三例互串破坏 `{key: 1}` 精确断言 → §5 V1 回写：price 例不写 pkl / industry 例仅 industry.pkl / mktcap 例仅 mktcap.pkl）/ F-S6-P029-2 §4.4 `import pickle` 未使用（删除）/ F-S6-P029-3 `MultiStrategyEngine` L487→L502（行号漂移更正）/ F-S6-P029-4 DESIGN §6 契约 V1-V5 与测试 V1-V7 ID 空间重叠（DESIGN §6 补注记，Step 7 以测试 V1-V7 为准）/ F-S6-P029-5 B4 回填目标 §10→§11（§10 由本 Review 占用，P-027 先例）；0 新观察。
-- **提交与 CI**: 见收口回填。
+- **提交与 CI**: 提交 `9614ba4`（3 文件 +79/−8，docs-only）→ CI run `43819626058` **success**（3.10 / 3.11 / 3.12 三 job 全绿，EXIT=0）。
 
 ---
 
