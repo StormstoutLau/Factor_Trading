@@ -926,7 +926,7 @@ def demo_auto_optimizer():
     data = pd.DataFrame(
         {
             "returns": np.random.randn(500) * 0.02,
-            "prices": 100 * (1 + np.random.randn(500).cumsum() * 0.01),
+            "prices": 100 * (1 + np.cumsum(np.random.randn(500)) * 0.01),
         }
     )
     splits = wf.split(data)

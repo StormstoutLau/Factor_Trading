@@ -45,7 +45,7 @@ def render() -> None:
 
     dates = pd.date_range("2024-01-01", periods=250, freq="B")
     np.random.seed(42)
-    returns = np.random.normal(0.001, 0.015, 250).cumsum()
+    returns = np.cumsum(np.random.normal(0.001, 0.015, 250))
     equity = 1_000_000 * (1 + returns)
     eq_df = pd.DataFrame({"date": dates, "portfolio": equity}).set_index("date")
 

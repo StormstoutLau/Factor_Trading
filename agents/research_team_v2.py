@@ -1026,7 +1026,7 @@ def demo_research_team_v2():
         # 模拟数据
         np.random.seed(42)
         dates = pd.date_range("2024-01-01", periods=100, freq="B")
-        prices = pd.Series(100 * (1 + np.random.randn(100).cumsum() * 0.01), index=dates)
+        prices = pd.Series(100 * (1 + np.cumsum(np.random.randn(100)) * 0.01), index=dates)
         volumes = pd.Series(np.random.randint(1000000, 10000000, 100), index=dates)
         returns = prices.pct_change().fillna(0)
 
