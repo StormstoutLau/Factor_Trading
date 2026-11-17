@@ -2,7 +2,7 @@
 
 > **批次**: P-040 · **T1**（Layer-1：`tests/`；生产面 `filter/limit_rules.py`）
 > **上游**: [IMPL_p040](IMPL_p040_bse_limit_rule_gap.md)（§2 精确规格 / §3 红态 / §6 Step 6 复审 pass：1 P2 + 1 P3）；[DESIGN_p040](DESIGN_p040_bse_limit_rule_gap.md)（D1-D4 / I1-I6 / §7 Step 4 复审 pass：1 P2 + 2 P3）；[RESEARCH_p040](RESEARCH_p040_bse_limit_rule_gap.md)（§7 M-A / §8 / §14）
-> **状态**: **Step 9 完成（25/25），待提交回填 D3**
+> **状态**: **Step 9 完成（25/25），CI 四 job 全绿**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`
 > **基线读数（@`fb32ac0`）**: pytest **765 passed** / golden **13 passed, 752 deselected** / black `core tests` **122**（全仓 **189**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **85** / `uv lock --check` exit **0**
 > **目标读数**: pytest **771** / golden 13 零重录 / black **123**（全仓 **190**）/ mypy 12 面 **0** / AST **22** / `tests/*.py` **86**
@@ -49,7 +49,7 @@
 |----|--------|---------|------|
 | D1 | black `core tests` **123** / 全仓 **190** | `black --check` 两口径 | ✅ `123` / `190` unchanged |
 | D2 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零改动 | 命令 + `git diff` | ✅ exit 0；两文件 diff 空 |
-| D3 | 门禁双载体零改动；单提交原子（`filter/limit_rules.py` + 新测试） | `git diff --numstat` + `git show --stat` | ✅ 双载体 diff 空；单提交（hash/CI 待回填） |
+| D3 | 门禁双载体零改动；单提交原子（`filter/limit_rules.py` + 新测试） | `git diff --numstat` + `git show --stat` | ✅ 双载体 diff 空；提交 `5adab76`（7 文件 +573/−6）；CI run `44081519166` 四 job 全绿（lock-check 9s / 3.10 2m1s / 3.11 2m6s / 3.12 2m1s） |
 | D4 | **真实数据**：`setup()` 不再抛 `LimitRuleError`，推进到 U-P038-1 `FileNotFoundError`（`UTR_turnover_new.pkl`） | `BacktestEngineV2(cfg).setup()` 探针 | ✅ `[A] PASS: advanced to FileNotFoundError`；边界两读 `(1.00,−0.50)` / `(0.30,−0.30)` |
 | D5 | 文档回填：IMPL §7 / PROGRESS §3.45 / CHANGELOG / CHECKLIST 实测列 / U-P039-4 → done | 读回 | ✅ IMPL §4/§7 + PROGRESS + CHANGELOG + 25/25；U-P039-4 → done |
 | D6 | 未决登记：U-P040-1（异构终审）/ O-P040-1~5 | 读回 §1.4 | ✅ 六项建行 |
@@ -61,7 +61,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **25**（A 6 + B 7 + C 6 + D 6 = 25，机械计数；其中 B7 为红态留证项） |
-| 实测列回填 | **25/25**（A 6 / B 7 / C 6 / D 6 全 `✅ + 证据`；D3 的 hash/CI 待提交回填） |
+| 实测列回填 | **25/25**（A 6 / B 7 / C 6 / D 6 全 `✅ + 证据`；D3 hash/CI 已回填） |
 
 > **RULE-2 统计溯源**：25 = 6 + 7 + 6 + 6（逐表行数，非估计）。
 > **RULE-5 声明**：Step 2/4/6/8 复审均自报 DeepSeek-V4.1-Flash（同源）→ 异构四轮未成立；U-P040-1 跟踪。

@@ -1702,6 +1702,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **门禁九项**: pytest **771 passed** / golden **13 passed, 758 deselected**（目录空）/ black **123·190** / mypy 12 面 **103 files 0** / AST **22** / `tests/*.py` **86** / `uv lock --check` exit 0 / 双载体与 `pyproject`·`uv.lock` diff 空 / 代码 1 文件。
 - **真实数据 D4**: `resolve_limit("bse", False, 2020-07-26)` = `(1.00, −0.50)`、`2020-07-27` = `(0.30, −0.30)`；`engine.setup()` **推进到** `FileNotFoundError: 因子文件不存在: ...UTR_turnover_new.pkl`（U-P038-1），**不再抛 `LimitRuleError`**。
 - **实施期发现**: F-S9-P040-1（P3，红态汇总行初写 4F/2P，漏计 V3 版本断言 → 实测 **5F/1P**，已订正）/ F-S9-P040-2（P3，V6 首行 ref NaN 未单列断言，属既有契约）。
+- **提交与 CI**: 提交 `5adab76`（7 文件 **+573/−6**）；CI run **`44081519166`** 四 job 全绿（lock-check 9s / test 3.10 2m1s / 3.11 2m6s / 3.12 2m1s）。
 - **结论**: **Step 9 pass**——主缺陷 U-P039-4 修复完成；CHECKLIST **25/25**；批次仍 in-progress（Step 10 审计 + U-P040-1 异构终审待办）。
 
 ---
