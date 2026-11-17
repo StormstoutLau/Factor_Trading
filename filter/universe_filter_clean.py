@@ -105,7 +105,7 @@ class UniverseFilter:
         self._failure_counts: dict[str, int] = {}
 
         # 预计算信息
-        self._prefix_info = {}
+        self._prefix_info: dict[str, bool] = {}
         self._next_day_mode = self._resolve_next_day_mode(emit_warning=False)
 
         # 过滤掩码
@@ -518,6 +518,7 @@ class UniverseFilter:
         }
 
         mask = mask_map.get(filter_type, self._tradable_mask)
+        assert mask is not None
 
         if date not in mask.index:
             logger.warning(f"日期 {date} 不在掩码索引中")
@@ -542,14 +543,19 @@ class UniverseFilter:
         if self._tradable_mask is None:
             self.build_masks()
 
-        if date not in self._tradable_mask.index:
+        tradable = self._tradable_mask
+        buyable = self._buyable_mask
+        sellable = self._sellable_mask
+        assert tradable is not None and buyable is not None and sellable is not None
+
+        if date not in tradable.index:
             return {}
 
         stats = {
             "total_stocks": len(self.dm.stock_codes),
-            "buyable": self._buyable_mask.loc[date].sum(),
-            "sellable": self._sellable_mask.loc[date].sum(),
-            "tradable": self._tradable_mask.loc[date].sum(),
+            "buyable": buyable.loc[date].sum(),
+            "sellable": sellable.loc[date].sum(),
+            "tradable": tradable.loc[date].sum(),
         }
 
         stats["buyable_ratio"] = stats["buyable"] / stats["total_stocks"]
@@ -563,14 +569,19 @@ class UniverseFilter:
         if self._tradable_mask is None:
             self.build_masks()
 
+        tradable = self._tradable_mask
+        buyable = self._buyable_mask
+        sellable = self._sellable_mask
+        assert tradable is not None and buyable is not None and sellable is not None
+
         summary = {
-            "buyable_coverage": self._buyable_mask.mean().mean(),
-            "sellable_coverage": self._sellable_mask.mean().mean(),
-            "tradable_coverage": self._tradable_mask.mean().mean(),
+            "buyable_coverage": buyable.mean().mean(),
+            "sellable_coverage": sellable.mean().mean(),
+            "tradable_coverage": tradable.mean().mean(),
             "memory_usage_mb": {
-                "buyable": self._buyable_mask.memory_usage(deep=True).sum() / 1024 / 1024,
-                "sellable": self._sellable_mask.memory_usage(deep=True).sum() / 1024 / 1024,
-                "tradable": self._tradable_mask.memory_usage(deep=True).sum() / 1024 / 1024,
+                "buyable": buyable.memory_usage(deep=True).sum() / 1024 / 1024,
+                "sellable": sellable.memory_usage(deep=True).sum() / 1024 / 1024,
+                "tradable": tradable.memory_usage(deep=True).sum() / 1024 / 1024,
             },
         }
 

@@ -112,12 +112,3 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
-
-# `filter/` 不在类型检查门禁的声明范围内（门禁 target = core）。
-# core 会 import filter，mypy（2.4.x）会 follow 并把 filter 的错误计入 —— 故按模块声明
-# 「解析类型、但不报告错误」，使门禁结果只反映 core（U-P024-3 / U-P024-4）。
-# P-036 更正：这 21 条是 filter 自身的类型错误（`mypy filter` 在 pandas 2.2.3 下同样复现），
-# 不是 P-024 记录的「pandas 3.1.1 类型桩」；B3 修完后应移除本 override。
-[[tool.mypy.overrides]]
-module = ["filter.*"]
-ignore_errors = true

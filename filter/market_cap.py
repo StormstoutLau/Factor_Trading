@@ -355,7 +355,7 @@ def filter_cap_range(
 
 
 # 工厂函数
-def create_market_cap_filter(filter_type: str = "range", **kwargs) -> MarketCapFilter:
+def create_market_cap_filter(filter_type: str = "range", **kwargs) -> BaseFilter:
     """
     创建市值过滤器的工厂函数
 
@@ -366,7 +366,7 @@ def create_market_cap_filter(filter_type: str = "range", **kwargs) -> MarketCapF
     Returns:
         市值过滤器实例
     """
-    filters = {
+    filters: dict[str, type[BaseFilter]] = {
         "range": MarketCapFilter,
         "large": LargeCapFilter,
         "small": SmallCapFilter,

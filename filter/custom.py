@@ -189,7 +189,7 @@ class MultiConditionFilter(BaseFilter):
             if cond_type == "filter":
                 mask = cond_value.build_mask(data)
             elif cond_type == "expression":
-                filter_obj = ExpressionFilter(cond_value, params)
+                filter_obj: BaseFilter = ExpressionFilter(cond_value, params)
                 mask = filter_obj.build_mask(data)
             elif cond_type == "function":
                 filter_obj = CustomFunctionFilter(cond_value, params)
@@ -424,7 +424,7 @@ def create_custom_filter(filter_type: str = "function", **kwargs) -> BaseFilter:
     Returns:
         自定义过滤器实例
     """
-    filters = {
+    filters: dict[str, type[BaseFilter]] = {
         "function": CustomFunctionFilter,
         "expression": ExpressionFilter,
         "multi": MultiConditionFilter,

@@ -5,7 +5,7 @@ NA因子过滤器模块
 全部向量化实现，避免循环
 """
 
-from typing import Optional, Union, Literal
+from typing import Optional, Union
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -30,7 +30,7 @@ class NAFactorFilter(BaseFilter):
 
     def __init__(
         self,
-        strategy: Literal["drop", "fill", "forward_fill", "backward_fill", "interpolate"] = "drop",
+        strategy: str = "drop",
         fill_value: Optional[float] = 0.0,
         threshold: float = 0.0,  # NA比例阈值，超过则删除
         min_valid_days: int = 1,  # 最少有效天数
@@ -329,7 +329,7 @@ def drop_na_vectorized(
 
 
 # 工厂函数
-def create_na_filter(strategy: str = "drop", **kwargs) -> NAFactorFilter:
+def create_na_filter(strategy: str = "drop", **kwargs) -> BaseFilter:
     """
     创建NA过滤器的工厂函数
 
@@ -340,7 +340,7 @@ def create_na_filter(strategy: str = "drop", **kwargs) -> NAFactorFilter:
     Returns:
         NA过滤器实例
     """
-    strategies = {
+    strategies: dict[str, type[BaseFilter]] = {
         "drop": NAFactorDropFilter,
         "fill": NAFactorFillFilter,
         "forward_fill": NAFactorForwardFillFilter,

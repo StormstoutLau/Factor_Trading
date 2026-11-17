@@ -316,7 +316,7 @@ def create_extended_filter(filter_type: str, **kwargs) -> BaseFilter:
     Returns:
         过滤器实例
     """
-    filters = {
+    filters: dict[str, type[BaseFilter]] = {
         "date_range": DateRangeFilter,
         "stock_pool": StockPoolFilter,
         "turnover": TurnoverFilter,

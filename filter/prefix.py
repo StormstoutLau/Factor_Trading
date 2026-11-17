@@ -340,7 +340,7 @@ def filter_a_share(data: pd.DataFrame) -> pd.DataFrame:
 
 
 # 工厂函数
-def create_prefix_filter(filter_type: str = "board", **kwargs) -> PrefixFilter:
+def create_prefix_filter(filter_type: str = "board", **kwargs) -> BaseFilter:
     """
     创建前缀过滤器的工厂函数
 

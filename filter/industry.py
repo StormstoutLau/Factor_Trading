@@ -368,7 +368,7 @@ def filter_sector(data: pd.DataFrame, industry_data: pd.DataFrame, sector: str) 
 
 
 # 工厂函数
-def create_industry_filter(filter_type: str = "include", **kwargs) -> IndustryFilter:
+def create_industry_filter(filter_type: str = "include", **kwargs) -> BaseFilter:
     """
     创建行业过滤器的工厂函数
 
@@ -379,7 +379,7 @@ def create_industry_filter(filter_type: str = "include", **kwargs) -> IndustryFi
     Returns:
         行业过滤器实例
     """
-    filters = {
+    filters: dict[str, type[BaseFilter]] = {
         "include": IndustryFilter,
         "exclude": IndustryExclusionFilter,
         "sector": SectorFilter,
