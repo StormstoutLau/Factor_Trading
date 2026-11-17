@@ -1491,7 +1491,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **RULE-1 零预填**: 65 单元格全 `[待 Step 9]`；`[待 Step 9]` 全文机械匹配 **68** = 65 单元格 + 头部规则行 1 + §7 回填行 1 + 账目行 1（已核验）。
 - **ID 防混用**: DESIGN 决策 `D1-D7` vs CHECKLIST **D 组**（行为变更）——引用一律 `DESIGN-D*`。
 - **代码面零变更**（本 Step 仅新增 CHECKLIST + 台账）。
-- **提交与 CI**: `<待提交>` / CI run `<待回收>`。
+- **提交与 CI**: 提交 `97840dd`（2 文件 **+174/−1**：CHECKLIST_p036 +161/−0 / PROGRESS +13/−1）→ CI run [`44024144262`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44024144262) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
