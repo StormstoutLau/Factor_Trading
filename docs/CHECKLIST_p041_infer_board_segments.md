@@ -2,7 +2,7 @@
 
 > **批次**: P-041 · **T1**（Layer-1：`tests/`；生产面 `filter/limit_rules.py`）
 > **上游**: [IMPL_p041](IMPL_p041_infer_board_segments.md)（§2 精确规格 / §3 红态 / §6 Step 6 复审 pass：1 P2 + 2 P3）；[DESIGN_p041](DESIGN_p041_infer_board_segments.md)（D1-D4 / I1-I7 / §7 Step 4 复审 pass：1 P2 + 2 P3）；[RESEARCH_p041](RESEARCH_p041_infer_board_segments.md)（§7 M-A / §8 S1-S7 / §14）
-> **状态**: **Step 9 完成（30/30），待提交回填 D3**
+> **状态**: **Step 10 审计完成（P1=0 / P2=0），CI 全绿，待 U-P041-1 异构终审**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`
 > **基线读数（@`24688ab`）**: pytest **771 passed** / golden **13 passed, 758 deselected** / black `core tests` **123**（全仓 **190**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **86** / `uv lock --check` exit **0**
 > **目标读数**: pytest **778** / golden 13 零重录 / black **124**（全仓 **191**）/ mypy 12 面 **0** / AST **22** / `tests/*.py` **87**
@@ -52,7 +52,7 @@
 |----|--------|---------|------|
 | D1 | black `core tests` **124** / 全仓 **191** | `black --check` 两口径 | ✅ `124` / `191` unchanged |
 | D2 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零改动 | 命令 + `git diff` | ✅ exit 0；两文件 diff 空 |
-| D3 | 门禁双载体零改动；单提交原子（生产代码 + 2 测试文件 + 文档） | `git diff --numstat` + `git show --stat` | ✅ 双载体 diff 空；单提交（hash/CI 待回填） |
+| D3 | 门禁双载体零改动；单提交原子（生产代码 + 2 测试文件 + 文档） | `git diff --numstat` + `git show --stat` | ✅ 双载体 diff 空；提交 `0196e24`（9 文件 +934/−7）；CI run `44091229154` 四 job 全绿（lock-check 6s / 3.10 2m5s / 3.11 1m41s / 3.12 1m22s） |
 | D4 | **真实数据**：`infer_board("920000")=="bse"`、`("302132")=="gem"`；**全 5,688 列遍历后** `unknown_board_count()==0`；`len(RULES)==13` | E2 探针 | ✅ 2/2 映射正确；920=293 / 302=1 / 总列 5,688；`len(RULES)=13`；`unknown=0` |
 | D5 | **真实数据**：掩码翻转 **2,755**（920：2,752；302132：3）；@bse `319/164`、@gem `7/1`（口径：`EPS=0.005`、`open`、`is_st=False`，`st.pkl` 缺失） | E2 探针 | ✅ `2072/1163 → 319/164` 与 `10/1 → 7/1`；翻转 **2,755** |
 | D6 | **真实数据**：`engine.setup()` 仍推进到 U-P038-1 `FileNotFoundError`（`UTR_turnover_new.pkl`），不抛 `LimitRuleError` | `BacktestEngineV2(cfg).setup()` 探针 | ✅ `[D6] PASS`；`trade_dates=1460` |
@@ -66,7 +66,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **30**（A 6 + B 9 + C 7 + D 8 = 30，机械计数；B8/B9 为取证项非新用例） |
-| 实测列回填 | **30/30**（A 6 / B 9 / C 7 / D 8 全 `✅ + 证据`；D3 的 hash/CI 待提交回填） |
+| 实测列回填 | **30/30**（A 6 / B 9 / C 7 / D 8 全 `✅ + 证据`；D3 hash/CI 已回填） |
 
 > **RULE-2 统计溯源**：30 = 6 + 9 + 7 + 8（逐表行数，非估计）。
 > **RULE-5 声明**：Step 2/4/6/8 复审均自报 DeepSeek-V4.1-Flash（同源）→ 异构未成立；U-P041-1 跟踪。
@@ -117,3 +117,46 @@
 
 **Step 8 Review pass（0 P1/P2 + 2 P3 当轮处置）**——30 项可执行、四文档口径闭环；**准予进入 Step 9 TDD 实施**。
 **RULE-5**：第 4 轮同基座 → U-P041-1 pending。
+
+---
+
+## 8. Step 10 ADD 审计记录（2026-11-17）
+
+> **审计基线**: 代码提交 `0196e24`（E3 行号绑此 hash）；审计者自报 DeepSeek-V4.1-Flash（同源）→ RULE-5 不成立；U-P041-1 第 5 轮。
+
+### 8.1 四阶段结论
+
+| 阶段 | 审什么 | 判定 | 关键证据 |
+|------|--------|------|---------|
+| **Phase 0** | Spec 质量门 | ✅ pass | 四文档模糊词扫描（`合理处理/适当时机/尽量/视情况/酌情`）**0 命中**；D1 前缀元组、D2 版本、D4 七用例均可机械核验 |
+| **Phase 1** | 完整性（design → code） | ✅ pass | D1-D4 全落地：两元组 + docstring + 版本行 + 7 用例 + 2 文件订正（E1 `git show` + E3 读码） |
+| **Phase 2** | 忠实度（双向） | ✅ pass | 生产面 diff 与 IMPL §2.1-2.3 **逐字一致**；测试文件 96 行与 IMPL §2.5 **逐字一致**（含 F-S9-P041-1 black 单行）；P-040 两行与 IMPL §2.4 一致 |
+| **Phase 3** | 必要性（code → design） | ✅ pass | 提交 9 文件中生产面仅 `filter/limit_rules.py` **+4/−4**；无越界；`^[+-]\s*def `=0；无新增 `except`/`raise`/`type: ignore` |
+| **Phase 4** | 语义（意图层） | ✅ pass（附 1 项范围外观察） | 5,222,448 次解析 **0 缺口**；边界 `bse 2018-01-15 (1.0,−0.5)` / `gem 2020-08-24 (0.2,−0.2)`；真实数据 302132 `08-21 15.466/12.654`（10%）→ `08-24 17.112/11.408`（20%）、920493 `2021-11-15 54.639/29.421`（30%）；unknown 294→0 |
+
+### 8.2 发现与处置（0 P1 + 0 P2 + 2 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S10-P041-1 | P3 | **E4 盲区扫描**：辅助数据含 2 个非标准标签——`list_date_df.pkl` 索引 `TS0018`、`stock_name.pkl` 列 `T00018`（疑似导出工件；**不在** `close`/`adj`/`return` 三价格矩阵中）。运行期 `DataManager.stock_codes` 取自 `close` → 当前零影响；若未来以 `list_date` 全索引构建股票池，二者各计 1 个 unknown 并回落 main | 登记 **O-P041-5**（观察，不立项） |
+| F-S10-P041-2 | P3 | D4「全 5,688 列 unknown=0」的判据范围需写明：`adj` 5,691 列亦 **0**，`list_date` 5,797 → **1**（`TS0018`）、`stock_name` 6,053 → **1**（`T00018`）——即「unknown=0」仅对**价格矩阵**成立 | 本行显式并列四源读数；D4 判据限定为 engine 实际 `close.columns` |
+
+### 8.3 取证矩阵（RULE-6）
+
+| 取证手段（等级） | 覆盖项 | 结果 |
+|---|---|---|
+| `pytest tests/test_p041... tests/test_p040... -q`（E1） | B1-B9 | ✅ `13 passed in 0.58s` |
+| `git show --stat 0196e24` + 生产面 diff（E1） | A1-A6 / C4 / C6 / D3 / Phase 2-3 | ✅ 9 文件；生产面 `+4/−4` 逐字；`def` 变更 0 |
+| 旧版本字面量扫描（E1，`tests/*.py` + `filter/core *.py`） | A4 / B9 | ✅ `"cn_a_2026_11"` 精确命中 **0**（文档历史记载除外） |
+| 规格模糊词扫描（E1，四文档） | Phase 0 | ✅ 0 命中 |
+| black 双口径 / AST / 测试文件数（E1） | C3 / C5 / D1 | ✅ `124`·`191` / AST **22** / `tests/*.py` **87** |
+| CI run `44091229154`（E1） | 全量 pytest 三版本 + lock-check | ✅ 四 job success（lock-check 6s / 3.10 2m5s / 3.11 1m41s / 3.12 1m22s） |
+| 全量解析覆盖（E2，对抗性：非 main 全代码 × 有效日 × 两态） | S4/S5 | ✅ 5,222,448 次、**0** 缺口 |
+| 边界 + 真实限价抽样（E2，含负例） | S1-S5 | ✅ `2018-01-14`/`2009-10-29` RAISE；10%→20%→30% 分段抽样吻合 |
+| 全数据源前缀扫描（E2/E4，扫描范围：`close`/`adj`/`return`/`list_date`/`stock_name` 五源） | 全部 | **发现 2 个非标准标签**（`TS0018`/`T00018`）→ O-P041-5 |
+| 静态读码（E3 @`0196e24`） | A2/A3 / D3 | ✅ L19 `cn_a_2026_11b`、L85/L89 两元组 |
+| E5 推测 | — | 无（未覆盖项：无） |
+
+### 8.4 结论
+
+**Step 10 ADD 审计 pass**——Phase 0-4 全过；**P1 = 0 / P2 = 0**；P3 = 2（1 项登记 O-P041-5、1 项口径并列）。U-P040-2 修复的设计落地经 E1/E2/E3 三重取证确认；**批次仍 in-progress，待 U-P041-1 异构终审**。
