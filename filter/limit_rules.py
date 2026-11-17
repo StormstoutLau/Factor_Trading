@@ -2,7 +2,7 @@
 
 - 规则不可变（``LimitRule`` frozen），``(board, is_st, date)`` 必须**恰好 1 条**命中；
   0 条或多条一律抛 ``LimitRuleError``，禁止回落默认值（DESIGN I3）。
-- 板块由代码前缀推断：300/301→gem；688/689→star；8/4 开头→bse；其余→main。
+- 板块由代码前缀推断：300/301/302→gem；688/689→star；8/4/920 开头→bse；其余→main。
 - ST 状态由调用方按**当日**传入（不做 shift）。
 - 本模块只依赖 pandas/numpy，不 import ``core``（避免循环依赖）。
 """
@@ -16,7 +16,7 @@ from typing import Optional, Sequence
 import numpy as np
 import pandas as pd
 
-RULESET_VERSION = "cn_a_2026_11"
+RULESET_VERSION = "cn_a_2026_11b"
 
 # 可识别的主板前缀；其余无法识别的代码归 main 并计数（DESIGN §7）
 _MAIN_PREFIXES = ("000", "001", "002", "003", "600", "601", "603", "605")
@@ -82,11 +82,11 @@ def infer_board(code: str) -> str:
     """按代码前缀推断板块；无法识别的前缀归 ``main`` 并计数（DESIGN §7）。"""
     global _unknown_warned
     prefix = str(code).split(".")[0]
-    if prefix.startswith(("300", "301")):
+    if prefix.startswith(("300", "301", "302")):
         return "gem"
     if prefix.startswith(("688", "689")):
         return "star"
-    if prefix.startswith(("8", "4")):
+    if prefix.startswith(("8", "4", "920")):
         return "bse"
     if prefix.startswith(_MAIN_PREFIXES):
         return "main"

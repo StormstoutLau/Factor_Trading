@@ -37,8 +37,8 @@ def test_v2_selection_layer_boundary():
 
 
 def test_v3_bse_unchanged_and_version():
-    """V3：北交所期维持 30%；C2 版本口径为 cn_a_2026_11。"""
-    assert RULESET_VERSION == "cn_a_2026_11"
+    """V3：北交所期维持 30%；C2 版本口径为 cn_a_2026_11b。"""
+    assert RULESET_VERSION == "cn_a_2026_11b"
     for d in (BSE_START, pd.Timestamp("2023-06-01")):
         for is_st in (False, True):
             rule = resolve_limit("bse", is_st, d)
