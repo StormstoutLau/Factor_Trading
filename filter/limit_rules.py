@@ -16,7 +16,7 @@ from typing import Optional, Sequence
 import numpy as np
 import pandas as pd
 
-RULESET_VERSION = "cn_a_2026_07"
+RULESET_VERSION = "cn_a_2026_11"
 
 # 可识别的主板前缀；其余无法识别的代码归 main 并计数（DESIGN §7）
 _MAIN_PREFIXES = ("000", "001", "002", "003", "600", "601", "603", "605")
@@ -64,9 +64,12 @@ RULES: tuple[LimitRule, ...] = (
     # 科创板：20%（含 ST）
     LimitRule("star", False, pd.Timestamp("2019-07-22"), None, 0.20, -0.20),
     LimitRule("star", True, pd.Timestamp("2019-07-22"), None, 0.20, -0.20),
-    # 北交所：30%（U-D3：ST 闭合行同 30%）
-    LimitRule("bse", False, pd.Timestamp("2021-11-15"), None, 0.30, -0.30),
-    LimitRule("bse", True, pd.Timestamp("2021-11-15"), None, 0.30, -0.30),
+    # 北交所（含前身）：新三板创新层/基础层集合竞价（涨幅 100% / 跌幅 50%，2018-01-15 起）
+    # → 精选层 ±30%（2020-07-27 开市）→ 北交所 ±30%（2021-11-15 开市，同一 30% 段延续）
+    LimitRule("bse", False, pd.Timestamp("2018-01-15"), pd.Timestamp("2020-07-27"), 1.00, -0.50),
+    LimitRule("bse", False, pd.Timestamp("2020-07-27"), None, 0.30, -0.30),
+    LimitRule("bse", True, pd.Timestamp("2018-01-15"), pd.Timestamp("2020-07-27"), 1.00, -0.50),
+    LimitRule("bse", True, pd.Timestamp("2020-07-27"), None, 0.30, -0.30),
 )
 
 _RULE_INDEX: dict[tuple[str, bool], tuple[LimitRule, ...]] = {}
