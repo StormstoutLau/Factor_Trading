@@ -65,11 +65,11 @@ def generate_synthetic_data(
     low_arr = np.minimum(open_arr, close_arr) * rng.uniform(0.98, 1.0, (n_days, n_stocks))
 
     # --- 复权因子（模拟几次除权除息事件） ---
-    adj = np.ones((n_days, n_stocks))
+    adj: np.ndarray = np.ones((n_days, n_stocks))
     for s in range(n_stocks):
         # 随机除权除息日期
         n_events = rng.integers(0, 3)
-        event_days = (
+        event_days: np.ndarray | list[int] = (
             rng.choice(range(50, n_days), size=n_events, replace=False) if n_events > 0 else []
         )
         for d in sorted(event_days):

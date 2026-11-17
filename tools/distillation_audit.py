@@ -170,7 +170,7 @@ class DistillationAuditor:
 
     def audit_all_gurus(self, gurus_dir: Path = Path("gurus")) -> list[dict]:
         """审计所有Guru配置"""
-        results = []
+        results: list[dict] = []
 
         if not gurus_dir.exists():
             logger.warning(f"Guru目录不存在: {gurus_dir}")

@@ -99,7 +99,7 @@ def run_benchmark_suite():
     print("=" * 60)
 
     # 测试配置
-    test_configs = [
+    test_configs: list[dict[str, Any]] = [
         {"name": "小规模", "n_dates": 252, "n_stocks": 100},
         {"name": "中规模", "n_dates": 756, "n_stocks": 500},
         {"name": "大规模", "n_dates": 1250, "n_stocks": 1000},

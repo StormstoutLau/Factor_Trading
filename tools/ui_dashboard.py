@@ -161,7 +161,7 @@ class ExecutionTracer:
 
     def trace(
         self, module: str, function: str, line_no: int, inputs: dict[str, Any] | None = None
-    ) -> ExecutionStep:
+    ) -> ExecutionStep | None:
         """记录执行步骤"""
         if not self.is_recording:
             return None
@@ -186,7 +186,9 @@ class ExecutionTracer:
 
         return step
 
-    def complete_step(self, step: ExecutionStep, outputs: dict[str, Any], duration_ms: float = 0.0):
+    def complete_step(
+        self, step: ExecutionStep | None, outputs: dict[str, Any], duration_ms: float = 0.0
+    ):
         """完成步骤记录"""
         if step is None:
             return
@@ -195,7 +197,7 @@ class ExecutionTracer:
         step.status = "success"
         step.duration_ms = duration_ms
 
-    def record_error(self, step: ExecutionStep, error: Exception):
+    def record_error(self, step: ExecutionStep | None, error: Exception):
         """记录错误"""
         if step is None:
             return

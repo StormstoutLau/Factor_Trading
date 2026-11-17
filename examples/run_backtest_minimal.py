@@ -68,7 +68,9 @@ config_long.output_dir = Path("E:/Ashare_data/output/full_backtest_2026_long")
 
 engine_long = create_default_engine(config_long)
 engine_long.setup()
-print(f"交易日: {len(engine_long.dm.trade_dates)}天")
+dm = engine_long.dm
+assert dm is not None
+print(f"交易日: {len(dm.trade_dates)}天")
 result_long = engine_long.run()
 pv_long = result_long.get("portfolio_value", pd.Series())
 

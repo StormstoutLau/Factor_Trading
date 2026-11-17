@@ -73,9 +73,11 @@ def run_strategy(name, select_top, target_count):
         engine = create_default_engine(config)
         engine.setup()
 
-        print(f"交易日数: {len(engine.dm.trade_dates)}")
+        dm = engine.dm
+        assert dm is not None
+        print(f"交易日数: {len(dm.trade_dates)}")
         print(
-            f"日期范围: {engine.dm.trade_dates[0].strftime('%Y-%m-%d')} ~ {engine.dm.trade_dates[-1].strftime('%Y-%m-%d')}"
+            f"日期范围: {dm.trade_dates[0].strftime('%Y-%m-%d')} ~ {dm.trade_dates[-1].strftime('%Y-%m-%d')}"
         )
 
         # 检查因子

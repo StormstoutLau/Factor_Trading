@@ -43,7 +43,7 @@ jobs:
         run: python -m pytest tests/ --tb=short -q
 
       - name: Type check (mypy)
-        run: python -m mypy --explicit-package-bases --check-untyped-defs core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library
+        run: python -m mypy --explicit-package-bases --check-untyped-defs core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library tools examples
 
   lock-check:
     runs-on: ubuntu-latest

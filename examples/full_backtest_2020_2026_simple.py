@@ -106,14 +106,14 @@ def run_simplified_backtest(strategy_name, select_top_value, target_count_value)
     engine.dm = dm
 
     # 手动设置关键组件
-    from filter import UniverseFilter
+    from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
     from core.portfolio import build_optimizer
     from core.rebalance import build_trigger
     from core.execution import ExecutionSimulator
     from core.tracker import PositionTracker
     from core.pending import PendingOrderQueue
 
-    engine.universe = UniverseFilter(dm, config.universe)
+    engine.universe = UniverseFilter(dm, UniverseFilterConfig.from_universe_config(config.universe))
     engine.pipeline = None  # 不使用pipeline
     engine.combiner = combiner
     engine._composite_signal = composite_signal
@@ -121,7 +121,7 @@ def run_simplified_backtest(strategy_name, select_top_value, target_count_value)
     engine.optimizer = build_optimizer(config.optimizer)
     engine.trigger = build_trigger(config.rebalance, dm.trade_dates)
     engine.executor = ExecutionSimulator(config.cost)
-    engine.tracker = PositionTracker(config.initial_capital)
+    engine.tracker = PositionTracker(dm.n_stocks, config.initial_capital)
     engine.pending_queue = PendingOrderQueue(
         max_pending_days_buy=config.max_pending_days_buy,
         max_pending_days_sell=config.max_pending_days_sell,

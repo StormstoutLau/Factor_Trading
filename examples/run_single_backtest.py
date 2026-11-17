@@ -59,13 +59,15 @@ engine = create_default_engine(config)
 print("设置引擎...")
 engine.setup()
 
-print(f"交易日数: {len(engine.dm.trade_dates)}")
-print(f"日期范围: {engine.dm.trade_dates[0]} ~ {engine.dm.trade_dates[-1]}")
+dm = engine.dm
+assert dm is not None
+print(f"交易日数: {len(dm.trade_dates)}")
+print(f"日期范围: {dm.trade_dates[0]} ~ {dm.trade_dates[-1]}")
 
 # 检查因子
-nan_ratio = engine._composite_signal.isna().sum().sum() / (
-    engine._composite_signal.shape[0] * engine._composite_signal.shape[1]
-)
+signal = engine._composite_signal
+assert signal is not None
+nan_ratio = signal.isna().sum().sum() / (signal.shape[0] * signal.shape[1])
 print(f"合成信号NaN比例: {nan_ratio*100:.2f}%")
 
 print("\n开始回测...")

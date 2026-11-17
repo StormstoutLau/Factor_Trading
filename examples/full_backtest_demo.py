@@ -580,8 +580,8 @@ class DetailedBacktestEngine:
 
         # 买入目标持仓中需要增加的股票
         for stock, target_qty in target_quantities.items():
-            current_qty = current_positions.get(stock, None)
-            current_qty = current_qty.quantity if current_qty else 0
+            held = current_positions.get(stock, None)
+            current_qty = held.quantity if held else 0
 
             if target_qty > current_qty:
                 buy_qty = target_qty - current_qty

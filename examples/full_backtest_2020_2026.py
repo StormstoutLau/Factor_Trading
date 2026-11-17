@@ -77,11 +77,13 @@ def run_full_backtest_2026(
     engine_full = create_default_engine(config_full)
     engine_full.setup()
 
-    print(f"  交易日数: {len(engine_full.dm.trade_dates)}")
+    dm = engine_full.dm
+    assert dm is not None
+    print(f"  交易日数: {len(dm.trade_dates)}")
     print(f"  初始资金: {config_full.initial_capital:,.0f}元")
     print(f"  选股数量: {target_count_value}只")
     print(
-        f"  日期范围: {engine_full.dm.trade_dates[0].strftime('%Y-%m-%d')} ~ {engine_full.dm.trade_dates[-1].strftime('%Y-%m-%d')}"
+        f"  日期范围: {dm.trade_dates[0].strftime('%Y-%m-%d')} ~ {dm.trade_dates[-1].strftime('%Y-%m-%d')}"
     )
 
     # 运行回测
