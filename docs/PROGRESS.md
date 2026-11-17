@@ -1500,7 +1500,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **对齐矩阵六项**: ① **131 = 14+96+21** 三处一致（DESIGN §2/§9 / IMPL §2/§11 / CHECKLIST 头部+A10+B13+C11）✓；② **B2 分文件计数** 26/17/9/9/8/8/6/5/5/2/1 在 IMPL §4.3.1-11 / CHECKLIST B2-B12 逐项一致（求和 96）✓；③ **B3 方法归属** filter_stocks 2 / get_universe_stats 4 / get_mask_summary 6（+L108 = 13；13+1+2+4+1 = 21）在 IMPL §4.4.1 / CHECKLIST C2-C5 逐字一致 ✓；④ **注解差异清单**发现 1 处口径精度问题（见下）⚠️ 当轮精化；⑤ **C1-C4** 在 IMPL §1 表 / CHECKLIST D1-D4 逐项对应 ✓；⑥ **门禁链** 760/84/121/8→9→10 面 0/13/22/uv 0 三文档逐字一致 ✓。
 - **发现分级**: **F-S8-P036-1（P3）** 「8 处 def 行」口径不精确——`NAFactorFilter.__init__` 参数注解位于**续行 L33**（非 def 行 L31），其修改不触 def 行，机械判据 `^-\s*def ` 实际 = **7**（仅返回注解）；原表述会使 Step 9 核对出现 7 ≠ 8 假性失败 → **当轮精化三处**（IMPL §1 前提 4 / CHECKLIST D7 证据出口 / CHECKLIST E2 改为「7 处 def 行 + 1 处参数注解行」）；2 观察（链接伪命中人工判定 / CHECKLIST 头部基线时点精度注记——`1261865`/`b277313`/`65da5f9` 三者代码面相同）。
 - **结论**: **pass（0 P0/P1，1 P3 当轮精化）**；详见 [CHECKLIST_p036 §9](CHECKLIST_p036_mypy_check_surface_expansion.md)。Step 9 按更正后 D7 口径执行。
-- **提交与 CI**: `<待提交>` / CI run `<待回收>`。
+- **提交与 CI**: 提交 `6349a5c`（3 文件 **+60/−4**：CHECKLIST_p036 +49/−2——§9 复审记录 + D7/E2 精化 / IMPL_p036 +1/−1——§1 前提 4 精化 / PROGRESS +10/−1）→ CI run [`44025817190`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44025817190) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
