@@ -299,7 +299,18 @@ class DataManager:
 
             # 应用日期过滤
             if self._trade_dates is not None:
-                data = data.loc[self._trade_dates]
+                if price_type == "adj_factor":
+                    # 复权因子在除权日之间恒定（P-039），缺失日按前值填充；
+                    # 未上市/退市期保持 NaN（与 close 同步）。三段式：并集对齐创建
+                    # 缺失行 → ffill 取前值（含窗口外）→ 回裁窗口。两段式在窗口首日
+                    # 缺口时留 NaN（F-S1-P039-1 实测），不可简化。
+                    window = self._trade_dates
+                    n_missing = len(window.difference(data.index))
+                    data = data.reindex(data.index.union(window)).ffill().reindex(window)
+                    if n_missing:
+                        logger.info(f"adj_factor 日期补齐: {n_missing} 日（ffill 前值填充）")
+                else:
+                    data = data.loc[self._trade_dates]
 
             # 确保列顺序一致
             if self._stock_codes is not None:
