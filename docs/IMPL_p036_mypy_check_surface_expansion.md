@@ -25,7 +25,7 @@
 1. **L2 `assert` 仅用于 U-a**：插入点必须能指出现有运行期前提（构造期 `raise` / 前一分支 `if x is None: build()` / 方法前置 `setup()`）；正常路径零变更，失败路径仅异常类型变化（本已崩溃）。
 2. **L1 变更加守卫，不改语义**：`guru_data` 的守卫**已存在**（L186-188），本批只把 `Optional` 属性声明改为经窄化后赋值——**零行为变更**；真正新增的 fail-fast 仅 `batch_backtest/engine.py::run_factors` 一处（§4.2）。
 3. **L3 注解目标为运行期真值类型**：`no-any-return` 一律用**局部变量注解**收窄（`x: float = np.sum(...)`），不用 `cast(Any, ...)`；`np.asarray(...)` 仅用于已是 ndarray 的返回值（`asarray` 对 ndarray 不复制）。
-4. **I2 的机械口径澄清（Step 6 更正，F-S6-P036-2）**：`git diff` 中删除的 `def` 行必须**逐字回归**，唯一允许的差异是**注解修正**——**8 处 def 行**：返回注解 ×7（`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`）+ 参数注解 ×1（`NAFactorFilter.__init__` 的 `strategy: Literal[...]` → `str`）；参数名 / 参数默认值 / 函数名零变更。
+4. **I2 的机械口径澄清（Step 6 更正 F-S6-P036-2；Step 8 精化 F-S8-P036-1）**：`git diff` 中删除的 `def` 行必须**逐字回归**，唯一允许的差异是**注解修正**——**7 处 def 行**（返回注解 ×7：`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`）+ **1 处参数注解行**（`NAFactorFilter.__init__` 的 `strategy: Literal[...]` → `str`，位于**续行 L33**，不触 def 行 L31）；参数名 / 参数默认值 / 函数名零变更。
 5. **公开行为零变更**：除 §1 表「行为变更清单」4 项外，全部修复为零行为变更；**禁止**用 `--follow-imports=silent`、`ignore_errors`、裸 ignore。
 
 **行为变更清单（4 项，须 CHECKLIST 单列验收）**：

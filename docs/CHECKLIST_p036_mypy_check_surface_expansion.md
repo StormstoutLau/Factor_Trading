@@ -87,7 +87,7 @@
 | D4 | **C4** `agent_framework.py:1386/1401`：实参 `int(trade_qty)`（`target_qty` L1368 已 int；`current_qty` 经 `get_position` 为 float）；数量本为 100 倍数，截断无实际影响 | 读码 L1368-1401；探针：构造 float 持仓后单笔 `_execute_trade` quantity 为 int | IMPL C4 | [待 Step 9] |
 | D5 | **新增 `raise` 清单仅 C1 一处**：`git diff` 中 `^\+.*raise ` 限 10 面 = **1**（`batch_backtest/engine.py`）；`agents/` / `filter/` = **0** | `git diff` 正则计数（生产面） | DESIGN-D4 / IMPL §1 | [待 Step 9] |
 | D6 | **零默认值降级**：无任何 `or {}` / `or 0` / `or []` 式新增兜底（**C1 采用 fail-fast 而非默认值**，对齐 P-025 F-D3-P025-1 先例） | `git diff` 中 `^\+.*or \{\}` / `^\+.*= 0$` 新增 = 0（逐条人工复核） | DESIGN-D4 改写后原则 | [待 Step 9] |
-| D7 | **I2 注解差异恰 8 处 def 行 + 1 处参数注解**：返回注解 7（`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`）+ 参数注解 1（`NAFactorFilter.__init__`）；参数名 / 默认值 / 函数名**逐字零变更** | `git diff` 中 `^-\s*def ` 逐行比对 = 8 处（每处仅注解差异） | IMPL §1 前提 4 / §8 / F-S6-P036-2 | [待 Step 9] |
+| D7 | **I2 注解差异恰 7 处 def 行 + 1 处参数注解行**（Step 8 精化 F-S8-P036-1）：返回注解 7（`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`，均触 def 行）+ 参数注解 1（`NAFactorFilter.__init__` 续行 L33，**不触 def 行**）；参数名 / 默认值 / 函数名**逐字零变更** | `git diff` 中 `^-\s*def ` 逐行比对 = **7 处**（每处仅返回注解差异）+ L33 参数注解行差异 1 处 | IMPL §1 前提 4 / §8 / F-S6-P036-2 / F-S8-P036-1 | [待 Step 9] |
 | D8 | C2/C3 若探针证明生产路径可达 → 按 P-029/P-031 口径**登记为缺陷修复**（F-I-P036-2 升级）；不可达则降为「潜在缺陷」观察 | IMPL §11 实施期发现表一行 | R-P036-4 / F-I-P036-2 | [待 Step 9] |
 
 ---
@@ -99,7 +99,7 @@
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
 | E1 | **I1** golden **13 零重录**：`pytest -q -k golden` = 13 passed 且 `git status --short tests/golden/` = 空 | 两命令读数 | I1 / V5 | [待 Step 9] |
-| E2 | **I2** 公开签名零变更（口径见 D7）：8 处 `def` 行仅注解差异 | D7 证据 | I2 / F-I-P036-1 | [待 Step 9] |
+| E2 | **I2** 公开签名零变更（口径见 D7）：7 处 `def` 行仅返回注解差异 + 1 处参数注解行 | D7 证据 | I2 / F-I-P036-1 | [待 Step 9] |
 | E3 | **I3** `except Exception`（P-029 口径命令）= **22**；10 面 `git diff` 中 `^\+.*except` = **0** | AST 单行命令 + diff 正则 | I3 | [待 Step 9] |
 | E4 | **I4** pytest **760 不减**（X=0，本批不新增测试）；`tests/` .py **84 不变**（`test_*.py` 81） | 全量末行 + 文件计数 | I4 / IMPL §6 | [待 Step 9] |
 | E5 | **I5** 三批各自**原子提交**（代码 + `tests.yml` [+ pyproject] 同提交），可单独 revert；CI 四 job 全绿 | `git show --stat` ×3 + `gh run view` | I5 / DESIGN §6 | [待 Step 9] |
@@ -159,3 +159,50 @@
 4. **红态纪律**：三批 Step 9 首跑必须出示**修复前**读数（14/96/21）——不得用修复后读数倒填；`web` / `factor_library` 现状即 0 属**回归保护**，不计红态。
 5. **双口径纪律**：复刻 venv 必须钉 `numpy==2.4.6` 并删 `.mypy_cache`，否则 129 假口径复现（F-S4-P036-4 / O-I-P036-1）。
 6. **计数口径**：`tests/` .py = **全部 `.py`**（含 `_golden_cases.py` 等辅助），`test_*.py` = 81（F-S6-P034-1 先例）。
+
+---
+
+## 9. Step 8 一致性 Review 记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座**: **GLM-5.3-Flash ≠ CHECKLIST 作者 DeepSeek-V4.1-Flash** → **RULE-5 异构成立**。
+> **复审对象**: 本文件 Step 7 版（提交 `97840dd`）+ 上游 IMPL（Step 6 更正版 `61876a9`）/ DESIGN（Step 4 版）/ RESEARCH；复审时点 HEAD `0d9876c`。
+> **方法**: 机械五项（脚本 + 机械计数）+ 对齐矩阵六项（对应 §8 交接清单）。
+
+### 9.1 机械五项
+
+| # | 项 | 读数 | 结果 |
+|---|----|------|------|
+| 1 | 链接校验（四文档互链） | 相对链接 **7** 处命中 → **1 处伪命中**（IMPL L214 代码片段 `filters[filter_type](**kwargs)` 被 `\]\(...\)` 正则误判，人工判定非链接）；实际链接 **6 条 0 broken** | ✅（先例：CHECKLIST_p034 §9 代码块伪命中同口径） |
+| 2 | ID 闭环 | 表行 **65**（A1-A12 / B1-B14 / C1-C11 / D1-D8 / E1-E10 / F1-F10，组内连续无跳号） | ✅ |
+| 3 | 计数自洽 | 65 = 12 + 14 + 11 + 8 + 10 + 10（§7 RULE-2 声明与逐表实数一致） | ✅ |
+| 4 | 零预填合规 | `[待 Step 9]` 全文 **68** = 65 单元格 + 头部规则行 1 + §7 回填行 1 + §7 账目行 1（与 §7 账目声明一致）；`✅` / `❌` 预填 **0** | ✅ |
+| 5 | 角色引用 | §7 披露「作者 DeepSeek-V4.1-Flash → Step 8 须异构」——本节由 **GLM-5.3-Flash** 执行，异构成立 | ✅ |
+
+### 9.2 对齐矩阵六项（§8 交接清单逐项）
+
+| # | 对齐项 | 三处/两处读数 | 结果 |
+|---|--------|--------------|------|
+| 1 | **131 = 14 + 96 + 21** | DESIGN §2 注（L59）+ §9 E3 / IMPL §2 计数行（L51）+ §11.2 裁决 5 / CHECKLIST 头部目标 + A10 + B13 + C11 | ✅ 一致 |
+| 2 | **B2 分文件计数** 26/17/9/9/8/8/6/5/5/2/1 | IMPL §4.3.1-§4.3.11 十一小节 / CHECKLIST B2-B12（各验收项「该文件 N → 0」）逐项对得上；11 项求和 = 96 | ✅ 一致 |
+| 3 | **B3 方法归属**（filter_stocks 2 / get_universe_stats 4 / get_mask_summary 6 = 12 mask 条 + L108 var-annotated = 13） | IMPL §4.4.1（F-S6-P036-1 更正后）/ CHECKLIST C2-C5 逐字对应；13 + prefix 1 + na_factor 2 + 工厂 4 + custom:195 1 = **21** | ✅ 一致 |
+| 4 | **注解差异清单** | IMPL §1 前提 4 / §8 表 / CHECKLIST D7——**发现 1 处口径精度问题（F-S8-P036-1）**，见 §9.3 | ⚠️ 已当轮精化 |
+| 5 | **C1-C4 行为变更** | IMPL §1 表（C1 `run_factors` fail-fast / C2 `tracker.cash→_cash` / C3 删 `period` / C4 `int(trade_qty)`）/ CHECKLIST D1-D4 探针出口逐项对应 | ✅ 一致 |
+| 6 | **门禁链**（760 / 84 / 121 / mypy 8→9→10 面 0 / golden 13 / AST 22 / uv exit 0） | DESIGN §3 I1-I7 + §4 红态 / IMPL §1 门禁口径 + §5 / CHECKLIST 头部基线与目标 + E 组——数值逐字一致 | ✅ 一致 |
+
+### 9.3 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S8-P036-1** | **P3** | **「8 处 def 行」口径不精确**：`NAFactorFilter.__init__` 的参数注解位于**续行 L33**（`strategy: Literal[...] = "drop"`），不在 def 行 L31——其修改**不触碰 def 行**，机械判据 `git diff` 中 `^-\s*def ` 实际 = **7**（仅返回注解 ×7）。IMPL §1 前提 4 / CHECKLIST D7 / E2 原写「8 处 def 行」会把参数注解误计入 def 行差异，Step 9 核对时会得到 7 ≠ 8 的假性失败 | **当轮回写三处**——IMPL §1 前提 4 精化为「7 处 def 行（返回注解）+ 1 处参数注解行（续行 L33，不触 def 行）」；CHECKLIST D7 验收项与证据出口同步（`= 7 处 + 1 处参数注解行`）；E2 同步 |
+| O-S8-P036-1 | 观察 | 链接校验 1 处伪命中（IMPL L214 `(**kwargs)` 代码片段），与 CHECKLIST_p034 §9「2 处代码块伪命中人工判定」同型 | 人工判定登记 |
+| O-S8-P036-2 | 观察 | CHECKLIST 头部基线时点「@`1261865` 代码面 = `65da5f9`」——Step 6 实测时点实为 `b277313`，三者代码面相同（全为 docs 提交），读数不受影响 | 登记（时点精度注记） |
+
+### 9.4 结论与 Step 9 前置
+
+**结论**: **pass**（0 P0/P1 / **1 P3 当轮精化** / 2 观察）——机械五项全过、对齐矩阵六项中五项逐字一致、1 项口径精度问题当轮闭合。
+
+**Step 9 前置**:
+1. 按**更正后** D7 口径执行 I2 核对（`^-\s*def ` = 7 + L33 参数注解行 1）；
+2. 三批红态首跑读数（14/96/21）与 F5 留证对拍；
+3. C1-C4 探针按 D 组出口落 `%TEMP%` 并回填；
+4. 双口径复验前钉 `numpy==2.4.6` + 删 `.mypy_cache`（O-I-P036-1）。
