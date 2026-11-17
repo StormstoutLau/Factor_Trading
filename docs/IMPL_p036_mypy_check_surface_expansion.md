@@ -392,6 +392,59 @@ python -m uv lock --check   # 或 uv lock --check
 
 ---
 
-## 12. Step 9 实施记录（待填）
+## 12. Step 9 实施记录（2026-11-17 完成）
 
-<!-- Step 9 后回填：每批红→绿 mypy 原文、净行数、C1-C4 探针读数、门禁终态 -->
+> **基座**: DeepSeek-V4.1-Flash（与 §1-§11 同源）· **实施基点**: `65da5f9` → **代码终态**: `f1fdab4`
+> **提交序列**: `e2dafff`（B1）→ `e781b75`（B2）→ `eb3ae55`（B3）→ `43ed468`（numpy 2.5.5 兼容）→ `f1fdab4`（py3.10 / numpy 2.2.6 兼容）
+
+### 12.1 三批红→绿与净行数
+
+| 批 | 红态原文 | 绿态原文 | 提交（净行数） |
+|----|----------|----------|----------------|
+| B1 | `Found 14 errors in 7 files (checked 68 source files)` | `Success: no issues found in 68 source files` | `e2dafff` 9 文件 **+27 / −18** |
+| B2 | `Found 96 errors in 11 files (checked 14 source files)` | `Success: no issues found in 82 source files`（9 面） | `e781b75` 13 文件 **+82 / −61** |
+| B3 | `Found 21 errors in 7 files (checked 10 source files)`（无 override ini） | `Success: no issues found in 92 source files`（10 面） | `eb3ae55` 10 文件 **+36 / −34** |
+
+**B1 次生修改**（红→绿过程中新暴露，均在批内闭合）：`fill_timestamps: list | None` 引入 3 处 `.append` union-attr → L168/249/320 各加 `assert order.fill_timestamps is not None`；`verify_case` 返回注解改 union 后 L119/223/124 需 `np.asarray(pv_v3)` ×2 + `return None`；`_run_single_factor` 需独立 `assert self.factor_db is not None`（mypy 不跨方法追踪守卫）。
+
+### 12.2 C1-C4 运行时探针（`%TEMP%\p036_s9_probe_c1c4.py` / `p036_s9_probe_c2.py`）
+
+| 项 | 读数原文（节选） | 判定 |
+|----|------------------|------|
+| C1 | `C1 VALUE_ERROR: 未提供因子数据库` | ✅ 红态为 `self.factor_db.list_factors()` 的 `AttributeError`（读码），绿态显式 fail-fast |
+| C2 | `C2 before: get_cash=100000.0 hasattr(cash)=False` / `C2 old write: get_cash=100000.0 hasattr(cash)=True shadow=42000.0` / `C2 new write: get_cash=42000.0` | ✅ **口径更正**（F-S9-P036-4）：原行为**不是** `AttributeError` 崩溃，而是静默创建影子属性、调资**静默失效**；`_cash` 直写后真实生效 |
+| C3 | `C3 params: ['self', 'name', 'evidence', 'evidence_strength']` / `C3 OLD CALL TypeError: got an unexpected keyword argument 'period'` / `C3 NEW CALL bind: OK` | ✅ 真实缺陷（现网 TypeError 路径） |
+| C4 | `C4 trade_qty type: float value: 33378.9` / `C4 int(trade_qty): 33378` / `C4 _execute_trade quantity annotation: int` | ✅ 类型契约对齐；数量为 100 倍数，截断无实际影响 |
+
+### 12.3 门禁终态（`f1fdab4`，10 面 = `core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library`）
+
+| 门禁 | 读数 |
+|------|------|
+| mypy · py3.12 + numpy 2.4.6（本机） | `Success: no issues found in 92 source files` |
+| mypy · py3.12 + numpy 2.5.5（CI 3.12 复刻） | `Success: no issues found in 92 source files` |
+| mypy · py3.10 + numpy 2.2.6 / pandas 2.3.3（CI 3.10 复刻） | `Success: no issues found in 92 source files` |
+| mypy `core`（override 删除后，仓库 config） | `Success: no issues found in 37 source files` |
+| pytest 全量 | **760 passed**（172 warnings） |
+| golden | `pytest -q -k golden` = **13 passed, 747 deselected**；`git status --short tests/golden/` = 空 |
+| black | `black --check core tests` = **121 unchanged**；`black --check .` = **188 unchanged** |
+| AST | `except Exception`（P-029 口径）= **22** |
+| 忽略审计 | 本批新增 `# type: ignore`（10 面 diff）= **0**；既有带 code 4 处（P-036 前） |
+| `uv lock --check` | `Resolved 148 packages`，exit **0** |
+| tests 计数 | `tests/` .py = **84**，`test_*.py` = **81**（不变） |
+
+### 12.4 实施期发现与分级（F-S9）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S9-P036-1** | **P2** | **门禁双载体遗漏**：扩面只改 `.github/workflows/tests.yml` 会让 `tests/test_p024_ci_gate_alignment.py::test_ci_mypy_flags_match_local_gate` 变红（`scripts/spec_runner_adapter.py` GATES 未同步）。B1 首跑 760 → 1 failed / 759 passed，根因即此；§1「零改动面 tests/**」声明不准确（该测试读两载体做比对） | 当轮同步 adapter，pytest 恢复 760；B2/B3 每批双载体同提交 |
+| **F-S9-P036-2** | **P2** | **CI 真实桩口径 = 运行时解析**：CI 3.12 装 **numpy 2.5.5**（`ndarray.cumsum()` 零参桩报 `call-overload`，3 条：`web/05_Performance.py:48` / `agents/auto_parameter_optimizer.py:929` / `agents/research_team_v2.py:1029`）；CI 3.10 装 **numpy 2.2.6**（形状/标量更严，7 条：`_spec.py:83` 形状重赋值、`strategy_allocator.py:570/571`、`hierarchical_bayesian_agent.py:219`、`assumption_monitor.py:363/472/646`）。D1/E6 的「双口径 2.4.6」不足以覆盖 CI 三版本 leg | `43ed468`（3 处 `np.cumsum`）+ `f1fdab4`（6 处形状/标量收窄）；终态三口径均 0；E6 口径扩容登记 |
+| **F-S9-P036-3** | **P3** | §4.2 #6 注「L124 裸 `return` 不动」失实：返回注解改 `np.ndarray \| None` 后，L124 必须 `return None`（否则新错 `Return value expected`） | 实际落码 `return None`，CHECKLIST A5 标注口径更正 |
+| **F-S9-P036-4** | **P2** | **C2 现网语义更正**：`tracker.cash = ...` 不会 `AttributeError`（普通类实例可动态建属性），而是**静默影子属性**——`get_cash()` 仍读 `_cash`，动态调资**静默失效**。mypy `attr-defined` 捕获的是「写错字段名」类真实缺陷；原 §3 表「→ AttributeError」描述不准确 | 探针留证（§12.2）；缺陷修复定性不变，风险等级上调为「静默失效」 |
+| **F-S9-P036-5** | **P3** | `auto_parameter_optimizer.py` 的 `roles: list[Any]` 若按 §4.3.6 落 L983（第二赋值）会触发 `no-redef`（L947 已隐式定义）；实际注解移至**首次定义 L947**，L983 保持裸赋值 | 同效；CHECKLIST B7 标注落点 |
+| **F-S9-P036-6** | **P3** | E7/E10/V6 的「`# type: ignore` = 0（含带 code）」与既有环境冲突：`65da5f9` 前已有 **4 处带 code**（`core/change_report.py` / `core/diagnostics.py` / `scripts/fetch_universe.py` ×2）；本批新增 = 0。D3 的「L4 总数上限 3」同样未计入既有存量 | 口径更正为「**本批新增 0**；既有带 code 4 处保留（P-036 前）」，登记不改存量 |
+| **F-S9-P036-7** | **P3** | B3 实现细化（语义等价、行号 ±）：C3/C4/C5 以 `tradable / buyable / sellable` 局部 + **单条合并 assert** 实现（原规格写 `mask = self._tradable_mask` 逐处）；`custom.py` 注解置于首赋值 L192（等价「L192 前声明」）；`na_factor.py` 删除已无引用的 `Literal` import | 不触行为，登记 |
+
+### 12.5 Step 9 结论
+
+**结论**: **pass（带 2 P2 口径更正 + 5 P3 登记，均在实施期闭合）**——三批红态逐字复现（14/96/21）、绿态三口径 0（92 files）、行为变更 C1-C4 全部探针留证、不变式 I1-I7 全部成立（`except Exception` 22 / 新增 ignore 0 / 签名差异恰 7 def 行 + 1 参数注解行 / pytest 760 / golden 13 / black 121 / `uv lock` exit 0）。CI 首推曾因 numpy 桩版本（F-S9-P036-2）红，修复提交 `43ed468` + `f1fdab4` 后三版本 leg 复绿（读数见 CHECKLIST §10）。
+

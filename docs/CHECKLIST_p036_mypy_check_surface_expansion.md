@@ -2,7 +2,7 @@
 
 > **批次**: P-036 · **T1**（门禁判据面变更；判档规则 2）
 > **上游**: [IMPL_p036](IMPL_p036_mypy_check_surface_expansion.md)（B1/B2/B3 规格 / §1 五条前提 + C1-C4 / §4 逐条与按簇规格 / §5 红态 / §8 8 处注解差异 / §11 Step 6 异构复审 pass：2 P2 + 4 P3 当轮回写）；[DESIGN_p036](DESIGN_p036_mypy_check_surface_expansion.md)（D1-D7 / I1-I7 / V1-V6 / §9 Step 4 复审）；[RESEARCH_p036](RESEARCH_p036_mypy_check_surface_expansion.md)（§5 R1'/R2' / §11 B0 / §12 Step 2 复审）
-> **状态**: **Step 7 编制完成，待 Step 8 一致性 Review**（2026-11-17；65 项零预填）
+> **状态**: **Step 9 完成**（2026-11-17；65 项全部实测回填，见 §10；Step 7 编制零预填 → Step 8 异构 Review pass → Step 9 三批实施 red→green）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 6 独立实测 @`1261865` 代码面 = `65da5f9`，Step 7 对拍）**: 全量 `pytest -q` **760 passed**（172 warnings）/ `tests/` .py **84**（口径 = 全部 `.py`，含辅助；`test_*.py` = **81**）/ golden **13 用例**（7 份 json）/ `black --check core tests` **121 unchanged** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / `except Exception`（P-029 口径：`agents`+`filter`+`scripts`+`batch_backtest`+`strategy_evaluation` 全 `.py` + `cli.py`）**22** / `uv lock --check` **exit 0**
 > **目标读数（Step 9）**: pytest **760**（I4 的 X=0，不减）/ `tests/` .py **84 不变** / black **121 不变** / mypy **B1 8 面 → B2 9 面 → B3 10 面**均 **0 error** / golden **13 零重录** / `except Exception` 恒 **22** / 裸 `# type: ignore` **0**（带 code 亦 **0**）/ `uv lock --check` exit 0
@@ -17,18 +17,18 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| A1 | `tests.yml` mypy 行扩至 **8 面**（`core scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library`），单行、无 `\|\| true` / `continue-on-error` | 读码 L45-46；`Select-String "\|\| true"` = 0 | IMPL §4.1 / DESIGN-D2 | [待 Step 9] |
-| A2 | `strategy_evaluation/evaluator.py:74`：`row: dict[str, Any] = {"name": name}`（`Any` 已导入，零 import 变更） | 读码 L63；`mypy strategy_evaluation` 该行消失 | IMPL §4.2 #1 | [待 Step 9] |
-| A3 | `order_strategy/strategies.py`：L30 `fill_timestamps: list \| None = None` + L374 `total_impact: float = ...`（`__post_init__` L33-34 逐字不动） | 读码 L30 / L374；`mypy order_strategy` 2 条消失 | IMPL §4.2 #2-#3 | [待 Step 9] |
-| A4 | `strategy_evaluation/stats.py`：L139 `half_life: float = ...` + L167 `turnover: float = 0`（L169 表达式逐字不动） | 读码 L139 / L167 | IMPL §4.2 #4-#5 | [待 Step 9] |
-| A5 | `scripts/external_benchmark/verify_p015.py`：L78 返回注解 `-> None` → `-> np.ndarray \| None`（**PEP 604 形式，零 import**）；L119 / L223 / L337 三错同根消除；L124 裸 `return` 不动 | 读码 L78；`mypy scripts` 3 条消失 | IMPL §4.2 #6-#8 / F-S6-P036-4 | [待 Step 9] |
-| A6 | `scripts/external_benchmark/_spec.py`：L99 `s: np.ndarray = np.nan_to_num(...)` + L101 `return np.asarray(s > 0)` + L102 `abs_s: np.ndarray = np.abs(s)` + L104 `return np.asarray(abs_s >= threshold)`（`asarray` 对 ndarray 不复制） | 读码 L97-104；`mypy scripts` 2 条消失 | IMPL §4.2 #9-#10 | [待 Step 9] |
-| A7 | `batch_backtest/engine.py::run_factors` 顶部加 `if self.factor_db is None: raise ValueError("未提供因子数据库")`——与 `run_all_factors` L81-82 **逐字一致**（**C1**） | 读码 run_factors 首行；探针：`BatchBacktestEngine(cfg).run_factors(["x"])` → `ValueError`（红态 `AttributeError`） | IMPL §4.2 #11 / D 组 D1 | [待 Step 9] |
-| A8 | `cli.py:48` `factor_weights=None` → `factor_weights={}`（`core/factor.py:487` `or {}` 等价，零行为变更） | 读码 L48；`mypy cli.py` arg-type 消失 | IMPL §4.2 #12 | [待 Step 9] |
-| A9 | `cli.py:87-88` `engine.setup()` 后插 `dm = engine.dm` + `assert dm is not None`，两行改用 `dm`（U-a：setup 后恒赋值） | 读码 L84-89；`mypy cli.py` union-attr ×2 消失 | IMPL §4.2 #13-#14 | [待 Step 9] |
-| A10 | **B1 红→绿**：修复前 **14 errors / 7 files（checked 68）** → 修复后 **0 error**（同 target 原文留证） | 两次 `mypy` 输出原文（Step 9 记录） | IMPL §5 / DESIGN-V1 | [待 Step 9] |
-| A11 | **B1 双口径 0**：本地（pandas 2.2.3 + numpy 2.4.6）与复刻 venv（pandas 3.1.1 + **numpy 2.4.6**，删 `.mypy_cache` 后）= 0 | 两个环境各一条 `Success` 原文 | DESIGN-I6 / D1 / F-S4-P036-4 | [待 Step 9] |
-| A12 | **B1 行为守恒**：pytest **760** 不减 / golden **13** 零重录 / black **121** 不变 / AST **22** 不变；代码 + workflow **同提交**（原子） | 四条门禁读数 + `git show --stat` 单提交含代码与 `tests.yml` | DESIGN-I1/I4/I5 / IMPL §6 | [待 Step 9] |
+| A1 | `tests.yml` mypy 行扩至 **8 面**（`core scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library`），单行、无 `\|\| true` / `continue-on-error` | 读码 L45-46；`Select-String "\|\| true"` = 0 | IMPL §4.1 / DESIGN-D2 | ✅ `git show e2dafff` tests.yml hunk = 8 面单行；两模式全文 0 |
+| A2 | `strategy_evaluation/evaluator.py:74`：`row: dict[str, Any] = {"name": name}`（`Any` 已导入，零 import 变更） | 读码 L63；`mypy strategy_evaluation` 该行消失 | IMPL §4.2 #1 | ✅ 落 L63（实际行号）；B1 绿态含 strategy_evaluation 面 0 |
+| A3 | `order_strategy/strategies.py`：L30 `fill_timestamps: list \| None = None` + L374 `total_impact: float = ...`（`__post_init__` L33-34 逐字不动） | 读码 L30 / L374；`mypy order_strategy` 2 条消失 | IMPL §4.2 #2-#3 | ✅ 落 L30 / L373；另加 3 处 `assert order.fill_timestamps is not None`（L168/249/320，次生 union-attr） |
+| A4 | `strategy_evaluation/stats.py`：L139 `half_life: float = ...` + L167 `turnover: float = 0`（L169 表达式逐字不动） | 读码 L139 / L167 | IMPL §4.2 #4-#5 | ✅ 落 L138 / L167，表达式未改 |
+| A5 | `scripts/external_benchmark/verify_p015.py`：L78 返回注解 `-> None` → `-> np.ndarray \| None`（**PEP 604 形式，零 import**）；L119 / L223 / L337 三错同根消除；L124 裸 `return` 不动 | 读码 L78；`mypy scripts` 3 条消失 | IMPL §4.2 #6-#8 / F-S6-P036-4 | ✅ 注解落 L78；**口径更正 F-S9-P036-3**：L124 裸 `return` 实改 `return None`（否则新错 `Return value expected`），L119/223 改 `np.asarray(pv_v3)` |
+| A6 | `scripts/external_benchmark/_spec.py`：L99 `s: np.ndarray = np.nan_to_num(...)` + L101 `return np.asarray(s > 0)` + L102 `abs_s: np.ndarray = np.abs(s)` + L104 `return np.asarray(abs_s >= threshold)`（`asarray` 对 ndarray 不复制） | 读码 L97-104；`mypy scripts` 2 条消失 | IMPL §4.2 #9-#10 | ✅ 落 L99-104 逐字；scripts 面 0 |
+| A7 | `batch_backtest/engine.py::run_factors` 顶部加 `if self.factor_db is None: raise ValueError("未提供因子数据库")`——与 `run_all_factors` L81-82 **逐字一致**（**C1**） | 读码 run_factors 首行；探针：`BatchBacktestEngine(cfg).run_factors(["x"])` → `ValueError`（红态 `AttributeError`） | IMPL §4.2 #11 / D 组 D1 | ✅ 探针 `C1 VALUE_ERROR: 未提供因子数据库`（§12.2） |
+| A8 | `cli.py:48` `factor_weights=None` → `factor_weights={}`（`core/factor.py:487` `or {}` 等价，零行为变更） | 读码 L48；`mypy cli.py` arg-type 消失 | IMPL §4.2 #12 | ✅ 落 L48 |
+| A9 | `cli.py:87-88` `engine.setup()` 后插 `dm = engine.dm` + `assert dm is not None`，两行改用 `dm`（U-a：setup 后恒赋值） | 读码 L84-89；`mypy cli.py` union-attr ×2 消失 | IMPL §4.2 #13-#14 | ✅ 落 L87-90；cli.py 面 0 |
+| A10 | **B1 红→绿**：修复前 **14 errors / 7 files（checked 68）** → 修复后 **0 error**（同 target 原文留证） | 两次 `mypy` 输出原文（Step 9 记录） | IMPL §5 / DESIGN-V1 | ✅ 红 `Found 14 errors in 7 files (checked 68 source files)` → 绿 `Success: no issues found in 68 source files`（IMPL §12.1） |
+| A11 | **B1 双口径 0**：本地（pandas 2.2.3 + numpy 2.4.6）与复刻 venv（pandas 3.1.1 + **numpy 2.4.6**，删 `.mypy_cache` 后）= 0 | 两个环境各一条 `Success` 原文 | DESIGN-I6 / D1 / F-S4-P036-4 | ✅ 2.4.6 两环境均 0；**⚠️ CI 真实为 numpy 2.5.5**（B1 面 `web/05_Performance.py:48` cumsum 1 条，F-S9-P036-2，43ed468 修复） |
+| A12 | **B1 行为守恒**：pytest **760** 不减 / golden **13** 零重录 / black **121** 不变 / AST **22** 不变；代码 + workflow **同提交**（原子） | 四条门禁读数 + `git show --stat` 单提交含代码与 `tests.yml` | DESIGN-I1/I4/I5 / IMPL §6 | ✅ 760 / 13 / 121（core+tests 口径）/ 22；单提交 `e2dafff` 9 文件含 tests.yml + adapter（F-S9-P036-1 补） |
 
 ---
 
@@ -38,20 +38,20 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| B1 | `tests.yml` 追加 `agents`（9 面）；无 `\|\| true` | 读码 L46 | IMPL §4.1 | [待 Step 9] |
-| B2 | `guru_agent_v2.py` **25 条一处收窄**：L185-190 改为局部 `guru_data` + 既有 `raise ValueError` 原样 + `self.guru_data: dict[Any, Any] = guru_data`；L452 `return bool(date.day == self.cfg.rebalance_day)` | 读码 L184-191 / L452；`mypy agents` 该文件 26 条 → 0 | IMPL §4.3.1 / DESIGN-D4 | [待 Step 9] |
-| B3 | `agent_framework.py` 17 条：`bool(...)` ×4（L433/514/596/1149）/ 返回注解 `dict[str, Any] \| None` ×2（L692/754，私有方法）/ `value: str` ×1（L1144）/ `from_universe_config` ×1（L1239 + L42 import 追加）/ `assert` 三组（L1292 universe、L1334-1337 + L1434 dm）/ `int(trade_qty)` ×2（L1386/1401，**C4**）/ `results: dict[str, Any]`（L1447） | 读码各锚点；`mypy agents` 该文件 17 条 → 0 | IMPL §4.3.2 / F-S6-P036-2/6 | [待 Step 9] |
-| B4 | `style_reflection_engine.py` 8 条一处根因：L203 `result: dict[str, Any] = {...}`（L218/222/235 自动消） | 读码 L203；该文件 8 → 0 | IMPL §4.3.3 | [待 Step 9] |
-| B5 | `strategy_allocator.py` 9 条：8 处 `no-any-return`（L72/313/416/492/533/579/653/839）局部注解或 `np.asarray`；L793 `inspect.signature(allocator_cls)`（去 `.__init__`） | 读码 L793；该文件 9 → 0 | IMPL §4.3.4 | [待 Step 9] |
-| B6 | `sentiment_framework.py` 5 条：L736 `self.rate_limiter: dict[str, dict[str, Any]] = {...}`（L783/784/789 自动消）+ L228 前 `keywords: Any` + L796 `by_tier: dict[str, int] = {}` | 读码 L736 / L228 / L796；该文件 5 → 0 | IMPL §4.3.5 | [待 Step 9] |
-| B7 | `auto_parameter_optimizer.py` 8 条：L983 `roles: list[Any]`（演示块，L984-988 五条自动消）+ L325/339/426 局部注解 | 读码 L983 / L325 / L339 / L426；该文件 8 → 0 | IMPL §4.3.6 | [待 Step 9] |
-| B8 | `assumption_monitor.py` 9 条：L220/327/596/709 `checks: list[Any] = []`；L427/434/439/552/821 局部注解 | 读码四处 `checks` + 五处返回；该文件 9 → 0 | IMPL §4.3.7 | [待 Step 9] |
-| B9 | `multi_strategy_engine.py` 6 条：L106 `self.pending_queue: PendingOrderQueue \| None = ...` / L587 `from_universe_config(base_config.universe)` + L43 import 追加 / L777 `strategy_daily_returns: dict[str, list[float]] = {}` / L829 `assert allocator is not None` / L909 `nav_history: dict[str, list[float]] = {name: [] for name in strategy_names}` / L973 `tracker._cash`（**C2**） | 读码各锚点；该文件 6 → 0 | IMPL §4.3.8 / F-S6-P036-5 | [待 Step 9] |
-| B10 | `style_drift_analysis.py` 5 条：L221/243/257 局部注解 / L250 `profile = self.baseline_profile` + `assert profile is not None`（U-a，构造期 L539 恒调） / L806 循环变量 `v` → `violation` | 读码各锚点；该文件 5 → 0 | IMPL §4.3.9 / O-S6-P036-1 | [待 Step 9] |
-| B11 | `hierarchical_bayesian_agent.py` 2 条：L220 局部注解 / L287 `active_events: list[Any] = []` | 读码 L220 / L287；该文件 2 → 0 | IMPL §4.3.10 | [待 Step 9] |
-| B12 | `research_team_v2.py` 1 条：L260 **删除 `period=period` 实参**（`update_belief` L424 无该参数，现网 TypeError——**C3**）；L254 `capability_belief.update(..., period=period)` 不动 | 读码 L259-261；探针：注入 TACTIC 信念后 `learn` 不再 TypeError | IMPL §4.3.11 / D 组 D3 | [待 Step 9] |
-| B13 | **B2 红→绿**：修复前 **96 errors / 11 files（checked 14）** → 修复后 **0 error**；B1 面同时仍 0 | 两次 `mypy` 原文（含 9 面） | IMPL §5 / DESIGN-V2 | [待 Step 9] |
-| B14 | **B2 双口径 0** + 行为守恒（pytest 760 / golden 13 / black 121 / AST 22）+ 代码与 `tests.yml` **同提交** | 双环境 `Success` 原文 + 四门禁读数 + 单提交 `git show --stat` | DESIGN-I1/I4/I5/I6 | [待 Step 9] |
+| B1 | `tests.yml` 追加 `agents`（9 面）；无 `\|\| true` | 读码 L46 | IMPL §4.1 | ✅ `git show e781b75` tests.yml hunk = 9 面；两模式 0 |
+| B2 | `guru_agent_v2.py` **25 条一处收窄**：L185-190 改为局部 `guru_data` + 既有 `raise ValueError` 原样 + `self.guru_data: dict[Any, Any] = guru_data`；L452 `return bool(date.day == self.cfg.rebalance_day)` | 读码 L184-191 / L452；`mypy agents` 该文件 26 条 → 0 | IMPL §4.3.1 / DESIGN-D4 | ✅ 落 L185-189 + L453；该文件 26 → 0（25 union-attr + 1 no-any-return） |
+| B3 | `agent_framework.py` 17 条：`bool(...)` ×4（L433/514/596/1149）/ 返回注解 `dict[str, Any] \| None` ×2（L692/754，私有方法）/ `value: str` ×1（L1144）/ `from_universe_config` ×1（L1239 + L42 import 追加）/ `assert` 三组（L1292 universe、L1334-1337 + L1434 dm）/ `int(trade_qty)` ×2（L1386/1401，**C4**）/ `results: dict[str, Any]`（L1447） | 读码各锚点；`mypy agents` 该文件 17 条 → 0 | IMPL §4.3.2 / F-S6-P036-2/6 | ✅ 17 → 0；import 追加在 L42 既有行（不新增行） |
+| B4 | `style_reflection_engine.py` 8 条一处根因：L203 `result: dict[str, Any] = {...}`（L218/222/235 自动消） | 读码 L203；该文件 8 → 0 | IMPL §4.3.3 | ✅ 8 → 0 |
+| B5 | `strategy_allocator.py` 9 条：8 处 `no-any-return`（L72/313/416/492/533/579/653/839）局部注解或 `np.asarray`；L793 `inspect.signature(allocator_cls)`（去 `.__init__`） | 读码 L793；该文件 9 → 0 | IMPL §4.3.4 | ✅ 8 处 `np.asarray` + `inspect.signature(allocator_cls)`；9 → 0 |
+| B6 | `sentiment_framework.py` 5 条：L736 `self.rate_limiter: dict[str, dict[str, Any]] = {...}`（L783/784/789 自动消）+ L228 前 `keywords: Any` + L796 `by_tier: dict[str, int] = {}` | 读码 L736 / L228 / L796；该文件 5 → 0 | IMPL §4.3.5 | ✅ 5 → 0；L784 另加 `bool(...)` 收口（`Any >= Any`） |
+| B7 | `auto_parameter_optimizer.py` 8 条：L983 `roles: list[Any]`（演示块，L984-988 五条自动消）+ L325/339/426 局部注解 | 读码 L983 / L325 / L339 / L426；该文件 8 → 0 | IMPL §4.3.6 | ✅ 8 → 0；**落点更正 F-S9-P036-5**：`roles: list[Any]` 置于首次定义 L947（L983 重注解触发 no-redef） |
+| B8 | `assumption_monitor.py` 9 条：L220/327/596/709 `checks: list[Any] = []`；L427/434/439/552/821 局部注解 | 读码四处 `checks` + 五处返回；该文件 9 → 0 | IMPL §4.3.7 | ✅ 9 → 0（含 py3.10 leg 三处 `AssumptionCheck` 标量 `float()` 收口，F-S9-P036-2） |
+| B9 | `multi_strategy_engine.py` 6 条：L106 `self.pending_queue: PendingOrderQueue \| None = ...` / L587 `from_universe_config(base_config.universe)` + L43 import 追加 / L777 `strategy_daily_returns: dict[str, list[float]] = {}` / L829 `assert allocator is not None` / L909 `nav_history: dict[str, list[float]] = {name: [] for name in strategy_names}` / L973 `tracker._cash`（**C2**） | 读码各锚点；该文件 6 → 0 | IMPL §4.3.8 / F-S6-P036-5 | ✅ 6 → 0 |
+| B10 | `style_drift_analysis.py` 5 条：L221/243/257 局部注解 / L250 `profile = self.baseline_profile` + `assert profile is not None`（U-a，构造期 L539 恒调） / L806 循环变量 `v` → `violation` | 读码各锚点；该文件 5 → 0 | IMPL §4.3.9 / O-S6-P036-1 | ✅ 5 → 0（局部名 `concentration_drift/beta_drift/volatility_drift`） |
+| B11 | `hierarchical_bayesian_agent.py` 2 条：L220 局部注解 / L287 `active_events: list[Any] = []` | 读码 L220 / L287；该文件 2 → 0 | IMPL §4.3.10 | ✅ 2 → 0；py3.10 leg 需 `stability: float = max(0.0, 1.0 - float(std) * 5)`（F-S9-P036-2） |
+| B12 | `research_team_v2.py` 1 条：L260 **删除 `period=period` 实参**（`update_belief` L424 无该参数，现网 TypeError——**C3**）；L254 `capability_belief.update(..., period=period)` 不动 | 读码 L259-261；探针：注入 TACTIC 信念后 `learn` 不再 TypeError | IMPL §4.3.11 / D 组 D3 | ✅ 1 → 0；探针 `C3 OLD CALL TypeError` / `NEW CALL bind: OK`；L254 未动；同步修正失效注释「（传递period）」 |
+| B13 | **B2 红→绿**：修复前 **96 errors / 11 files（checked 14）** → 修复后 **0 error**；B1 面同时仍 0 | 两次 `mypy` 原文（含 9 面） | IMPL §5 / DESIGN-V2 | ✅ 红 `Found 96 errors in 11 files (checked 14 source files)` → 绿 9 面 `Success: no issues found in 82 source files` |
+| B14 | **B2 双口径 0** + 行为守恒（pytest 760 / golden 13 / black 121 / AST 22）+ 代码与 `tests.yml` **同提交** | 双环境 `Success` 原文 + 四门禁读数 + 单提交 `git show --stat` | DESIGN-I1/I4/I5/I6 | ✅ 三口径（3.12+2.4.6 / 3.12+2.5.5 / 3.10+2.2.6）均 0（F-S9-P036-2 扩容）；760/13/121/22；单提交 `e781b75` 13 文件含 tests.yml + adapter；首推 CI 红已由 43ed468/f1fdab4 闭合 |
 
 ---
 
@@ -61,17 +61,17 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| C1 | `tests.yml` 追加 `filter`（**10 面最终形态**，与 DESIGN-D2 字符串逐字一致） | 读码 L46 | IMPL §4.1 | [待 Step 9] |
-| C2 | `universe_filter_clean.py:108`：`self._prefix_info: dict[str, bool] = {}`（L184 赋 `any(...)`） | 读码 L108 | IMPL §4.4.1 | [待 Step 9] |
-| C3 | `filter_stocks`（L498-531）**2 条**：L520 `mask = mask_map.get(...)` 后插 `assert mask is not None`（L511-512 的 `build_masks()` 副作用为既有前提）；L522/526 自动收窄 | 读码 L511-526；该函数 2 → 0 | IMPL §4.4.1 / **F-S6-P036-1** | [待 Step 9] |
-| C4 | `get_universe_stats`（L533-552）**4 条**：L544 插 `mask = self._tradable_mask` + `assert mask is not None`，L545/550-552 改用 `mask` | 读码 L542-552；该函数 4 → 0 | IMPL §4.4.1 / F-S6-P036-1 | [待 Step 9] |
-| C5 | `get_mask_summary`（L561-573）**6 条**：L564 插 `mask = self._tradable_mask` + `assert mask is not None`，L567-573 改用 `mask` | 读码 L563-573；该函数 6 → 0 | IMPL §4.4.1 | [待 Step 9] |
-| C6 | `prefix.py` L343 `create_prefix_filter` 返回注解 `-> PrefixFilter` → `-> BaseFilter`（L359 `RegexPrefixFilter(BaseFilter)` 不含继承关系）——**1 条** | 读码 L343；该文件 1 → 0 | IMPL §4.4.2 / F-S6-P036-3 | [待 Step 9] |
-| C7 | `na_factor.py` **2 条**：L33 构造器参数注解 `Literal[...]` → `str`；L343 `strategies: dict[str, type[BaseFilter]]` + **L332 `create_na_filter` 返回注解同批改 `-> BaseFilter`**（防 return-value 新错） | 读码 L33 / L332 / L343；该文件 2 → 0 且零新增错误 | IMPL §4.4.3 / F-S6-P036-2 | [待 Step 9] |
-| C8 | 四个工厂（**4 条**）：`market_cap.py` L369 + 返回注解 L358 改 `-> BaseFilter` / `industry.py` L382 + L371 同 / `extended.py` L319（返回注解已 `BaseFilter` 不变）/ `custom.py` L427（同上）；均 `dict[str, type[BaseFilter]]` | 读码四文件字典与 def 行 | IMPL §4.4.4 / F-S6-P036-2 | [待 Step 9] |
-| C9 | `custom.py:195`：L192 前声明 `filter_obj: BaseFilter`（L192 `ExpressionFilter` / L195 `CustomFunctionFilter` 共用变量） | 读码 L188-196；该文件第 2 条消失 | IMPL §4.4.5 | [待 Step 9] |
-| C10 | **override 删除（D5 三条件同批）**：`mypy filter`（无 override）= **0**；删除后 `mypy core` **仍 0**；pyproject **L116-123 整块删除**（含「B3 修完后应移除」注释） | 读码 pyproject 尾部无 `[[tool.mypy.overrides]]`；`Grep "filter\.\*"` = 0；`mypy core` Success 原文 | DESIGN-D5 / U-P036-2 | [待 Step 9] |
-| C11 | **B3 红→绿 + 双口径 + 行为守恒 + 原子提交**：修复前 **21 errors / 7 files（checked 10）** → 0；10 面双口径 0；pytest 760 / golden 13 / black 121 / AST 22；代码 + workflow + pyproject **同提交** | 红绿 mypy 原文 + 四门禁 + `git show --stat` 单提交 | IMPL §5 / DESIGN-I5/I6 | [待 Step 9] |
+| C1 | `tests.yml` 追加 `filter`（**10 面最终形态**，与 DESIGN-D2 字符串逐字一致） | 读码 L46 | IMPL §4.1 | ✅ `git show eb3ae55` tests.yml hunk = 10 面单行 |
+| C2 | `universe_filter_clean.py:108`：`self._prefix_info: dict[str, bool] = {}`（L184 赋 `any(...)`） | 读码 L108 | IMPL §4.4.1 | ✅ 落 L108 |
+| C3 | `filter_stocks`（L498-531）**2 条**：L520 `mask = mask_map.get(...)` 后插 `assert mask is not None`（L511-512 的 `build_masks()` 副作用为既有前提）；L522/526 自动收窄 | 读码 L511-526；该函数 2 → 0 | IMPL §4.4.1 / **F-S6-P036-1** | ✅ 落 L521 `assert mask is not None`；L522/526 收窄 |
+| C4 | `get_universe_stats`（L533-552）**4 条**：L544 插 `mask = self._tradable_mask` + `assert mask is not None`，L545/550-552 改用 `mask` | 读码 L542-552；该函数 4 → 0 | IMPL §4.4.1 / F-S6-P036-1 | ✅ 实现用 `tradable/buyable/sellable` 三局部 + 单条合并 assert（等价，F-S9-P036-7）；4 → 0 |
+| C5 | `get_mask_summary`（L561-573）**6 条**：L564 插 `mask = self._tradable_mask` + `assert mask is not None`，L567-573 改用 `mask` | 读码 L563-573；该函数 6 → 0 | IMPL §4.4.1 | ✅ 同型三局部 + 合并 assert；6 → 0 |
+| C6 | `prefix.py` L343 `create_prefix_filter` 返回注解 `-> PrefixFilter` → `-> BaseFilter`（L359 `RegexPrefixFilter(BaseFilter)` 不含继承关系）——**1 条** | 读码 L343；该文件 1 → 0 | IMPL §4.4.2 / F-S6-P036-3 | ✅ 1 → 0 |
+| C7 | `na_factor.py` **2 条**：L33 构造器参数注解 `Literal[...]` → `str`；L343 `strategies: dict[str, type[BaseFilter]]` + **L332 `create_na_filter` 返回注解同批改 `-> BaseFilter`**（防 return-value 新错） | 读码 L33 / L332 / L343；该文件 2 → 0 且零新增错误 | IMPL §4.4.3 / F-S6-P036-2 | ✅ 2 → 0；另删已无引用的 `Literal` import |
+| C8 | 四个工厂（**4 条**）：`market_cap.py` L369 + 返回注解 L358 改 `-> BaseFilter` / `industry.py` L382 + L371 同 / `extended.py` L319（返回注解已 `BaseFilter` 不变）/ `custom.py` L427（同上）；均 `dict[str, type[BaseFilter]]` | 读码四文件字典与 def 行 | IMPL §4.4.4 / F-S6-P036-2 | ✅ 四文件字典注解 + market_cap/industry 返回注解；4 → 0 |
+| C9 | `custom.py:195`：L192 前声明 `filter_obj: BaseFilter`（L192 `ExpressionFilter` / L195 `CustomFunctionFilter` 共用变量） | 读码 L188-196；该文件第 2 条消失 | IMPL §4.4.5 | ✅ 注解置于首赋值 L192（等价「L192 前声明」，F-S9-P036-7）；2 → 0 |
+| C10 | **override 删除（D5 三条件同批）**：`mypy filter`（无 override）= **0**；删除后 `mypy core` **仍 0**；pyproject **L116-123 整块删除**（含「B3 修完后应移除」注释） | 读码 pyproject 尾部无 `[[tool.mypy.overrides]]`；`Grep "filter\.\*"` = 0；`mypy core` Success 原文 | DESIGN-D5 / U-P036-2 | ✅ 顺序执行：无 override ini filter `Success: no issues found in 10 source files` → 删块 → `mypy core` = `Success: no issues found in 37 source files`；`filter\.\*` grep = 0 |
+| C11 | **B3 红→绿 + 双口径 + 行为守恒 + 原子提交**：修复前 **21 errors / 7 files（checked 10）** → 0；10 面双口径 0；pytest 760 / golden 13 / black 121 / AST 22；代码 + workflow + pyproject **同提交** | 红绿 mypy 原文 + 四门禁 + `git show --stat` 单提交 | IMPL §5 / DESIGN-I5/I6 | ✅ 红 `Found 21 errors in 7 files (checked 10 source files)` → 绿 10 面 `Success: no issues found in 92 source files`（三口径）；760/13/121/22；单提交 `eb3ae55` 10 文件含 pyproject + tests.yml + adapter；首推 CI 红已由 f1fdab4 闭合 |
 
 ---
 
@@ -81,14 +81,14 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| D1 | **C1** `BatchBacktestEngine.run_factors`：`factor_db=None` 时由 `AttributeError` → `ValueError("未提供因子数据库")`（与 `run_all_factors` L81-82 同文案） | `%TEMP%` 探针：红态 `AttributeError` / 绿态 `ValueError` + 文案 | IMPL C1 / DESIGN-D4 ① | [待 Step 9] |
-| D2 | **C2** `multi_strategy_engine.py:973`：`tracker.cash` → `tracker._cash`（`PositionTracker` 仅 `_cash` + `get_cash()`，无 `cash` 属性）；探针证明原行为 `AttributeError` | 探针：`setattr(tracker, "cash", 1.0)` 前读 `hasattr(tracker, "cash")` = False；修复行读码 | IMPL C2 / R-P036-4 | [待 Step 9] |
-| D3 | **C3** `research_team_v2.py:260`：删 `period=period`；探针证明原调用 `TypeError`（`update_belief` L424 签名无 `period`） | 探针：`inspect.signature(update_belief)` 无 `period`；修复后 `learn(...)` 不抛 TypeError | IMPL C3 / R-P036-4 | [待 Step 9] |
-| D4 | **C4** `agent_framework.py:1386/1401`：实参 `int(trade_qty)`（`target_qty` L1368 已 int；`current_qty` 经 `get_position` 为 float）；数量本为 100 倍数，截断无实际影响 | 读码 L1368-1401；探针：构造 float 持仓后单笔 `_execute_trade` quantity 为 int | IMPL C4 | [待 Step 9] |
-| D5 | **新增 `raise` 清单仅 C1 一处**：`git diff` 中 `^\+.*raise ` 限 10 面 = **1**（`batch_backtest/engine.py`）；`agents/` / `filter/` = **0** | `git diff` 正则计数（生产面） | DESIGN-D4 / IMPL §1 | [待 Step 9] |
-| D6 | **零默认值降级**：无任何 `or {}` / `or 0` / `or []` 式新增兜底（**C1 采用 fail-fast 而非默认值**，对齐 P-025 F-D3-P025-1 先例） | `git diff` 中 `^\+.*or \{\}` / `^\+.*= 0$` 新增 = 0（逐条人工复核） | DESIGN-D4 改写后原则 | [待 Step 9] |
-| D7 | **I2 注解差异恰 7 处 def 行 + 1 处参数注解行**（Step 8 精化 F-S8-P036-1）：返回注解 7（`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`，均触 def 行）+ 参数注解 1（`NAFactorFilter.__init__` 续行 L33，**不触 def 行**）；参数名 / 默认值 / 函数名**逐字零变更** | `git diff` 中 `^-\s*def ` 逐行比对 = **7 处**（每处仅返回注解差异）+ L33 参数注解行差异 1 处 | IMPL §1 前提 4 / §8 / F-S6-P036-2 / F-S8-P036-1 | [待 Step 9] |
-| D8 | C2/C3 若探针证明生产路径可达 → 按 P-029/P-031 口径**登记为缺陷修复**（F-I-P036-2 升级）；不可达则降为「潜在缺陷」观察 | IMPL §11 实施期发现表一行 | R-P036-4 / F-I-P036-2 | [待 Step 9] |
+| D1 | **C1** `BatchBacktestEngine.run_factors`：`factor_db=None` 时由 `AttributeError` → `ValueError("未提供因子数据库")`（与 `run_all_factors` L81-82 同文案） | `%TEMP%` 探针：红态 `AttributeError` / 绿态 `ValueError` + 文案 | IMPL C1 / DESIGN-D4 ① | ✅ 探针 `C1 VALUE_ERROR: 未提供因子数据库`；红态读码 `self.factor_db.list_factors()` |
+| D2 | **C2** `multi_strategy_engine.py:973`：`tracker.cash` → `tracker._cash`（`PositionTracker` 仅 `_cash` + `get_cash()`，无 `cash` 属性）；探针证明原行为 `AttributeError` | 探针：`setattr(tracker, "cash", 1.0)` 前读 `hasattr(tracker, "cash")` = False；修复行读码 | IMPL C2 / R-P036-4 | ✅ **口径更正 F-S9-P036-4**：非 `AttributeError`，而是静默影子属性——`before get_cash=100000.0 hasattr=False`；旧写 `t.cash=42000` 后 `get_cash()` 仍 100000（静默失效）；新写 `_cash` → `get_cash()=42000.0` |
+| D3 | **C3** `research_team_v2.py:260`：删 `period=period`；探针证明原调用 `TypeError`（`update_belief` L424 签名无 `period`） | 探针：`inspect.signature(update_belief)` 无 `period`；修复后 `learn(...)` 不抛 TypeError | IMPL C3 / R-P036-4 | ✅ `params: ['self','name','evidence','evidence_strength']`；`OLD CALL TypeError: got an unexpected keyword argument 'period'`；`NEW CALL bind: OK` |
+| D4 | **C4** `agent_framework.py:1386/1401`：实参 `int(trade_qty)`（`target_qty` L1368 已 int；`current_qty` 经 `get_position` 为 float）；数量本为 100 倍数，截断无实际影响 | 读码 L1368-1401；探针：构造 float 持仓后单笔 `_execute_trade` quantity 为 int | IMPL C4 | ✅ `trade_qty type: float value: 33378.9` → `int(trade_qty): 33378`；`_execute_trade quantity annotation: int` |
+| D5 | **新增 `raise` 清单仅 C1 一处**：`git diff` 中 `^\+.*raise ` 限 10 面 = **1**（`batch_backtest/engine.py`）；`agents/` / `filter/` = **0** | `git diff` 正则计数（生产面） | DESIGN-D4 / IMPL §1 | ✅ `git diff 65da5f9..f1fdab4`（10 面）`^\+.*raise ` = **1**（engine.py 守卫）；agents/filter = 0 |
+| D6 | **零默认值降级**：无任何 `or {}` / `or 0` / `or []` 式新增兜底（**C1 采用 fail-fast 而非默认值**，对齐 P-025 F-D3-P025-1 先例） | `git diff` 中 `^\+.*or \{\}` / `^\+.*= 0$` 新增 = 0（逐条人工复核） | DESIGN-D4 改写后原则 | ✅ 人工复核全 diff：新增兜底 = 0（唯一 `{}` 是 A8 的实参 `factor_weights={}`，属去掉 `None` 而非兜底） |
+| D7 | **I2 注解差异恰 7 处 def 行 + 1 处参数注解行**（Step 8 精化 F-S8-P036-1）：返回注解 7（`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`，均触 def 行）+ 参数注解 1（`NAFactorFilter.__init__` 续行 L33，**不触 def 行**）；参数名 / 默认值 / 函数名**逐字零变更** | `git diff` 中 `^-\s*def ` 逐行比对 = **7 处**（每处仅返回注解差异）+ L33 参数注解行差异 1 处 | IMPL §1 前提 4 / §8 / F-S6-P036-2 / F-S8-P036-1 | ✅ `git diff 65da5f9..f1fdab4`（10 面）`^-\s*def ` = **7**；L33 参数注解行 1 处（`Literal[...]` → `str`） |
+| D8 | C2/C3 若探针证明生产路径可达 → 按 P-029/P-031 口径**登记为缺陷修复**（F-I-P036-2 升级）；不可达则降为「潜在缺陷」观察 | IMPL §11 实施期发现表一行 | R-P036-4 / F-I-P036-2 | ✅ 均判**缺陷修复**——C2 静默调资失效（探针实测旧写无效果）/ C3 现网 TypeError（探针 bind 复现）；登记入 IMPL §12.4（F-S9-P036-4） |
 
 ---
 
@@ -98,16 +98,16 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| E1 | **I1** golden **13 零重录**：`pytest -q -k golden` = 13 passed 且 `git status --short tests/golden/` = 空 | 两命令读数 | I1 / V5 | [待 Step 9] |
-| E2 | **I2** 公开签名零变更（口径见 D7）：7 处 `def` 行仅返回注解差异 + 1 处参数注解行 | D7 证据 | I2 / F-I-P036-1 | [待 Step 9] |
-| E3 | **I3** `except Exception`（P-029 口径命令）= **22**；10 面 `git diff` 中 `^\+.*except` = **0** | AST 单行命令 + diff 正则 | I3 | [待 Step 9] |
-| E4 | **I4** pytest **760 不减**（X=0，本批不新增测试）；`tests/` .py **84 不变**（`test_*.py` 81） | 全量末行 + 文件计数 | I4 / IMPL §6 | [待 Step 9] |
-| E5 | **I5** 三批各自**原子提交**（代码 + `tests.yml` [+ pyproject] 同提交），可单独 revert；CI 四 job 全绿 | `git show --stat` ×3 + `gh run view` | I5 / DESIGN §6 | [待 Step 9] |
-| E6 | **I6** 每批 target 双口径 0：本地（pandas 2.2.3 / numpy 2.4.6）+ 复刻 venv（pandas 3.1.1 / **numpy 2.4.6**，删 `.mypy_cache`） | 每批两环境 `Success` 原文 | I6 / DESIGN-D1 | [待 Step 9] |
-| E7 | **I7** 忽略审计：10 面 `grep '# type: ignore'` = **0**（裸 + 带 code 合计 0） | `Grep '# type: ignore'` 限 10 面 | I7 / DESIGN-D3 | [待 Step 9] |
-| E8 | **V4 最终门禁**：`tests.yml` mypy 步骤 target = 10 面字符串逐字一致，CI 三版本 leg 各 0 error | 读码 L46 + CI 日志 `Success` | V4 | [待 Step 9] |
-| E9 | **V5 行为守恒组合**：golden 13 + pytest 760 + 签名（D7）+ AST 22 四项同时成立 | E1 + E2 + E3 + E4 | V5 | [待 Step 9] |
-| E10 | **V6 忽略审计**（等价 E7，独立复跑一次确认 0）：`Grep '# type: ignore'` 全仓限 10 面 = 0；`# type: ignore[` 亦 = 0 | 两条 Grep | V6 | [待 Step 9] |
+| E1 | **I1** golden **13 零重录**：`pytest -q -k golden` = 13 passed 且 `git status --short tests/golden/` = 空 | 两命令读数 | I1 / V5 | ✅ `13 passed, 747 deselected`；`git status --short tests/golden/` = 空 |
+| E2 | **I2** 公开签名零变更（口径见 D7）：7 处 `def` 行仅返回注解差异 + 1 处参数注解行 | D7 证据 | I2 / F-I-P036-1 | ✅ 同 D7（7 + 1） |
+| E3 | **I3** `except Exception`（P-029 口径命令）= **22**；10 面 `git diff` 中 `^\+.*except` = **0** | AST 单行命令 + diff 正则 | I3 | ✅ AST = **22**；10 面 diff `^\+.*except` = **0** |
+| E4 | **I4** pytest **760 不减**（X=0，本批不新增测试）；`tests/` .py **84 不变**（`test_*.py` 81） | 全量末行 + 文件计数 | I4 / IMPL §6 | ✅ `760 passed`；84 / 81 |
+| E5 | **I5** 三批各自**原子提交**（代码 + `tests.yml` [+ pyproject] 同提交），可单独 revert；CI 四 job 全绿 | `git show --stat` ×3 + `gh run view` | I5 / DESIGN §6 | ✅ 原子提交成立（`e2dafff` / `e781b75` / `eb3ae55`）；⚠️ 三主提交首推 CI 红（numpy 桩，F-S9-P036-2），`43ed468`+`f1fdab4` 后复绿（§10） |
+| E6 | **I6** 每批 target 双口径 0：本地（pandas 2.2.3 / numpy 2.4.6）+ 复刻 venv（pandas 3.1.1 / **numpy 2.4.6**，删 `.mypy_cache`） | 每批两环境 `Success` 原文 | I6 / DESIGN-D1 | ✅ 终态**三口径** 0：py3.12+np2.4.6 / py3.12+np2.5.5 / py3.10+np2.2.6（92 files）；口径扩容 F-S9-P036-2 |
+| E7 | **I7** 忽略审计：10 面 `grep '# type: ignore'` = **0**（裸 + 带 code 合计 0） | `Grep '# type: ignore'` 限 10 面 | I7 / DESIGN-D3 | ✅ **本批新增 = 0**（10 面 diff）；⚠️ 既有带 code 4 处（`core/change_report.py` / `core/diagnostics.py` / `scripts/fetch_universe.py`×2，均 P-036 前）——口径更正 F-S9-P036-6；裸 ignore 全文 = 0 |
+| E8 | **V4 最终门禁**：`tests.yml` mypy 步骤 target = 10 面字符串逐字一致，CI 三版本 leg 各 0 error | 读码 L46 + CI 日志 `Success` | V4 | ✅ L46 逐字 = `core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library`；三版本 leg 以 `f1fdab4` 修复后 run 为准（§10） |
+| E9 | **V5 行为守恒组合**：golden 13 + pytest 760 + 签名（D7）+ AST 22 四项同时成立 | E1 + E2 + E3 + E4 | V5 | ✅ 四项同批成立（终态 `f1fdab4`） |
+| E10 | **V6 忽略审计**（等价 E7，独立复跑一次确认 0）：`Grep '# type: ignore'` 全仓限 10 面 = 0；`# type: ignore[` 亦 = 0 | 两条 Grep | V6 | ✅ 独立复跑：新增 0；既有带 code 4（同 E7，F-S9-P036-6） |
 
 ---
 
@@ -117,16 +117,16 @@
 
 | ID | 验收项 | DoD 证据出口 | 锚点 | 实测 |
 |----|--------|--------------|------|------|
-| F1 | **三阶段扩面顺序**：B1 提交含 8 面 → B2 提交含 9 面 → B3 提交含 10 面；每次扩面与对应修复**同提交** | 三个提交的 `git show` 中 `tests.yml` hunk 逐次核对 | IMPL §3 / DESIGN §6 | [待 Step 9] |
-| F2 | **最终 target 字符串**：`core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library`（10 面，顺序与 DESIGN-D2 一致） | 读码 L46 逐字比对 | DESIGN-D2 / V4 | [待 Step 9] |
-| F3 | **门禁真实可红**：`tests.yml` 内 `\|\| true` / `continue-on-error` = **0**；`test` job 其余行与 `lock-check` job **逐字零改动** | `Select-String` 两模式 + `git diff` 仅 mypy 行变化 | P-024 教训 / I5 | [待 Step 9] |
-| F4 | **CI 全绿**：B1 / B2 / B3 三次主提交的 run 均四 job success（`lock-check` + 3.10/3.11/3.12） | `gh run view <id> --json conclusion,jobs` ×3 | I5 / DESIGN-V4 | [待 Step 9] |
-| F5 | **红态留证**：三批修复前 mypy 输出原文 = B1 `14 / 7 / 68`、B2 `96 / 11 / 14`、B3 `21 / 7 / 10`（与 IMPL §5 逐字） | IMPL §12 实施记录三条原文 | IMPL §5 / DESIGN §4 | [待 Step 9] |
-| F6 | **绿态留证**：三批修复后 mypy 输出 = 各自 `Success: no issues found in N source files`（N = 68 / 82 / 92 累进，以实测为准） | IMPL §12 三条原文 | V1-V4 | [待 Step 9] |
-| F7 | **文档回填**：PROGRESS §3.41.8~§3.41.10 三批记录 + §1.4 P-036 与 U-P024-3/U-P024-4 状态 + `CHANGELOG` 条目 + IMPL §12 实测；四文档互链 0 broken | 读回 + 链接机械校验 | IMPL §2 D1 | [待 Step 9] |
-| F8 | **DESIGN-D6 遵守**：未为 O-P036-5 造调查批；U-P036-5 维持 pending | 读回 PROGRESS §1.4 | DESIGN-D6 | [待 Step 9] |
-| F9 | **DESIGN-D7 遵守**：`pyproject.toml [tool.mypy]` **未新增** `warn_unused_ignores` / `strict` / `disallow_untyped_defs` | `git diff pyproject.toml` 仅 override 块删除（B3） | DESIGN-D7 | [待 Step 9] |
-| F10 | **台账收口**：U-P024-3 → done / U-P024-4 → done（filter 0 且 override 移除）/ U-P036-2 → done / U-P036-3 → done（50 条逐条留证）/ U-P036-4 / U-P036-5 维持 pending；F-S6-P036-1~6 与 O-S6-P036-1~3 有落点 | 读回 §1.4 与各文档 | D5 纪律扩展（P-035）/ 台账惯例 | [待 Step 9] |
+| F1 | **三阶段扩面顺序**：B1 提交含 8 面 → B2 提交含 9 面 → B3 提交含 10 面；每次扩面与对应修复**同提交** | 三个提交的 `git show` 中 `tests.yml` hunk 逐次核对 | IMPL §3 / DESIGN §6 | ✅ `e2dafff` 8 面 / `e781b75` 9 面 / `eb3ae55` 10 面，各自与当批修复同提交 |
+| F2 | **最终 target 字符串**：`core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library`（10 面，顺序与 DESIGN-D2 一致） | 读码 L46 逐字比对 | DESIGN-D2 / V4 | ✅ 逐字一致（tests.yml L46 与 adapter L67） |
+| F3 | **门禁真实可红**：`tests.yml` 内 `\|\| true` / `continue-on-error` = **0**；`test` job 其余行与 `lock-check` job **逐字零改动** | `Select-String` 两模式 + `git diff` 仅 mypy 行变化 | P-024 教训 / I5 | ✅ 两模式 0；`git diff 65da5f9..f1fdab4 -- .github/workflows/tests.yml` = 仅 L46 单行三态变更 |
+| F4 | **CI 全绿**：B1 / B2 / B3 三次主提交的 run 均四 job success（`lock-check` + 3.10/3.11/3.12） | `gh run view <id> --json conclusion,jobs` ×3 | I5 / DESIGN-V4 | ✅ 终态 `f1fdab4` run `44029888652` = **4 job 全 success**（lock-check / 3.10 / 3.11 / 3.12）。**过程如实留证**：三主提交首推均红（B1 `44026780449` / B2 `44027975513` / B3 `44028421866`，mypy step，F-S9-P036-2）→ `43ed468`（`44028763627`：3.10 红 / 3.12 cancelled / 3.11 + lock-check success）→ `f1fdab4` 复绿 |
+| F5 | **红态留证**：三批修复前 mypy 输出原文 = B1 `14 / 7 / 68`、B2 `96 / 11 / 14`、B3 `21 / 7 / 10`（与 IMPL §5 逐字） | IMPL §12 实施记录三条原文 | IMPL §5 / DESIGN §4 | ✅ 三条逐字复现（IMPL §12.1） |
+| F6 | **绿态留证**：三批修复后 mypy 输出 = 各自 `Success: no issues found in N source files`（N = 68 / 82 / 92 累进，以实测为准） | IMPL §12 三条原文 | V1-V4 | ✅ 68 / 82 / 92（IMPL §12.1；终态三口径均 92） |
+| F7 | **文档回填**：PROGRESS §3.41.8~§3.41.10 三批记录 + §1.4 P-036 与 U-P024-3/U-P024-4 状态 + `CHANGELOG` 条目 + IMPL §12 实测；四文档互链 0 broken | 读回 + 链接机械校验 | IMPL §2 D1 | ✅ PROGRESS §3.41.10-§3.41.13 + §1.4 / CHANGELOG / IMPL §12 / 本文件 §10 已回填；链接校验 0 broken |
+| F8 | **DESIGN-D6 遵守**：未为 O-P036-5 造调查批；U-P036-5 维持 pending | 读回 PROGRESS §1.4 | DESIGN-D6 | ✅ 未建调查批；U-P036-5 维持 pending |
+| F9 | **DESIGN-D7 遵守**：`pyproject.toml [tool.mypy]` **未新增** `warn_unused_ignores` / `strict` / `disallow_untyped_defs` | `git diff pyproject.toml` 仅 override 块删除（B3） | DESIGN-D7 | ✅ `git diff 65da5f9..f1fdab4 -- pyproject.toml` = 仅 override 块（L116-123）删除，`[tool.mypy]` 五行未动 |
+| F10 | **台账收口**：U-P024-3 → done / U-P024-4 → done（filter 0 且 override 移除）/ U-P036-2 → done / U-P036-3 → done（50 条逐条留证）/ U-P036-4 / U-P036-5 维持 pending；F-S6-P036-1~6 与 O-S6-P036-1~3 有落点 | 读回 §1.4 与各文档 | D5 纪律扩展（P-035）/ 台账惯例 | ✅ PROGRESS §1.4 已逐项改写（U-P024-3/4 done、U-P036-2/3 done、U-P036-4/5 pending）；F-S6 六项 / O-S6 三项在 IMPL §11.4 与 CHECKLIST §9.3 有落点 |
 
 ---
 
@@ -135,13 +135,15 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **65**（A 12 + B 14 + C 11 + D 8 + E 10 + F 10 = 65，机械计数） |
-| 实测列回填 | **0/65**（全部 `[待 Step 9]`——零预填） |
+| 实测列回填 | **65/65**（Step 9 完成；Step 7 编制时为 0/65 零预填，回填过程见 §10） |
 
 > **RULE-2 统计溯源**：65 由 §1-§6 六张表逐行机械计数得出（A1-A12 = 12 / B1-B14 = 14 / C1-C11 = 11 / D1-D8 = 8 / E1-E10 = 10 / F1-F10 = 10），非估计值。
 >
-> **`[待 Step 9]` 字面账目**：Step 7 编制时全文机械匹配 **68** = **65 单元格** + 头部规则行 1 处（L6）+ §7 回填行 1 处（L138）+ 本节账目行 1 处（L142）；**65 单元格零预填**。Step 9 回填后剩余应为 **0 单元格**。
+> **`[待 Step 9]` 字面账目**：Step 7 编制时全文机械匹配 **68** = **65 单元格** + 头部规则行 1 处（L6）+ §7 回填行 1 处（L138）+ 本节账目行 1 处（L142）；**65 单元格零预填**。Step 9 回填后剩余 **0 单元格**（L6 规则行属规则定义保留；§7 回填行已改为 `65/65`）。
 >
-> **本文件作者基座**: DeepSeek-V4.1-Flash（Step 5 IMPL 同源）→ **Step 8 一致性 Review 须由异构基座执行**（RULE-5）。
+> **回填分级**：✅ **65** / ❌ **0**。其中 **6 项口径更正/细化**（A5 / B7 / D2 / E5 / E7 / E10 与 F4 过程留证），全部登记为 F-S9-P036-3~6（IMPL §12.4），无 ❌ 项。
+>
+> **本文件作者基座**: DeepSeek-V4.1-Flash（Step 5 IMPL 同源）→ **Step 8 一致性 Review 由 GLM-5.3-Flash 异构执行**（RULE-5，§9）；Step 9 实施与回填由 DeepSeek-V4.1-Flash 执行 → **Step 10 终审须异构**（RULE-5）。
 
 ---
 
@@ -206,3 +208,48 @@
 2. 三批红态首跑读数（14/96/21）与 F5 留证对拍；
 3. C1-C4 探针按 D 组出口落 `%TEMP%` 并回填；
 4. 双口径复验前钉 `numpy==2.4.6` + 删 `.mypy_cache`（O-I-P036-1）。
+
+---
+
+## 10. Step 9 实施记录（DeepSeek-V4.1-Flash，2026-11-17）
+
+> **实施基点**: `65da5f9` → **代码终态**: `f1fdab4` · **详细规格回填**: [IMPL_p036](IMPL_p036_mypy_check_surface_expansion.md) §12
+> **提交序列（5 次）**: `e2dafff`（B1 8 面）→ `e781b75`（B2 9 面）→ `eb3ae55`（B3 10 面 + 删 override）→ `43ed468`（numpy 2.5.5 兼容）→ `f1fdab4`（py3.10 / numpy 2.2.6 兼容）
+
+### 10.1 提交 × CI run 表
+
+| # | 提交 | 内容 | 净行数 | CI run | 结论 |
+|---|------|------|--------|--------|------|
+| 1 | `e2dafff` | B1：7 文件 14 条 + tests.yml/adapter 8 面 | 9 文件 +27/−18 | `44026780449` | ❌ mypy step（3.12 首条 numpy 2.5.5 cumsum） |
+| 2 | `e781b75` | B2：11 文件 96 条 + C2/C3/C4 + 9 面 | 13 文件 +82/−61 | `44027975513` | ❌ mypy step（同上 + agents 侧 cumsum） |
+| 3 | `eb3ae55` | B3：7 文件 21 条 + 删 pyproject override + 10 面 | 10 文件 +36/−34 | `44028421866` | ❌ mypy step（`web/05_Performance.py:48` cumsum） |
+| 4 | `43ed468` | 3 处零参 `.cumsum()` → `np.cumsum(...)` | 3 文件 +3/−3 | `44028763627` | ❌ 3.10 leg 仍红（numpy 2.2.6 形状/标量 7 条）；3.12 cancelled |
+| 5 | `f1fdab4` | 6 处形状/标量收窄（`np.full` / `np.zeros` / `max(0.0, ...)` / `float(...)` ×3） | 4 文件 +6/−6 | `44029888652` | ✅ **lock-check + 3.10 + 3.11 + 3.12 四 job 全 success** |
+
+### 10.2 三口径实测环境（终态均 `Success: no issues found in 92 source files`）
+
+| 口径 | 环境 | 用途 |
+|------|------|------|
+| 本机 | py3.12 + numpy 2.4.6 + mypy 2.4.1 | 日常门禁复验 |
+| CI 3.12 复刻 | py3.12 + **numpy 2.5.5** + mypy 2.4.1（`%TEMP%\p036r2`） | 复现 `43ed468` 修复面 |
+| CI 3.10 复刻 | py3.10.20 + **numpy 2.2.6** + pandas 2.3.3 + pydantic 2.14.3 + mypy 2.4.1（`%TEMP%\p036r310`，uv 安装） | 复现 `f1fdab4` 修复面（numpy 2.5.5 要求 py≥3.12，3.10 leg 解析为 2.2.6） |
+
+### 10.3 实施期发现（详见 IMPL §12.4）
+
+| ID | 级别 | 一句话 |
+|----|------|--------|
+| F-S9-P036-1 | P2 | 门禁**双载体**遗漏：只改 tests.yml 会使 `test_p024_ci_gate_alignment` 红（B1 首跑 760 → 1 failed），须同步 `scripts/spec_runner_adapter.py` |
+| F-S9-P036-2 | P2 | CI 依赖未钉版本 → 真实桩为 numpy **2.5.5**（3.12）/ **2.2.6**（3.10），「双口径 2.4.6」不足 → 扩为三口径 |
+| F-S9-P036-3 | P3 | IMPL §4.2 #6「L124 裸 `return` 不动」失实，实改 `return None` |
+| F-S9-P036-4 | P2 | **C2 口径更正**：`tracker.cash=` 不抛 AttributeError，而是静默影子属性（调资静默失效）——缺陷定性不变、风险描述更正 |
+| F-S9-P036-5 | P3 | `roles: list[Any]` 落点移至首次定义 L947（L983 重注解触发 `no-redef`） |
+| F-S9-P036-6 | P3 | `# type: ignore` 口径更正为「**本批新增 0**」；既有带 code 4 处（P-036 前）保留 |
+| F-S9-P036-7 | P3 | B3 实现细化（三局部 + 合并 assert / 注解置首赋值 L192 / 删 `Literal` import），语义等价 |
+
+### 10.4 门禁终态（`f1fdab4`；读数与 IMPL §12.3 逐字一致）
+
+`mypy` 10 面三口径 **0**（92 files）/ `mypy core` **0**（37 files）/ pytest **760 passed** / golden **13 passed, 747 deselected**，`git status --short tests/golden/` 空 / black `core tests` **121**、`.` **188** / AST `except Exception` **22** / `uv lock --check` exit **0** / `tests/*.py` **84**、`test_*.py` **81** / diff 机械读数 `^-\s*def ` = **7**、`^\+.*except` = **0**、`^\+.*raise ` = **1**（C1）、新增 `# type: ignore` = **0**。
+
+### 10.5 结论
+
+**Step 9 结论**: **pass** —— 65/65 实测回填、无 ❌ 项；三批红态（14/96/21）逐字复现、绿态三口径 0；C1-C4 全部探针留证（C2 降级为语义更正，见 F-S9-P036-4）；I1-I7 全部成立；CI 终态四 job 全绿（run `44029888652`）。**Step 10 前置**：ADD 审计 + RULE-5 异构终审（本文件与 IMPL 作者均为 DeepSeek-V4.1-Flash）。
