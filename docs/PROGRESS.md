@@ -1589,7 +1589,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E1-E5 五项全过**: E1 六锚点读码（C1 = simple.py L109/L116/L124 逐字 / C2 = 21 显式映射 + 禁止 asdict 盲拷 docstring / 双载体 L46↔L67 逐字 + numstat 各 1/1 / pyproject overrides=0 / 13 行落点全命中含 5 组 assert 行号）；E2 机械计数（raise+=0 / except+=0 / `^-\s*def `=2 / type-ignore+=0；零改动面 diff 空；numstat 12 文件 +34/−24 与 IMPL §11.1 逐项吻合；B4 归因仅 1 条改名等价）；E3 六门禁独立复跑（mypy 12 面 103 files 0 / `tools examples` 11 files 0 / pytest **760 passed** / golden **13 passed, 747 deselected** + golden 目录空 / black **121 unchanged** / AST **Exception-only: 22**（IMPL_p029 L410 原命令）/ `uv lock` exit 0）；E4 四探针运行期实锤（P1 C1 构造 + **负探针旧形态 TypeError 实锤** / P2 C2 20 直传 0 mismatch + bool 强转 + target-only 两字段同值 + 非默认 3 字段 / P3 `trace()` 双分支 + None 守卫 / P4 `#13` ndarray 全程保持）；E5 F-S10-P037-1~4 四项修正全部到位。
 - **发现分级（0 P1/P2）**: **F-U3-P037-1**（P3）「21 字段」计数口径需精化——目标类 `UniverseFilterConfig` 实有 **23** 字段：21 = 显式映射（20 直传 + `exclude_stock_prefixes` bool 强转），另 2 个 target-only（`next_day_tradable_mode` / `limit_check_price`）源上无对应，duck-typed 路径经 `getattr` 默认值取得同值 → **等价结论不变**；当轮处置 = CHECKLIST B2 实测列加注（RESEARCH §5.2 / DESIGN V4b 的「21 字段」按 V4b 已写明的强转比对语义理解，正文不再改动）。
 - **结论**: **pass——U-P037-3 关闭，P-037 过程链全闭合（Step 1-10 + 异构终审），批次关闭**。
-- **提交与 CI**: 本提交（docs-only：CHECKLIST §12 + §11 签字行 + B2 加注 + 状态行「批次关闭」/ PROGRESS U-P037-3 done + P-037 行 done + §3.42.3）→ CI run 待回填（先例：`ad7815d`）。
+- **提交与 CI**: 提交 `bdab281`（2 文件 **+69/−5**，docs-only：CHECKLIST §12 + §11 签字行 + B2 加注 + 状态行「批次关闭」/ PROGRESS U-P037-3 done + P-037 行 done + §3.42.3）→ CI run [`44051202252`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44051202252) **success**（四 job：`lock-check` + 3.10 / 3.11 / 3.12 全绿）。
 
 ---
 
