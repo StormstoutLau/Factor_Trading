@@ -2,7 +2,7 @@
 
 > **批次**: P-040 · **T1**（Layer-1：`tests/`；生产面 `filter/limit_rules.py`）
 > **上游**: [IMPL_p040](IMPL_p040_bse_limit_rule_gap.md)（§2 精确规格 / §3 红态 / §6 Step 6 复审 pass：1 P2 + 1 P3）；[DESIGN_p040](DESIGN_p040_bse_limit_rule_gap.md)（D1-D4 / I1-I6 / §7 Step 4 复审 pass：1 P2 + 2 P3）；[RESEARCH_p040](RESEARCH_p040_bse_limit_rule_gap.md)（§7 M-A / §8 / §14）
-> **状态**: **Step 10 审计完成（P1=0），CI 全绿，待 U-P040-1 异构终审**
+> **状态**: **批次关闭（2026-11-17）：25/25 + Step 10 审计 pass + U-P040-1 异构终审 pass（GLM-5.3-Flash，0 P1/P2 + 1 P3）**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`
 > **基线读数（@`fb32ac0`）**: pytest **765 passed** / golden **13 passed, 752 deselected** / black `core tests` **122**（全仓 **189**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **85** / `uv lock --check` exit **0**
 > **目标读数**: pytest **771** / golden 13 零重录 / black **123**（全仓 **190**）/ mypy 12 面 **0** / AST **22** / `tests/*.py` **86**
@@ -64,7 +64,7 @@
 | 实测列回填 | **25/25**（A 6 / B 7 / C 6 / D 6 全 `✅ + 证据`；D3 hash/CI 已回填） |
 
 > **RULE-2 统计溯源**：25 = 6 + 7 + 6 + 6（逐表行数，非估计）。
-> **RULE-5 声明**：Step 2/4/6/8 复审均自报 DeepSeek-V4.1-Flash（同源）→ 异构四轮未成立；U-P040-1 跟踪。
+> **RULE-5 声明**：Step 2/4/6/8 复审均自报 DeepSeek-V4.1-Flash（同源）→ 异构四轮未成立；U-P040-1 跟踪（→ §9 异构终审已由 GLM-5.3-Flash 补齐，pass）。
 
 ---
 
@@ -159,3 +159,60 @@
 **Step 10 ADD 审计 pass**——Phase 0-4 全过；**P1 = 0**；P2 = 1（F-S10-P040-4 为范围外发现，已登记 U-P040-2，不阻断本批）；P3 = 3（1 项登记 O-P040-6，2 项接受并列口径）。主缺陷 U-P039-4 修复的设计落地经 E1/E2/E3 三重取证确认；**批次仍 in-progress，待 U-P040-1 异构终审**。
 
 > **审计记录提交**: `96f499b`；CI run **`44082820020`** 四 job 全绿（lock-check 8s / 3.10 1m41s / 3.11 1m11s / 3.12 1m20s）。
+
+---
+
+## 9. U-P040-1 异构终审记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座披露（RULE-4/RULE-5）**: 终审会话自报 `GLM-5.3-Flash` ≠ 作者 DeepSeek-V4.1-Flash → **异构终审成立**（作者 + Step 2/4/6/8/10 五轮均同源）。
+> **终审范围**: 四文档 + Step 9 取证 + Step 10 审计 + 门禁；E3 行号绑 `5adab76`（`git log -1 -- filter/limit_rules.py` 与 `-- tests/test_p040_bse_limit_rule_gap.py` 均 = `5adab76`；终审时 HEAD `a9bf891`）。
+
+### 9.1 E1 门禁七项独立复跑（全部命中）
+
+| # | 门禁 | 口径 | 实测 |
+|---|------|------|------|
+| 1 | pytest 全量 | `pytest tests/ --tb=short -q -p no:cacheprovider` | ✅ `771 passed, 172 warnings in 64.62s` |
+| 2 | golden | `pytest -k golden` + `git status --short tests/golden/` | ✅ `13 passed, 758 deselected`；目录干净 |
+| 3 | black 双口径 | `black --check core tests` / `black --check .` | ✅ `123` / `190` unchanged |
+| 4 | mypy 12 面 | CI 逐字命令（tests.yml L46） | ✅ `Success: no issues found in 103 source files` |
+| 5 | AST `except Exception` | [IMPL_p029 §6](IMPL_p029_silent_exception_governance_phase4.md) 单行命令 | ✅ **22** |
+| 6 | `tests/*.py` | 顶层计数 | ✅ **86** |
+| 7 | `uv lock --check` | 本地 uv | ✅ exit **0** |
+
+### 9.2 E2 运行时探针（独立编写，5 项 + 1 对抗探针全过）
+
+| # | 探针 | 读数 | 判定 |
+|---|------|------|------|
+| 1 | **红态内存复现**（`RULES`→旧 2 条 + 版本→`cn_a_2026_07`，importlib 按路径加载 6 用例逐个执行，仓库零改动） | `{v1: FAIL(LimitRuleError), v2: FAIL(LimitRuleError), v3: FAIL(AssertionError), v4: PASS, v5: FAIL(LimitRuleError), v6: FAIL(LimitRuleError)}` = **5F/1P** | ✅ 与 B7 红态逐字一致 |
+| 2 | 边界语义 + 区间不相交 | `2018-01-12/14` 两态 RAISE；`01-15` 命中 `(1.0,−0.5)`；`2020-07-26 / 07-27 / 2021-11-15 / 2023-06-01` 分段正确；四组 `(board,is_st)` 零重叠 | ✅ |
+| 3 | 真实数据量化 | 窗口 **1460**（首 `2020-01-23`）/ 缺口 **436**（`2020-01-23..2021-11-12`）/ 3 只 `first=2020-01-02`、`n=374/371/371`、末日 `2021-10-20/11-05/11-03` / 复牌首日收益 **−19.4813% / −30.7036% / −18.2927%** / 窗口掩码 **0 涨停 / 0 跌停**（gross 4380，有效 1052） | ✅ RESEARCH §3.1-3.5 全部复算成立 |
+| 4 | 号段盲区复核（U-P040-2） | `920`×**293** + `302`×**1** = 294（补识别后未识别归 **0**）；`302132` 2023-02-02..02-13 连续 **8 日 ≈+20.0%**；`920` 段 `\|ret\|>10.5%` = **9494**、max **100.00%**；掩码 @main `248957/2072/1163` vs @bse `248957/319/164`，误判差 **2752** | ✅ Step 10 F-S10-P040-4 量化逐位吻合 |
+| 5 | `engine.setup()` 真实数据 | 推进到 `FileNotFoundError: 因子文件不存在: ...UTR_turnover_new.pkl`（U-P038-1）；`trade_dates=1460, first=2020-01-23, last=2026-01-30`；`LimitRuleError` 消失 | ✅ C1 复现 |
+| 6 | 对抗探针：真实数据「首日不设涨跌幅」 | `2020-07-24`（停牌）与 `2020-07-27`（复牌首日）三只 `limit_up/down` **全 NaN**；`2020-07-28` = 复牌收盘 ×(1±30%)（up 17.36/16.90/52.26，down 9.34/9.10/28.14） | ✅ S4 机制端到端成立 |
+
+### 9.3 E3 静态读码（@`5adab76`）
+
+- [limit_rules.py:19](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L19) `RULESET_VERSION = "cn_a_2026_11"` 与 [L67-72](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L67-L72) bse 四段 + 两行注释——与 IMPL §2.1/2.2、DESIGN-D1 **逐字一致**。
+- [tests/test_p040_bse_limit_rule_gap.py](file:///f:/Coding/Factor_Trading_v3.0/tests/test_p040_bse_limit_rule_gap.py) 76 行——与 IMPL §2.3 **逐字一致**。
+- `len(RULES)` = **13**（main 3 + gem 4 + star 2 + bse 4）。
+
+### 9.4 E4 盲区扫描（发现 1 项）
+
+| # | 扫描范围 | 结果 |
+|---|----------|------|
+| 1 | `cn_a_2026_07` 全仓 15 处 | ✅ 均为历史记载（P-012 文档 / DESIGN_backtest_validation 示例 / 本批改前记录），无「现值」误写 |
+| 2 | golden JSON 是否嵌入版本号 | ✅ `tests/golden/` 无 `ruleset_version` 字段 → 版本 bump 与 golden 零耦合（13 通过的机制解释） |
+| 3 | `*.py` 中散落 bse 日期魔数（`2021-11-15` 等） | ✅ 仅 RULES 定义处与 V3 测试常量 |
+| 4 | `len(RULES)` 条数口径 | **发现 1 项**：DESIGN §6/§7.1 写「11 → **15**（+4）」，实测 **11 → 13** → F-U3-P040-1 |
+| 5 | CI run 复核 | ✅ `44082016579` / `44082820020` / `44083231213`（至 HEAD `a9bf891`）三 run 四 job 全 success |
+
+### 9.5 发现与当轮处置（0 P1/P2 + 1 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-U3-P040-1 | P3 | [DESIGN_p040](DESIGN_p040_bse_limit_rule_gap.md) §6 L104「线性过滤（11 → 15 条）」与 §7.1 L120「条数 11 → **15**（+4）」算术错误：旧表 11 条、bse 2→4 为**替换**（−2+4），净 **+2** → 实测 13；五轮同源复核均未拦住（条数核对缺独立可重放命令） | 两处当轮订正并注记终审来源；机械口径以 E2 `RULES=13 条` 为准 |
+
+### 9.6 结论
+
+**U-P040-1 异构终审 pass（GLM-5.3-Flash，RULE-5 成立）**——E1 七门禁 / E2 六探针 / E3 静态读码 / E4 盲区扫描（1 P3 当轮订正）/ E5 无推测入结论；**0 P1/P2**。
+**批次 P-040 关闭**：主缺陷 U-P039-4 修复经异构独立复核确认；U-P040-2（P2，920/302 号段，约 2752 单元格掩码误判）待立项。
