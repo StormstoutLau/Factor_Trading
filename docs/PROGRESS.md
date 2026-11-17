@@ -1554,7 +1554,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E1-E5 五项全过**: E1 六锚点读码（C1 = engine.py L99-100 与 run_all_factors 逐字 / C2 = L976 `_cash` / C3 = L259 无 `period=` / C4 = L1391+L1406 `int(trade_qty)` / 双载体十面串逐字 / pyproject 无 overrides）；E2 机械计数（raise+=1 / except+=0 / `^-\s*def `=7 / ignore+=0；零改动面空；numstat 五提交逐行吻合）；E3 六门禁独立复跑（mypy 10 面 92 files 0 / pytest 760 / golden 13 / black 121 / uv exit 0 / run `44036869462` success）；E4 四探针运行期实锤（C1 ValueError / C2 影子属性静默失效→`_cash` 生效 42000 / C3 TypeError→bind OK / C4 int 契约）；E5 三处 F-S10 修正到位 + F-S9 七行登记链完整。
 - **发现分级（0 P1/P2）**: **F-U6-P036-1**（P3）CHECKLIST §11.2 Phase 2「numstat 五提交与 IMPL §12.1 逐行吻合」覆盖面过宽（IMPL §12.1 仅三主提交行，`43ed468`/`f1fdab4` 登记于 CHECKLIST §10.1）→ 当轮精化措辞（交叉引用双落点）；**O-U6-P036-1**（观察）方法归属澄清——`ResearchTeamAgent` 无 `update_belief`（真实被调对象为 `HierarchicalBayesianEngine.update_belief`，owner L424）、`_execute_trade` 属 `MultiAgentBacktestEngine`；文档锚点本就未误归属，登记不改。
 - **结论**: **pass——U-P036-6 关闭，P-036 过程链全闭合（Step 1-9 + Step 10 同基座审计终审 + 异构终审）**，批次关闭；批次总结报告 [SUMMARY_p036](SUMMARY_p036_mypy_check_surface_expansion.md) 随终审交付（§1-§10 全景：门禁三性「覆盖面 × 无假绿 × 版本确定」、131 条三批谱系与 C1-C4、三口径方法论、9 P2 + 20 P3 台账、17 提交链 + 12 CI、边界遗留与六条启示）。
-- **提交与 CI**: 见本节提交记录（docs-only：CHECKLIST §12 + §11.2 精化 + 签字表 + 状态行「批次关闭」/ SUMMARY_p036 新建 / PROGRESS U-P036-6 → done + P-036 行收口 + §3.41.15）。
+- **提交与 CI**: 提交 `98ccc0a`（3 文件 **+223/−5**，docs-only：CHECKLIST §12 + §11.2 精化 + 签字表 + 状态行「批次关闭」/ SUMMARY_p036 新建 / PROGRESS U-P036-6 → done + P-036 行收口 + §3.41.15）→ CI run [`44041215605`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44041215605) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
