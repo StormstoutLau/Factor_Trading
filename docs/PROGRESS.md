@@ -1782,6 +1782,16 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **关键前置/开放问题**: U-P031-1（做空账目，截面多空/月差硬前置）、U-P025-1（EventLog 接入）、data.py/data_v3.py 统一；QMT 仅 Windows、A股现货不走 CTP、毫秒级口径（Level-1 源 3s）、PyPortfolioOpt 新依赖——待用户裁决（总纲 §7）。
 - **下一步**: 用户裁决开放问题后，从 P-042（数据契约统一）起逐批走 SPEC_PROCESS 十步 + 异构终审。
 
+### 3.47.1 UPGRADE_MASTER_PLAN 独立复审与盲区扫描（DeepSeek-V4.1-Flash，2026-11-17）
+
+- **对象/基座**: 总纲初稿 `646f40e`（306 行）；初稿由 Qwen4-Max 基座生成，本次复审 DeepSeek-V4.1-Flash → **RULE-5 异构成立**；只读核验 + 文档修订，不改代码。
+- **E1/E3 核验**: FastAPI/uvicorn/WebSocket 全仓 **0 命中**；`live`/`services`/`strategies` 三目录均不存在；`redis>=4.5.0`(L45)/`sqlalchemy>=2.0.0`(L42)/cvxpy/scipy/sklearn/pydantic 已声明，`import-linter`/PyPortfolioOpt/fastapi/uvicorn/xtquant 未声明；CI mypy 靶不含新目录且仓库无 `.pre-commit-config.yaml`；`tests/golden/` 实为 **7 份 JSON（G1-G7）**、`-k golden` 收集 **13 项**；4 优化器/3 协方差估计器/`round_lot_optimize`、`LiveTradingBridge` ABC L69-128、`engine_v2.run()` L341-441、`engine_v3._rebalance_kernel` L78-153 锚点全部成立。
+- **E4 盲区扫描**: `core/` 内 kill_switch/emergency/circuit_breaker/fat_finger/auth/token/jwt/secret **0 命中**；无交易日历/时段模块；总纲初稿 0 处提及合规报备/TLS/密钥/公司行为/时区/parity/多策略资金/监控告警。
+- **发现**: **3 P1 + 12 P2 + 12 P3，全部当轮处置**。P1：①实盘安全与合规硬约束缺失 → 新增 §3.0 S1-S7 + 新批次 P-052 实盘安全闸门；②路线图顺序矛盾（原 P-050 截面多空早于硬前置 P-051 做空账目）→ 做空账目前移 P-050、模板 P-051、拆出 P-058；③依赖图缺 `live/services→strategies` 边 → §2.1 完整边集 + §6 允许/禁止矩阵。P2 覆盖：CI/类型靶未含新目录、P-042 漏 `data_provider.py`、漏复用 `target_positions.py`、golden 零重录口径矛盾、公司行为/交易日历/数据质量/parity/多策略资金/鉴权/可观测性、xtquant Windows-only 与 Linux CI 冲突。P3 覆盖 Guard 6 类枚举、agents 13 模块、Plugin Registry 锚点、golden 7/13 口径、`live_bridge` 行号、SERVICES「只读扇出」与「策略管理」矛盾等事实订正。
+- **修订落盘**: [UPGRADE_MASTER_PLAN.md](UPGRADE_MASTER_PLAN.md) 新增 §3.0、§10（证据矩阵/发现清单/盲区清单/编号映射/观察项），并订正 §1-§7；路线图改为 P-042~P-058（含新增 P-052/P-058）。
+- **未决观察项**: O-R1（golden 测试 docstring 写 G1-G6 vs 实有 G1-G7，注释漂移）、O-R2（xtquant Python 版本/Linux 不可装，待 P-053 RESEARCH 取证）、O-R3（程序化交易报告阈值，待 P-052 RESEARCH 取证）。
+- **结论**: 复审 pass（修订后总纲与代码事实一致、路线图自洽、实盘安全/合规边界补齐）；待用户裁决 §7 开放问题后从 **P-042** 起立项。
+
 ---
 
 ## 4. 审查记录
