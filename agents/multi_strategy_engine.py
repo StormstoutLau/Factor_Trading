@@ -40,7 +40,7 @@ from core.target_positions import (
     compute_portfolio_value,
 )
 from core.tracker import PositionTracker
-from filter.universe_filter_clean import UniverseFilter
+from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
 from agents.strategy_allocator import StrategyAllocationManager
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ class StrategyEngine:
         self.tracker = PositionTracker(self.dm.n_stocks, strategy_config.initial_capital)
 
         if base_config.enable_pending_orders:
-            self.pending_queue = PendingOrderQueue(
+            self.pending_queue: PendingOrderQueue | None = PendingOrderQueue(
                 max_pending_days_buy=base_config.max_pending_days_buy,
                 max_pending_days_sell=base_config.max_pending_days_sell,
             )
@@ -584,7 +584,9 @@ class MultiStrategyEngine:
 
         # 2. 股票池过滤器
         logger.info("  → 构建股票池过滤器...")
-        self.universe = UniverseFilter(self.dm, base_config.universe)
+        self.universe = UniverseFilter(
+            self.dm, UniverseFilterConfig.from_universe_config(base_config.universe)
+        )
         self.universe.build_masks()
 
         # 3. 因子处理与合成
@@ -774,7 +776,7 @@ class MultiStrategyEngine:
             )
 
         # 跟踪每日各策略收益（用于动态分配）
-        strategy_daily_returns = {name: [] for name in engines.keys()}
+        strategy_daily_returns: dict[str, list[float]] = {name: [] for name in engines.keys()}
         prev_values = {name: engine.tracker.get_total_value() for name, engine in engines.items()}
 
         # 共享回测循环
@@ -826,6 +828,7 @@ class MultiStrategyEngine:
 
                 # 更新动态分配权重
                 if i >= 10:  # 至少需要10天数据才开始动态调整
+                    assert allocator is not None
                     weights = allocator.update(
                         np.array(daily_returns),
                         date=pd.Timestamp(date).to_pydatetime(),
@@ -906,7 +909,7 @@ class MultiStrategyEngine:
         n_strategies = len(strategy_names)
 
         # 跟踪每日净值
-        nav_history = {name: [] for name in strategy_names}
+        nav_history: dict[str, list[float]] = {name: [] for name in strategy_names}
         prev_values = {name: engine.tracker.get_total_value() for name, engine in engines.items()}
 
         # 主回测循环
@@ -970,7 +973,7 @@ class MultiStrategyEngine:
                 for j, name in enumerate(strategy_names):
                     target_capital = total_value * weights[j]
                     # 调整策略引擎的可用资金（通过tracker的cash调整）
-                    engines[name].tracker.cash = target_capital - (
+                    engines[name].tracker._cash = target_capital - (
                         engines[name].tracker.get_total_value() - engines[name].tracker.get_cash()
                     )
 

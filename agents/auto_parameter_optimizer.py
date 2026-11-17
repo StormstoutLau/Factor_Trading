@@ -322,7 +322,8 @@ class PBTParameterOptimizer:
         else:
             volatility_penalty = 0.0
 
-        return sharpe - reg_loss - volatility_penalty
+        score: float = sharpe - reg_loss - volatility_penalty
+        return score
 
     def _simulate_decisions(self, config: dict, returns: np.ndarray) -> np.ndarray:
         """模拟Agent决策收益"""
@@ -335,7 +336,7 @@ class PBTParameterOptimizer:
         weighted_signals = weights @ signals
 
         # 模拟收益
-        simulated = returns * np.sign(weighted_signals)
+        simulated: np.ndarray = returns * np.sign(weighted_signals)
         return simulated
 
     def exploit_and_explore(self, regularizer: RegularizedTrainer):
@@ -423,7 +424,8 @@ class PBTParameterOptimizer:
                 else -np.inf
             ),
         )
-        return self.population[best_idx]["config"]
+        best_config: dict[Any, Any] = self.population[best_idx]["config"]
+        return best_config
 
     def get_population_report(self) -> dict:
         """获取种群报告"""
@@ -942,7 +944,7 @@ def demo_auto_optimizer():
     print(f"  正则化损失: {reg_loss:.4f}")
 
     # Dropout演示
-    roles = ["A", "B", "C", "D", "E"]
+    roles: list[Any] = ["A", "B", "C", "D", "E"]
     mask = [True, True, True, True, True]
     new_mask = trainer.apply_dropout(roles, mask)
     print(f"  Dropout前: {mask}")

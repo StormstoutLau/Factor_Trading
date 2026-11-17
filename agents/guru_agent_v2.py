@@ -182,10 +182,11 @@ class GuruAgentV2(BaseAgent):
             GuruAgentV2._loader_cache[data_dir_str] = GuruDataLoader(data_dir)
 
         # 加载Guru数据
-        self.guru_data = GuruAgentV2._loader_cache[data_dir_str].get(guru_id)
-        if self.guru_data is None:
+        guru_data = GuruAgentV2._loader_cache[data_dir_str].get(guru_id)
+        if guru_data is None:
             available = GuruAgentV2._loader_cache[data_dir_str].list_gurus()
             raise ValueError(f"未知Guru: {guru_id}。可用: {available}")
+        self.guru_data: dict[Any, Any] = guru_data
 
         self.guru_id = guru_id
         self.guru_name = self.guru_data.get("name", guru_id)
@@ -449,7 +450,7 @@ class GuruAgentV2(BaseAgent):
 
     def should_rebalance(self, date: pd.Timestamp, current_portfolio: dict[str, Any]) -> bool:
         """判断是否调仓"""
-        return date.day == self.cfg.rebalance_day
+        return bool(date.day == self.cfg.rebalance_day)
 
     def get_guru_report(self) -> dict[str, Any]:
         """获取Guru专属报告"""

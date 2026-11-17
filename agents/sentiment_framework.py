@@ -219,6 +219,7 @@ class NewsCollector:
             for i in range(n_news):
                 # 随机生成情感倾向
                 sentiment_roll = np.random.random()
+                keywords: Any
 
                 if sentiment_roll < 0.3:
                     polarity = SentimentPolarity.NEGATIVE
@@ -733,7 +734,7 @@ class SentimentAlertEngine:
 
     def __init__(self):
         self.alert_history: list[dict] = []
-        self.rate_limiter = {
+        self.rate_limiter: dict[str, dict[str, Any]] = {
             "FLASH": {"last_sent": None, "cooldown_minutes": 15},
             "PRIORITY": {"last_sent": None, "cooldown_minutes": 60},
             "ROUTINE": {"last_sent": None, "cooldown_minutes": 240},
@@ -781,7 +782,7 @@ class SentimentAlertEngine:
             return True
 
         elapsed = (datetime.now() - limiter["last_sent"]).total_seconds() / 60
-        return elapsed >= limiter["cooldown_minutes"]
+        return bool(elapsed >= limiter["cooldown_minutes"])
 
     def _update_rate_limit(self, severity: str) -> None:
         """更新速率限制时间戳"""
@@ -793,7 +794,7 @@ class SentimentAlertEngine:
         if not self.alert_history:
             return {"total": 0, "by_tier": {}}
 
-        by_tier = {}
+        by_tier: dict[str, int] = {}
         for alert in self.alert_history:
             tier = alert["tier"]
             by_tier[tier] = by_tier.get(tier, 0) + 1

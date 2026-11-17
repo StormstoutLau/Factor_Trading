@@ -39,7 +39,7 @@ from core.config import (
 from core.data import DataManager
 from core.execution import ExecutionSimulator, Trade
 from core.factor import FactorCombiner, FactorPipeline
-from filter.universe_filter_clean import UniverseFilter
+from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
 from core.pending import OrderSide, PendingOrderQueue, create_pending_order
 from core.portfolio import BaseOptimizer, build_optimizer
 from core.rebalance import BaseTrigger, build_trigger
@@ -430,7 +430,7 @@ class ValueAgent(BaseAgent):
 
     def should_rebalance(self, date: pd.Timestamp, current_portfolio: dict[str, Any]) -> bool:
         """月度调仓"""
-        return date.day == self.cfg.rebalance_day
+        return bool(date.day == self.cfg.rebalance_day)
 
 
 class MomentumAgent(BaseAgent):
@@ -511,7 +511,7 @@ class MomentumAgent(BaseAgent):
 
     def should_rebalance(self, date: pd.Timestamp, current_portfolio: dict[str, Any]) -> bool:
         """月度调仓"""
-        return date.day == self.cfg.rebalance_day
+        return bool(date.day == self.cfg.rebalance_day)
 
 
 class ContrarianAgent(BaseAgent):
@@ -593,7 +593,7 @@ class ContrarianAgent(BaseAgent):
 
     def should_rebalance(self, date: pd.Timestamp, current_portfolio: dict[str, Any]) -> bool:
         """双月调仓"""
-        return date.day == self.cfg.rebalance_day and date.month % 2 == 1
+        return bool(date.day == self.cfg.rebalance_day and date.month % 2 == 1)
 
 
 # ============================================================
@@ -672,7 +672,7 @@ class SignalAggregator:
         else:
             return self._weighted_vote(stock, signals)
 
-    def _weighted_vote(self, stock: str, signals: list[AgentSignal]) -> dict[str, Any]:
+    def _weighted_vote(self, stock: str, signals: list[AgentSignal]) -> dict[str, Any] | None:
         """加权投票"""
         long_score = 0.0
         short_score = 0.0
@@ -734,7 +734,7 @@ class SignalAggregator:
             "short_votes": short_count,
         }
 
-    def _confidence_weighted(self, stock: str, signals: list[AgentSignal]) -> dict[str, Any]:
+    def _confidence_weighted(self, stock: str, signals: list[AgentSignal]) -> dict[str, Any] | None:
         """按置信度加权"""
         long_score = 0.0
         short_score = 0.0
@@ -1141,12 +1141,13 @@ class ResearchTeamAgent(BaseAgent):
         if self._industry_data is not None and date in self._industry_data.index:
             day_industry = self._industry_data.loc[date]
             if stock in day_industry.index:
-                return day_industry[stock]
+                value: str = day_industry[stock]
+                return value
         return ""
 
     def should_rebalance(self, date: pd.Timestamp, current_portfolio: dict[str, Any]) -> bool:
         """判断是否调仓"""
-        return date.day == self.cfg.rebalance_day
+        return bool(date.day == self.cfg.rebalance_day)
 
     def get_performance_summary(self) -> dict[str, Any]:
         """获取绩效摘要（扩展）"""
@@ -1236,7 +1237,9 @@ class MultiAgentBacktestEngine:
             tracker.n_stocks = len(self.dm.stock_codes)
 
         # 2. 股票池过滤器
-        self.universe = UniverseFilter(self.dm, self.cfg.universe)
+        self.universe = UniverseFilter(
+            self.dm, UniverseFilterConfig.from_universe_config(self.cfg.universe)
+        )
         self.universe.build_masks()
 
         # 3. 每个Agent准备自己的因子
@@ -1289,6 +1292,7 @@ class MultiAgentBacktestEngine:
 
         for agent in rebalance_agents:
             composite_signal = self.agent_signals[agent.agent_id].loc[date]
+            assert self.universe is not None
             tradable_mask = self.universe.tradable.loc[date]
             current_portfolio = self._get_agent_portfolio(agent.agent_id)
 
@@ -1331,6 +1335,7 @@ class MultiAgentBacktestEngine:
     ):
         """执行聚合后的信号 - 修复数据窥探：使用执行价格类型确定的价格"""
         # 获取各种价格数据
+        assert self.dm is not None
         adj_open = self.dm.get_adj_price("open", self.cfg.adjustment_type)
         adj_close = self.dm.get_adj_price("close", self.cfg.adjustment_type)
         adj_high = self.dm.get_adj_price("high", self.cfg.adjustment_type)
@@ -1383,7 +1388,7 @@ class MultiAgentBacktestEngine:
                         date,
                         stock,
                         OrderSide.BUY,
-                        trade_qty,
+                        int(trade_qty),
                         open_price,
                         close_price,
                         high_price,
@@ -1398,7 +1403,7 @@ class MultiAgentBacktestEngine:
                         date,
                         stock,
                         OrderSide.SELL,
-                        trade_qty,
+                        int(trade_qty),
                         open_price,
                         close_price,
                         high_price,
@@ -1431,6 +1436,7 @@ class MultiAgentBacktestEngine:
 
     def _update_all_portfolios(self, date: pd.Timestamp):
         """更新所有组合的市值"""
+        assert self.dm is not None
         close_prices = self.dm.get_adj_price("close", self.cfg.adjustment_type).loc[date]
 
         # 更新总组合
@@ -1444,7 +1450,7 @@ class MultiAgentBacktestEngine:
         """生成回测结果"""
         from analytics import PerformanceAnalyzer
 
-        results = {"total_portfolio": {}, "agent_portfolios": {}}
+        results: dict[str, Any] = {"total_portfolio": {}, "agent_portfolios": {}}
 
         # 总组合绩效
         total_analyzer = PerformanceAnalyzer()

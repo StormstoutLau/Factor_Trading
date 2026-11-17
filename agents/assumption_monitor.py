@@ -217,7 +217,7 @@ class ReturnDistributionMonitor:
         Returns:
             检验结果列表
         """
-        checks = []
+        checks: list[Any] = []
         if len(returns_history) < self.window_size:
             return checks
 
@@ -324,7 +324,7 @@ class CorrelationStructureMonitor:
         Returns:
             检验结果列表
         """
-        checks = []
+        checks: list[Any] = []
         if len(returns_history) < self.window_size + 10:
             return checks
 
@@ -424,19 +424,22 @@ class TurnoverMonitor:
 
     def _calculate_turnover(self, w_old: np.ndarray, w_new: np.ndarray) -> float:
         """计算换手率"""
-        return np.sum(np.abs(w_new - w_old)) / 2
+        turnover: float = np.sum(np.abs(w_new - w_old)) / 2
+        return turnover
 
     def _calculate_entropy(self, weights: np.ndarray) -> float:
         """计算权重熵"""
         w = weights[weights > 1e-10]
         if len(w) == 0:
             return 0.0
-        return -np.sum(w * np.log(w))
+        entropy: float = -np.sum(w * np.log(w))
+        return entropy
 
     def _effective_count(self, weights: np.ndarray) -> float:
         """计算有效策略数"""
         entropy = self._calculate_entropy(weights)
-        return np.exp(entropy)
+        count: float = np.exp(entropy)
+        return count
 
     def check(
         self, current_weights: np.ndarray, previous_weights: Optional[np.ndarray] = None
@@ -549,7 +552,8 @@ class BayesianModelMonitor:
         """计算高斯对数似然"""
         if std < 1e-10:
             return -np.inf
-        return -0.5 * np.log(2 * np.pi * std**2) - 0.5 * ((obs - mean) / std) ** 2
+        loglik: float = -0.5 * np.log(2 * np.pi * std**2) - 0.5 * ((obs - mean) / std) ** 2
+        return loglik
 
     def _ljung_box(self, residuals: list[float], lags: int = 5) -> tuple[float, float]:
         """简化的Ljung-Box检验"""
@@ -593,7 +597,7 @@ class BayesianModelMonitor:
         Returns:
             检验结果列表
         """
-        checks = []
+        checks: list[Any] = []
         if len(returns_history) < 10:
             return checks
 
@@ -706,7 +710,7 @@ class UniversalMonitor:
         Returns:
             检验结果列表
         """
-        checks = []
+        checks: list[Any] = []
         if len(returns_history) < 2 or len(weights_history) < 2:
             return checks
 
@@ -818,7 +822,8 @@ class AssumptionMonitorLayer:
                 returns_matrix = np.array(self.returns_history[-60:])
                 vols = np.std(returns_matrix, axis=0) + 1e-10
                 inv_vols = 1.0 / vols
-                return inv_vols / np.sum(inv_vols)
+                fallback: np.ndarray = inv_vols / np.sum(inv_vols)
+                return fallback
             return np.ones(self.n) / self.n
         else:
             return np.ones(self.n) / self.n

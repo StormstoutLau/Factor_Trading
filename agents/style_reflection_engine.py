@@ -200,7 +200,7 @@ class StyleReflectionEngine:
         primary = self.anchoring.primary_metrics
         secondary = self.anchoring.secondary_metrics
 
-        result = {
+        result: dict[str, Any] = {
             "style": self.profile.style.value,
             "primary_status": {},
             "secondary_status": {},

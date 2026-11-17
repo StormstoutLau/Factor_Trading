@@ -218,7 +218,8 @@ class StyleDriftDetector:
         # 计算漂移
         drift = abs(current_concentration - baseline_concentration) / baseline_concentration
 
-        return min(drift, 1.0)
+        concentration_drift: float = min(drift, 1.0)
+        return concentration_drift
 
     def _detect_beta_drift(self, current_returns: pd.Series) -> float:
         """检测Beta漂移"""
@@ -240,21 +241,25 @@ class StyleDriftDetector:
         current_beta = current_volatility / baseline_volatility
         drift = abs(current_beta - baseline_beta) / abs(baseline_beta)
 
-        return min(drift, 1.0)
+        beta_drift: float = min(drift, 1.0)
+        return beta_drift
 
     def _detect_volatility_drift(self, current_returns: pd.Series) -> float:
         """检测波动率漂移"""
         if len(current_returns) < 10:
             return 0.0
 
-        baseline_vol = self.baseline_profile.get("baseline_volatility", 0.02)
+        profile = self.baseline_profile
+        assert profile is not None
+        baseline_vol = profile.get("baseline_volatility", 0.02)
         current_vol = current_returns.std()
 
         if baseline_vol == 0:
             return 0.0
 
         drift = abs(current_vol - baseline_vol) / baseline_vol
-        return min(drift, 1.0)
+        volatility_drift: float = min(drift, 1.0)
+        return volatility_drift
 
     def _compute_composite_score(self, metrics: StyleDriftMetrics) -> float:
         """计算综合漂移分数"""
@@ -803,8 +808,8 @@ def demo_style_anchor():
 
     print(f"\n硬约束检查: {'通过' if passed else '未通过'}")
     if violations:
-        for v in violations:
-            print(f"  违反: {v}")
+        for violation in violations:
+            print(f"  违反: {violation}")
 
 
 if __name__ == "__main__":

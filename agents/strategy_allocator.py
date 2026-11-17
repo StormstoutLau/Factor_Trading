@@ -69,7 +69,7 @@ class AllocationState:
         means = np.mean(excess_returns, axis=0)
         stds = np.std(excess_returns, axis=0)
         stds = np.where(stds == 0, 1e-8, stds)
-        return means / stds
+        return np.asarray(means / stds)
 
     def covariance(self) -> np.ndarray:
         """计算收益协方差矩阵"""
@@ -310,7 +310,7 @@ class StrategyEvaluator:
         expected = self.get_expected_returns() - risk_free_rate
         uncertainty = self.get_uncertainty()
         uncertainty = np.where(uncertainty < 1e-8, 1e-8, uncertainty)
-        return expected / uncertainty
+        return np.asarray(expected / uncertainty)
 
     def get_report(self) -> dict[str, Any]:
         """生成评估报告"""
@@ -413,7 +413,7 @@ class HedgeAllocator(BaseAllocator):
         # 归一化
         weights = weights / np.sum(weights)
 
-        return weights
+        return np.asarray(weights)
 
 
 class FTRLAllocator(BaseAllocator):
@@ -489,7 +489,7 @@ class FTRLAllocator(BaseAllocator):
         weights = np.clip(weights, self.min_w, self.max_w)
         weights = weights / np.sum(weights)
 
-        return weights
+        return np.asarray(weights)
 
 
 class UCBAllocator(BaseAllocator):
@@ -530,7 +530,7 @@ class UCBAllocator(BaseAllocator):
         weights = np.clip(weights, self.min_w, 1.0)
         weights = weights / np.sum(weights)
 
-        return weights
+        return np.asarray(weights)
 
 
 class ThompsonSamplingAllocator(BaseAllocator):
@@ -576,7 +576,7 @@ class ThompsonSamplingAllocator(BaseAllocator):
         weights = np.clip(weights, self.min_w, 1.0)
         weights = weights / np.sum(weights)
 
-        return weights
+        return np.asarray(weights)
 
 
 class MeanVarianceAllocator(BaseAllocator):
@@ -650,7 +650,7 @@ class MeanVarianceAllocator(BaseAllocator):
         weights = np.clip(weights, self.min_w, self.max_w)
         weights = weights / np.sum(weights)
 
-        return weights
+        return np.asarray(weights)
 
 
 # ============================================================
@@ -790,7 +790,7 @@ class StrategyAllocationManager:
         # 过滤 allocator_kwargs，只保留该分配器支持的参数
         import inspect
 
-        sig = inspect.signature(allocator_cls.__init__)
+        sig = inspect.signature(allocator_cls)
         valid_params = set(sig.parameters.keys()) - {"self"}
         filtered_kwargs = {k: v for k, v in allocator_kwargs.items() if k in valid_params}
         self.allocator = allocator_cls(**filtered_kwargs)
@@ -836,7 +836,7 @@ class StrategyAllocationManager:
         if date is not None:
             self.weight_history.append((date, new_weights.copy()))
 
-        return new_weights
+        return np.asarray(new_weights)
 
     def get_weights(self) -> dict[str, float]:
         """获取当前权重字典"""

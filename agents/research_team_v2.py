@@ -253,12 +253,10 @@ class BayesianResearchRole(ABC):
             lr = 1.5 if prediction_correct else 0.67
             self.capability_belief.update(lr, period=period)
 
-        # 更新各因子信念（传递period）
+        # 更新各因子信念
         for factor_name in self.belief_engine.beliefs.get(BeliefLayer.TACTIC, {}):
             evidence_strength = abs(outcome_score) * 2
-            self.belief_engine.update_belief(
-                factor_name, outcome_score > 0, evidence_strength, period=period
-            )
+            self.belief_engine.update_belief(factor_name, outcome_score > 0, evidence_strength)
 
         logger.debug(
             f"[{self.name}] 学习: 正确={prediction_correct}, 得分={outcome_score:.3f}, "

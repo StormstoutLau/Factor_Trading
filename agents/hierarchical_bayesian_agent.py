@@ -216,7 +216,7 @@ class HierarchicalBelief:
 
         std = np.std(recent_values)
         # 标准差越小越稳定
-        stability = max(0, 1 - std * 5)
+        stability: float = max(0, 1 - std * 5)
         return stability
 
 
@@ -284,7 +284,7 @@ class MacroEventDetector:
         2. 相关性飙升（所有股票同涨同跌）
         3. 成交量异常
         """
-        active_events = []
+        active_events: list[Any] = []
 
         if self.volatility_baseline is None or returns.empty:
             return active_events
