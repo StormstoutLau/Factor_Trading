@@ -2,7 +2,7 @@
 
 > **批次**: P-042 · **T1**（Layer-1：`core/`、`tests/`；契约变更）
 > **上游**: [IMPL_p042](IMPL_p042_data_contract.md)（§3 实现规格 / §4 V1-V16 / §9 Step 6 pass：1 P2 + 3 P3）；[DESIGN_p042](DESIGN_p042_data_contract.md)（D1-D7 / I1-I12 / §10 Step 4 pass：1 P2 + 3 P3）；[RESEARCH_p042](RESEARCH_p042_data_contract.md)（§6 B1-B4 / §7 S1-S10 / §13 Step 2 pass）
-> **状态**: **Step 9 完成 + Step 10 ADD pass（P1=0/P2=1 当轮修复）+ CI 全绿（2026-11-18），待 U-P042-1 异构终审**
+> **状态**: **批次关闭（2026-11-18）：47/47 + Step 10 ADD pass + U-P042-1 异构终审 pass（GLM-5.3-Flash，0 P1/P2 + 2 P3 披露）**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止预填
 > **基线读数（@`9f0dbeb`）**: pytest **778** / golden **13 passed, 765 deselected** / black `core tests` **124**（全仓 **191**）/ mypy **103 files 0** / AST `except Exception` **22** / `tests/*.py` **87** / `uv lock --check` exit **0**
 > **目标读数**: pytest **795** / golden 13 零重录 / black **129**（全仓 **196**）/ mypy **104 files 0** / AST **22** / `tests/*.py` **91** / uv exit **0**
@@ -62,7 +62,7 @@
 | C10 | **I9** `IDataManager` 成员不含 `load_aux_raw` / `data_fingerprint`（V7 内置断言） | B2/B4 落码 | V7 | ✅ V7 PASS |
 | C11 | **I10** `grep "data_dir" agents/agent_framework.py` = **0** | A6 落码 | grep | ✅ **0** |
 | C12 | **I11** `filter/**`、`core/data_v3.py`、`core/manifest.py`、`tests/golden/**` 零 diff | 全量实现 | `git diff --stat` | ✅ 四类均无 diff |
-| C13 | **I12** 复权/对齐/缺失语义零变更：V4 + `test_adjustment*` + `test_data_aux_defaults` 全绿 | 全量实现 | pytest | ✅ V4 PASS；全量 794 含相关用例 |
+| C13 | **I12** 复权/对齐/缺失语义零变更：V4 + `test_adjustment*` + `test_data_aux_defaults` 全绿 | 全量实现 | pytest | ✅ V4 PASS；全量 **795** 含相关用例（F-U3-P042-1 订正旧数 794） |
 
 ## 4. D 组：门禁、提交与文档（7 项）
 
@@ -179,4 +179,69 @@
 ### 8.4 结论
 
 **Step 10 ADD 审计 pass**——Phase 0-4 全过；**P1 = 0 / P2 = 1（当轮修复 + V17）**；P3 = 2（O-P042-5 登记、`_maxlen` 删除）；DR-P042-1 已登记。G1-G6 全部关闭。
-**批次仍 in-progress**，待 **U-P042-1 异构终审**（GLM-5.3-Flash）。
+
+---
+
+## 9. U-P042-1 异构终审记录（GLM-5.3-Flash，2026-11-18）
+
+> **基座披露（RULE-4/RULE-5）**: 终审会话自报 `GLM-5.3-Flash` ≠ 作者 DeepSeek-V4.1-Flash（Step 2/4/6/8/10 五轮均同源）→ **异构终审成立**。
+> **终审范围**: 四文档 + CHECKLIST 47 项 + Step 9 取证 + Step 10 审计 + 门禁；E3 绑 `84d899e`（Step 9）+ `9f08f77`（ADD 修复）；终审时 HEAD `717a79b`，工作区净。
+> **终审原则**: 全量重验，不信任前轮结论；探针/扫描独立编写。
+
+### 9.1 E1 门禁七项独立复跑（全部命中）
+
+| # | 门禁 | 口径 | 实测 |
+|---|------|------|------|
+| 1 | pytest 全量 | `pytest tests -q -p no:cacheprovider` | ✅ `795 passed, 172 warnings in 79.04s` |
+| 2 | golden | `pytest -k golden` + `git status --short tests/golden/` | ✅ `13 passed, 782 deselected`；目录净 |
+| 3 | black 双口径 | `black --check core tests` / `black --check .` | ✅ `129` / `196` unchanged |
+| 4 | mypy | CI 逐字命令 | ✅ `Success: no issues found in 104 source files` |
+| 5 | AST `except Exception` | P-029 单行命令 | ✅ **22**；新增 `# type: ignore`（diff 9f0dbeb..HEAD）**0** |
+| 6 | `tests/*.py` | 顶层计数 | ✅ **91** |
+| 7 | `uv lock --check` | 本地 uv | ✅ exit **0** |
+
+### 9.2 E2 独立探针（7 组，自编脚本，非测试套件）
+
+| # | 探针 | 读数 | 判定 |
+|---|------|------|------|
+| 1 | 端口 4 方法 + `load_factor` 形参名 `["self","name"]` | 逐字命中 | ✅ |
+| 2 | `PklDataProvider.load_factor` 往返 + 缺失文案 | `因子文件不存在: <path>` 逐字 | ✅ |
+| 3 | Spy provider（同源构造映射）：`calls == [FACTOR_FILE]` 恰 1 次 | 命中 | ✅ |
+| 4 | `load_aux_raw("industry")` 与磁盘 `equals`；`dm.mktcap is None` 且 raw 非空（DR-P042-1 边界） | 命中 | ✅ |
+| 5 | 指纹跨实例稳定 + **high 单值敏感**（V 系列未覆盖的第三价格矩阵） | 变更即变 | ✅ |
+| 6 | 流式：覆盖式订阅 / 未订阅不占 seq / poll 增量归零 / frozen / close 幂等拒绝 | 全过 | ✅ |
+| 7 | `IDataManager` 公开成员恰 **19**；`load_aux_raw`/`data_fingerprint` 不入协议 | 命中 | ✅ |
+| 汇总 | `U-P042-1 E2_PROBE_OK fp=sha256:273932e30a18` | **与 ADD §8.3 记录逐字一致**（seed=42 确定性互证） | ✅ |
+
+> **探针自纠披露（F-U3-P042-2，P3，探针侧非仓库）**: v2 探针 P6 预期 `snapshot` 键集 `["A"]`——**探针 bug**：`e2`（B）在订阅前已合法入队，按 DESIGN-D5「snapshot 返回每 symbol 最新**已入队**事件」B 键应保留；v3 修正后全过。非产品缺陷，与 F-U3-P041-1 先例同性质。
+
+### 9.3 E3 静态读码（@`84d899e` + `9f08f77`）
+
+- [data_provider.py:33-35](file:///f:/Coding/Factor_Trading_v3.0/core/data_provider.py#L33-L35) 协议 `load_factor`、[L82-86](file:///f:/Coding/Factor_Trading_v3.0/core/data_provider.py#L82-L86) 实现与文案——与 IMPL §3.1 逐字一致。
+- [data.py:571-574](file:///f:/Coding/Factor_Trading_v3.0/core/data.py#L571-L574) 因子走端口、[L619-620](file:///f:/Coding/Factor_Trading_v3.0/core/data.py#L619-L620) `except FileNotFoundError: raise`、[L185-191](file:///f:/Coding/Factor_Trading_v3.0/core/data.py#L185-L191) `load_aux_raw`、[L646-681](file:///f:/Coding/Factor_Trading_v3.0/core/data.py#L646-L681) 指纹——与 IMPL §3.2/3.3/3.9 一致。
+- [interfaces.py:52-100](file:///f:/Coding/Factor_Trading_v3.0/core/interfaces.py#L52-L100) 10 属性 + [L19](file:///f:/Coding/Factor_Trading_v3.0/core/interfaces.py#L19) TYPE_CHECKING；[agent_framework.py:976-984](file:///f:/Coding/Factor_Trading_v3.0/agents/agent_framework.py#L976-L984) 两处 `load_aux_raw`；[factor.py:21](file:///f:/Coding/Factor_Trading_v3.0/core/factor.py#L21)/[L32](file:///f:/Coding/Factor_Trading_v3.0/core/factor.py#L32) 依赖倒置；`engine_v2.py` 无 `cast(`。
+- [streaming.py](file:///f:/Coding/Factor_Trading_v3.0/core/streaming.py) 全模块与 IMPL §3.8 一致（含 F-S10-P042-3 后无 `_maxlen` 成员）。
+
+### 9.4 E4 盲区扫描（0 项仓库缺陷）
+
+| # | 扫描 | 结果 |
+|---|------|------|
+| 1 | 生产 `pd.read_pickle`/`pickle.load` | ✅ 仅 `data_provider.py` 3 处（端口本体）；`data_v3.py:198` 为零 diff 文件既有代码（I11 复核通过） |
+| 2 | agents 经 `data_manager`/`dm` 读 `data_dir` | ✅ **0**（guru/sentiment 自有 `data_dir` 为 O-P042-5，非 G3） |
+| 3 | `cast(DataManager` / 已删 API / `live/` | ✅ 0 / 0 / 不存在 |
+| 4 | 四文档模糊词 | ✅ 0 实际命中（CHECKLIST L151 命中为 Phase 0 词表引用本身，误报排除） |
+| 5 | 红态逻辑复现 @`9f0dbeb` | ✅ `load_factor`/`load_aux_raw`/`data_fingerprint`/`streaming.py`/协议 `close` 均**不存在** → V1/V2/V3/V5/V6/V7/V13-V15 必 FAIL、V4/V16 必 PASS、streaming 收集期 error → 与 B17「9F2P + 1error + 2F15P」逐项吻合 |
+| 6 | 计数链 | ✅ 778+17=795；124+5=129；191+5=196；87+4=91；103+1=104；47=8+19+13+7 |
+| 7 | CI run 复核 | ✅ `44128298986`@`84d899e` / `44131327084`@`9f08f77` / `44131894201`@`717a79b` 均 success |
+
+### 9.5 发现与当轮处置（0 P1/P2 + 2 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-U3-P042-1 | P3 | C13 实测列残留 Step 9 首跑旧数「全量 794」——ADD 修复后应为 795 | 本节当轮订正 C13 |
+| F-U3-P042-2 | P3 | 终审探针 v2 误设 snapshot 预期（见 9.2 披露） | 探针侧修正，仓库零影响 |
+
+### 9.6 结论
+
+**U-P042-1 异构终审 pass（GLM-5.3-Flash，RULE-5 成立）**——E1 七门禁 / E2 七探针 + 1 自纠披露 / E3 静态读码 / E4 盲区扫描（0 仓库缺陷，计数链全对）/ E5 无推测入结论；**0 P1/P2 + 2 P3（1 项文档订正 + 1 项探针侧披露）**。
+**批次 P-042 关闭**：G1-G6 全关闭、DR-P042-1 已验收、O-P042-1~5 均为观察项；U-P042-6 未触发（cast 移除成功）。
