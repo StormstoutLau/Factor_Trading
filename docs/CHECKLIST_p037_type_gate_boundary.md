@@ -2,7 +2,7 @@
 
 > **批次**: P-037 · **T1**（门禁判据面变更；判档规则 2）
 > **上游**: [IMPL_p037](IMPL_p037_type_gate_boundary.md)（§4 13 行 / 20 条规格 / §9 Step 6 复审 pass：1 P2 + 3 P3 当轮回写）；[DESIGN_p037](DESIGN_p037_type_gate_boundary.md)（D1-D5 / I1-I6 / V1-V5 / §8 Step 4 复审 pass：2 P2 + 3 P3）；[RESEARCH_p037](RESEARCH_p037_type_gate_boundary.md)（§4 20 条 / §5 C1-C2 / §11 Step 2 复审 pass：2 P2 + 5 P3）
-> **状态**: **Step 1-10 完成（同基座 ADD 审计 pass：0 P1/P2 + 4 P3 当轮处置）**（2026-11-17；38/38 回填 §9 / 审计 §10）；**RULE-5 异构终审 U-P037-3 pending**（五轮复审基座均 UNKNOWN 或 DeepSeek 同源）
+> **状态**: **批次关闭（2026-11-17）**：Step 1-10 完成（38/38 回填 §9 / 同基座 ADD 审计 §10：0 P1/P2 + 4 P3 当轮处置）+ **U-P037-3 异构终审 pass（GLM-5.3-Flash，E1-E5 五项全过 + 1 P3 当轮精化，见 §12）**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（@`ad7815d`，Step 6 独立实测）**: pytest **760 passed** / golden **13 passed, 747 deselected** / black `core tests` **121 unchanged** / `except Exception`（P-029 口径）**22** / `mypy` 10 面 `Success ... 92 source files` / 12 面 `Found 19 errors in 10 files (checked 103 source files)` / `uv lock --check` exit **0**
 > **目标读数**: 12 面**三口径 0**（103 files）/ pytest 760 不变 / golden 13 零重录 / black 121 / AST 22 / 新增 ignore 0 / `^-\s*def ` = 2 / `uv lock` exit 0
@@ -37,7 +37,7 @@
 | ID | 验收项 | 证据出口 | 实测 |
 |----|--------|---------|------|
 | B1 | **C1 缺陷修复**：`PositionTracker(dm.n_stocks, initial_capital)` 可构造，`get_cash()==1e7` | `%TEMP%` 探针（V4） | ✅ `V4 construct OK: n_stocks=2 cash=10000000.0` |
-| B2 | **C2 逐字段等价**：`from_universe_config` 21 字段与源 `UniverseConfig` 逐一一致；且**不等于**默认构造（`excluded_prefixes` 差异可证） | `%TEMP%` 探针（V4b） | ✅ `fields=21 mismatches=0`；`not-equal-to-default fields: ['exclude_na_factors','na_factor_names','excluded_prefixes']` |
+| B2 | **C2 逐字段等价**：`from_universe_config` 21 字段与源 `UniverseConfig` 逐一一致；且**不等于**默认构造（`excluded_prefixes` 差异可证） | `%TEMP%` 探针（V4b） | ✅ `fields=21 mismatches=0`；`not-equal-to-default fields: ['exclude_na_factors','na_factor_names','excluded_prefixes']`（**F-U3-P037-1 精化**：「21 字段」= 21 个显式映射字段（20 直传 + `exclude_stock_prefixes` bool 强转）；目标类实有 23 字段，另 2 个 target-only——`next_day_tradable_mode` 源无对应、按 P-012 D4 由 `check_next_day_tradable=None` 解析 / `limit_check_price` 源无对应、保持默认——二者在 duck-typed 与转换两条路径经 `getattr` 默认值取得同值，等价结论不变；U-P037-3 独立探针实测） |
 | B3 | C2 导入路径为 `filter.universe_filter_clean`（非包根） | 读码 L109；探针 `python -c "from filter.universe_filter_clean import UniverseFilterConfig"` 成功 | ✅ L109 落码；探针 import 成功 |
 | B4 | 其余 18 条零运行期语义变更 | `git diff` 中 `^\+.*(if |else |return |raise )` 逐条归因，未归因 = **0** | ✅ 唯一命中 `current_qty = held.quantity if held else 0`（改名等价）；`raise`+ = 0；未归因 = 0 |
 
@@ -253,4 +253,60 @@
 | Step 8 一致性 Review | DeepSeek-V4.1-Flash（同源） | pass：3 P2 + 4 P3 当轮回写 | 2026-11-17 |
 | Step 9 实施 | DeepSeek-V4.1-Flash | pass：红→绿 19/19/20 → 0；C1/C2 探针；CI 四 job 绿 | 2026-11-17 |
 | Step 10 ADD 审计 | UNKNOWN（同基座独立会话） | pass：0 P1/P2 + 4 P3 当轮处置，见 §10 | 2026-11-17 |
-| U-P037-3 异构终审 | （待异构基座承接） | pending | — |
+| U-P037-3 异构终审 | GLM-5.3-Flash（≠ 作者 DeepSeek-V4.1-Flash） | pass：E1-E5 五项全过 + 1 P3 当轮精化，见 §12 | 2026-11-17 |
+
+---
+
+## 12. U-P037-3 异构终审记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座披露（RULE-5 诚实声明）**：终审执行会话 system prompt 逐字自报 **`You are powered by the model named GLM-5.3-Flash.`** ≠ 四文档作者 DeepSeek-V4.1-Flash → **异构成立**（与 U-P036-6 / U-P034-3 同由 GLM-5.3-Flash 承接）。终审区间 `ad7815d..44c3470`（4 提交：`22644e3` 代码 / `8a2984d` Step 1-9 文档 / `8dffb12` Step 10 文档 / `44c3470` CI 回填），时点 HEAD `44c3470`。探针独立编写落 `%TEMP%\p037_u3_probe.py`（不复用 Step 9 的 `p037_s9_probe.py`）。
+
+### 12.1 E1 锚点读码
+
+| 锚点 | 读数 |
+|------|------|
+| C1 | `full_backtest_2020_2026_simple.py` L109 import / L116 `from_universe_config` / L124 `PositionTracker(dm.n_stocks, config.initial_capital)` 逐字命中 |
+| C2 | `filter.universe_filter_clean` 的 `from_universe_config` 21 个显式映射 kwargs + docstring 明示禁止 asdict 盲拷 |
+| 双载体 | `tests.yml` L46 ↔ adapter L67 target 串逐字一致（12 面，尾部 `web factor_library tools examples`）；`git diff --numstat ad7815d..HEAD -- .github scripts` 各 1/1 |
+| pyproject | `overrides` = 0 命中；`[tool.mypy]` 五行未动（零改动面） |
+| 13 行落点 | tools 三处（`trace` L162-164 / `complete_step` L189-191 / `record_error` L200；两方法首行 None 守卫原样）+ `distillation_audit.py` L173 + `benchmark.py` L102 + `demo.py` L68/L72 + `full_backtest_demo.py` L583-584（`held`）+ 5 组 assert 落点（L62-63 / L76-77 / L71-72 / L80-81 / L68-69）逐字命中 |
+
+### 12.2 E2 机械面（E1，`-CaseSensitive`）
+
+`raise+` = **0** / `except+` = **0** / `^-\s*def ` = **2** / `# type: ignore+` = **0**；零改动面（`core` / `tests` / `pyproject.toml` / `uv.lock`）diff **空**；`git show --numstat 22644e3` = 12 文件 **+34/−24**，逐文件与 IMPL §11.1 **逐项吻合**；B4 归因命中仅 1 条（`current_qty = held.quantity if held else 0`，改名等价）。
+
+### 12.3 E3 门禁独立复跑（六门禁）
+
+| 项 | 读数 |
+|----|------|
+| mypy 12 面 | `Success: no issues found in 103 source files` |
+| mypy `tools examples` | `Success: no issues found in 11 source files` |
+| pytest / golden | `760 passed, 172 warnings in 39.87s` / `13 passed, 747 deselected`；`git status --short tests/golden/` 空 |
+| black `core tests` | `121 files would be left unchanged` |
+| AST `except Exception`（P-029 十文件口径） | `Exception-only: 22`（IMPL_p029 L410 原命令） |
+| `uv lock --check` | `Resolved 148 packages`，exit **0** |
+
+### 12.4 E4 运行期探针（独立编写，四探针全过）
+
+| 探针 | 读数 |
+|------|------|
+| P1（C1） | `construct OK: n_stocks=2 cash=10000000.0`；**负探针**：旧形态 `PositionTracker(10_000_000.0)` → `TypeError: missing 1 required positional argument: 'initial_capital'`（缺陷方向实锤） |
+| P2（C2） | 20 直传字段 0 mismatch + `exclude_stock_prefixes` bool 强转 + target-only 两字段（`next_day_tradable_mode='ignored'` / `limit_check_price='open'`）+ `not-equal-to-default = ['exclude_na_factors','na_factor_names','excluded_prefixes']`（与 B2 记录一致） |
+| P3（放宽签名） | `trace()` 双分支（recording → `ExecutionStep` / 非 recording → `None`）；`complete_step`/`record_error` 正路径落字段 + `None` 守卫静默 |
+| P4（#13） | L68 声明模式：`adj` 全程 `ndarray` shape 保持，L79 除法后仍 ndarray |
+
+### 12.5 E5 修正复核（F-S10-P037-1~4）
+
+四项全部到位：D1 尾部缩写 + 全串比对见 D2 ✓ / DESIGN §8.1 五组构成正确 + `simple.py` 单列（与 E1 锚点逐行吻合）✓ / DESIGN V2「**12 面**（10 面 + `tools examples`）」✓ / PROGRESS §1.4 U-P037-1/-2/-3 三行 ✓。
+
+### 12.6 发现与当轮处置（0 P1/P2 + 1 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-U3-P037-1 | P3 | 「21 字段」计数口径需精化：目标类 `UniverseFilterConfig` 实有 **23** 字段——21 = 显式映射（20 直传 + 1 bool 强转），另 2 个 target-only 字段源上无对应（`next_day_tradable_mode` / `limit_check_price`），duck-typed 路径经 `getattr` 默认值取得同值 | 本文件 B2 实测列加注（RESEARCH §5.2 / DESIGN V4b 的「21 字段」按 V4b 已写明的强转比对语义理解，正文不再改动） |
+
+> **过程注**：独立探针首版按「21 字段朴素全等」编写两次失败（暴露 `next_day_tradable_mode` 无源对应 / `exclude_stock_prefixes` bool 强转两口径）——修正探针语义后四探针全过；两口径均为**文档已明示**的设计（P-012 D4 / V4b 强转说明），非代码缺陷。
+
+### 12.7 结论
+
+**U-P037-3 结论**: **pass（E1-E5 五项全过，0 P1/P2 + 1 P3 当轮精化）**——**RULE-5 异构成立（GLM-5.3-Flash）**，P-037 过程链 Step 1-10 + 异构终审全闭合，**批次关闭**。
