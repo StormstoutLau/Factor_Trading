@@ -1590,6 +1590,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **发现分级（0 P1/P2）**: **F-U3-P037-1**（P3）「21 字段」计数口径需精化——目标类 `UniverseFilterConfig` 实有 **23** 字段：21 = 显式映射（20 直传 + `exclude_stock_prefixes` bool 强转），另 2 个 target-only（`next_day_tradable_mode` / `limit_check_price`）源上无对应，duck-typed 路径经 `getattr` 默认值取得同值 → **等价结论不变**；当轮处置 = CHECKLIST B2 实测列加注（RESEARCH §5.2 / DESIGN V4b 的「21 字段」按 V4b 已写明的强转比对语义理解，正文不再改动）。
 - **结论**: **pass——U-P037-3 关闭，P-037 过程链全闭合（Step 1-10 + 异构终审），批次关闭**；批次总结报告 [SUMMARY_p037](SUMMARY_p037_type_gate_boundary.md) 随本提交交付（§1-§10 全景：12 面终态与 19+1 红态谱系、C1 自诞生即崩与 C2 duck-typing 语义漂移、31 项发现台账（9 P2 + 22 P3）、6 提交 6 CI 零红跑、边界遗留五条与六条启示）。
 - **提交与 CI**: 提交 `bdab281`（2 文件 **+69/−5**，docs-only：CHECKLIST §12 + §11 签字行 + B2 加注 + 状态行「批次关闭」/ PROGRESS U-P037-3 done + P-037 行 done + §3.42.3）→ CI run [`44051202252`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44051202252) **success**（四 job：`lock-check` + 3.10 / 3.11 / 3.12 全绿）。
+- **批次总结报告**: [SUMMARY_p037](SUMMARY_p037_type_gate_boundary.md) 随提交 `58c4493` 交付（2 文件 **+148/−2**，docs-only）→ CI run [`44054554654`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44054554654) **success**（四 job 全绿）。P-037 全程 **7 提交 / 7 CI runs 全绿、零红跑**。
 
 ---
 
