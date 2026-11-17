@@ -25,7 +25,7 @@
 1. **L2 `assert` 仅用于 U-a**：插入点必须能指出现有运行期前提（构造期 `raise` / 前一分支 `if x is None: build()` / 方法前置 `setup()`）；正常路径零变更，失败路径仅异常类型变化（本已崩溃）。
 2. **L1 变更加守卫，不改语义**：`guru_data` 的守卫**已存在**（L186-188），本批只把 `Optional` 属性声明改为经窄化后赋值——**零行为变更**；真正新增的 fail-fast 仅 `batch_backtest/engine.py::run_factors` 一处（§4.2）。
 3. **L3 注解目标为运行期真值类型**：`no-any-return` 一律用**局部变量注解**收窄（`x: float = np.sum(...)`），不用 `cast(Any, ...)`；`np.asarray(...)` 仅用于已是 ndarray 的返回值（`asarray` 对 ndarray 不复制）。
-4. **I2 的机械口径澄清**：`git diff` 中删除的 `def` 行必须**逐字回归**，唯一允许的差异是**返回注解修正**（`_weighted_vote` / `_confidence_weighted` / `verify_case` / `create_filter` / `NAFactorFilter.__init__` 五处，见 §8），参数名 / 参数默认值 / 函数名零变更。
+4. **I2 的机械口径澄清（Step 6 更正，F-S6-P036-2）**：`git diff` 中删除的 `def` 行必须**逐字回归**，唯一允许的差异是**注解修正**——**8 处 def 行**：返回注解 ×7（`verify_case` / `_weighted_vote` / `_confidence_weighted` / `create_prefix_filter` / `create_na_filter` / `create_market_cap_filter` / `create_industry_filter`）+ 参数注解 ×1（`NAFactorFilter.__init__` 的 `strategy: Literal[...]` → `str`）；参数名 / 参数默认值 / 函数名零变更。
 5. **公开行为零变更**：除 §1 表「行为变更清单」4 项外，全部修复为零行为变更；**禁止**用 `--follow-imports=silent`、`ignore_errors`、裸 ignore。
 
 **行为变更清单（4 项，须 CHECKLIST 单列验收）**：
@@ -92,7 +92,7 @@ B3：修 21 条 → 本地 filter（无 override）0 → 删 override → 10 面
 | 3 | `order_strategy/strategies.py:374` | no-any-return | `volume` 为 Any → `total_impact` Any | L3 | `total_impact: float = temporary_impact + permanent_impact` |
 | 4 | `strategy_evaluation/stats.py:139` | no-any-return | `np.log(rho)` Any → `half_life` Any | L3 | `half_life: float = -np.log(2) / np.log(rho)` |
 | 5 | `strategy_evaluation/stats.py:169` | assignment | `turnover = 0` 推断 int | L3 | L167 改 `turnover: float = 0` |
-| 6 | `scripts/external_benchmark/verify_p015.py:119` | no-any-return | `verify_case` 声明 `-> None`（L78）却 `return pv_v3` | L3 返回注解 | L78 改 `-> Optional[np.ndarray]`；L124 裸 `return` 不动 |
+| 6 | `scripts/external_benchmark/verify_p015.py:119` | no-any-return | `verify_case` 声明 `-> None`（L78）却 `return pv_v3` | L3 返回注解 | L78 改 `-> np.ndarray \| None`（文件有 `from __future__ import annotations` 且无 typing import——Step 6 更正 F-S6-P036-4）；L124 裸 `return` 不动 |
 | 7 | `scripts/external_benchmark/verify_p015.py:223` | no-any-return | 同 #6 | 同 #6 | 同 #6 自动消 |
 | 8 | `scripts/external_benchmark/verify_p015.py:337` | func-returns-value | 同 #6（mypy 认为只返回 None） | 同 #6 | 同 #6 自动消 |
 | 9 | `scripts/external_benchmark/_spec.py:101` | no-any-return | `np.nan_to_num(...)` → Any | L3 | `s: np.ndarray = np.nan_to_num(signal_row, nan=0.0)` + `return np.asarray(s > 0)` |
@@ -126,7 +126,7 @@ B3：修 21 条 → 本地 filter（无 override）0 → 删 override → 10 面
 | 433 / 514 / 596 / 1149 | no-any-return ×4 | `date.day` 经 pandas Any | `return bool(date.day == self.cfg.rebalance_day)` |
 | 692 / 754 | return-value ×2 | `_weighted_vote` / `_confidence_weighted` 声明 `-> dict[str, Any]` 却 `return None`；调用方 `_aggregate_stock_signals`（L661）已声明 `dict \| None` | 两处返回注解改 `dict[str, Any] \| None`（§8 已登记） |
 | 1144 | no-any-return | `day_industry[stock]` Any | `value: str = day_industry[stock]` + `return value` |
-| 1239 | arg-type | 传 `UniverseConfig`，`UniverseFilter` 要 `UniverseFilterConfig` | `UniverseFilter(self.dm, UniverseFilterConfig.from_universe_config(self.cfg.universe))`（与 `core/engine_v2.py:218` 同口径；补 import） |
+| 1239 | arg-type | 传 `UniverseConfig`，`UniverseFilter` 要 `UniverseFilterConfig` | `UniverseFilter(self.dm, UniverseFilterConfig.from_universe_config(self.cfg.universe))`（与 `core/engine_v2.py:218` 同口径；L42 既有 `from filter.universe_filter_clean import UniverseFilter` 行**追加** `UniverseFilterConfig`——F-S6-P036-6） |
 | 1292 | union-attr | `self.universe: UniverseFilter \| None`，`setup()` 后已赋值（U-a） | 方法内 `universe = self.universe` + `assert universe is not None`，改用 `universe` |
 | 1334-1337 / 1434 | union-attr ×5 | `self.dm: DataManager \| None`（U-a，`setup()` 后已赋值） | 各自方法首行 `dm = self.dm` + `assert dm is not None`，改用 `dm` |
 | 1386 / 1401 | arg-type ×2 | `trade_qty` 为 `float \| int`（`current_qty` float） | 实参改 `int(trade_qty)`（**C4**） |
@@ -167,8 +167,8 @@ L203 `result = {...}`（混合值）推断过窄 → `result: dict[str, Any] = {
 | 行 | 错误码 | 改法 |
 |----|--------|------|
 | 111 | assignment | 首分支改 `self.pending_queue: PendingOrderQueue \| None = PendingOrderQueue(...)`（`else` 分支 `= None` 不动） |
-| 587 | arg-type | 同 §4.3.2 L1239：经 `UniverseFilterConfig.from_universe_config(self.cfg.universe)` |
-| 777 / 909 | var-annotated | `strategy_daily_returns: dict[str, list[float]] = {}` / `nav_history: list[float] = []`（按使用形态取具体元素类型） |
+| 587 | arg-type | 同 §4.3.2 L1239：经 `UniverseFilterConfig.from_universe_config(base_config.universe)`（实际变量为 `base_config`——Step 6 更正 F-S6-P036-5）；L43 import 行追加 `UniverseFilterConfig` |
+| 777 / 909 | var-annotated | `strategy_daily_returns: dict[str, list[float]] = {}` / `nav_history: dict[str, list[float]] = {name: [] for name in strategy_names}`（L909 实为 dict 推导式——Step 6 更正 F-S6-P036-5） |
 | 829 | union-attr | `allocator` 由 L756 `= None` 推断 Optional；L829 在 `if enable_dynamic_allocation and i > 0` 分支内（U-a）→ 块内 `assert allocator is not None` |
 | 973 | attr-defined | `tracker.cash` → `tracker._cash`（**C2**；`PositionTracker` 仅 `_cash` + `get_cash()`） |
 
@@ -194,23 +194,33 @@ L203 `result = {...}`（混合值）推断过窄 → `result: dict[str, Any] = {
 | 行 | 错误码 | 改法 |
 |----|--------|------|
 | 108 | var-annotated | `self._prefix_info: dict[str, bool] = {}`（L184 赋 `any(...)` → bool） |
-| 542-552（`get_universe_stats`，6 条） | union-attr | L542-543 `if self._tradable_mask is None: self.build_masks()` 之后（`build_masks` 副作用**不被 mypy 追踪**）→ L544 插 `mask = self._tradable_mask` + `assert mask is not None`，L545-552 改用 `mask` |
-| 563-573（`get_mask_summary`，6 条） | union-attr | 同型：L563-564 后插 `mask = self._tradable_mask` + `assert mask is not None`，L567-573 改用 `mask` |
+| 522 / 526（`filter_stocks` L498-531，2 条） | union-attr | L511-512 `if self._tradable_mask is None: self.build_masks()` 前提成立（`build_masks` 副作用不被 mypy 追踪）→ L520 `mask = mask_map.get(...)` 后插 `assert mask is not None`，L522/526 自动收窄（**Step 6 更正 F-S6-P036-1**——原规格误并入 get_universe_stats） |
+| 545 / 550-552（`get_universe_stats`，4 条） | union-attr | L542-543 `if self._tradable_mask is None: self.build_masks()` 之后 → L544 插 `mask = self._tradable_mask` + `assert mask is not None`，L545/550-552 改用 `mask`（Step 6 更正：**4 条**非 6 条） |
+| 567-573（`get_mask_summary`，6 条） | union-attr | 同型：L563-564 后插 `mask = self._tradable_mask` + `assert mask is not None`，L567-573 改用 `mask` |
 
 > 依据：`build_masks()`（L139-150）调用 `_build_suspend_mask()` 等赋值各 `_*_mask`，属**既有运行期前提**（U-a，O-D3-P036-3 的 L2 模板）。
 
 #### 4.4.2 `filter/prefix.py:359` —— 1 条
 
-`create_filter` 声明 `-> PrefixFilter` 但 `RegexPrefixFilter(BaseFilter)` 与 `PrefixFilter` 无继承关系 → 返回注解改 `BaseFilter`（L355 `BoardFilter(PrefixFilter)` 与 L357 `PrefixFilter` 均兼容；`filter/__init__.py` 的 `create_filter` 是另一函数，不在本批）。
+`create_prefix_filter`（L343——**Step 6 更正 F-S6-P036-3**：实名，易与 `filter/__init__.py:130` 的另一 `create_filter` 混淆）声明 `-> PrefixFilter` 但 `RegexPrefixFilter(BaseFilter)` 与 `PrefixFilter` 无继承关系 → 返回注解改 `-> BaseFilter`（L355 `BoardFilter(PrefixFilter)` 与 L357 `PrefixFilter` 均兼容；全仓无调用点、仅 `filter/__init__.py` re-export，注解变更安全）。
 
 #### 4.4.3 `filter/na_factor.py` —— 2 条
 
-- L352（arg-type）：`NAFactorFilter(strategy=strategy, ...)`，`strategy: str` vs 构造器 `Literal[...]` → **放宽 L31 构造器注解为 `str`**（实现本就接受任意字符串并内部判定，注解与实现对齐）。
-- L354（no-any-return）：`strategies` 字典值混类 → 注解 `strategies: dict[str, type[NAFactorFilter]]`（L176/187/200 均 `NAFactorFilter` 子类；L219 `CrossSectionalNAFilter` 为 `BaseFilter` 子类 → 若混入则改 `dict[str, type[BaseFilter]]`，Step 9 以实读定）。
+- L352（arg-type）：`NAFactorFilter(strategy=strategy, ...)`，`strategy: str` vs 构造器 `Literal[...]`（L33）→ **放宽 L31 构造器参数注解为 `str`**（实现本就接受任意字符串并内部判定，注解与实现对齐；属**参数注解**差异——Step 6 归类更正 F-S6-P036-2）。
+- L354（no-any-return）：`strategies` 字典值混类——L344-346 为 `NAFactorFilter` 子类、L347 `CrossSectionalNAFilter(BaseFilter)` 非其子类（**Step 6 实读定案，F-I-P036-4 关闭**）→ 注解 `strategies: dict[str, type[BaseFilter]]`，且 **`create_na_filter`（L332）返回注解须同批改 `-> NAFactorFilter` → `-> BaseFilter`**（否则引入 return-value 新错；全仓无调用点，安全）。
 
 #### 4.4.4 `filter/market_cap.py:381` / `industry.py:392` / `extended.py:331` / `custom.py:438` —— 4 条
 
-工厂字典 `filters` 值混类 → `filters[filter_type](**kwargs)` 返回 Any。改法：字典注解 `dict[str, type[BaseFilter]]`（各文件按实际基类；`custom` 的五个类均 `BaseFilter` 子类）。
+工厂字典 `filters` 值混类 → `filters[filter_type](**kwargs)` 返回 Any。改法（**Step 6 读码定案 F-S6-P036-2**）：
+
+| 文件 | 字典混入实况 | 字典注解 | def 行返回注解 |
+|------|-------------|---------|----------------|
+| `market_cap.py`（L358 `-> MarketCapFilter`） | L374-375 `MarketCapRatioFilter` / `MarketCapMomentumFilter` 为 `BaseFilter` 子类 | `dict[str, type[BaseFilter]]` | **须同批改 `-> BaseFilter`**（否则 return-value 新错） |
+| `industry.py`（L371 `-> IndustryFilter`） | L386 `IndustryRotationFilter` 为 `BaseFilter` 子类 | `dict[str, type[BaseFilter]]` | **须同批改 `-> BaseFilter`** |
+| `extended.py`（L307 `-> BaseFilter`） | 六类全 `BaseFilter` 子类 | `dict[str, type[BaseFilter]]` | 不变 |
+| `custom.py`（L416 `-> BaseFilter`） | 五类全 `BaseFilter` 子类 | `dict[str, type[BaseFilter]]` | 不变 |
+
+四个工厂函数全仓无调用点（仅 `filter/__init__.py` re-export），返回注解放宽安全。
 
 #### 4.4.5 `filter/custom.py:195` —— 1 条
 
@@ -283,11 +293,14 @@ python -m uv lock --check   # 或 uv lock --check
 |------|------|--------|
 | `cli.py` `run()` | 无（仅局部变量 `dm`） | 还原 2 行 |
 | `BatchBacktestEngine.run_factors` | 无签名变化；新增 fail-fast（C1） | 删 2 行守卫 |
-| `verify_case` | **返回注解** `-> None` → `-> Optional[np.ndarray]`（无运行期变化） | 还原注解 |
+| `verify_case` | **返回注解** `-> None` → `-> np.ndarray \| None`（F-S6-P036-4：无 typing import，用 PEP 604 形式） | 还原注解 |
 | `_weighted_vote` / `_confidence_weighted` | **返回注解** → `dict[str, Any] \| None`（私有方法） | 还原注解 |
-| `UniverseFilter(...)` 调用点（agents 2 处） | 实参经 `from_universe_config` 转换 | 还原 2 行 |
-| `create_filter`（filter/prefix.py） | **返回注解** `-> PrefixFilter` → `-> BaseFilter` | 还原注解 |
-| `NAFactorFilter.__init__` | **注解** `strategy: Literal[...]` → `str` | 还原注解 |
+| `UniverseFilter(...)` 调用点（agents 2 处） | 实参经 `from_universe_config` 转换；2 文件 import 行追加 `UniverseFilterConfig` | 还原 2 行 + import |
+| `create_prefix_filter`（filter/prefix.py L343） | **返回注解** `-> PrefixFilter` → `-> BaseFilter` | 还原注解 |
+| `create_na_filter`（filter/na_factor.py L332） | **返回注解** `-> NAFactorFilter` → `-> BaseFilter`（Step 6 补录） | 还原注解 |
+| `create_market_cap_filter`（market_cap.py L358） | **返回注解** `-> MarketCapFilter` → `-> BaseFilter`（Step 6 补录） | 还原注解 |
+| `create_industry_filter`（industry.py L371） | **返回注解** `-> IndustryFilter` → `-> BaseFilter`（Step 6 补录） | 还原注解 |
+| `NAFactorFilter.__init__` | **参数注解** `strategy: Literal[...]` → `str`（Step 6 归类更正：参数注解非返回注解） | 还原注解 |
 | `tests.yml` mypy 行 | 三次追加 target | 每批 revert 主提交即回退 |
 | `PositionTracker._cash`（外部直写） | agents 侧 1 行（C2） | 还原 1 行 |
 
@@ -301,8 +314,8 @@ python -m uv lock --check   # 或 uv lock --check
 |----|------|------|------|
 | F-I-P036-1 | 观察 | **I2 机械口径澄清**：返回注解修正会触碰 `def` 行；判定改为「`def` 行仅允许返回注解差异，参数/函数名逐字不变」 | 已写入 §1 前提 4；Step 6 复核 |
 | F-I-P036-2 | 观察 | C2（`tracker.cash`）与 C3（`period`）为**真实缺陷**——若 Step 9 探针证明触发路径可达，按 P-029/P-031 口径升级登记（R-P036-4 预期内） | Step 9 判定 |
-| F-I-P036-3 | 观察 | `style_drift_analysis.baseline_profile` 的 U-a/U-b 定性未在规划期闭合（构造期初始化路径待读） | Step 9 读码定性；优先 L2 |
-| F-I-P036-4 | 观察 | `na_factor.strategies` 字典元素基类（`NAFactorFilter` vs `BaseFilter`）以实读定 | Step 9 定 |
+| F-I-P036-3 | 观察 | `style_drift_analysis.baseline_profile` 的 U-a/U-b 定性——**Step 6 已闭合（O-S6-P036-1）**：`AntiDriftAgent.__init__` L539 恒调 `_setup_baseline_profile()` → `set_baseline` L126 赋值 → L250 定性 **U-a**；L145/179/198/225 的 None 守卫属防御式冗余（构造期恒赋值），不得引为「return 0.0 降级」依据（D4 Step 4 原则） | Step 9 用 L2 assert（`profile = self.baseline_profile` + `assert profile is not None`） |
+| F-I-P036-4 | 观察 | `na_factor.strategies` 字典元素基类——**Step 6 已定案**：L347 `CrossSectionalNAFilter(BaseFilter)` 混入 → `dict[str, type[BaseFilter]]` + `create_na_filter` 返回注解同批改（§4.4.3） | 已并入规格 |
 | O-I-P036-1 | 观察 | 复刻 venv 必须钉 `numpy==2.4.6`（D1 / F-S4-P036-4）；否则 129 假口径复现 | 每批双口径复验前先 `pip install numpy==2.4.6` 并删 `.mypy_cache` |
 
 ---
@@ -319,6 +332,66 @@ python -m uv lock --check   # 或 uv lock --check
 
 ---
 
-## 11. Step 9 实施记录（待填）
+## 11. Step 6 实施 Review 记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座**: **GLM-5.3-Flash ≠ IMPL 作者 DeepSeek-V4.1-Flash** → **RULE-5 异构成立**。
+> **复审对象**: 本文档 Step 5 版（提交 `ec33dd7`）；复审时点 HEAD `b277313`（代码零变更，纯规格复审）。
+> **方法**: E1 锚点机械复核（B1 全 14 条 / B2 11 文件簇代表锚点 + 计数对账 / B3 全量读码）+ E2 门禁基线独立复测 + E3 红态三批复测 + E4 七项裁决。
+
+### 11.1 E2 门禁基线独立复测（Python312 + `MPLBACKEND=Agg`）
+
+| 门禁 | IMPL 声称 | 实测 | 结果 |
+|------|-----------|------|------|
+| 全量 pytest | 760 | **760 passed, 172 warnings**（82.98s） | ✅ |
+| black `--check core tests` | 121 | **121 files would be left unchanged** | ✅ |
+| mypy `core`（仓库 config） | 0 / 37 files | **Success: no issues found in 37 source files** | ✅ |
+| pyproject override 块 | L121-123 + 注释 L116-120（B3 待删面） | 读码确认在位 | ✅ |
+
+### 11.2 E3 红态三批复测
+
+| 批 | IMPL 声称 | 实测 | 结果 |
+|----|-----------|------|------|
+| B1 面（8 target） | 14 / 7 files（checked 68） | **Found 14 errors in 7 files (checked 68 source files)** | ✅ |
+| `agents` | 96 / 11（14） | **Found 96 errors in 11 files (checked 14 source files)** | ✅ |
+| `filter`（无 override ini） | 21 / 7（10） | **Found 21 errors in 7 files (checked 10 source files)** | ✅ |
+
+### 11.3 E4 七项裁决（对应 §10）
+
+| # | 复核点 | 裁决 |
+|---|--------|------|
+| 1 | 锚点 | B1 14 条全命中；B2 分文件计数 26/17/9/9/8/8/6/5/5/2/1 与实测对账一致；B3 **分组错误 1 处**（F-S6-P036-1：L522/526 属 `filter_stocks` 非 `get_universe_stats`）——已当轮更正 |
+| 2 | 分层合规 | **成立**——全部 L2 assert 前提可指认（`engine.dm`/`self.universe` 由 setup 赋值、`allocator` 由 enable_dynamic_allocation 分支赋值、`build_masks` 副作用、`baseline_profile` 构造期 L539 恒调）；L1 仅 C1 一处新增 fail-fast；L4 = **0** |
+| 3 | 行为变更 C1-C4 | **全部读码复现**——C1 守卫与 `run_all_factors` L81-82 逐字源 / C2 `PositionTracker` 仅 `_cash`（tracker L179）无 `cash` 属性 / C3 `update_belief`（hierarchical L424）签名无 `period` / C4 `current_qty` 经 `get_position` 为 float |
+| 4 | I2 | **清单 5 处 → 8 处 def 行 + 1 处参数注解**（F-S6-P036-2：三个 filter 工厂返回注解遗漏 + `NAFactorFilter.__init__` 属参数注解）——当轮更正 §1 前提 4 / §8 |
+| 5 | 红态 | 14 / 96 / 21 逐字复现 ✅（合计 131 ✓） |
+| 6 | 门禁链 | tests.yml L45-46 现 `core` 单面；三阶段 8→9→10 面与 DESIGN D2 一致；无 `\|\| true` ✅ |
+| 7 | B3 绑定 | §3 顺序「先 filter 0 → 删 override → `mypy core` 仍 0」与 D5 一致 ✅ |
+
+### 11.4 发现与分级
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| **F-S6-P036-1** | **P2** | §4.4.1 B3 union-attr 方法归属错误：L522/526 属 **`filter_stocks`**（L498-531），非 `get_universe_stats`；后者实为 **4 条**（545/550-552）。原修复规格不覆盖 filter_stocks 的 2 条（且「L544 插 mask」的行号在 filter_stocks 中不存在） | **当轮回写 §4.4.1**——补 `filter_stocks` 行（L520 后插 `assert mask is not None`，L522/526 自动收窄）；get_universe_stats 改 4 条。文件总数 13 不变 |
+| **F-S6-P036-2** | **P2** | §4.4.4/§8 I2 清单错误：market_cap（字典混入 2 个 `BaseFilter` 子类）/ industry（混入 1 个）/ na_factor（混入 `CrossSectionalNAFilter`）**仅改字典注解会引入 return-value 新错**——三个工厂函数返回注解须同批改 `-> BaseFilter`；且 `NAFactorFilter.__init__` 属**参数注解**非返回注解。I2 def 行差异 5 → **8 处** | 当轮回写 §1 前提 4 / §4.4.3 / §4.4.4 / §8；四个工厂全仓无调用点（仅 re-export），注解变更安全 |
+| F-S6-P036-3 | P3 | §4.4.2/§8 把 prefix.py 工厂写作 `create_filter`——实名 **`create_prefix_filter`**（L343），与 `filter/__init__.py:130` 同名函数易混淆 | 当轮更正命名 |
+| F-S6-P036-4 | P3 | §4.2 #6 `-> Optional[np.ndarray]`——verify_p015.py **无 typing import**（仅 `from __future__ import annotations`）→ 改 `-> np.ndarray \| None` 零 import 变更 | 当轮更正 |
+| F-S6-P036-5 | P3 | §4.3.8 两处笔误：L587 实际变量为 **`base_config.universe`**（非 `self.cfg.universe`）；L909 `nav_history` 实为 **dict 推导式**（注解应为 `dict[str, list[float]]`，非 `list[float] = []`） | 当轮更正 |
+| F-S6-P036-6 | P3 | §4.3.2/§4.3.8 的 `UniverseFilterConfig` 修复需在两文件既有 `from filter.universe_filter_clean import UniverseFilter` 行（L42 / L43）**追加**导入——原规格未注明 | 当轮补注 |
+| O-S6-P036-1 | 观察 | **F-I-P036-3 / F-I-P036-4 闭合**（§9 两行已标）——baseline_profile 构造期前提实锤（L250 = U-a）；CrossSectionalNAFilter 混入实锤 | 已并入 §9 |
+| O-S6-P036-2 | 观察 | 全部 13 个 agents 文件均已导入 `Any`——`dict[str, Any]` / `list[Any]` 类修复零 import 变更 | 无需改规格 |
+| O-S6-P036-3 | 观察 | 局部注解目标变量名以实读为准（hierarchical L220 为 `stability`、auto L325 为 `volatility_penalty` 等）——层级与手法不变，Step 9 落码按实读 | 登记 |
+
+### 11.5 结论与 Step 7 前置条件
+
+**结论**: **pass**（0 P0/P1 / **2 P2 + 4 P3 当轮回写** / 3 观察）——红态三批逐字复现、门禁基线四项一致、C1-C4 全部读码可复现、分层合规成立；B3 修复规格两处缺口（filter_stocks 分组 + 工厂返回注解）已当轮闭合，Step 9 可按更正后规格直接落码。
+
+**Step 7 前置条件**:
+1. CHECKLIST 按**更正后** §4 规格编制（含 8 处注解差异清单 + filter_stocks 修复行）；
+2. C1-C4 行为变更**单列验收组**（每项一组 DoR/DoD + 探针证据出口）；
+3. I7 忽略审计口径按 §1（裸 ignore = 0 且带 code = 0——全程不使用 L4）。
+
+---
+
+## 12. Step 9 实施记录（待填）
 
 <!-- Step 9 后回填：每批红→绿 mypy 原文、净行数、C1-C4 探针读数、门禁终态 -->
