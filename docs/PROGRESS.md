@@ -1469,7 +1469,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **裁决**: L4（`# type: ignore`）全程 **0 使用**；`guru_data` 25 条由构造期既有守卫处**一处收窄**全消（零行为变更，D4 Step 4 定论的直接落地）；B3 的 12 条 mask 解引用由 `build_masks()` 副作用前提 + L2 `assert` 收窄。
 - **测试**: **不新增 pytest（I4 的 X=0）**——判据 = mypy 退出码 + 全量 760 + golden 13 + C1-C4 的 `%TEMP%` 探针留证。
 - **代码面零变更**（本 Step 仅新增 IMPL 文档 + 台账）。
-- **提交与 CI**: 见 §3.41.7 回填。
+- **提交与 CI**: 提交 `ec33dd7`（2 文件 **+339/−1**：IMPL_p036 +324/−0 / PROGRESS +15/−1）→ CI run [`44021229549`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44021229549) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
