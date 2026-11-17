@@ -1623,6 +1623,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **门禁持平（零代码改动）**: pytest **760** / mypy 12 面 **103 files 0** / black **121** / golden **13** / AST **22** / `uv lock` exit 0——本批未触碰任何被门禁覆盖的文件。
 - **回退点**: 零代码改动，无需回退；运行产物 `demo_data/`（8.5 MB / 11 files）与 `demo_output/`（1 MB / 8 files）已删除。
 - **结论**: **pass（T3 验证完成）**——「类型绿 ≠ 运行绿」实证：7 脚本仅 **1/7** 可运行；同时反向挖出 1 个 **P1 生产缺陷**（U-P038-2），远超本批预期收益。**修复不属本批**（T3 只取证），U-P038-1/-2 待裁决是否立项。
+- **提交与 CI**: 提交 `05aa408`（2 文件 **+34/−1**，docs-only：PROGRESS §1.4 P-038 + U-P037-2 done + U-P038-1/-2 建行 + §3.43 / CHANGELOG Changed 条目）→ CI run [`44057553998`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44057553998) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
