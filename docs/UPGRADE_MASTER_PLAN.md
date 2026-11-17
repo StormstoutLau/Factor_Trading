@@ -255,18 +255,18 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 | 阶段 | 批次（建议） | 内容 | 前置 | 验收口径 |
 |------|--------------|------|------|----------|
-| **0 地基** | P-042 数据契约统一 | `IDataManager`/`DataProvider`/`IStreamingFeed` 三契约收敛；`data.py`/`data_v3.py`/`data_provider.py` 归并 | — | golden **默认零重录**（如需重录须显式裁决并记录）；流式适配器契约测试 |
+| **0 地基** | P-042 数据契约统一 | `IDataManager`/`DataProvider`/`IStreamingFeed` 三契约收敛；`data.py`/`data_v3.py`/`data_provider.py` 归并 | — | golden **默认零重录**（如需重录须显式裁决并记录）；**synthetic fixture 可独立跑通**；流式适配器契约测试 |
 | | P-043 事件总线 | EventLog 接入引擎（U-P025-1）→ 统一事件通道（seq/重放） | P-042 | 事件 seq 连续；订阅/重放测试 |
 | | P-044 策略接口抽象 | `core/strategy.py` Protocol + BacktestAdapter | P-042 | 既有策略迁移零行为变更；状态可序列化重放 |
 | **1 回测增强** | P-045 择时原语 | timing + stops（F4），复用 `target_positions`/`limit_rules` | P-044 | 与 vectorbt 对拍；止损状态机 golden |
-| | P-046 组合优化扩展 | BL/HRP/约束（F2，PyPortfolioOpt） | §7.7 裁决 | 权重约束不变量；参考解对拍 |
+| | P-046 组合优化扩展 | BL/HRP/约束（F2，核心自研 + PyPortfolioOpt 仅对拍） | 已裁决（Q7） | 权重约束不变量；参考解对拍；synthetic 协方差可跑通 |
 | | P-047 仓位管理 | sizing（F3）+ U-P031-2 裁决 | P-044 | 现金守恒；分数凯利/vol-target golden |
 | **2 风险、账目与策略** | P-048 风险 overlay | risk_overlay（F1 决策闭环） | P-047 | 风险→权重纯函数 golden |
-| | P-049 舆情接入 | sentiment_feed（F1，公告/新闻） | P-042 + §7.5 裁决 | PIT 不变量；因子化可复算 |
-| | **P-050 空头与期货账目** | 期货保证金/逐日结算/强平/换月优先；股票负持仓降为研究模式（U-P031-1） | 无代码前置（本批即 U-P031-1 题干） | 期货账目 golden；纯多头既有 golden 不受影响 |
+| | P-049 舆情接入 | sentiment_feed（F1，公告/新闻，开源数据优先） | P-042；已裁决（Q5：开源优先、Tushare 可选、无社交爬虫） | PIT 不变量；因子化可复算；无外部数据时用 synthetic 公告跑通 |
+| | **P-050 空头与期货账目** | 期货保证金/逐日结算/强平/换月优先；股票负持仓降为研究模式（U-P031-1） | 无代码前置；已裁决（D3） | 期货账目 synthetic golden；纯多头既有 golden 不受影响 |
 | | P-051 策略模板+生命周期 | `strategies/`（网格/趋势/时序动量/均值回归）+ registry + lifecycle（F5） | P-044/045/047/050 | 晋级门机械化；regime 切换样本外验证 |
 | **3 实盘网关** | **P-052 实盘安全闸门** | kill switch/网关事前风控/账户熔断/合规报告/审计（§3.0 S1-S7） | P-043 | S1-S7 每项有机械验证出口；拒绝路径全覆盖 |
-| | P-053 交易通道网关 | **先过通道可行性门**；qmt_bridge/broker_api_bridge/ctp_bridge + ledger + reconcile + session_calendar + corporate_actions（F6） | P-043/044/050/052 + §7.1/§7.14 裁决 | Mock→实盘同接口；幂等/对账/公司行为测试；paper 跑通 |
+| | P-053 交易通道网关 | **先过通道可行性门**；qmt_bridge/broker_api_bridge/ctp_bridge + ledger + reconcile + session_calendar + corporate_actions（F6） | P-043/044/050/052；已裁决（D1/D4：多通道 + Windows venv） | Mock→实盘同接口；幂等/对账/公司行为测试；synthetic 通道跑通 |
 | **4 服务层** | P-054 FastAPI+WS | `services/`（F7，含鉴权/TLS/观测） | P-053 + §7.9 | snapshot+delta 重放一致；背压/重连/401 测试 |
 | | P-055 微服务拆分 | 进程边界 + Redis Streams + 部署 | P-054 | 依赖方向门禁；端到端延迟基准 |
 | **5 高级** | P-056 CTP 期货/月差 | ctp_bridge（F6） | P-050/053 | 期货账目；换月/保证金/限仓 |
@@ -296,7 +296,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 ## 7. 风险与开放问题（需用户裁决）
 
 > **调研已完成（2026-11-17）**: 14 项的证据、选项与推荐见 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)；下列条目保留原始问题，**推荐结论以调研文档 §0/§3 为准**。
-> **P0 阻断项**: Q1（交易通道：miniQMT 关停/QMT 封闭/PTrade 云沙箱/机构 API/CTP）、Q3（期货账目优先）、Q9（自用定位与程序化报备）、Q14（QMT Python 3.6.x 与 extra 隔离）——不裁决则 **P-053 不得立项**。
+> **P0 裁决状态**: Q1（交易通道）、Q3（期货账目优先）、Q9（自用定位与程序化报备）、Q14（QMT Python/extra）已于 2026-11-17 裁决，见 §7.1 D1-D4；**P-053 可立项**，但仍须先交付通道可行性门 + `MockLiveBridge` 骨架。
 > **关键外部变化**: 华鑫证券公告 2026-10-30 收盘后关闭 miniQMT；多家券商 2026 年起关闭 QMT 标准版内置 Python 的文件读写/外网；总纲初稿「Windows + xtquant 常驻网关」假设已不稳健。
 
 1. **QMT 仅 Windows + 客户端依赖**：实盘网关须 Windows 宿主；服务层 Linux 跨进程通信拓扑需确认部署环境。（调研推荐：通道可行性门；QMT/PTrade 仅半自动，机构 API/CTP 可 Linux——见调研 Q1）
@@ -313,6 +313,25 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 12. **公司行为/交易日历数据源**：分红送转/配股/退市事件与交易所日历取自柜台、Tushare 还是交易所公告？缺失时如何降级与告警？
 13. **可观测性栈**：Prometheus+Grafana 全栈，还是最小「结构化日志+邮件/IM 告警」？决定 P-055 部署复杂度。
 14. **QMT Python 版本与 extra 隔离**：gateway venv 独立 pin（以 xtquant wheel 支持为准）且可能低于主包 3.12，是否接受？Windows 网关与 Linux 服务的通信方式（REST/gRPC/Redis）需确认。（调研推荐：独立 `[qmt]` extra + Windows venv；不假设 3.12；QMT 内置 3.6 需独立移植层或半自动——见调研 Q14）
+
+### 7.1 用户裁决（2026-11-17）
+
+| ID | 问题 | 裁决 | 对总纲的影响 |
+|----|------|------|--------------|
+| **D1** | Q1/Q14 交易通道 | **多通道预留**：机构 API / QMT / PTrade / CTP / 半自动全部保留适配器，不锁定单一券商或终端 | P-053 先交付 `ChannelCapability` + `MockLiveBridge` + 适配器骨架；真实通道按账户可用性逐个接入 |
+| **D2** | Q9 合规定位 | **自用工具 + 完成程序化报备** | §3.0 S4 生效；实盘前完成券商报备；默认速率上限 ≤1 笔/秒、≤1000 笔/日 |
+| **D3** | Q3 做空路线 | **期货账目优先，股票融券仅研究** | P-050 期货保证金/逐日结算/强平/换月优先；股票负持仓仅研究模式；P-058 默认股指期货对冲 |
+| **D4** | Q14 QMT 隔离 | **接受独立 Windows venv + 可能的 3.6 移植层** | `[qmt]` extra + Windows gateway；QMT 标准版走独立移植层或半自动；主包保持 3.10+ |
+
+> **结论**: §7 的 P0 四项（Q1/Q3/Q9/Q14）已全部裁决；P-053 不再被「通道未定」阻断，但仍需在批次内先交付通道可行性门与 Mock 骨架。
+
+### 7.2 实施粒度与数据策略（用户裁决 2026-11-17）
+
+- **宜粗不宜细**: 先落接口/契约/骨架，生产级数据、性能优化、多源容灾后置；每批以「意图准确 + 可跑通」为验收，不以生产完备度为门槛。
+- **数据优先级**: ① 开源数据（AKShare / 交易所公告 / 巨潮）→ ② 模拟/合成数据（synthetic fixture，保证无外部依赖也能跑）→ ③ 付费数据（Tushare 新闻/积分，可选）→ ④ 本地在建管道（`E:\Macro_Data` / `E:\FinDatasets` / `F:\Open_Data`，**仅分析，暂不接入**）。
+- **每批必须有无外部数据的 synthetic fixture + golden/重放测试**；外部数据源不可用时自动降级到 fixture，禁止因数据缺失阻断开发。
+- **不做（本周期）**: 社交爬虫、生产级多源容灾、Grafana/Loki/Tempo 全栈、复杂多用户权限系统。
+- **本地数据管道**: 仅在调研中记录其存在与潜在用途（宏观/财务/开放数据），**不写适配器、不读目录、不改代码**；待用户明确接入时单独立项。
 
 ---
 
@@ -339,9 +358,10 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 ## 9. 下一步
 
-1. 用户裁决 §7 开放问题（**优先 P0 四项**：Q1 交易通道、Q3 期货账目/做空路线、Q9 自用定位与程序化报备、Q14 QMT Python/extra；证据与推荐见 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)）。
-2. 按 §5 修订路线图从 **P-042（数据契约统一）** 起逐批立项，每批走 SPEC_PROCESS 十步 + 异构终审；P-042 立项前先确认 §6「门禁落地」（CI job/extra/uv lock）。
-3. 每批完成后回写本总纲 §1.2 能力矩阵与 §5 路线图状态，保持总纲↔批次↔代码可追溯。
+1. **P0 四项已裁决（D1-D4）**：多通道预留、自用工具 + 程序化报备、期货账目优先、独立 Windows venv/3.6 移植层；剩余开放问题按「宜粗不宜细」在各批次 RESEARCH 中处理。
+2. 按 §5 修订路线图从 **P-042（数据契约统一）** 起逐批立项；每批先交付 **synthetic fixture + golden**，再接开源数据，付费/本地数据后置；P-042 立项前先确认 §6「门禁落地」（CI job/extra/uv lock）。
+3. 本地在建数据管道（`E:\Macro_Data` / `E:\FinDatasets` / `F:\Open_Data`）**仅分析、暂不接入**；待用户明确接入时单独立项。
+4. 每批完成后回写本总纲 §1.2 能力矩阵与 §5 路线图状态，保持总纲↔批次↔代码可追溯。
 
 ---
 
