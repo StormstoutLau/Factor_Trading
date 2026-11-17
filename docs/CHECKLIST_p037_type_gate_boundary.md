@@ -2,7 +2,7 @@
 
 > **批次**: P-037 · **T1**（门禁判据面变更；判档规则 2）
 > **上游**: [IMPL_p037](IMPL_p037_type_gate_boundary.md)（§4 13 行 / 20 条规格 / §9 Step 6 复审 pass：1 P2 + 3 P3 当轮回写）；[DESIGN_p037](DESIGN_p037_type_gate_boundary.md)（D1-D5 / I1-I6 / V1-V5 / §8 Step 4 复审 pass：2 P2 + 3 P3）；[RESEARCH_p037](RESEARCH_p037_type_gate_boundary.md)（§4 20 条 / §5 C1-C2 / §11 Step 2 复审 pass：2 P2 + 5 P3）
-> **状态**: **Step 7 编制完成**（2026-11-17；**38 项零预填**，实测列全 `[待 Step 9]`）
+> **状态**: **Step 1-10 完成（同基座 ADD 审计 pass：0 P1/P2 + 4 P3 当轮处置）**（2026-11-17；38/38 回填 §9 / 审计 §10）；**RULE-5 异构终审 U-P037-3 pending**（五轮复审基座均 UNKNOWN 或 DeepSeek 同源）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（@`ad7815d`，Step 6 独立实测）**: pytest **760 passed** / golden **13 passed, 747 deselected** / black `core tests` **121 unchanged** / `except Exception`（P-029 口径）**22** / `mypy` 10 面 `Success ... 92 source files` / 12 面 `Found 19 errors in 10 files (checked 103 source files)` / `uv lock --check` exit **0**
 > **目标读数**: 12 面**三口径 0**（103 files）/ pytest 760 不变 / golden 13 零重录 / black 121 / AST 22 / 新增 ignore 0 / `^-\s*def ` = 2 / `uv lock` exit 0
@@ -62,7 +62,7 @@
 
 | ID | 验收项 | 证据出口 | 实测 |
 |----|--------|---------|------|
-| D1 | `tests.yml` L46 target = 12 面（`... web factor_library tools examples`），单行 | 读码 | ✅ 落 L46，单行 12 面 |
+| D1 | `tests.yml` L46 target = 12 面（尾部 `web factor_library tools examples`；**全串**与 adapter L67 逐字一致） | 读码 | ✅ 落 L46，单行 12 面；全串比对见 D2 |
 | D2 | `spec_runner_adapter.py` L67 与 L46 **target 串逐字一致** | 两处字符串比对（`test_p024_ci_gate_alignment` 通过） | ✅ target 串逐字一致（仅解释器前缀不同）；守卫测试 **3 passed** |
 | D3 | `tests.yml` 无 `\|\| true` / `continue-on-error`；`test` job 其余行与 `lock-check` job 零改动 | `Select-String` + `git diff` | ✅ 两模式 0；`git diff --numstat tests.yml` = 1/1（仅 L46） |
 | D4 | 未新增 `[[tool.mypy.overrides]]`；`[tool.mypy]` 五行未动 | 读码 + `git diff pyproject.toml` 空 | ✅ pyproject 零改动（零改动面 diff 空） |
@@ -185,3 +185,72 @@
 ### 9.5 结论
 
 **Step 9 结论**: **pass** —— 38/38 回填、无 ❌；红态 19/19/20 逐字留证、绿态三口径 0（103 files）；C1/C2 探针实锤；I1-I6 全部成立；CI 四 job 全绿。
+
+---
+
+## 10. Step 10 ADD 审计记录（独立会话，2026-11-17）
+
+> **基座披露（RULE-5 诚实声明）**：审计会话第 0 步自报 **`UNKNOWN`**（system prompt 未声明模型名）→ **异构性无法证实**；本轮为**独立全新上下文审计**（RULE-4 披露），U-P037-3 维持 pending。
+> **审计区间**：`ad7815d..8a2984d`（3 提交：`22644e3` 代码 / `8a2984d` 文档）；审计时点 HEAD `8a2984d`。
+
+### 10.1 门禁独立复跑（E1）
+
+| 项 | 读数 |
+|----|------|
+| mypy 12 面 | `Success: no issues found in 103 source files` |
+| pytest / golden | `760 passed, 172 warnings` / `13 passed, 747 deselected` |
+| black / uv | `121 files would be left unchanged` / exit 0 |
+| CI | `44046313784`（代码）/ `44046940864`（文档）均 **success** |
+| `git status --short tests/golden/` | 空 |
+
+### 10.2 机械面（E1，`-CaseSensitive`）
+
+`raise+` = **0** / `except+` = **0** / `^-\s*def ` = **2**（函数名 / 参数名 / 默认值均未变）/ `ignore+` = **0**；零改动面（`core` / `tests` / `pyproject.toml` / `uv.lock`）diff 空；numstat 12 文件与 IMPL §11.1 **逐项吻合**。
+
+### 10.3 Phase 0-4
+
+| 阶段 | 结论 | 证据 |
+|------|------|------|
+| Phase 0 规格质量 | ✅ | D1-D5 可机械核查；I1-I6 有出口；V1-V5（含 V4b）可重放（V2 表述已当轮订正） |
+| Phase 1 完整性 | ✅ | 12 面串 3 处全串一致；13 行规格落码行号逐一命中；C1/C2 落码；D5 七项零扩做 |
+| Phase 2 忠实度 | ✅ | 偏离仅 F-S9-P037-1（`held`）/ -2（计数口径）；L198→L200 为实施后自然偏移非漂移 |
+| Phase 3 必要性 | ✅ | 12 文件全部 hunk 可归因；**不可归因 hunk = 0**；两处签名放宽仅注解变 |
+| Phase 4 语义 + Iron Law | ✅ | 独立探针（未复用 S9）：C1 构造 + C2 21 字段 0 mismatch + 非默认 3 字段；C1/C2 外无运行期变更；三层补足齐备 |
+
+### 10.4 盲区扫描（E4，范围 = 20 条修复面 + 5 组 assert + 下游调用点）
+
+- 5 组 `assert` 前提逐组核实（single-dm L60 / fixed L74 / minimal L70 / 2020_2026 L78 / single-signal L65）**全属 U-a**。
+- `trace()` 下游调用点全仓 **2 处**（L271/L274），均在被放宽签名内且两方法首行判 None → **0 处漏处理**。
+- 新增 `Any` 仅 `benchmark.py` 一处（R-P037-4 已登记可接受）。
+- **发现 4 项**（下表）。
+
+### 10.5 发现与当轮处置（0 P1/P2 + 4 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S10-P037-1 | P3 | 本文件 D1 的 12 面串为尾串缩写，非「四处逐字一致」 | D1 改为「尾部缩写 + 全串比对见 D2」 |
+| F-S10-P037-2 | P3 | DESIGN §8.1「5 组 assert 前提行」误列 `simple.py` L106（手动赋值无 assert）、漏 single-signal 组 | DESIGN §8.1 改为 5 组正确构成 + `simple.py` 单列 |
+| F-S10-P037-3 | P3 | DESIGN §4 V2 写「10 面（含 tools examples）」自相矛盾 | 改为「**12 面**（10 面 + `tools examples`）」 |
+| F-S10-P037-4 | P3 | PROGRESS §1.4 未为 U-P037-1/-2/-3 建行（同型台账缺口第 6 次） | §1.4 建三行（U-P037-1 done / -2 pending / -3 pending） |
+
+### 10.6 结论
+
+**Step 10 结论**: **pass（0 P1/P2 + 4 P3 当轮处置）**——门禁七项、机械面、Phase 0-4、台账收口全部通过；**批次过程链 Step 1-10 完成**，唯 **RULE-5 异构终审**由 U-P037-3 跟踪。
+
+---
+
+## 11. 签字表
+
+| 角色 | 基座 | 结论 | 日期 |
+|------|------|------|------|
+| Step 1 调研 | DeepSeek-V4.1-Flash | 三口径 19/19/20 + 10 簇 + C1 真实缺陷 | 2026-11-17 |
+| Step 2 调研 Review | UNKNOWN（异构未证实） | pass：2 P2 + 5 P3 当轮回写 | 2026-11-17 |
+| Step 3 设计 | DeepSeek-V4.1-Flash | D1-D5 / I1-I6 / V1-V5（含 V4b） | 2026-11-17 |
+| Step 4 设计 Review | DeepSeek-V4.1-Flash（同源） | pass：2 P2 + 3 P3 当轮回写 | 2026-11-17 |
+| Step 5 实施规划 | DeepSeek-V4.1-Flash | 13 行 / 20 条规格 + 双载体 | 2026-11-17 |
+| Step 6 实施 Review | DeepSeek-V4.1-Flash（同源） | pass：1 P2（#13 改法）+ 3 P3 当轮回写 | 2026-11-17 |
+| Step 7 验收清单 | DeepSeek-V4.1-Flash | 38 项零预填 | 2026-11-17 |
+| Step 8 一致性 Review | DeepSeek-V4.1-Flash（同源） | pass：3 P2 + 4 P3 当轮回写 | 2026-11-17 |
+| Step 9 实施 | DeepSeek-V4.1-Flash | pass：红→绿 19/19/20 → 0；C1/C2 探针；CI 四 job 绿 | 2026-11-17 |
+| Step 10 ADD 审计 | UNKNOWN（同基座独立会话） | pass：0 P1/P2 + 4 P3 当轮处置，见 §10 | 2026-11-17 |
+| U-P037-3 异构终审 | （待异构基座承接） | pending | — |

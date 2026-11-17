@@ -105,7 +105,7 @@ core agents filter scripts batch_backtest strategy_evaluation cli.py order_strat
 | ID | 用例 | 构造 | 断言 |
 |----|------|------|------|
 | **V1** | 目标面全绿 | `mypy ... tools examples`（三口径） | 0 error（`Success ... 103 source files` 相邻数值以实测为准） |
-| **V2** | 既有面回归 | 10 面（含 `tools examples`）全量 `mypy` | 0 error |
+| **V2** | 既有面回归 | **12 面**（10 面 + `tools examples`）全量 `mypy` | 0 error |
 | **V3** | 门禁双载体 | `tests.yml` L46 与 adapter L67 | 12 面字符串**逐字一致**；`grep '\|\| true'` = 0 |
 | **V4** | C1 缺陷修复 | `%TEMP%` 探针：修复后 `PositionTracker(dm.n_stocks, 1e7)` 可构造 | 构造成功 + `get_cash()==1e7` |
 | **V4b** | C2 逐字段等价 | `%TEMP%` 探针：`UniverseFilterConfig.from_universe_config(cfg)` 的 21 字段与 `cfg` 对应字段逐一比对（`exclude_stock_prefixes` 按 `bool()`、`excluded_prefixes` / `na_factor_names` 按 `list()`） | 21/21 一致；且**不等于**默认构造（至少 `excluded_prefixes` 差异可证） |
@@ -173,7 +173,7 @@ core agents filter scripts batch_backtest strategy_evaluation cli.py order_strat
 | A | 分层计数 | **不自洽**（1+9+9 ≠ 19 按条计） | ❌ F-S4-P037-3 |
 | A | C1 签名 / `n_stocks` property / 惯例 | `tracker.py:165` / `data.py:120` / `engine_v2.py:270` | ✅ |
 | A | C2 等价性论证 | 3 字段与目标默认不同（L44-49） | ❌ F-S4-P037-1 |
-| B | 5 组 assert 前提行 | single L60 / fixed L74 / minimal L70 / 2020_2026 L78 / simple L106 | ✅ 全 U-a |
+| B | 5 组 assert 前提行 | single-dm L60 / fixed L74 / minimal L70 / 2020_2026 L78（`setup()`）；single-signal L65（`_precompute_factors` L242→L337 赋值）；`simple.py` 为手动 `engine.dm = dm` L106（无 assert，见实施落点） | ✅ 全 U-a |
 | B | `complete_step` / `record_error` 调用点 | 全仓仅 2 处（L269 / L272，同文件） | ✅ 放宽无外部破坏 |
 | B | I2「`^-\s*def ` = 0」 | **不可达**（两处注解放宽在 def 行上） | ❌ F-S4-P037-2 |
 | B | 103 source files | 12 面实跑 `checked 103 source files` | ✅ |
