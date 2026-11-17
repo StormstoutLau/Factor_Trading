@@ -2,7 +2,7 @@
 
 > **批次**: P-041 · **T1**（Layer-1：`tests/`；生产面 `filter/limit_rules.py`）
 > **上游**: [IMPL_p041](IMPL_p041_infer_board_segments.md)（§2 精确规格 / §3 红态 / §6 Step 6 复审 pass：1 P2 + 2 P3）；[DESIGN_p041](DESIGN_p041_infer_board_segments.md)（D1-D4 / I1-I7 / §7 Step 4 复审 pass：1 P2 + 2 P3）；[RESEARCH_p041](RESEARCH_p041_infer_board_segments.md)（§7 M-A / §8 S1-S7 / §14）
-> **状态**: **Step 10 审计完成（P1=0 / P2=0），CI 全绿，待 U-P041-1 异构终审**
+> **状态**: **批次关闭（2026-11-17）：30/30 + Step 10 审计 pass + U-P041-1 异构终审 pass（GLM-5.3-Flash，0 P1/P2 + 1 P3 披露）**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`
 > **基线读数（@`24688ab`）**: pytest **771 passed** / golden **13 passed, 758 deselected** / black `core tests` **123**（全仓 **190**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **86** / `uv lock --check` exit **0**
 > **目标读数**: pytest **778** / golden 13 零重录 / black **124**（全仓 **191**）/ mypy 12 面 **0** / AST **22** / `tests/*.py` **87**
@@ -160,3 +160,61 @@
 ### 8.4 结论
 
 **Step 10 ADD 审计 pass**——Phase 0-4 全过；**P1 = 0 / P2 = 0**；P3 = 2（1 项登记 O-P041-5、1 项口径并列）。U-P040-2 修复的设计落地经 E1/E2/E3 三重取证确认；**批次仍 in-progress，待 U-P041-1 异构终审**。
+
+---
+
+## 9. U-P041-1 异构终审记录（GLM-5.3-Flash，2026-11-17）
+
+> **基座披露（RULE-4/RULE-5）**: 终审会话自报 `GLM-5.3-Flash` ≠ 作者 DeepSeek-V4.1-Flash → **异构终审成立**（作者 + Step 2/4/6/8/10 五轮均同源）。
+> **终审范围**: 四文档 + Step 9 取证 + Step 10 审计 + 门禁；E3 行号绑 `0196e24`（`git log -1 -- filter/limit_rules.py` / `-- tests/test_p041_board_segments.py` / `-- tests/test_p040_bse_limit_rule_gap.py` 均 = `0196e24`；终审时 HEAD `6b89403`，工作区净）。
+
+### 9.1 E1 门禁七项独立复跑（全部命中）
+
+| # | 门禁 | 口径 | 实测 |
+|---|------|------|------|
+| 1 | pytest 全量 | `pytest tests/ --tb=short -q -p no:cacheprovider` | ✅ `778 passed, 172 warnings in 41.56s` |
+| 2 | golden | `pytest -k golden` + `git status --short tests/golden/` | ✅ `13 passed, 765 deselected`；目录干净 |
+| 3 | black 双口径 | `black --check core tests` / `black --check .` | ✅ `124` / `191` unchanged |
+| 4 | mypy 12 面 | CI 逐字命令（tests.yml L46） | ✅ `Success: no issues found in 103 source files` |
+| 5 | AST `except Exception` | [IMPL_p029 §6](IMPL_p029_silent_exception_governance_phase4.md) 单行命令 | ✅ **22** |
+| 6 | `tests/*.py` | 顶层计数 | ✅ **87** |
+| 7 | `uv lock --check` | 本地 uv | ✅ exit **0** |
+
+### 9.2 E2 运行时探针（独立编写，5 项全过 + 1 项自纠披露）
+
+| # | 探针 | 读数 | 判定 |
+|---|------|------|------|
+| 1 | **红态内存复现**（`infer_board`→旧前缀副本 + `RULESET_VERSION`→`cn_a_2026_11`，importlib 按路径加载 7 用例逐个执行，仓库零改动） | `{v1: FAIL(AssertionError), v2: FAIL(AssertionError), v3: PASS, v4: FAIL, v5: FAIL, v6: FAIL, v7: FAIL}` = **6F/1P** | ✅ 与 B8 红态逐字一致（唯一 PASS=V3） |
+| 2 | 边界语义（含负例） | `bse 2018-01-14` RAISE / `01-15` `(1.0,−0.5)`；`gem 2009-10-29` RAISE / `10-30` `(0.1,−0.1)`；`2020-08-21` `(0.1,−0.1)` / `08-24` `(0.2,−0.2)` | ✅ S1/S2/S5 半开边界成立 |
+| 3 | 真实数据量化 | `close (1475, 5688)`；`infer_board` 映射正确；`len(RULES)=13`、版本 `cn_a_2026_11b`；920=**293** / 302=**1**；掩码 @main `(248957, 2072, 1163)` → @bse `(248957, 319, 164)` 翻转 **2752**；`302132 (1463, 10, 1)` → `(1463, 7, 1)` 翻转 **3**；非 main 覆盖 **5,222,448** 次、缺口 **0** | ✅ D4/D5 与 RESEARCH §3.6 全部逐位吻合 |
+| 4 | 引擎探针 | `setup()` 推进到 `FileNotFoundError: ...UTR_turnover_new.pkl`（U-P038-1）；`trade_dates=1460, first=2020-01-23, last=2026-01-30` | ✅ D6 复现 |
+| 5 | **全新进程 D4 复核** | 遍历前 `unknown=0`；全 5,688 列遍历后 `unknown=0`；`700001` 仍回落 main + 一次性告警（S3 非回归保留） | ✅ D4 判据独立成立 |
+| 6 | RESEARCH §3.1-3.3 数字复核 | 五源扫描 `close/adj/return` unknown=**0**、`list_date` 1（`TS0018`）、`stock_name` 1（`T00018`）；920 首日 2020-01-02 **53** 只 / <2021-11-15 **222** / ≥2024-04-22 **45**；`302132` 前 `n=154, >10.5%=0, max=+10.02%`、后 `n=1310, >10.5%=27, max=+20.04%` | ✅ 全部逐位吻合 |
+
+> **探针自纠披露（F-U3-P041-1，P3）**: 探针 P-C 首跑 `unknown_board_count()=4`——为 **P-A 内存补丁自染**：红态旧版 `infer_board` 副本按原语义忠实记录了 4 个未识别前缀（`920000`/`302132`/`700001`/`920493`，其中 v1/v2 在首个断言即中止只各记 1 个），restore 不清 `_unknown_prefixes`。以**全新进程**复核（第 5 项）证实生产状态 `unknown=0`；D4 判据不受影响。
+
+### 9.3 E3 静态读码（@`0196e24`）
+
+- [limit_rules.py:5](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L5) docstring、[L19](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L19) `RULESET_VERSION = "cn_a_2026_11b"`、[L85](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L85) `("300", "301", "302")`、[L89](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L89) `("8", "4", "920")`——与 IMPL §2.1-2.3、DESIGN-D1/D2 **逐字一致**（`git show 0196e24` 绑定）。
+- [tests/test_p041_board_segments.py](file:///f:/Coding/Factor_Trading_v3.0/tests/test_p041_board_segments.py) 96 行、P-040 两行订正——与 IMPL §2.4/2.5 **逐字一致**。
+
+### 9.4 E4 盲区扫描（发现 0 项缺陷）
+
+| # | 扫描范围 | 结果 |
+|---|----------|------|
+| 1 | 旧版本字面量 `"cn_a_2026_11"`（精确、无 b）：`tests/` + `filter/` + `core/` + `scripts/` 全部 `*.py` | ✅ **0 命中**（文档历史记载除外） |
+| 2 | 五源前缀扫描（独立重跑） | ✅ `close/adj/return` 0；`list_date` 1（`TS0018`）/ `stock_name` 1（`T00018`）——与 Step 10 F-S10-P041-1/-2 一致，O-P041-5 成立 |
+| 3 | 计数链复核 | ✅ 5,394+294=5,688；771+7=778；123+1=124；190+1=191；86+1=87；30=6+9+7+8；7,144+25,208+216,605=248,957；525+1,210+7,759=9,494；(2072−319)+(1163−164)+3=2,755 |
+| 4 | CI run 复核 | ✅ `44091229154` / `44092040919` 两 run 四 job 全 success |
+| 5 | 探针态污染 | **发现 1 项**（P3，探针侧非仓库）→ F-U3-P041-1 当轮披露 |
+
+### 9.5 发现与当轮处置（0 P1/P2 + 1 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-U3-P041-1 | P3 | 终审探针首跑 `unknown_board_count()=4`——P-A 内存补丁自染（旧版副本忠实记录未知前缀，restore 不清集合），非生产缺陷 | 以全新进程复核 `unknown=0` 确证；本节 9.2 第 5 项与 9.4 第 5 项并列披露 |
+
+### 9.6 结论
+
+**U-P041-1 异构终审 pass（GLM-5.3-Flash，RULE-5 成立）**——E1 七门禁 / E2 五探针+1 自纠披露 / E3 静态读码 / E4 盲区扫描（0 缺陷，计数链全对）/ E5 无推测入结论；**0 P1/P2 + 1 P3（探针侧披露）**。
+**批次 P-041 关闭**：主缺陷 U-P040-2 修复经异构独立复核确认；遗留 O-P041-1~5 均为观察项。
