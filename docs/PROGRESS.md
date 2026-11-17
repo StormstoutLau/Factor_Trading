@@ -1676,6 +1676,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E5**: 无推测入结论。
 - **发现**: **0 P1/P2 + 2 P3 当轮处置**——F-U3-P039-1（头部状态行未反映 Step 10/终审 → 当轮更新）/ F-U3-P039-2（§8.5 与 §3.44.2 口径补记误归因「2020-01-02 在窗口外」，实为 2020-01-10 落在窗口起点前、2020-01-02 乃 raw adj 首行不缺失 → 当轮订正两处）；终审探针两处**自纠披露**（str data_dir 违反 `config.py:341` 的 `Path` 注解 / 全量缺失首算误用窗口化 close 得 66 → 改全量重算得 81；均非仓库缺陷）。
 - **结论**: **U-P039-3 异构终审 pass → P-039 批次关闭**。U-P038-2 done；U-P039-1/-2 pending（条件触发）；**U-P039-4（P1，bse 规则缺口）独立跟踪待立项**；O-P039-1/-2 观察归档。详见 [CHECKLIST_p039 §9](CHECKLIST_p039_adj_factor_coverage.md)。
+- **提交与 CI**: 终审提交 `e888df3`（2 文件 +46/−5）→ CI run [`44065302270`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44065302270) **success**（`lock-check` 6s + 3.10 2m2s + 3.11 2m1s + 3.12 1m36s 四 job 全绿）。
 
 ---
 

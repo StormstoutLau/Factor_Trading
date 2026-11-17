@@ -199,7 +199,7 @@
 ## 9. U-P039-3 RULE-5 异构终审（2026-11-17）
 
 > **基座披露（RULE-4）**: 终审会话 system prompt 逐字自报 `You are powered by the model named GLM-5.3-Flash.` ≠ 四文档/实施/审计作者 DeepSeek-V4.1-Flash → **异构条件成立**（P-039 五轮复审中首次）。
-> **终审方式**: 不复用作者自报，独立编写探针与命令；终审基线 = `377b26a..d1cf545`（代码面 = `7d96547`，`cbb7d0b`/`d1cf545` docs-only）。
+> **终审方式**: 不复用作者自报，独立编写探针与命令；终审基线 = `377b26a..d1cf545`（代码面 = `7d96547`，`cbb7d0b`/`d1cf545` docs-only）；终审记录提交 `e888df3` → CI run [`44065302270`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44065302270) 四 job success。
 
 ### 9.1 E1-E5 五项
 
