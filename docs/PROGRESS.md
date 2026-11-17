@@ -1861,8 +1861,9 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **落码 B1-B4**: 端口 `load_factor`（`data_provider.py` L33-35/L82-86）；`DataManager.load_factor` 改走端口 + `except FileNotFoundError`（L573-574/L621-622）；`load_aux_raw`（L187-193）；agents L976-984；`IDataManager` +10 属性（interfaces L52-100）+ TYPE_CHECKING L19；`FactorPipeline` 依赖倒置（factor L21/L32）；去 `cast`（engine_v2 L13/L228）；`core/streaming.py`（新建 105 行）；`data_fingerprint` + `_fingerprint_part`（data.py L648-683）；`tests/_synthetic_data.py`（96 行）。
 - **门禁（E1）**: pytest **`794 passed, 172 warnings in 48.96s`** / golden **`13 passed, 781 deselected`**（目录净）/ mypy **`104 source files 0`** / black **129·196** unchanged / AST **22** / `tests/*.py` **91** / uv exit **0**；不变式 grep：`read_pickle`(data.py)=**0**、`data_dir`(agents)=**0**、`cast(`(engine_v2)=**0**、已删 API=**0**。
 - **实施期发现**: F-S9-P042-1（P3）红态预测失准（V16 实现前即 PASS；streaming 为收集期 error）→ IMPL §10 / CHECKLIST B17 按实测回填；F-S9-P042-2（P3）指纹缓存路径未单独立用例（V13 已覆盖跨实例稳定，记观察）。
-- **文档**: [IMPL_p042_data_contract.md](IMPL_p042_data_contract.md) §10 实施记录；[CHECKLIST_p042_data_contract.md](CHECKLIST_p042_data_contract.md) 实测 **45/46**（D4 待 CI）。
-- **下一步**: 提交 + CI 四 job → 回填 D4 → Step 10 ADD 审计（U-P042-1 异构终审 GLM-5.3-Flash）。
+- **文档**: [IMPL_p042_data_contract.md](IMPL_p042_data_contract.md) §10 实施记录；[CHECKLIST_p042_data_contract.md](CHECKLIST_p042_data_contract.md) 实测 **46/46**。
+- **提交与 CI**: **`84d899e`**（20 文件 +2576/−30）；CI **`44128298986`** 四 job 全绿（lock-check 8s / 3.10 80s / 3.11 91s / 3.12 126s）。
+- **下一步**: Step 10 ADD 审计（四阶段 + E1-E5 取证矩阵）→ U-P042-1 异构终审（GLM-5.3-Flash）。
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **批次**: P-042 · **T1**（Layer-1：`core/`、`tests/`；契约变更）
 > **上游**: [IMPL_p042](IMPL_p042_data_contract.md)（§3 实现规格 / §4 V1-V16 / §9 Step 6 pass：1 P2 + 3 P3）；[DESIGN_p042](DESIGN_p042_data_contract.md)（D1-D7 / I1-I12 / §10 Step 4 pass：1 P2 + 3 P3）；[RESEARCH_p042](RESEARCH_p042_data_contract.md)（§6 B1-B4 / §7 S1-S10 / §13 Step 2 pass）
-> **状态**: **Step 9 完成（2026-11-18），待 Step 10 ADD 审计；D4 待 CI 回填**
+> **状态**: **Step 9 完成 + CI 四 job 全绿（2026-11-18），待 Step 10 ADD 审计**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止预填
 > **基线读数（@`9f0dbeb`）**: pytest **778** / golden **13 passed, 765 deselected** / black `core tests` **124**（全仓 **191**）/ mypy **103 files 0** / AST `except Exception` **22** / `tests/*.py` **87** / `uv lock --check` exit **0**
 > **目标读数**: pytest **794** / golden 13 零重录 / black **129**（全仓 **196**）/ mypy **104 files 0** / AST **22** / `tests/*.py` **91** / uv exit **0**
@@ -70,8 +70,8 @@
 | D1 | black `core tests` **129** / 全仓 **196**；`tests/*.py` **91** | 五文件落盘 | `black --check` 双口径 + 计数 | ✅ `129` / `196` unchanged；**91** |
 | D2 | AST `except Exception` 恒 **22**；新增 `# type: ignore` = 0 | B1 落码 | P-029 单行命令 + grep | ✅ AST **22**；ignore **0** |
 | D3 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff | 全量实现 | 命令 + `git diff` | ✅ exit **0**；两文件无 diff |
-| D4 | 门禁双载体零 diff；单提交原子（6 生产 + 5 测试侧 + 文档）；CI 四 job 全绿 | D1-D3 通过 | `git show --stat` + `gh run view` | [待 CI] |
-| D5 | 文档回填：IMPL §10 实施记录 / PROGRESS §3.48.4 / CHANGELOG / 本文件实测列 46/46 | D4 通过 | 读回 | ✅ IMPL §10 + PROGRESS + CHANGELOG + 46/46（D4 除外） |
+| D4 | 门禁双载体零 diff；单提交原子（6 生产 + 5 测试侧 + 文档）；CI 四 job 全绿 | D1-D3 通过 | `git show --stat` + `gh run view` | ✅ 提交 **`84d899e`**（20 文件 +2576/−30）；CI **`44128298986`**：lock-check 8s / 3.10 80s / 3.11 91s / 3.12 126s 全 success；双载体无 diff |
+| D5 | 文档回填：IMPL §10 实施记录 / PROGRESS §3.48.4 / CHANGELOG / 本文件实测列 46/46 | D4 通过 | 读回 | ✅ IMPL §10 + PROGRESS §3.48.4 + CHANGELOG + **46/46** |
 | D6 | 未决登记：U-P042-1（异构终审）/ U-P042-6（cast 降级）/ O-P042-1~4 | 文档回填 | 读回 §1.4 | ✅ U-P042-1 pending；U-P042-6 **未触发**（cast 移除成功）；O-P042-1~4 已记 |
 | D7 | 派生需求登记：**0**（Step 9 若新增常量/降级策略须回填本行） | Step 9 完成 | 读回 IMPL | ✅ **0**（无新增常量/降级策略） |
 
@@ -82,7 +82,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **46**（A 8 + B 18 + C 13 + D 7 = 46，机械计数；B17/B18 为取证项非新用例） |
-| 实测列回填 | **45/46**（A 8 / B 18 / C 13 / D 6 已回填；D4 待 CI） |
+| 实测列回填 | **46/46**（A 8 / B 18 / C 13 / D 7 全 `✅ + 证据`） |
 
 > **RULE-2 统计溯源**：46 = 8 + 18 + 13 + 7（逐表行数，非估计）；用例 16 = B1-B16；取证 2 = B17/B18。
 > **RULE-5 声明**：Step 2/4/6/8 复审均自报 DeepSeek-V4.1-Flash（同源）→ 异构未成立；U-P042-1 跟踪。
