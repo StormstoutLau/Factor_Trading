@@ -1815,6 +1815,55 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **观察项**: O-R4 新增（ARCHITECTURE「VWAP/TWAP/Close」归属 + 「10 种过滤器」列举 9 类）；O-R1~R3 维持。
 - **结论**: 二轮复审 pass（0 P1）；总纲与仓库事实一致、三方文档一致，未发现虚构锚点或无源外部断言；不改代码，门禁基线沿用。
 
+### 3.48 P-042 数据契约统一（Step 1-2 调研，2026-11-17）
+
+- **触发**: 用户「开始 P-042 数据契约统一」；判档 **T1**（`core/` + `tests/`，契约变更）。
+- **关键前提（E3 复核）**: **P-004 B1-B3 已完成**——`DataManager` 已注入 `DataProvider`、`DataLoaderV3` 死 API 已删、协议签名已对齐；P-004 明确后置 **B4 端口扩全** 与 **agents 直读 `data_dir`（U-P004-4）**。因此 **P-042 不重做 P-004、不重试 V1/V3 合并**（P-004 M-C 已证伪），只承接 B4 + 残余契约缺口。
+- **真实缺口 G1-G6**: G1 `load_factor` 直接 `pd.read_pickle`（data.py L564-569）绕过端口；G2 `IDataManager` 未声明 filter/factor 实际消费的 8 个矩阵属性（`close/open/adj_factor/suspend/st/industry/mktcap/universe`）；G3 `agent_framework.py` L979/L989 直读 `data_dir` 下 industry/mktcap；G4 无 `IStreamingFeed`/`MarketEvent`；G5 无矩阵指纹；G6 无统一合成夹具。
+- **方案判定**: **M-A（契约收口，不合并实现）**——① `DataProvider.load_factor` + `DataManager.load_factor` 改走端口；② `IDataManager` 补矩阵属性；③ agents 越界改门面；④ `IStreamingFeed` + `InMemoryStreamingFeed`（不建 `live/`）；⑤ `data_fingerprint()` + `tests/_synthetic_data.py`；⑥ 明确不复活 P-004 已删 API。M-B（端口扩全）会造第二门面、M-C（V3 取代）已证伪、M-D（仅文档）不达标、M-E（流式优先）空转。
+- **批次切分**: B1 端口收口 / B2 协议收口 / B3 流式契约 / B4 可审计（指纹+合成夹具）；B1/B2 零行为，B3/B4 仅新增只读面。
+- **Step 2 Review**: pass（同基座；1 P2 + 2 P3 当轮处置）——F-S2-P042-1 总纲「归并」表述与 P-004 证伪冲突 → 题干收窄 + 总纲 §5 同步注记；F-S2-P042-2 基线读数标注「沿用 P-041、Step 9 复跑」；F-S2-P042-3 `IStreamingFeed` 放置位置登记 U-P042-3。
+- **未决**: U-P042-1 异构终审（作者 DeepSeek，终审须 GLM）/ U-P042-2 协议 A1 vs A2 / U-P042-3 流式模块位置 / U-P042-4 指纹范围 / U-P042-5 V3 投影不做生产适配器。
+- **文档**: [RESEARCH_p042_data_contract.md](RESEARCH_p042_data_contract.md)（§1 题干 / §2 三层事实 / §3 E1 / §4 G1-G6 / §5 M-A~M-E / §6 B1-B4 / §7 S1-S10 / §8 I1-I8 / §9 未决 / §13 Step 2 Review）。
+- **下一步**: 待用户确认题干收窄后进入 Step 3 DESIGN；Step 9 需跑 pytest/mypy/black/uv 门禁并回填红绿。
+
+### 3.48.1 P-042 Step 3-4 设计（2026-11-18）
+
+- **决策 D1-D7**: D1 契约收口不合并 V1/V3（不复活 P-004 已删 API）；D2 端口 +`load_factor`（存在性检查 + 逐字错误文案 + `except FileNotFoundError: raise` 保日志奇偶）；D3 `IDataManager` +10 属性（A1，拒绝 A2 子协议）；D4 agents 改门面新增 `load_aux_raw`（**否决 RESEARCH S5 的 `dm.industry/mktcap`**：`mktcap_file` 默认 `None` 门控 + 对齐 `fill_value=0` 会把 `""` 变 `0`，两处均为可证零行为破坏）；D5 `core/streaming.py`（`MarketEvent` frozen / `IStreamingFeed` / `InMemoryStreamingFeed`，`timeout` 不阻塞、订阅覆盖式）；D6 指纹配置驱动固定键集（拒绝「仅已加载」的访问顺序依赖）；D7 `FactorPipeline` 依赖倒置为 `IDataManager` 并移除 `cast`。
+- **测试策略**: 新增 16 用例（B1 六 / B2 一 / B3 五 / B4 四），红态 15 FAIL + V4 护栏 PASS；既有测试必改 2 文件（契约成员集合 3→4 / 9→19；P-029 `_FakeDM` +`load_aux_raw` 复刻真实 I/O）。
+- **门禁口径**: pytest **778 → 794** / golden 13 零重录 / mypy **103 → 104** / black **124 → 129**（全仓 191 → 196）/ AST `except Exception` 恒 22 / `tests/*.py` **87 → 91** / uv exit 0。
+- **Step 4 Review**: pass（同基座；**1 P2 + 3 P3** 当轮处置）——F-S4-P042-1 P2 即 S5 否决（见 D4）；F-S4-P042-2 缺 `except FileNotFoundError` 会多 error 日志；F-S4-P042-3 指纹访问顺序依赖；F-S4-P042-4 P-029 `price` 用例会多 `industry_cache` 计数。
+- **未决**: U-P042-1 异构终审（Step 10 → GLM-5.3-Flash）；U-P042-2/3/4/5 已由 D3/D5/D6/D1 关闭；新增 U-P042-6（若 mypy Optional 窄化失败则保留 cast，P3）。
+- **文档**: [DESIGN_p042_data_contract.md](DESIGN_p042_data_contract.md)（§1 范围 / §2 D1-D7 / §3 签名 / §4 B1-B4 / §5 V1-V16 / §6 I1-I12 / §7 R1-R8 / §10 Step 4 Review）。
+- **下一步**: 进入 Step 5 IMPL（四批可独立提交；B1 先行）。
+
+### 3.48.2 P-042 Step 5-6 实施规划（2026-11-18）
+
+- **任务拆解**: B1 端口收口（provider `load_factor` / `DataManager.load_factor` 改走端口 / `load_aux_raw` / agents 两处替换）/ B2 协议收口（+10 属性 / `FactorPipeline` 依赖倒置 / 去 `cast`）/ B3 流式契约（`core/streaming.py`）/ B4 可审计（`data_fingerprint` + `_synthetic_data.py`）；四批可独立提交与 revert。
+- **测试规格**: V1-V7 数据契约 / V8-V12 流式 / V13-V16 指纹与夹具；红态预期 `1 passed, 15 failed`（V4 为非回归护栏）；既有测试必改 2 文件（契约成员集合 3→4 / 9→19；P-029 `_FakeDM` +`load_aux_raw`）。
+- **低效排除**: 6 行（指纹向量化哈希 / 单次 `exists` / 缓存复用 / 有界队列 / 去 `import pickle` / 统一夹具）。
+- **版本核验**: Python `>=3.10`；pandas **3.0.3** / numpy **2.4.6** / pytest **9.0.3** / mypy **2.4.1** / black **26.5.1**（`uv.lock`）；`pd.util.hash_pandas_object` 存在（site-packages `pandas/util/__init__.py` L7-10）；零新增依赖。
+- **Step 6 Review**: pass（同基座；**1 P2 + 3 P3** 当轮处置）——F-S6-P042-1 P2：V4 初稿用合成夹具无法覆盖「首因子日前 NaN」（夹具因子首日 = 交易日首日）→ 改自带 6 日迷你数据集 + 夹具因子首日改 `dates[5]`；P3：`absent` 语义、`MarketEvent` 浅冻结、`timeout` 不阻塞三处声明补齐。
+- **文档**: [IMPL_p042_data_contract.md](IMPL_p042_data_contract.md)（§1 范围 / §2 任务拆解 / §3 签名与实现 / §4 V1-V16 / §5 低效排除 / §6 兼容与版本 / §7 门禁 / §8 回退 / §9 Step 6 Review）。
+- **下一步**: 进入 Step 7 CHECKLIST（16 项验收 + DoR/DoD）。
+
+### 3.48.3 P-042 Step 7-8 验收清单（2026-11-18）
+
+- **清单规模**: **46 项**（A 代码 8 + B 测试 18 + C 不变式 13 + D 门禁/提交/文档 7）；每项含 **DoR / DoD / 证据出口**，实测列 **0/46**（全部 `[待 Step 9]`，零预填）。
+- **用例映射**: V1-V7 数据契约（B1-B7）/ V8-V12 流式（B8-B12）/ V13-V16 指纹与夹具（B13-B16）；B17 红态取证（`1 passed, 15 failed`）/ B18 既有测试订正（2 文件）。
+- **Step 8 Review**: pass（同基座；**0 P1/P2 + 3 P3** 当轮处置）——F-S8-P042-1 I7 追溯链拆分标注；F-S8-P042-2 既有测试订正补 B18；F-S8-P042-3 C10（I9）无执行载体 → IMPL V7 增两条 `not in` 断言。
+- **文档**: [CHECKLIST_p042_data_contract.md](CHECKLIST_p042_data_contract.md)（§1 A 组 / §2 B 组 / §3 C 组 / §4 D 组 / §5 预填检查 / §7 Step 8 Review）。
+- **下一步**: 进入 Step 9 TDD（先写测试取红 `1 passed, 15 failed`，再落码转绿 794；B1 → B2 → B3 → B4）。
+
+### 3.48.4 P-042 Step 9 TDD 实施（2026-11-18）
+
+- **红 → 绿**: 红 `9 failed, 2 passed`（data_contract + fingerprint；V4/V16 PASS）+ `1 error`（streaming `ModuleNotFoundError`）+ 既有测试 `2 failed, 15 passed`；绿 **`33 passed in 3.00s`**（五文件）。实际红态与 IMPL §4.5 预测不同，F-S9-P042-1 当轮订正。
+- **落码 B1-B4**: 端口 `load_factor`（`data_provider.py` L33-35/L82-86）；`DataManager.load_factor` 改走端口 + `except FileNotFoundError`（L573-574/L621-622）；`load_aux_raw`（L187-193）；agents L976-984；`IDataManager` +10 属性（interfaces L52-100）+ TYPE_CHECKING L19；`FactorPipeline` 依赖倒置（factor L21/L32）；去 `cast`（engine_v2 L13/L228）；`core/streaming.py`（新建 105 行）；`data_fingerprint` + `_fingerprint_part`（data.py L648-683）；`tests/_synthetic_data.py`（96 行）。
+- **门禁（E1）**: pytest **`794 passed, 172 warnings in 48.96s`** / golden **`13 passed, 781 deselected`**（目录净）/ mypy **`104 source files 0`** / black **129·196** unchanged / AST **22** / `tests/*.py` **91** / uv exit **0**；不变式 grep：`read_pickle`(data.py)=**0**、`data_dir`(agents)=**0**、`cast(`(engine_v2)=**0**、已删 API=**0**。
+- **实施期发现**: F-S9-P042-1（P3）红态预测失准（V16 实现前即 PASS；streaming 为收集期 error）→ IMPL §10 / CHECKLIST B17 按实测回填；F-S9-P042-2（P3）指纹缓存路径未单独立用例（V13 已覆盖跨实例稳定，记观察）。
+- **文档**: [IMPL_p042_data_contract.md](IMPL_p042_data_contract.md) §10 实施记录；[CHECKLIST_p042_data_contract.md](CHECKLIST_p042_data_contract.md) 实测 **45/46**（D4 待 CI）。
+- **下一步**: 提交 + CI 四 job → 回填 D4 → Step 10 ADD 审计（U-P042-1 异构终审 GLM-5.3-Flash）。
+
 ---
 
 ## 4. 审查记录

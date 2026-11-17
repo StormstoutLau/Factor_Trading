@@ -18,7 +18,7 @@ import pandas as pd
 from scipy import stats
 
 from core.config import BacktestConfig, FactorConfig
-from core.data import DataManager
+from core.interfaces import IDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class FactorPipeline:
     负责单个因子的预处理，包括去极值、填充、中性化、标准化等步骤。
     """
 
-    def __init__(self, data_manager: DataManager, config: FactorConfig):
+    def __init__(self, data_manager: IDataManager, config: FactorConfig):
         """初始化因子处理管道
 
         Args:

@@ -65,6 +65,13 @@ class _FakeDM:
             raise RuntimeError("boom")
         return _frame()
 
+    def load_aux_raw(self, kind):
+        path = self.data_dir / f"{kind}.pkl"
+        if not path.exists():
+            return None
+        with open(path, "rb") as f:
+            return pd.read_pickle(f)
+
 
 # --------------------------------------------------------------- V1
 @pytest.mark.parametrize(

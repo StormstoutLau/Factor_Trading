@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import pickle
 import warnings
@@ -182,6 +183,14 @@ class DataManager:
         if self._mktcap_data is None and self.cfg.mktcap_file:
             self._load_auxiliary_data()
         return self._mktcap_data
+
+    def load_aux_raw(self, kind: str) -> Optional[pd.DataFrame]:
+        """按存储原样读取辅助数据（未对齐、不加默认值、缺失返回 None）。
+
+        供 agents 等只读消费方替代 ``data_dir`` 直读（P-042 B1）；
+        I/O 仍全部经 ``DataProvider``。
+        """
+        return self._provider.load_aux(kind)
 
     @property
     def returns(self) -> pd.DataFrame:
@@ -561,12 +570,8 @@ class DataManager:
         if self._cache_enabled and cache_key in self._cache:
             return self._cache[cache_key]
 
-        file_path = self.data_dir / factor_file
-        if not file_path.exists():
-            raise FileNotFoundError(f"因子文件不存在: {file_path}")
-
         try:
-            factor_data = pd.read_pickle(file_path)
+            factor_data = self._provider.load_factor(factor_file)
 
             # 确保索引为日期格式
             if not isinstance(factor_data.index, pd.DatetimeIndex):
@@ -613,6 +618,8 @@ class DataManager:
 
             return factor_data
 
+        except FileNotFoundError:
+            raise
         except Exception as e:
             logger.error(f"加载因子数据 {factor_file} 失败: {e}")
             raise
@@ -637,6 +644,43 @@ class DataManager:
         }
 
         return info
+
+    def data_fingerprint(self) -> str:
+        """返回数据矩阵指纹（配置驱动的固定键集；同数据同指纹）。
+
+        覆盖：五类价格矩阵、``returns``、``cfg.factor_files`` 中的因子矩阵、
+        四个辅助矩阵（配置关闭时记 ``absent``）。不做文件级哈希——那份职责属于
+        ``core.manifest``。
+        """
+        parts = [
+            self._fingerprint_part(f"price:{kind}", self._load_price_data(kind))
+            for kind in _PRICE_KINDS
+        ]
+        parts.append(self._fingerprint_part("returns", self.returns))
+        for name in sorted(self.cfg.factor_files):
+            parts.append(self._fingerprint_part(f"factor:{name}", self.load_factor(name)))
+        for kind, frame in (
+            ("suspend", self.suspend),
+            ("st", self.st),
+            ("industry", self.industry),
+            ("mktcap", self.mktcap),
+        ):
+            if frame is None:
+                parts.append(f"aux:{kind}:absent")
+            else:
+                parts.append(self._fingerprint_part(f"aux:{kind}", frame))
+
+        payload = "\n".join(parts).encode("utf-8")
+        return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+    @staticmethod
+    def _fingerprint_part(label: str, frame: pd.DataFrame) -> str:
+        """单矩阵规范化哈希：标签 + 形状 + 列名 + 行哈希（含索引值）。"""
+        rows = pd.util.hash_pandas_object(frame, index=True).to_numpy(dtype="<u8")
+        head = (
+            f"{label}|{frame.shape[0]}x{frame.shape[1]}|" + ",".join(map(str, frame.columns))
+        ).encode("utf-8")
+        return hashlib.sha256(head + rows.tobytes()).hexdigest()
 
     def clear_cache(self):
         """清空数据缓存"""

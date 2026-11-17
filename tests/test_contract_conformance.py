@@ -34,6 +34,16 @@ EXPECTED_MEMBERS: dict[type, set[str]] = {
         "load_factor",
         "get_data_info",
         "get_asset_info",
+        "close",
+        "open",
+        "high",
+        "low",
+        "adj_factor",
+        "suspend",
+        "st",
+        "industry",
+        "mktcap",
+        "universe",
     },
     IUniverseFilter: {
         "build_masks",
@@ -138,7 +148,7 @@ def test_execute_order_signature():
 
 
 class MockDataProvider:
-    """DataProvider 端口的最小实现（不接线，V15）。"""
+    """DataProvider 端口的最小实现（P-042：4 方法）。"""
 
     def __init__(self) -> None:
         self.prices: dict[str, pd.DataFrame] = {}
@@ -152,10 +162,13 @@ class MockDataProvider:
     def load_universe(self) -> Any | None:
         return None
 
+    def load_factor(self, name: str) -> pd.DataFrame:
+        return pd.DataFrame()
+
 
 def test_mock_data_provider_members():
-    """DataProvider 端口 3 成员完整（V14/V15）。"""
-    expected = {"load_price", "load_aux", "load_universe"}
+    """DataProvider 端口 4 成员完整（V14/V15；P-042 B1）。"""
+    expected = {"load_price", "load_aux", "load_universe", "load_factor"}
     assert expected <= _public_members(DataProvider)
     assert expected <= _public_members(MockDataProvider)
 
@@ -189,6 +202,9 @@ class _MockProvider:
 
     def load_universe(self) -> Any | None:
         return None
+
+    def load_factor(self, name: str) -> pd.DataFrame:
+        return pd.DataFrame()
 
 
 def test_data_manager_accepts_injected_provider():

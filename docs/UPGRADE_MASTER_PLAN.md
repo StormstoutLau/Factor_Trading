@@ -255,7 +255,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 | 阶段 | 批次（建议） | 内容 | 前置 | 验收口径 |
 |------|--------------|------|------|----------|
-| **0 地基** | P-042 数据契约统一 | `IDataManager`/`DataProvider`/`IStreamingFeed` 三契约收敛；`data.py`/`data_v3.py`/`data_provider.py` 归并 | — | golden **默认零重录**（如需重录须显式裁决并记录）；**synthetic fixture 可独立跑通**；流式适配器契约测试 |
+| **0 地基** | P-042 数据契约统一 | **P-004 B1-B3 已完成**（Provider 注入/死 API 删除/签名对齐）；本批只做 **B4 收口**：`DataProvider.load_factor` + `IDataManager` 矩阵属性 + agents 越界收口 + `IStreamingFeed` 契约 + 矩阵指纹/合成夹具；**不合并** data.py/data_v3.py（P-004 M-C 已证伪） | — | golden **默认零重录**（如需重录须显式裁决并记录）；**synthetic fixture 可独立跑通**；流式契约测试；指纹稳定 |
 | | P-043 事件总线 | EventLog 接入引擎（U-P025-1）→ 统一事件通道（seq/重放） | P-042 | 事件 seq 连续；订阅/重放测试 |
 | | P-044 策略接口抽象 | `core/strategy.py` Protocol + BacktestAdapter | P-042 | 既有策略迁移零行为变更；状态可序列化重放 |
 | **1 回测增强** | P-045 择时原语 | timing + stops（F4），复用 `target_positions`/`limit_rules` | P-044 | 与 vectorbt 对拍；止损状态机 golden |

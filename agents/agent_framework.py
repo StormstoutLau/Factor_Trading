@@ -974,22 +974,12 @@ class ResearchTeamAgent(BaseAgent):
             self._record_failure("price_cache")
 
         try:
-            import pickle
-
-            industry_path = data_manager.data_dir / "industry.pkl"
-            if industry_path.exists():
-                with open(industry_path, "rb") as f:
-                    self._industry_data = pickle.load(f)
+            self._industry_data = data_manager.load_aux_raw("industry")
         except:
             self._record_failure("industry_cache")
 
         try:
-            import pickle
-
-            mktcap_path = data_manager.data_dir / "mktcap.pkl"
-            if mktcap_path.exists():
-                with open(mktcap_path, "rb") as f:
-                    self._mktcap_data = pickle.load(f)
+            self._mktcap_data = data_manager.load_aux_raw("mktcap")
         except:
             self._record_failure("mktcap_cache")
 

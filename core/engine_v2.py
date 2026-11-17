@@ -10,7 +10,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -225,7 +225,7 @@ class BacktestEngineV2:
             logger.info("使用注入的因子处理管道")
         else:
             logger.info("创建默认因子处理管道...")
-            self.pipeline = FactorPipeline(cast(DataManager, self.dm), self.cfg.factor)
+            self.pipeline = FactorPipeline(self.dm, self.cfg.factor)
 
         # 4. 因子合成器
         if self._injected_combiner is not None:

@@ -16,6 +16,7 @@ from core.config import CostConfig, FactorConfig, UniverseConfig
 
 if TYPE_CHECKING:
     from core.tracker import PortfolioSnapshot
+    from core.universe_data import UniverseSnapshot
 
 # =============================================================================
 # 数据层接口
@@ -46,6 +47,56 @@ class IDataManager(Protocol):
     @property
     def universe_status(self) -> dict[str, Any]:
         """股票池快照状态（报告字段；缺失时降级，P-012 D5）"""
+        ...
+
+    @property
+    def close(self) -> pd.DataFrame:
+        """收盘价矩阵 (dates x stocks)"""
+        ...
+
+    @property
+    def open(self) -> pd.DataFrame:
+        """开盘价矩阵"""
+        ...
+
+    @property
+    def high(self) -> pd.DataFrame:
+        """最高价矩阵"""
+        ...
+
+    @property
+    def low(self) -> pd.DataFrame:
+        """最低价矩阵"""
+        ...
+
+    @property
+    def adj_factor(self) -> pd.DataFrame:
+        """复权因子矩阵"""
+        ...
+
+    @property
+    def suspend(self) -> Optional[pd.DataFrame]:
+        """停牌矩阵（1=停牌，0=正常；未配置时为 None）"""
+        ...
+
+    @property
+    def st(self) -> Optional[pd.DataFrame]:
+        """ST 矩阵（1=ST，0=正常）"""
+        ...
+
+    @property
+    def industry(self) -> Optional[pd.DataFrame]:
+        """行业矩阵（缺失时为 None）"""
+        ...
+
+    @property
+    def mktcap(self) -> Optional[pd.DataFrame]:
+        """市值矩阵（缺失时为 None）"""
+        ...
+
+    @property
+    def universe(self) -> Optional[UniverseSnapshot]:
+        """股票池快照（缺失时降级快照）"""
         ...
 
     @property

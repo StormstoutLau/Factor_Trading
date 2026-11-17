@@ -1,8 +1,8 @@
-"""数据端口（P-012 D7 / T-12）。
+"""数据端口（P-012 D7 / T-12 / P-042 B1）。
 
-- ``DataProvider``：价格 / 辅助数据 / 股票池快照的读取端口；
-- ``PklDataProvider``：现有 pkl 目录的适配器；
-- **本批不接线**：生产代码不得 import 本模块（P-004 负责迁移，V15）。
+- ``DataProvider``：价格 / 辅助数据 / 股票池快照 / 因子的读取端口；
+- ``PklDataProvider``：pkl 目录适配器（只读）；
+- ``DataManager`` 经本端口读取（P-004 B1），业务装配不直接依赖存储实现。
 """
 
 from __future__ import annotations
@@ -30,9 +30,13 @@ class DataProvider(Protocol):
         """读取股票池快照；缺失返回降级快照。"""
         ...
 
+    def load_factor(self, name: str) -> pd.DataFrame:
+        """读取因子矩阵（data_dir 下的文件名）。"""
+        ...
+
 
 class PklDataProvider:
-    """pkl 目录适配器（只读；不接入 DataManager 调用路径）。"""
+    """pkl 目录适配器（只读）。"""
 
     def __init__(
         self,
@@ -74,3 +78,9 @@ class PklDataProvider:
 
     def load_universe(self) -> Optional[UniverseSnapshot]:
         return load_universe_snapshot(self.data_dir, self.universe_dir)
+
+    def load_factor(self, name: str) -> pd.DataFrame:
+        path = self.data_dir / name
+        if not path.exists():
+            raise FileNotFoundError(f"因子文件不存在: {path}")
+        return pd.read_pickle(path)
