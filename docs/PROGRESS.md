@@ -1874,7 +1874,8 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **F-S10-P042-3（P3）**: `InMemoryStreamingFeed._maxlen` 存而不用 → 删除（零行为）。
 - **取证矩阵 E1-E5**: E1 全量 795 / golden 13·782 / mypy 104 / black 129·196 / AST 22 / tests 91 / uv 0；E2 独立探针 `PROBE_OK members=19 fp=sha256:273932e30a18`（raw=磁盘、门控、错误文案逐字）；E3 读码 @`84d899e`；E4 全仓扫描（read_pickle 仅 provider 3 处 / cast 0 / 已删 API 0 / 模糊词 0）；E5 无推测。
 - **结论**: **ADD pass（P1=0 / P2=1 当轮修复 / P3=2 / DR=1）**；G1-G6 全关闭；批次仍 in-progress，待 U-P042-1 异构终审。
-- **下一步**: 提交 ADD 修复 + CI → GLM-5.3-Flash 异构终审 → 批次关闭。
+- **提交与 CI**: `9f08f77`（ADD 修复，7 文件 +123/−34）+ `7ea89ff`（CI 回填）；CI **`44131327084`** 四 job 全绿（lock-check 9s / 3.10 90s / 3.11 129s / 3.12 85s）。
+- **下一步**: GLM-5.3-Flash 异构终审（U-P042-1）→ 批次关闭。
 
 ---
 
