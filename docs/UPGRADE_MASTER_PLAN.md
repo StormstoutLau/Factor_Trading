@@ -159,7 +159,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 | S1 | **平台级 kill switch** | 全局/账户/策略三级急停：停止新开仓、可选一键撤单与平仓；状态持久化，重启后保持 | 状态机单测 + 断线/崩溃恢复演练 |
 | S2 | **网关事前风控** | 每笔订单发柜台前校验：单笔金额上限、价格带（复用 `filter/limit_rules.py` 涨跌停价）、单票/行业暴露、日下单笔数与撤单率上限、自成交拦截 | 拒绝路径单测 + 审计日志字段完整 |
 | S3 | **账户级熔断** | 日亏损/回撤/连续拒单超阈值 → 自动降级（只平不开）并告警 | 阈值触发演练 + 告警送达 |
-| S4 | **合规报告** | 程序化交易报告（账户/策略/频率）、高频交易额外报告、异常交易监控（瞬时申报速率/频繁撤单/自成交）；**具体阈值与报备主体以交易所细则为准，须在 P-052 RESEARCH 阶段取证** | 报告字段清单 + 台账 |
+| S4 | **合规报告** | 程序化交易报告（账户/资金杠杆/策略类型与主要内容/指令执行方式/最高申报速率/单日最高笔数/软件名称版本与开发主体）；高频额外报告（服务器所在地/测试报告/应急方案）；异常交易监控（瞬时申报速率/频繁撤单/自成交/拉抬打压）；默认速率上限 ≤1 笔/秒、≤1000 笔/日。**具体阈值与报备主体以交易所细则与所属券商为准，须在 P-052 RESEARCH 阶段取证** | 报告字段清单 + 台账 + 速率上限单测 |
 | S5 | **鉴权与传输安全** | REST/WS 鉴权（API Key/JWT）、TLS 终止、最小权限、CORS 白名单；密钥经环境/密钥库注入，禁止入库 | 未授权 401/403 测试 |
 | S6 | **审计留痕** | 意图/风控决策/下单/回报/撤单/对账全链路 append-only，含操作者与时间源 | 事件可重放 + 字段完整性测试 |
 | S7 | **故障处置** | 断线（行情/交易）、拒单、部分成交、柜台重启的处置策略与人工接管流程（runbook） | 故障注入演练记录 |
@@ -211,7 +211,8 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 ### F6 交易柜台对接 + 微服务
 - **新模块**: `live/qmt_bridge.py`、`live/ctp_bridge.py`（实现 `LiveTradingBridge` ABC）、`live/event_bus.py`、`live/ledger.py`、`live/reconcile.py`、`live/session_calendar.py`（交易日历/时段/时区）、`live/corporate_actions.py`（分红/送转/配股/退市）、`live/execution_algo.py`（TWAP/POV/冰山）。
-- **QMT 调用链**: `XtQuantTrader(path, session_id)`→`register_callback`→`start`→`connect`→`subscribe(account)`→`order_stock`→`cancel_order_stock`→`query_stock_asset/orders/trades/positions`→`run_forever`。回调（独立线程）：`on_stock_order/on_stock_trade/on_order_error/on_disconnected`。**回调内禁同步查询**（卡死），持仓同步=主推驱动+定时对账。**仅 Windows + 本机 QMT 客户端（miniQMT）**。
+- **QMT 调用链**: `XtQuantTrader(path, session_id)`→`register_callback`→`start`→`connect`→`subscribe(account)`→`order_stock`→`cancel_order_stock`→`query_stock_asset/orders/trades/positions`→`run_forever`。回调（独立线程）：`on_stock_order/on_stock_trade/on_order_error/on_disconnected`。**回调内禁同步查询**（卡死），持仓同步=主推驱动+定时对账。**仅 Windows + 本机 QMT 客户端**。
+  > **2026 通道变化（必须前置核验）**: 多家券商已停止 miniQMT 新申请并清退存量（华鑫公告 2026-10-30 关闭）；QMT 标准版内置 Python 3.6.x 且 2026 起多地关闭文件读写/外网。P-053 必须先过「通道可行性门」，不得假设 xtquant 常驻网关可用（详见 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md) Q1/Q14）。
 - **CTP 边界**: **只覆盖期货/期货期权**（股票期权另有柜台）；**A股现货/两融不走 CTP**（走 QMT/恒生/华锐）。MdApi/TdApi 分离，重连由 C++ API 内部完成。封装选 vnpy_ctp / openctp（含 TTS 仿真）。
 - **微服务边界**: 行情服务 / 策略引擎（只产信号）/ 风控服务（事前同步闸门）/ **交易网关（唯一对接柜台、每账户单写者）** / 持仓账户服务（成交驱动账本+对账）/ API+WS（只读扇出）。事件用 Redis Streams/NATS；下单路径风控用 gRPC 或进程内调用（路径尽量短）。
 - **公司行为与交易日历**: 分红/送转/配股/退市由柜台回报或数据源事件驱动，账本记 `corporate_action` 事件；对账时持仓数量差异须先归因公司行为再判异常。`session_calendar` 提供交易所日历、集合竞价/连续竞价/收盘竞价时段、`Asia/Shanghai` 时区与期货夜盘状态机。
@@ -262,17 +263,17 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 | | P-047 仓位管理 | sizing（F3）+ U-P031-2 裁决 | P-044 | 现金守恒；分数凯利/vol-target golden |
 | **2 风险、账目与策略** | P-048 风险 overlay | risk_overlay（F1 决策闭环） | P-047 | 风险→权重纯函数 golden |
 | | P-049 舆情接入 | sentiment_feed（F1，公告/新闻） | P-042 + §7.5 裁决 | PIT 不变量；因子化可复算 |
-| | **P-050 做空账目** | U-P031-1（负持仓/保证金/盯市/强平） | 无代码前置（本批即 U-P031-1 题干） | 多空账目 golden；纯多头既有 golden 不受影响 |
+| | **P-050 空头与期货账目** | 期货保证金/逐日结算/强平/换月优先；股票负持仓降为研究模式（U-P031-1） | 无代码前置（本批即 U-P031-1 题干） | 期货账目 golden；纯多头既有 golden 不受影响 |
 | | P-051 策略模板+生命周期 | `strategies/`（网格/趋势/时序动量/均值回归）+ registry + lifecycle（F5） | P-044/045/047/050 | 晋级门机械化；regime 切换样本外验证 |
 | **3 实盘网关** | **P-052 实盘安全闸门** | kill switch/网关事前风控/账户熔断/合规报告/审计（§3.0 S1-S7） | P-043 | S1-S7 每项有机械验证出口；拒绝路径全覆盖 |
-| | P-053 QMT 网关 | qmt_bridge + ledger + reconcile + session_calendar + corporate_actions（F6） | P-043/044/050/052 | Mock→实盘同接口；幂等/对账/公司行为测试；paper 跑通 |
+| | P-053 交易通道网关 | **先过通道可行性门**；qmt_bridge/broker_api_bridge/ctp_bridge + ledger + reconcile + session_calendar + corporate_actions（F6） | P-043/044/050/052 + §7.1/§7.14 裁决 | Mock→实盘同接口；幂等/对账/公司行为测试；paper 跑通 |
 | **4 服务层** | P-054 FastAPI+WS | `services/`（F7，含鉴权/TLS/观测） | P-053 + §7.9 | snapshot+delta 重放一致；背压/重连/401 测试 |
 | | P-055 微服务拆分 | 进程边界 + Redis Streams + 部署 | P-054 | 依赖方向门禁；端到端延迟基准 |
 | **5 高级** | P-056 CTP 期货/月差 | ctp_bridge（F6） | P-050/053 | 期货账目；换月/保证金/限仓 |
 | | P-057 regime 自适应深化 | HMM + 参数集切换 | P-051 | 样本外验证；防过拟合 |
-| | P-058 截面多空/月差模板 | `strategies/` 扩展（依赖做空与期货账目） | P-050/051/056 | 多空账目 + 期货合约口径对拍 |
+| | P-058 截面多空/月差模板 | `strategies/` 扩展（默认股指期货对冲；股票融券仅研究开关） | P-050/051/056 | 多空账目 + 期货合约口径对拍 |
 
-> **关键路径**: P-042→043→044→045/046/047→048→050→051→052→053→054→055。做空账目（**P-050**）是截面多空（P-058）/月差（P-056/P-058）的硬前置。
+> **关键路径**: P-042→043→044→045/046/047→048→050→051→052→053→054→055。期货/空头账目（**P-050**，期货优先）是截面多空（P-058）/月差（P-056/P-058）的硬前置。
 > **编号说明**: 本表为复审后修订顺序（初稿→修订稿映射见 §10.5）；初稿的 P-050 策略模板→P-051、P-051 做空账目→P-050、P-052 QMT→P-053、P-053 FastAPI→P-054、P-054 微服务→P-055、P-055 CTP→P-056、P-056 regime→P-057；新增 P-052（实盘安全闸门）与 P-058（多空/月差模板）。
 
 ---
@@ -294,20 +295,24 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 ## 7. 风险与开放问题（需用户裁决）
 
-1. **QMT 仅 Windows + 客户端依赖**：实盘网关须 Windows 宿主；服务层 Linux 跨进程通信拓扑需确认部署环境。
+> **调研已完成（2026-11-17）**: 14 项的证据、选项与推荐见 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)；下列条目保留原始问题，**推荐结论以调研文档 §0/§3 为准**。
+> **P0 阻断项**: Q1（交易通道：miniQMT 关停/QMT 封闭/PTrade 云沙箱/机构 API/CTP）、Q3（期货账目优先）、Q9（自用定位与程序化报备）、Q14（QMT Python 3.6.x 与 extra 隔离）——不裁决则 **P-053 不得立项**。
+> **关键外部变化**: 华鑫证券公告 2026-10-30 收盘后关闭 miniQMT；多家券商 2026 年起关闭 QMT 标准版内置 Python 的文件读写/外网；总纲初稿「Windows + xtquant 常驻网关」假设已不稳健。
+
+1. **QMT 仅 Windows + 客户端依赖**：实盘网关须 Windows 宿主；服务层 Linux 跨进程通信拓扑需确认部署环境。（调研推荐：通道可行性门；QMT/PTrade 仅半自动，机构 API/CTP 可 Linux——见调研 Q1）
 2. **「毫秒级」预期管理**：A股 Level-1 源 3s 一笔，端到端 5–50ms 是现实上限；是否接受「内部新鲜度毫秒级、行情源 3s」口径？
-3. **做空账目（U-P031-1）**：截面多空/月差需负持仓+保证金盯市，波及 V2/V3/golden，是否本升级周期内做？
+3. **做空账目（U-P031-1）**：截面多空/月差需负持仓+保证金盯市，波及 V2/V3/golden，是否本升级周期内做？（调研推荐：期货保证金账目优先，股票负持仓降为研究模式——见调研 Q3）
 4. **CTP 范围**：A股现货不走 CTP；是否仅期货/期权子项目用 CTP？股票现货锁定 QMT？
 5. **舆情数据合规与成本**：Tushare 积分制付费、社交爬虫合规风险；先公告/新闻是否足够？
 6. **数据源统一**：data.py/data_v3.py 收敛可能波及 golden，需重录裁决。
 7. **PyPortfolioOpt 新依赖**：引入需 `uv lock` + CI lock-check；是否接受（vs 纯 scipy 自研 HRP 零依赖路线）？
 8. **regime 自适应防过拟合**：HMM 按态切换参数集需严格样本外验证，避免数据窥探（沿用 walk-forward purge gap）。
-9. **合规定位与报备（S4）**：本框架是自用工具还是对外服务？若涉及程序化交易报告/高频报告，报备主体与账户范围如何界定？API/WS 是否仅内网或本机（决定鉴权与 TLS 强度）？
+9. **合规定位与报备（S4）**：本框架是自用工具还是对外服务？若涉及程序化交易报告/高频报告，报备主体与账户范围如何界定？API/WS 是否仅内网或本机（决定鉴权与 TLS 强度）？（调研推荐：自用定位；完成券商程序化报备；速率 ≤1 笔/秒、≤1000 笔/日；API 仅本机/内网——见调研 Q9）
 10. **parity 阈值**：§4 的持仓差 0 / 权重 L1≤1e-6 / 均价≤10bps / 现金≤1 元是否接受？需按账户规模与标的流动性校准。
 11. **多策略共享账户**：是否需要虚拟子账户与资金预留？策略冲突仲裁用优先级还是公平队列？
 12. **公司行为/交易日历数据源**：分红送转/配股/退市事件与交易所日历取自柜台、Tushare 还是交易所公告？缺失时如何降级与告警？
 13. **可观测性栈**：Prometheus+Grafana 全栈，还是最小「结构化日志+邮件/IM 告警」？决定 P-055 部署复杂度。
-14. **QMT Python 版本与 extra 隔离**：gateway venv 独立 pin（以 xtquant wheel 支持为准）且可能低于主包 3.12，是否接受？Windows 网关与 Linux 服务的通信方式（REST/gRPC/Redis）需确认。
+14. **QMT Python 版本与 extra 隔离**：gateway venv 独立 pin（以 xtquant wheel 支持为准）且可能低于主包 3.12，是否接受？Windows 网关与 Linux 服务的通信方式（REST/gRPC/Redis）需确认。（调研推荐：独立 `[qmt]` extra + Windows venv；不假设 3.12；QMT 内置 3.6 需独立移植层或半自动——见调研 Q14）
 
 ---
 
@@ -334,7 +339,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 ## 9. 下一步
 
-1. 用户裁决 §7 开放问题（**优先 9-14 新增项**：合规定位、parity 阈值、多策略资金、公司行为/日历数据源、观测栈、QMT Python/extra；以及 1-8 既有项）。
+1. 用户裁决 §7 开放问题（**优先 P0 四项**：Q1 交易通道、Q3 期货账目/做空路线、Q9 自用定位与程序化报备、Q14 QMT Python/extra；证据与推荐见 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)）。
 2. 按 §5 修订路线图从 **P-042（数据契约统一）** 起逐批立项，每批走 SPEC_PROCESS 十步 + 异构终审；P-042 立项前先确认 §6「门禁落地」（CI job/extra/uv lock）。
 3. 每批完成后回写本总纲 §1.2 能力矩阵与 §5 路线图状态，保持总纲↔批次↔代码可追溯。
 
