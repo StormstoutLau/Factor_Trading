@@ -561,7 +561,7 @@ class ThompsonSamplingAllocator(BaseAllocator):
         n = evaluator.n
 
         # 从后验采样
-        samples = np.zeros(n)
+        samples: np.ndarray = np.zeros(n)
         for i, dlm in enumerate(evaluator.dlms):
             mu, sigma = dlm.predict(1)
             samples[i] = np.random.normal(mu, sigma)

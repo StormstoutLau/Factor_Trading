@@ -65,7 +65,7 @@ def build_data(spec: CaseSpec) -> tuple[pd.DataFrame, pd.DataFrame, list[int]]:
     """返回 (close_df, factor_df, reb_days)。日期用 ISO 字符串索引（跨 pandas 版本安全）。"""
     if spec.case in ("B1", "B5"):
         t, codes = 5, _CASES_2
-        close = np.full((t, 2), np.nan)
+        close: np.ndarray = np.full((t, 2), np.nan)
         close[:, 0], close[:, 1] = 10.0, 25.0
         factor = np.tile(np.array([1.0, 2.0]), (t, 1))
     elif spec.case == "B2":

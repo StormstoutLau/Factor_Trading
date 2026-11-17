@@ -360,7 +360,7 @@ class CorrelationStructureMonitor:
                     AssumptionCheck(
                         name="特征值结构变化",
                         level=level,
-                        statistic=z_score,
+                        statistic=float(z_score),
                         threshold=self.eigenvalue_change_threshold,
                         description=f"最大特征值占比突变 (z={z_score:.2f})，策略间相关性结构可能改变",
                         recommended_action="切换到风险平价或等权分配",
@@ -469,7 +469,7 @@ class TurnoverMonitor:
                             name="换手率异常",
                             level=level,
                             statistic=turnover,
-                            threshold=threshold,
+                            threshold=float(threshold),
                             description=f"权重换手率{turnover:.4f}超过历史{self.turnover_percentile:.0f}分位数",
                             recommended_action="增加交易成本惩罚系数",
                         )
@@ -643,7 +643,7 @@ class BayesianModelMonitor:
                     AssumptionCheck(
                         name="对数似然下降",
                         level=AlertLevel.YELLOW,
-                        statistic=ll_drop,
+                        statistic=float(ll_drop),
                         threshold=self.loglikelihood_drop_threshold,
                         description=f"近期对数似然均值下降{ll_drop:.4f}，模型拟合能力退化",
                         recommended_action="考虑更换模型或增加正则化",

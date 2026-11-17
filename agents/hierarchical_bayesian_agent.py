@@ -216,7 +216,7 @@ class HierarchicalBelief:
 
         std = np.std(recent_values)
         # 标准差越小越稳定
-        stability: float = max(0, 1 - std * 5)
+        stability: float = max(0.0, 1.0 - float(std) * 5)
         return stability
 
 
