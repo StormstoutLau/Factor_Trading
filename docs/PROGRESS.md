@@ -1772,6 +1772,16 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **探针自纠披露（F-U3-P041-1，P3）**: 终审探针首跑 `unknown_board_count()=4`——P-A 内存补丁的旧版 `infer_board` 副本忠实记录未知前缀（v1/v2 首断言中止各记 1 个 + v3 `700001` + v4 `920493`），restore 不清 `_unknown_prefixes`；以全新进程复核 `unknown=0` 确证非生产缺陷。
 - **结论**: **U-P041-1 pass（0 P1/P2 + 1 P3 探针侧披露）→ 批次 P-041 关闭**；遗留 O-P041-1~5 均为观察项。
 
+### 3.47 升级总纲调研（回测→回测/实盘一体化，2026-11-17）
+
+- **触发**: 用户要求分析新增 7 大能力（持仓风险监控+实时+舆情/组合优化/资金仓位/量化择时对标vectorbt/策略注入与生命周期/QMT-CTP对接微服务/FastAPI+WS毫秒推送），先盘点现状再派发 subagent 深入调研生成升级总纲。
+- **性质**: **跨批次 pre-batch 总纲**（非单 SPEC 批次）；产出 [UPGRADE_MASTER_PLAN.md](UPGRADE_MASTER_PLAN.md)，整合取代三份旧提案（BACKTEST_ENGINE_UPGRADE_PLAN/architecture_upgrade_plan/INTEGRATION_PROPOSAL）。
+- **盘点结论**: 多数能力已有基础——4 优化器（EqualW/MinVar/MVO/RiskPar）、五维风控（含情绪）、Guard Pipeline、risk_manager（止损/盯市）、Plugin Registry、EventLog、Brinson 归因、Walk-Forward、`LiveTradingBridge` ABC（骨架，已接 OrderIntent）；**FastAPI/WebSocket 全仓空白**（web/server.py 仅静态服务）；数据为批量 pkl 非流式、引擎逐日 bar 非事件 tick。
+- **调研方式**: 4 subagent 并行（内部扩展点 + vectorbt择时/组合优化 + QMT/CTP/FastAPI + 风险/舆情/策略生命周期），来源见总纲 §8。
+- **总纲要点**: 五大架构原则（高内聚/低耦合/高性能/可追溯/可单独验证审计）+ 机械门禁；目标分层 `services→live→core←strategies`（core 零上行依赖）；统一 Strategy Protocol + 回测/实盘双适配器；7 功能→模块映射（各含独立验证审计出口）；批次路线图 P-042~P-056（关键路径 数据契约→事件总线→策略接口→择时/仓位→风险overlay→策略生命周期→做空账目→QMT网关→FastAPI/WS→微服务）。
+- **关键前置/开放问题**: U-P031-1（做空账目，截面多空/月差硬前置）、U-P025-1（EventLog 接入）、data.py/data_v3.py 统一；QMT 仅 Windows、A股现货不走 CTP、毫秒级口径（Level-1 源 3s）、PyPortfolioOpt 新依赖——待用户裁决（总纲 §7）。
+- **下一步**: 用户裁决开放问题后，从 P-042（数据契约统一）起逐批走 SPEC_PROCESS 十步 + 异构终审。
+
 ---
 
 ## 4. 审查记录
