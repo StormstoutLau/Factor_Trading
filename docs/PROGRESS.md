@@ -1859,11 +1859,22 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 
 - **红 → 绿**: 红 `9 failed, 2 passed`（data_contract + fingerprint；V4/V16 PASS）+ `1 error`（streaming `ModuleNotFoundError`）+ 既有测试 `2 failed, 15 passed`；绿 **`33 passed in 3.00s`**（五文件）。实际红态与 IMPL §4.5 预测不同，F-S9-P042-1 当轮订正。
 - **落码 B1-B4**: 端口 `load_factor`（`data_provider.py` L33-35/L82-86）；`DataManager.load_factor` 改走端口 + `except FileNotFoundError`（L573-574/L621-622）；`load_aux_raw`（L187-193）；agents L976-984；`IDataManager` +10 属性（interfaces L52-100）+ TYPE_CHECKING L19；`FactorPipeline` 依赖倒置（factor L21/L32）；去 `cast`（engine_v2 L13/L228）；`core/streaming.py`（新建 105 行）；`data_fingerprint` + `_fingerprint_part`（data.py L648-683）；`tests/_synthetic_data.py`（96 行）。
-- **门禁（E1）**: pytest **`794 passed, 172 warnings in 48.96s`** / golden **`13 passed, 781 deselected`**（目录净）/ mypy **`104 source files 0`** / black **129·196** unchanged / AST **22** / `tests/*.py` **91** / uv exit **0**；不变式 grep：`read_pickle`(data.py)=**0**、`data_dir`(agents)=**0**、`cast(`(engine_v2)=**0**、已删 API=**0**。
+- **门禁（E1）**: pytest **`795 passed, 172 warnings in 42.93s`**（Step 9 首跑 794；ADD 修复 +V17）/ golden **`13 passed, 782 deselected`**（目录净）/ mypy **`104 source files 0`** / black **129·196** unchanged / AST **22** / `tests/*.py` **91** / uv exit **0**；不变式 grep：`read_pickle`(data.py)=**0**、`data_dir`(agents)=**0**、`cast(`(engine_v2)=**0**、已删 API=**0**。
 - **实施期发现**: F-S9-P042-1（P3）红态预测失准（V16 实现前即 PASS；streaming 为收集期 error）→ IMPL §10 / CHECKLIST B17 按实测回填；F-S9-P042-2（P3）指纹缓存路径未单独立用例（V13 已覆盖跨实例稳定，记观察）。
-- **文档**: [IMPL_p042_data_contract.md](IMPL_p042_data_contract.md) §10 实施记录；[CHECKLIST_p042_data_contract.md](CHECKLIST_p042_data_contract.md) 实测 **46/46**。
+- **文档**: [IMPL_p042_data_contract.md](IMPL_p042_data_contract.md) §10 实施记录；[CHECKLIST_p042_data_contract.md](CHECKLIST_p042_data_contract.md) 实测 **47/47**。
 - **提交与 CI**: **`84d899e`**（20 文件 +2576/−30）；CI **`44128298986`** 四 job 全绿（lock-check 8s / 3.10 80s / 3.11 91s / 3.12 126s）。
 - **下一步**: Step 10 ADD 审计（四阶段 + E1-E5 取证矩阵）→ U-P042-1 异构终审（GLM-5.3-Flash）。
+
+### 3.48.5 P-042 Step 10 ADD 审计（2026-11-18）
+
+- **审计者**: DeepSeek-V4.1-Flash（同源）→ RULE-5 不成立；U-P042-1 第 5 轮。
+- **Phase 0-4**: 全过。Phase 0 模糊词 0 命中；Phase 1 D1-D7 全落地；Phase 2 生产 diff 与 IMPL §3 逐字；Phase 3 变更面 20 文件无越界；Phase 4 **发现 P2** 并当轮修复。
+- **F-S10-P042-1（P2）**: `mktcap_file` 默认 `None` 时 `load_aux_raw("mktcap")` 抛 `ValueError("未知辅助数据类型: mktcap")`——`_build_provider` 过滤 falsy aux 所致；agents 会误计 `mktcap_cache` 且读不到市值。**修复**：`aux_files` 恒含四类（配置名或默认名），配置门控保留在属性层（`dm.mktcap` 仍 `None`）；新增 **V17**。**DR-P042-1** 登记。
+- **F-S10-P042-2（P3）**: E4 盲区——`agents/guru_agent_v2.py` 6 处 + `sentiment_framework.py` 1 处自有 `data_dir`（guru JSON / 情绪资源），非 `DataManager.data_dir` → 不属 G3，登记 **O-P042-5**。
+- **F-S10-P042-3（P3）**: `InMemoryStreamingFeed._maxlen` 存而不用 → 删除（零行为）。
+- **取证矩阵 E1-E5**: E1 全量 795 / golden 13·782 / mypy 104 / black 129·196 / AST 22 / tests 91 / uv 0；E2 独立探针 `PROBE_OK members=19 fp=sha256:273932e30a18`（raw=磁盘、门控、错误文案逐字）；E3 读码 @`84d899e`；E4 全仓扫描（read_pickle 仅 provider 3 处 / cast 0 / 已删 API 0 / 模糊词 0）；E5 无推测。
+- **结论**: **ADD pass（P1=0 / P2=1 当轮修复 / P3=2 / DR=1）**；G1-G6 全关闭；批次仍 in-progress，待 U-P042-1 异构终审。
+- **下一步**: 提交 ADD 修复 + CI → GLM-5.3-Flash 异构终审 → 批次关闭。
 
 ---
 

@@ -1012,12 +1012,12 @@ def test_v16_synthetic_dataset_contract(tmp_path):
 | 红（实现前） | 既有 `test_contract_conformance.py` + `test_p029_...` | **`2 failed, 15 passed`**（协议成员集合 / Mock provider 缺 `load_factor`；P-029 全绿） |
 | 绿（实现后） | 同五文件 | **`33 passed in 3.00s`** |
 
-### 10.3 门禁（E1）
+### 10.3 门禁（E1；Step 9 首跑 794/781，ADD 修复后如下）
 
 | 项 | 读数 |
 |----|------|
-| pytest 全量 | **`794 passed, 172 warnings in 48.96s`** |
-| golden | **`13 passed, 781 deselected`**；`git status --short tests/golden/` 空 |
+| pytest 全量 | **`795 passed, 172 warnings in 42.93s`** |
+| golden | **`13 passed, 782 deselected`**；`git status --short tests/golden/` 空 |
 | mypy | **`Success: no issues found in 104 source files`** |
 | black | `core tests` **129** / 全仓 **196** unchanged |
 | AST `except Exception` | **22** |
@@ -1033,3 +1033,26 @@ def test_v16_synthetic_dataset_contract(tmp_path):
 | F-S9-P042-2 | P3 | `data_fingerprint` 对同实例二次调用走缓存（低效表第 3 行承诺），但未单独立用例 | 记为观察；V13 已覆盖跨实例稳定性，缓存路径由 `_cache` 既有测试保护 |
 
 **结论**：**Step 9 pass**——红 → 绿成立（16 新用例 + 2 既有文件），九项门禁全绿；B1-B4 全部落地。
+
+### 10.5 Step 10 ADD 期修复（F-S10-P042-1 / DR-P042-1）
+
+**缺陷**：`_build_provider` 过滤 falsy aux 项，`mktcap_file` 默认 `None` → `load_aux_raw("mktcap")` 抛
+`ValueError("未知辅助数据类型: mktcap")`；agents 在默认配置下会误计 `mktcap_cache` 且读不到市值（违背 DESIGN-D4「原样读取」）。
+
+**修复**：`aux_files` 恒含四类（配置名或默认名）：
+
+```python
+        aux_map = {
+            "suspend": config.suspend_file or "suspend.pkl",
+            "industry": config.industry_file or "industry.pkl",
+            "st": config.st_file or "st.pkl",
+            "mktcap": config.mktcap_file or "mktcap.pkl",
+        }
+```
+
+- 配置门控保留在属性/加载守卫（`dm.mktcap` 仍 `None`），`test_data_aux_defaults` 4 passed；
+- 新增 **V17**（`test_v17_load_aux_raw_ignores_config_gating`）：属性 None + raw 可读；
+- 零行为面复核：价格/辅助属性、因子对齐、golden **13 零重录**均不变。
+
+**ADD 后读数**：五文件 **`34 passed in 2.66s`**；全量 **795** / golden **13·782** / mypy **104** / black **129·196** / AST **22** / `tests/*.py` **91** / uv **0**。
+**派生需求**：**DR-P042-1**（`aux_files` 恒含四类默认名）——已在 CHECKLIST §8 登记，行为边界如上。

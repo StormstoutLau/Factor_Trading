@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import agents.agent_framework as agent_framework_module
+from _synthetic_data import FACTOR_FILE, build_synthetic_dataset
 from agents.agent_framework import ResearchTeamAgent
 from core.config import BacktestConfig
 from core.data import DataManager
@@ -181,3 +182,15 @@ def test_v7_idatamanager_covers_data_layer_consumers():
     dm = DataManager(BacktestConfig())
     impl_members = {name for name in dir(dm) if not name.startswith("_")}
     assert _CONSUMERS <= impl_members
+
+
+def test_v17_load_aux_raw_ignores_config_gating(tmp_path):
+    """V17：mktcap_file=None 时 load_aux_raw 仍按存储读取；属性仍受门控。"""
+    build_synthetic_dataset(tmp_path)
+    cfg = BacktestConfig(data_dir=tmp_path, factor_files=[FACTOR_FILE])
+    dm = DataManager(cfg)
+
+    assert dm.mktcap is None
+    raw = dm.load_aux_raw("mktcap")
+    assert raw is not None
+    assert raw.shape == (20, 5)

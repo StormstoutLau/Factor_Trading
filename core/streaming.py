@@ -59,7 +59,6 @@ class InMemoryStreamingFeed:
     def __init__(self, maxlen: int = 10_000) -> None:
         if maxlen <= 0:
             raise ValueError(f"maxlen 必须为正整数: {maxlen}")
-        self._maxlen = maxlen
         self._seq = 0
         self._cursor = 0
         self._buffer: deque[MarketEvent] = deque(maxlen=maxlen)

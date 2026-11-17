@@ -80,21 +80,19 @@ class DataManager:
 
     @staticmethod
     def _build_provider(config: BacktestConfig) -> PklDataProvider:
-        """按配置构造 pkl 适配器（映射单一来源，P-004 D2）。
+        """按配置构造 pkl 适配器（映射单一来源，P-004 D2 / P-042 B1）。
 
-        ``aux_files`` 过滤 falsy：``mktcap_file`` 默认 None 不得回落到
-        适配器默认的 ``mktcap.pkl``，否则会引入新的读取行为。
+        ``aux_files`` 恒含四类（配置名或默认名）：``mktcap_file`` 默认 ``None``
+        由门面属性/加载守卫拦截，``dm.mktcap`` 仍为 ``None``；但
+        ``load_aux_raw("mktcap")`` 需要按存储读取（agents 原语义，P-042 B1）。
+        若在此过滤 falsy，端口会把合法 kind 误报为「未知辅助数据类型」。
         """
         price_map = {kind: getattr(config, f"{kind}_file") for kind in _PRICE_KINDS}
         aux_map = {
-            kind: name
-            for kind, name in {
-                "suspend": config.suspend_file,
-                "industry": config.industry_file,
-                "st": config.st_file,
-                "mktcap": config.mktcap_file,
-            }.items()
-            if name
+            "suspend": config.suspend_file or "suspend.pkl",
+            "industry": config.industry_file or "industry.pkl",
+            "st": config.st_file or "st.pkl",
+            "mktcap": config.mktcap_file or "mktcap.pkl",
         }
         return PklDataProvider(
             config.data_dir,
