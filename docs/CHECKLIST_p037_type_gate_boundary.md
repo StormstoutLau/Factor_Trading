@@ -200,7 +200,7 @@
 | mypy 12 面 | `Success: no issues found in 103 source files` |
 | pytest / golden | `760 passed, 172 warnings` / `13 passed, 747 deselected` |
 | black / uv | `121 files would be left unchanged` / exit 0 |
-| CI | `44046313784`（代码）/ `44046940864`（文档）均 **success** |
+| CI | `44046313784`（代码）/ `44046940864`（文档）/ `44048342761`（本节文档，Step 10 提交 `8dffb12`）均 **success**（四 job：`lock-check` + 3.10 / 3.11 / 3.12） |
 | `git status --short tests/golden/` | 空 |
 
 ### 10.2 机械面（E1，`-CaseSensitive`）

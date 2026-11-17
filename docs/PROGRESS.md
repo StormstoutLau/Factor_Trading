@@ -1581,6 +1581,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **盲区扫描（E4，范围 = 20 条修复面 + 5 组 assert + 下游调用点）**: 5 组 `assert` 前提逐组核实（single-dm L60 / fixed L74 / minimal L70 / 2020_2026 L78 / single-signal L65）全属 U-a；`trace()` 下游调用点全仓 **2 处**（L271/L274）均首行判 None → 0 处漏处理；新增 `Any` 仅 `benchmark.py` 一处（R-P037-4 已登记）；**发现 4 项**。
 - **发现与处置（0 P1/P2 + 4 P3，全部当轮）**: F-S10-P037-1（CHECKLIST D1 12 面串为尾串缩写 → 改「尾部缩写 + 全串比对见 D2」）/ F-S10-P037-2（DESIGN §8.1 误列 `simple.py` L106 为 assert 组 → 改 5 组正确构成 + `simple.py` 单列）/ F-S10-P037-3（DESIGN §4 V2「10 面（含 tools examples）」自相矛盾 → 改 **12 面**）/ **F-S10-P037-4**（PROGRESS §1.4 未为 U-P037-1/-2/-3 建行，**同型台账缺口第 6 次** → 建三行：-1 done / -2 pending / -3 pending）。
 - **结论**: **pass——Step 1-10 过程链完成**；P-037 批次维持 in-progress，唯 **U-P037-3 异构终审** pending（五轮复审基座均 UNKNOWN 或 DeepSeek 同源）。
+- **提交与 CI**: 提交 `8dffb12`（3 文件 **+87/−6**，docs-only：CHECKLIST §10 + §11 + 状态行 / DESIGN V2 + §8.1 / PROGRESS P-037 行收口 + §3.42.2 + §1.4 三行）→ CI run [`44048342761`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44048342761) **success**（四 job 全绿）。
 
 ---
 
