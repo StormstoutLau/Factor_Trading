@@ -1479,7 +1479,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E4 七项裁决**: ① 锚点（B1 14 条全命中 / B2 计数对账一致 / B3 分组错误 1 处）；② 分层合规成立（全部 L2 assert 前提可指认——`engine.dm`/`self.universe` 由 setup 赋值、`allocator` 由 enable_dynamic_allocation 分支赋值、`build_masks` 副作用、`baseline_profile` 构造期 L539 恒调；L1 仅 C1；L4 = 0）；③ C1-C4 全部读码复现（`run_all_factors` L81-82 逐字源 / tracker 仅 `_cash` / `update_belief` 无 `period` / `current_qty` float）；④ I2 清单 5 → **8 处 def 行 + 1 处参数注解**；⑤ 红态逐字复现；⑥ 门禁链与 D2 一致、无 `|| true`；⑦ B3 绑定顺序与 D5 一致。
 - **发现分级（全部当轮回写 IMPL）**: **F-S6-P036-1（P2）** §4.4.1 方法归属错误——L522/526 属 **`filter_stocks`**（L498-531）非 `get_universe_stats`（后者实为 4 条），原修复规格漏 filter_stocks 2 条 → 当轮补规格（L520 后 `assert mask is not None`）；**F-S6-P036-2（P2）** 三个 filter 工厂函数（`create_na_filter` / `create_market_cap_filter` / `create_industry_filter`）字典混入 `BaseFilter` 子类，仅改字典注解会引入 return-value 新错 → **返回注解须同批改 `-> BaseFilter`**，I2 清单 5 → 8 处（且 `NAFactorFilter.__init__` 归类为参数注解）；F-S6-P036-3~6（P3）——`create_prefix_filter` 实名更正 / `-> np.ndarray | None`（PEP 604 零 import）/ L587 `base_config.universe` + L909 dict 推导式笔误 / `UniverseFilterConfig` import 追加注——均当轮更正；3 观察（**F-I-P036-3/4 闭合**：baseline_profile 构造期前提实锤 → L250 = U-a；CrossSectionalNAFilter 混入实锤；agents 13 文件 `Any` 全部已导入）。
 - **结论**: **pass（0 P0/P1，2 P2 + 4 P3 当轮回写）**；详见 [IMPL_p036 §11](IMPL_p036_mypy_check_surface_expansion.md)。Step 9 可按更正后规格直接落码。
-- **提交与 CI**: `<待提交>` / CI run `<待回收>`。
+- **提交与 CI**: 提交 `61876a9`（2 文件 **+102/−19**：IMPL_p036 +91/−18——§11 复审记录 + §1/§4/§8/§9 回写 / PROGRESS +11/−1）→ CI run [`44023440112`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44023440112) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
