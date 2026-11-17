@@ -2,7 +2,7 @@
 
 > **批次**: P-036 · **T1**（门禁判据面变更；判档规则 2）
 > **上游**: [IMPL_p036](IMPL_p036_mypy_check_surface_expansion.md)（B1/B2/B3 规格 / §1 五条前提 + C1-C4 / §4 逐条与按簇规格 / §5 红态 / §8 8 处注解差异 / §11 Step 6 异构复审 pass：2 P2 + 4 P3 当轮回写）；[DESIGN_p036](DESIGN_p036_mypy_check_surface_expansion.md)（D1-D7 / I1-I7 / V1-V6 / §9 Step 4 复审）；[RESEARCH_p036](RESEARCH_p036_mypy_check_surface_expansion.md)（§5 R1'/R2' / §11 B0 / §12 Step 2 复审）
-> **状态**: **Step 9 完成**（2026-11-17；65 项全部实测回填，见 §10；Step 7 编制零预填 → Step 8 异构 Review pass → Step 9 三批实施 red→green）
+> **状态**: **Step 10 同基座 ADD 审计 + 终审 pass**（2026-11-17；65 项回填 §10 / 审计记录 §11；**RULE-5 异构终审待 U-P036-6**——Step 2/4/6/8 已由 GLM-5.3-Flash 异构执行，唯 Step 10 缺异构 leg）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；**禁止与正文同一次写入时打勾**
 > **基线读数（Step 6 独立实测 @`1261865` 代码面 = `65da5f9`，Step 7 对拍）**: 全量 `pytest -q` **760 passed**（172 warnings）/ `tests/` .py **84**（口径 = 全部 `.py`，含辅助；`test_*.py` = **81**）/ golden **13 用例**（7 份 json）/ `black --check core tests` **121 unchanged** / `mypy --explicit-package-bases --check-untyped-defs core` **37 files 0 error** / `except Exception`（P-029 口径：`agents`+`filter`+`scripts`+`batch_backtest`+`strategy_evaluation` 全 `.py` + `cli.py`）**22** / `uv lock --check` **exit 0**
 > **目标读数（Step 9）**: pytest **760**（I4 的 X=0，不减）/ `tests/` .py **84 不变** / black **121 不变** / mypy **B1 8 面 → B2 9 面 → B3 10 面**均 **0 error** / golden **13 零重录** / `except Exception` 恒 **22** / 裸 `# type: ignore` **0**（带 code 亦 **0**）/ `uv lock --check` exit 0
@@ -253,3 +253,80 @@
 ### 10.5 结论
 
 **Step 9 结论**: **pass** —— 65/65 实测回填、无 ❌ 项；三批红态（14/96/21）逐字复现、绿态三口径 0；C1-C4 全部探针留证（C2 降级为语义更正，见 F-S9-P036-4）；I1-I7 全部成立；CI 终态四 job 全绿（run `44029888652`）。**Step 10 前置**：ADD 审计 + RULE-5 异构终审（本文件与 IMPL 作者均为 DeepSeek-V4.1-Flash）。
+
+---
+
+## 11. Step 10：同基座 ADD 审计 + 独立新会话终审记录（2026-11-17）
+
+> **基座披露（RULE-4/RULE-5）**：主会话 = **DeepSeek-V4.1-Flash（= 四文档作者同源）→ RULE-5 异构不成立**。本轮结构 = 主会话执行 E1 机械取证 + **独立全新上下文同基座会话**执行 Phase 0-4 对抗审计（消除记忆污染与实现者确认偏差；仍非异构基座）→ **异构终审登记 U-P036-6**（Step 2/4/6/8 已由 GLM-5.3-Flash 异构执行，唯 Step 10 缺异构 leg；先例 U-P032-1 / U-P034-3）。
+> **审计区间（双口径显式声明，F-U3-P034-1 教训）**：代码面 = `7e91932..f1fdab4`（**5 提交**，`git rev-list --count` 实测）；全程 = `65da5f9..83a8d5f`（**15 提交**，其中 `65da5f9..e2dafff` 的 8 提交为 Step 5-8 文档提交）；审计时点 HEAD `83a8d5f`。
+
+### 11.1 门禁与 CI 独立复跑（主会话 + 独立会话双份读数）
+
+| 项 | 期望 | 主会话实测 | 独立会话实测 |
+|----|------|-----------|--------------|
+| mypy 10 面 | 0 / 92 files | `Success: no issues found in 92 source files` | 同左（独立复跑一致） |
+| pytest 全量 | 760 | `760 passed, 172 warnings`（46.64s） | `760 passed, 172 warnings`（64.78s，须 `MPLBACKEND=Agg`——O-S10-P036-1） |
+| golden | 13 / 747 | `13 passed, 747 deselected`（16.62s） | 同左 |
+| black `core tests` | 121 | 121 unchanged | 同左 |
+| `uv lock --check` | exit 0 | `Resolved 148 packages`，exit 0 | exit 0 |
+| CI 三 run | 四 job success | `44029888652`（`f1fdab4`）/ `44030760894`（`191bbf8`）/ `44031073193`（`83a8d5f`） | 同左（`gh run view` 独立读取，headSha 三者对上） |
+
+### 11.2 Phase 0-4 结论
+
+| 阶段 | 结论 | 证据要点 |
+|------|------|---------|
+| Phase 0 规格质量 | ✅ | D1-D7 判据全部可机械核查（D1 钉 numpy 重放 / D2 字符串+14·96·21 计数 / D3 raise=1·assert 前提·L4=0 / D5 三条件顺序 / D6/D7 diff 可查）；I1-I7 验证出口齐备且全部复跑成立；V1-V6 可重放；无模糊不可审计项 |
+| Phase 1 完整性（design→code） | ✅ | D2 十面 target **四处逐字一致**（tests.yml L46 / adapter L67 / DESIGN §2 / 本文件 F2+E8）；L4 新增 = 0；C1 = `engine.py` run_factors 顶部（与 `run_all_factors` 逐字）/ C2 = `multi_strategy_engine.py` / C3 = `research_team_v2.py` / C4 = `agent_framework.py` ×2 逐一读码定位；pyproject overrides 残留 = 0；D7 `[tool.mypy]` 五行未动 |
+| Phase 2 忠实度（双向对照） | ✅ | 三主提交全 hunk 与 IMPL §4.2-§4.4 逐条对照，除已登记 F-S9-P036-3/5/7 外零偏离；numstat 五提交（+27/−18、+82/−61、+36/−34、+3/−3、+6/−6）与 IMPL §12.1 逐行吻合 |
+| Phase 3 必要性（code→design） | ✅ | 全 hunk 归因完毕（B1→C1+次生 / B2→C2-C4 / B3→D5 / `43ed468`+`f1fdab4`→F-S9-P036-2 / 文档提交→流程回填）；**不可归因 hunk = 0**；零改动面（core / tests / examples / tools）diff = **空** |
+| Phase 4 语义 + Iron Law | ✅ | C1-C4 外零运行期变更（9 处桩兼容改写逐一判定语义等价：`np.cumsum` ×3 数学恒等 / `float(...)` 收口 ×3 值保持 / `max(0.0, ...)` 数值恒等 / 纯注解 ×2）；Iron Law 三层补足 = 门禁面复跑 + C1-C4 探针（独立会话复现 C2/C3）+ golden 零重录（tests/ 零 diff 佐证） |
+
+### 11.3 机械计数（E1，主会话实测 @`83a8d5f`）
+
+10 面 diff（`7e91932..f1fdab4`）：`^\+.*raise ` = **1**（C1）/ `^\+.*except` = **0** / `^-\s*def ` = **7** / 新增 `# type: ignore` = **0**；零改动面 diff = 空；AST `except Exception`（P-029 口径 = handler 类型恰为 `Exception`，校准实测：全 handler 43 / Exception 22 / 裸 4）= **22**；`# type: ignore` 存量：裸 **0** / 带 code **4**（`core/change_report.py` / `core/diagnostics.py` / `scripts/fetch_universe.py` ×2，均 P-036 前）；`[待 Step 9]` 残余 3 处 = 规则定义（L6）/ §7 账目 / §9.1 机械项的合法历史引用，**0 未填单元格**。
+
+### 11.4 取证矩阵（RULE-6）
+
+| 取证手段（等级） | 覆盖项 | 结果 |
+|---|---|---|
+| 门禁五项复跑 ×2 会话（E1） | V4 / V5 / I1 / I4 / D7 | ✅ 全过（双份读数一致） |
+| `gh run view` ×3（E1） | I5 / V4 / F4 | ✅ 三 run 四 job 全 success |
+| diff 正则 ×4 + 零改动面（E1） | I2 / I3 / D5 / D7 / E7 | ✅ 1/0/7/0 + 空 |
+| `git show --numstat` 对账 ×5（E1） | I5 / IMPL §12.1 | ✅ 逐行吻合 |
+| C1-C4 读码定位 + C2/C3 运行期探针（E2，场景 = 行为变更边界与异常路径） | D1-D4 | ✅ 实锤 |
+| assert 前提读码 ×5 组（E3 @`83a8d5f`） | D3-L2 约束 | ✅ 全 U-a（前提实锤） |
+| ignore 存量定点 grep（E1） | I7 / V6 / E7 | ✅ 裸 0 / 既有带 code 4 / 新增 0 |
+| 台账与 CHANGELOG 读回（E1） | F7 / F10 | ✅ U-P024-3/4、U-P036-2/3 = done，U-P036-4/5 = pending；F-S6 六项 / O-S6 三项落点齐；CHANGELOG P-036 条目在 |
+| 文档口径自洽盲区扫描（E4，范围 = DESIGN I1-I7/V1-V6 + IMPL §1 门禁口径 + 本文件头部与结论行） | 全部口径声明 | **发现 3 项**（F-S10-P036-1/-2/-3） |
+
+### 11.5 发现与当轮处置
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S10-P036-1 | P3 | DESIGN I6「双口径」/ I7+V6「带 code ≤3」未随 F-S9-P036-2/-6 回写，与实况（三口径；既有带 code 4）冲突 | 当轮在 DESIGN §3 表后补 Step 10 口径注（I6/I7/V6 原文保留） |
+| F-S10-P036-2 | P3 | IMPL §4.3.2 的 L1292 / L1334-1337 / L1434 三组规格写「局部变量+改用局部」，实现为方法内直断 assert（零语义差、mypy 收窄等效，B3 已按实际记载） | 当轮在 IMPL §4.3.2 表后补落点注，规格原文保留 |
+| F-S10-P036-3 | P3 | **分级统计笔误**（主会话写入 §11 时自查发现，独立会话未覆盖该项）：IMPL §12.5 与 PROGRESS §1.4 P-036 行「2 P2 + 5 P3」与明细表不符——F-S9-P036-1/-2/-4 = P2、-3/-5/-6/-7 = P3，实为 **3 P2 + 4 P3** | 当轮两处更正（明细表分级为准） |
+| O-S10-P036-1 | 观察 | 本地全量 pytest 需 `MPLBACKEND=Agg`（无则 3 例 Tk 后端红）；CI 已设、IMPL §5 已声明、非本批引入 | 登记（环境注记） |
+
+### 11.6 结论与 U-P036-6 异构终审交接
+
+**结论**: **pass——同基座终审闭合（0 P0/P1/P2 + 3 P3 当轮处置 + 1 观察）**；批次过程链 Step 1-10 完成，唯 **RULE-5 异构终审**由 **U-P036-6** 跟踪。
+
+**U-P036-6 交接清单（供异构基座会话执行）**:
+1. **E1 代码锚点重放**：C1（`batch_backtest/engine.py` run_factors 顶部 ValueError）/ C2（`multi_strategy_engine.py` `tracker._cash`）/ C3（`research_team_v2.py` 删 `period=period`）/ C4（`agent_framework.py` `int(trade_qty)` ×2）/ tests.yml L46 与 adapter L67 十面字符串 / pyproject 无 overrides；
+2. **E2 diff 面**：区间 `65da5f9..HEAD` 全量——`raise`+ = 1 / `except`+ = 0 / `^-\s*def ` = 7 / 新增 ignore = 0；零改动面 = 空；numstat 与 IMPL §12.1 对账；
+3. **E3 门禁独立复跑**：mypy 10 面 / pytest 760（带 `MPLBACKEND=Agg`）/ golden 13 / black 121 / `uv lock --check` / `gh run view` 终态 run；
+4. **E4 运行期复验**：C1-C4 探针**独立编写**（勿复用 `%TEMP%\p036_s9_probe_*.py`，防同源盲区）；
+5. **E5 修正复核**：F-S10-P036-1/-2/-3 三处补正到位、F-S9-P036-1~7 登记链完整；
+6. 记录落本文件 **§12** + PROGRESS §1.4 U-P036-6 → done；批次总结报告（SUMMARY_p036）随终审交付（先例 SUMMARY_p034）。
+
+### 11.7 签字表
+
+| 角色 | 基座 | 结论 | 日期 |
+|------|------|------|------|
+| Step 7 验收清单作者 | DeepSeek-V4.1-Flash | 65 项完稿，零预填 | 2026-11-17 |
+| Step 8 一致性 Review | GLM-5.3-Flash（≠ 作者，**异构成立**） | pass：机械五项全过 + 对齐矩阵 5/6 一致 + 1 P3 当轮精化（F-S8-P036-1），见 §9 | 2026-11-17 |
+| Step 9 TDD 执行 | DeepSeek-V4.1-Flash（与上游同源） | pass：三批红→绿 14/96/21→0（8→9→10 面）+ C1-C4 探针 + CI 桩兼容修复复绿，见 §10 | 2026-11-17 |
+| Step 10 同基座 ADD 审计 + 终审 | DeepSeek-V4.1-Flash（= 作者同源；Phase 0-4 由**独立全新上下文同基座会话**对抗执行，RULE-4 披露） | pass：Phase 0-4 全过 + 门禁双份复跑全绿 + 全 hunk 可归因；**0 P1/P2 + 3 P3 当轮处置 + 1 观察**，见 §11；异构终审记 U-P036-6 | 2026-11-17 |
+| U-P036-6 异构终审 | （待 GLM-5.3-Flash 承接） | pending——交接清单见 §11.6 | — |

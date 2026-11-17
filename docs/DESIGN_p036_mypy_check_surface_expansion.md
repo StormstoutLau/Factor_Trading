@@ -118,6 +118,8 @@ Step 3 记录「CI 口径 129 vs 本地 131（归因 pandas）」——**Step 4 
 | I6 | 每批 target 在 **pandas 2.2.3 / 3.1.1 双口径**下均 **0 error** | 主环境 + 隔离 venv |
 | I7 | 裸 `# type: ignore` 计数 = **0**；带 code 的 ignore ≤ **3** | `Grep '# type: ignore'"'"'`（无方括号）计数 |
 
+> **Step 10 口径注（F-S10-P036-1，审计发现当轮回写；I6/I7/V6 原文保留）**：① I6 的「双口径」在 Step 9 实测中扩为**三口径**——py3.12+numpy 2.4.6 / py3.12+**2.5.5** / py3.10+**2.2.6**（CI 依赖未钉版本，numpy 2.5.5 要求 py≥3.12；F-S9-P036-2）。② I7 与 §4 V6 的「带 code ≤ 3」未计入既有存量——`65da5f9` 前已有 **4 处带 code**（`core/change_report.py` / `core/diagnostics.py` / `scripts/fetch_universe.py` ×2），口径更正为「**本批新增 = 0**」（F-S9-P036-6）。
+
 ---
 
 ## 4. 验证契约 V1-V6

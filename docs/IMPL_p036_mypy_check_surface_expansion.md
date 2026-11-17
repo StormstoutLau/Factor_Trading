@@ -132,6 +132,8 @@ B3：修 21 条 → 本地 filter（无 override）0 → 删 override → 10 面
 | 1386 / 1401 | arg-type ×2 | `trade_qty` 为 `float \| int`（`current_qty` float） | 实参改 `int(trade_qty)`（**C4**） |
 | 1447 | var-annotated | `results = {...}` 推断过窄 | `results: dict[str, Any] = {...}` |
 
+> **Step 10 落点注（F-S10-P036-2，审计发现当轮登记）**：上表 L1292 / L1334-1337 / L1434 三组实际实现为**方法内直断**（`assert self.universe is not None` / `assert self.dm is not None`，未引入局部变量改名）——零语义差、mypy 收窄等效、均在 U-a 前提上；CHECKLIST B3 已按实际落码口径记载，规格原文保留不改。
+
 #### 4.3.3 `agents/style_reflection_engine.py` —— 8 条（1 根因）
 
 L203 `result = {...}`（混合值）推断过窄 → `result: dict[str, Any] = {...}`，L218（index + call-overload）、L222（union-attr ×3）、L235（index + call-overload）随根因消除。
@@ -446,5 +448,5 @@ python -m uv lock --check   # 或 uv lock --check
 
 ### 12.5 Step 9 结论
 
-**结论**: **pass（带 2 P2 口径更正 + 5 P3 登记，均在实施期闭合）**——三批红态逐字复现（14/96/21）、绿态三口径 0（92 files）、行为变更 C1-C4 全部探针留证、不变式 I1-I7 全部成立（`except Exception` 22 / 新增 ignore 0 / 签名差异恰 7 def 行 + 1 参数注解行 / pytest 760 / golden 13 / black 121 / `uv lock` exit 0）。CI 首推曾因 numpy 桩版本（F-S9-P036-2）红，修复提交 `43ed468` + `f1fdab4` 后三版本 leg 复绿（读数见 CHECKLIST §10）。
+**结论**: **pass（带 3 P2 + 4 P3 登记——Step 10 审计更正 §12.5 原笔误「2 P2 + 5 P3」，明细表 §12.4 分级为准：-1/-2/-4 = P2，-3/-5/-6/-7 = P3；均在实施期闭合）**——三批红态逐字复现（14/96/21）、绿态三口径 0（92 files）、行为变更 C1-C4 全部探针留证、不变式 I1-I7 全部成立（`except Exception` 22 / 新增 ignore 0 / 签名差异恰 7 def 行 + 1 参数注解行 / pytest 760 / golden 13 / black 121 / `uv lock` exit 0）。CI 首推曾因 numpy 桩版本（F-S9-P036-2）红，修复提交 `43ed468` + `f1fdab4` 后三版本 leg 复绿（读数见 CHECKLIST §10）。
 
