@@ -71,7 +71,7 @@
 | D1 | black `core tests` **129** / 全仓 **196**；`tests/*.py` **91** | 五文件落盘 | `black --check` 双口径 + 计数 | ✅ `129` / `196` unchanged；**91** |
 | D2 | AST `except Exception` 恒 **22**；新增 `# type: ignore` = 0 | B1 落码 | P-029 单行命令 + grep | ✅ AST **22**；ignore **0** |
 | D3 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff | 全量实现 | 命令 + `git diff` | ✅ exit **0**；两文件无 diff |
-| D4 | 门禁双载体零 diff；单提交原子（6 生产 + 5 测试侧 + 文档）；CI 四 job 全绿 | D1-D3 通过 | `git show --stat` + `gh run view` | ✅ 提交 **`84d899e`**（20 文件 +2576/−30）；CI **`44128298986`**：lock-check 8s / 3.10 80s / 3.11 91s / 3.12 126s 全 success；双载体无 diff |
+| D4 | 门禁双载体零 diff；单提交原子（6 生产 + 5 测试侧 + 文档）；CI 四 job 全绿 | D1-D3 通过 | `git show --stat` + `gh run view` | ✅ `84d899e`（Step 9，20 文件 +2576/−30）+ `9f08f77`（ADD 修复，7 文件 +123/−34）；CI `44128298986` / `44131327084` 各四 job 全绿；双载体无 diff |
 | D5 | 文档回填：IMPL §10 实施记录 / PROGRESS §3.48.4 / CHANGELOG / 本文件实测列 46/46 | D4 通过 | 读回 | ✅ IMPL §10 + PROGRESS §3.48.4 + CHANGELOG + **46/46** |
 | D6 | 未决登记：U-P042-1（异构终审）/ U-P042-6（cast 降级）/ O-P042-1~4 | 文档回填 | 读回 §1.4 | ✅ U-P042-1 pending；U-P042-6 **未触发**（cast 移除成功）；O-P042-1~4 已记 |
 | D7 | 派生需求登记：**0**（Step 9 若新增常量/降级策略须回填本行） | Step 9 完成 | 读回 IMPL | ✅ **0**（无新增常量/降级策略） |
