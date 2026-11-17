@@ -16,7 +16,7 @@
 | 变更文件（测试 1） | `tests/test_p039_adj_factor_coverage.py`（**新建**，5 用例） |
 | 变更文件（文档） | 本文件 / `docs/PROGRESS.md`（§1.4 + §3.44.x）/ `CHANGELOG.md` |
 | 零改动面 | `filter/**`（下游已 reindex）/ `tests/_synth_fixture.py` / `pyproject.toml` / `tests/golden/**` / `agents/**` / 门禁双载体 |
-| 门禁口径 | pytest **760 → 765** / golden **13 零重录** / mypy 12 面 **0** / black **121** / AST `except Exception` 恒 **22** / `uv lock` exit 0 / 新增 `# type: ignore` **0** |
+| 门禁口径 | pytest **760 → 765** / golden **13 零重录** / mypy 12 面 **0** / black **122**（全仓 **189**）/ AST `except Exception` 恒 **22** / `uv lock` exit 0 / 新增 `# type: ignore` **0** |
 
 **四条不可越界的前提**：
 

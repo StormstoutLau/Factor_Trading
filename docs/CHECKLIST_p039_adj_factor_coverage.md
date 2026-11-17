@@ -5,7 +5,7 @@
 > **状态**: **Step 9 完成（25/25），CI 四 job 全绿**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（@`377b26a`，Step 7 实测）**: pytest **760 passed** / golden **13 passed, 747 deselected** / black `core tests` **121**（全仓 `.` **188**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **84** / `uv lock --check` exit **0**
-> **目标读数**: pytest **765** / golden 13 零重录 / black `core tests` **122**（全仓 **189**）/ mypy 12 面 **0** / AST **22** / `uv lock` exit 0
+> **目标读数**: pytest **765** / golden 13 零重录 / black `core tests` **122**（全仓 **189**）/ mypy 12 面 **0** / AST **22** / `tests/*.py` **85** / `uv lock` exit 0
 > **代码证据时点**: HEAD `377b26a`（Step 1-8 基线）；Step 9 实测时点 = 提交 `7d96547`
 
 ---
@@ -119,3 +119,77 @@
 
 **复审结论**：**pass（0 P1/P2 + 2 P3 当轮处置）**——25 项可执行、四文档口径闭环，**准予进入 Step 9 TDD 实施**。
 **RULE-5**：第 4 轮同基座 → U-P039-3 维持 pending。
+
+---
+
+## 8. Step 10 ADD 审计（同基座独立视角，2026-11-17）
+
+> **审计基线**: `377b26a..cbb7d0b`（2 提交 / 8 文件 **+803/−4**；代码面 = `7d96547`，`cbb7d0b` 为 docs-only 回填）。
+> **基座披露（RULE-4）**: 作者与审计均为 DeepSeek-V4.1-Flash → **同基座，RULE-5 不成立**；U-P039-3 维持 pending。
+> **审计方式**: 不复用 Step 9 自报，独立读回 diff / 测试全文 + 门禁复跑（pytest 765 / golden 13·752 / mypy 103 files 0 / black 122·189 / AST 22 / uv exit 0）。
+
+### 8.1 Phase 0：spec 质量门
+
+| # | 项 | 读数 | 判定 |
+|---|----|------|------|
+| 1 | 四文档齐全且链接可解析 | RESEARCH / DESIGN / IMPL / CHECKLIST 均在库，相对链接 0 broken | ✅ |
+| 2 | 决策可机械核验 | D1 分支位置 / D2 计数口径 / D3 五项不扩做 / D4 五用例 | ✅ 4/4 |
+| 3 | 不变式可判定 | I1 golden 零重录 / I2 765 / I3 mypy 0 / I4 签名 / I5 AST 22 / I6 四 kind 不改 | ✅ 6/6 |
+| 4 | 验收项预填合规 | 25 项首轮零预填 → Step 9 回填 25/25（分两次写入） | ✅ |
+| 5 | 复审留痕 | Step 2/4/6/8 各有独立记录与 P 级处置 | ✅ 4/4 |
+
+### 8.2 Phase 1：完整性
+
+| 项 | 声称 | 实测 | 判定 |
+|----|------|------|------|
+| 代码变更面 | 1 文件 1 处 | `core/data.py` +12/−1（`git diff --numstat`）；无其他 `.py` | ✅ |
+| 测试变更面 | 1 新文件 5 用例 | 104 行 / 5 个 `def test_` | ✅ |
+| 文档变更面 | 四文档 + PROGRESS + CHANGELOG | 8 文件 +803/−4 全归属 | ✅ |
+| 零改动面 | `filter/**` / 夹具 / 门禁双载体 / `pyproject` / `uv.lock` / `agents/**` | diff 全空 | ✅ |
+
+### 8.3 Phase 2：保真度（逐行读码）
+
+| # | 核验点 | 实测 | 判定 |
+|---|--------|------|------|
+| 1 | 分支内容 = IMPL §3.1 | 逐行一致（4 注释 + 8 代码） | ✅ |
+| 2 | 三段式顺序 | `reindex(union) → ffill() → reindex(window)` 单行链式 | ✅ |
+| 3 | 计数口径 | `len(window.difference(data.index))`（日期差集，非 NaN 行数） | ✅ |
+| 4 | logger 条件 | `if n_missing:` + f-string 原子 | ✅ |
+| 5 | 四 kind 回退 | `else: data = data.loc[self._trade_dates]` 逐字 | ✅ |
+| 6 | 缓存/列裁剪 | L315 起无 diff | ✅ |
+
+### 8.4 Phase 3：必要性（零游离）
+
+`git diff` 的 12 行新增全部可归属于 DESIGN-D1/D2 的三项（三段式 / 计数 / 日志）；无顺带重构、无格式噪声、无新增 `except` / `raise` / `# type: ignore`。✅
+
+### 8.5 Phase 4：语义达成
+
+- **目标语义**：`adj_factor` 缺日 → 前值补齐；未上市/退市期保持 NaN；其余 kind 行为不变。**V1-V5 全绿** + 真实数据「adj 缺且 close 有值」**403,853 → 0**。
+- **是否换成另一种静默**：否——`n_missing > 0` 时 INFO 计数；无 try/except 包裹（fail-fast 保留）；V5 证明其他 kind 未被波及。
+- **口径映射（审计补记）**：RESEARCH §2 的「81 日」= adj（1394 行）对 close **全量**（1475 行）；窗口口径（1460 日，起点 2020-01-23）为 **80 日**（差 1 日 = 2020-01-02 在窗口外）——两处数字不矛盾，DESIGN V6b 的「80 日」为窗口口径。✅
+
+### 8.6 E1-E5 取证矩阵
+
+| 级 | 项 | 读数 |
+|----|----|------|
+| E1 | 可重放命令 | `pytest tests -q` → `765 passed`；`pytest -k golden` → `13 passed, 752 deselected`；`mypy <12 面>` → `103 source files` 0；`black --check core tests` → 122；`black --check .` → 189；P-029 AST 命令 → 22；`uv lock --check` → exit 0 |
+| E2 | 运行时探针 | 真实数据 `DataManager` 探针：`adj (1460, 5688)` / 全 NaN 行 0 / 交叉 NaN 0 / `cols_equal=True`；`engine.setup()` 推进至 `LimitRuleError(board=bse, 2020-01-23)` |
+| E3 | 静态读码 | `core/data.py:302-313`（@`7d96547`）与 IMPL §3.1 逐字；测试 5 用例断言与 DESIGN §D4 一一对应 |
+| E4 | 盲区扫描 | 新测试无死参数（`drop_adj`/`drop_open`/`adj_na` 均被使用）；无弱断言（V2 `assert_frame_equal`、V5 `raises(match=...)`）；无新增静默路径 |
+| E5 | 推测（禁入结论） | 无——全部结论均有 E1-E4 支撑 |
+
+### 8.7 发现与分级（0 P1/P2 + 2 P3 当轮处置）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S10-P039-1 | P3 | IMPL §1「门禁口径」仍写 black **121**（新增 1 测试文件后应为 **122** / 全仓 189） | 当轮改为 **122（全仓 189）** |
+| F-S10-P039-2 | P3 | F-S8-P039-2 的处置称「目标读数补 `tests/*.py` **85**」，但 CHECKLIST 头部目标读数未落实（仅 IMPL §5 有） | 头部目标读数补 `tests/*.py` **85** |
+
+**观察（不立项）**：
+- O-S10-P039-1：V3 未复用 `_prepare`（需自定义 `start_date`），存在 8 行夹具构造重复——DESIGN-D4 已声明，测试可读性优先。
+- O-S10-P039-2：真实数据 INFO 日志（`adj_factor 日期补齐`）在本机不可观测（脚本未配置 logging）——已由探针替代（F-S9-P039-2），不改脚本（属 U-P038-1 范围）。
+
+### 8.8 结论
+
+**Step 10 ADD 审计 pass（0 P1/P2 + 2 P3 当轮处置 + 2 观察）**——diff 零游离、四文档口径闭环、E1-E5 全有实证；批次可关闭（U-P038-2 → done，U-P039-4 独立跟踪）。
+**残留**：U-P039-3 异构终审（需用户启动异构基座会话承接）。
