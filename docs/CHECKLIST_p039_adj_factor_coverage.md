@@ -2,7 +2,7 @@
 
 > **批次**: P-039 · **T1**（Layer-1：`core/data.py` + `tests/`）
 > **上游**: [IMPL_p039](IMPL_p039_adj_factor_coverage.md)（§3 精确规格 / §4 红态实测 / §8 Step 6 复审 pass：1 P2 + 2 P3）；[DESIGN_p039](DESIGN_p039_adj_factor_coverage.md)（D1-D4 / I1-I6 / V1-V6 / §8 Step 4 复审 pass：1 P2 + 2 P3）；[RESEARCH_p039](RESEARCH_p039_adj_factor_coverage.md)（§6 M-A / §12 / §13）
-> **状态**: **Step 9 完成（25/25），CI 四 job 全绿**
+> **状态**: **Step 1-10 完成（25/25）+ U-P039-3 异构终审 pass（GLM-5.3-Flash），批次关闭**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（@`377b26a`，Step 7 实测）**: pytest **760 passed** / golden **13 passed, 747 deselected** / black `core tests` **121**（全仓 `.` **188**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **84** / `uv lock --check` exit **0**
 > **目标读数**: pytest **765** / golden 13 零重录 / black `core tests` **122**（全仓 **189**）/ mypy 12 面 **0** / AST **22** / `tests/*.py` **85** / `uv lock` exit 0
@@ -166,7 +166,7 @@
 
 - **目标语义**：`adj_factor` 缺日 → 前值补齐；未上市/退市期保持 NaN；其余 kind 行为不变。**V1-V5 全绿** + 真实数据「adj 缺且 close 有值」**403,853 → 0**。
 - **是否换成另一种静默**：否——`n_missing > 0` 时 INFO 计数；无 try/except 包裹（fail-fast 保留）；V5 证明其他 kind 未被波及。
-- **口径映射（审计补记）**：RESEARCH §2 的「81 日」= adj（1394 行）对 close **全量**（1475 行）；窗口口径（1460 日，起点 2020-01-23）为 **80 日**（差 1 日 = 2020-01-02 在窗口外）——两处数字不矛盾，DESIGN V6b 的「80 日」为窗口口径。✅
+- **口径映射（审计补记）**：RESEARCH §2 的「81 日」= adj（1394 行）对 close **全量**（1475 行）；窗口口径（1460 日，起点 2020-01-23）为 **80 日**（差 1 日 = **2020-01-10** 落在窗口起点前；~~2020-01-02~~ 初稿误归因——其乃 raw adj 首行并不缺失，F-U3-P039-2 订正）。✅
 
 ### 8.6 E1-E5 取证矩阵
 
@@ -193,3 +193,33 @@
 
 **Step 10 ADD 审计 pass（0 P1/P2 + 2 P3 当轮处置 + 2 观察）**——diff 零游离、四文档口径闭环、E1-E5 全有实证；批次可关闭（U-P038-2 → done，U-P039-4 独立跟踪）。
 **残留**：U-P039-3 异构终审（需用户启动异构基座会话承接）。
+
+---
+
+## 9. U-P039-3 RULE-5 异构终审（2026-11-17）
+
+> **基座披露（RULE-4）**: 终审会话 system prompt 逐字自报 `You are powered by the model named GLM-5.3-Flash.` ≠ 四文档/实施/审计作者 DeepSeek-V4.1-Flash → **异构条件成立**（P-039 五轮复审中首次）。
+> **终审方式**: 不复用作者自报，独立编写探针与命令；终审基线 = `377b26a..d1cf545`（代码面 = `7d96547`，`cbb7d0b`/`d1cf545` docs-only）。
+
+### 9.1 E1-E5 五项
+
+| 级 | 项 | 独立复跑读数 | 判定 |
+|----|----|--------------|------|
+| E1 | 七项门禁 | pytest **765 passed**（88.18s）/ golden **13 passed, 752 deselected** / mypy 12 面 `Success: no issues found in 103 source files` / black `core tests` **122**、全仓 **189** / AST `except Exception` **22**（P-029 原命令）/ `tests/*.py` **85** / `uv lock --check` exit **0** | ✅ |
+| E2 | 真实数据探针（终审独立编写） | ① 修复面：`adj.shape=(1460, 5688)`、`cols_equal=True`、全 NaN 行 **0**、交叉 NaN **0**；② **81/80 口径精确核算**：全量 close 1475 / adj 1394 → 缺 **81**（逐年 2020:9 / 2021:8 / 2022:10 / 2023:16 / 2024:31 / 2025:7，与 RESEARCH §2 **逐字一致**）；窗口起点（2020-01-23）前缺 **1 日（2020-01-10）** → 窗口缺 **80**（§8.5 口径补记实证）；③ U-P039-4 根因定向：bse 前缀 **3** 只、`infer_board('832317')='bse'`、close 2020-01-23 有值 3/3、`resolve_limit("bse", False, 2020-01-23)` 抛 `LimitRuleError`（文案逐字）；④ `engine.setup()`（`data_dir=Path`）复现 `LimitRuleError(board=bse, is_st=False, date=2020-01-23)`（非 FileNotFoundError，IMPL §9.3 崩点证实）；⑤ INFO 压制证实（`core.data` effective level=30） | ✅ |
+| E3 | 静态读码 @`7d96547` | `git show 7d96547 -- core/data.py` 与 IMPL §3.1 **逐字一致**（4 注释 + 8 代码）；HEAD 实码 L302-313、列裁剪 L315 起、缓存段零 diff；`git diff 377b26a..HEAD` 零改动面（`tests/golden/` / 门禁双载体 / `tests/_synth_fixture.py` / `pyproject.toml` / `uv.lock` / `filter/` / `agents/`）**全空**；numstat `12 1` | ✅ |
+| E4 | 盲区扫描 | CHECKLIST 25 行全 `✅`（余 4 处 `[待 Step 9]` 均为规则/复审记录字面引用，非未回填单元格）；台账 U-P039-1/-2/-3/-4 + O-P039-1/-2 六行齐备；新测试无死参数（`drop_adj`/`drop_open`/`adj_na` 全部被用例消费）、无弱断言（`approx` / `assert_frame_equal` / `raises(match=)`）；零新增静默路径（AST 恒 22）；四文档无 TODO/占位残留 | ✅ |
+| E5 | 推测禁入 | 无——全部结论均有 E1-E4 支撑 | ✅ |
+
+### 9.2 终审期发现与处置（0 P1/P2 + 2 P3 当轮处置）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-U3-P039-1 | P3 | 头部状态行停留在「Step 9 完成（25/25）」，未反映 Step 10 审计与本终审结论 | 当轮更新为「Step 1-10 完成（25/25）+ U-P039-3 异构终审 pass，批次关闭」 |
+| F-U3-P039-2 | P3 | §8.5 与 PROGRESS §3.44.2 的口径补记把「窗口差 1 日」误归因为「2020-01-02 在窗口外」——探针实证 2020-01-02 **在** raw adj 中（首行，不缺失）；真正的窗口前缺失日 = **2020-01-10**（全量 81 日中唯一落在 2020-01-23 之前者） | 当轮订正两处（计数 80 不变，归因日改 2020-01-10） |
+| （披露） | — | 终审探针两处**自纠**（非仓库缺陷）：① `data_dir` 传 str 违反 [config.py:341](../core/config.py) 的 `Path` 注解 → suspend 告警消息构造 `TypeError`（改用 `Path` 后复现预期 `LimitRuleError`）；② 「全量缺失」首算误用窗口化 close（1460）得 66 → 改读全量 `stock_close.pkl`（1475）重算得 81 | 记录备查（RULE-4 诚实披露） |
+
+### 9.3 结论
+
+**U-P039-3 异构终审 pass**——E1-E5 五项全过 + 0 P1/P2 + 2 P3 当轮处置（F-U3-P039-1/-2）。
+**P-039 批次关闭**：U-P038-2 → done；U-P039-1 / U-P039-2 pending（条件触发）、**U-P039-4（P1）独立跟踪**待立项；O-P039-1/-2 观察归档。
