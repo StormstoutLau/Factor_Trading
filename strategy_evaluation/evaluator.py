@@ -60,7 +60,7 @@ class StrategyEvaluator:
                 continue
 
             perf = result.get("performance_metrics", {})
-            row = {"name": name}
+            row: dict[str, Any] = {"name": name}
 
             score = 0
             for metric, weight in zip(metrics, weights):

@@ -27,7 +27,7 @@ class Order:
     remaining_qty: int
     filled_qty: int = 0
     avg_price: float = 0.0
-    fill_timestamps: list = None
+    fill_timestamps: list | None = None
 
     def __post_init__(self):
         if self.fill_timestamps is None:
@@ -165,6 +165,7 @@ class TWAPStrategy(BaseOrderStrategy):
         order.avg_price = (
             order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time
         ) / order.filled_qty
+        assert order.fill_timestamps is not None
         order.fill_timestamps.append(timestamp)
 
         amount = qty_this_time * trade_price
@@ -246,6 +247,7 @@ class VWAPStrategy(BaseOrderStrategy):
         order.avg_price = (
             order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time
         ) / order.filled_qty
+        assert order.fill_timestamps is not None
         order.fill_timestamps.append(timestamp)
         self.current_idx += 1
 
@@ -317,6 +319,7 @@ class IcebergStrategy(BaseOrderStrategy):
         order.avg_price = (
             order.avg_price * (order.filled_qty - qty_this_time) + trade_price * qty_this_time
         ) / order.filled_qty
+        assert order.fill_timestamps is not None
         order.fill_timestamps.append(timestamp)
 
         amount = qty_this_time * trade_price
@@ -370,5 +373,5 @@ class MarketImpactModel:
         temporary_impact = self.temporary_impact_coef * np.sqrt(normalized_qty)
         permanent_impact = self.permanent_impact_coef * normalized_qty
 
-        total_impact = temporary_impact + permanent_impact
+        total_impact: float = temporary_impact + permanent_impact
         return min(total_impact, 0.1)  # 上限 10%

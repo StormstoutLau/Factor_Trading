@@ -135,7 +135,7 @@ class FactorStatsCalculator:
             rho = np.corrcoef(ic_lag, ic_curr)[0, 1]
             if rho >= 1 or rho <= 0:
                 return np.nan
-            half_life = -np.log(2) / np.log(rho)
+            half_life: float = -np.log(2) / np.log(rho)
             return half_life
         except Exception as e:
             self._failure_counts["half_life"] = self._failure_counts.get("half_life", 0) + 1
@@ -164,7 +164,7 @@ class FactorStatsCalculator:
             curr_top = set(factor_data.iloc[i].nlargest(top_n).index)
 
             if len(prev_top) == 0:
-                turnover = 0
+                turnover: float = 0
             else:
                 turnover = len(prev_top - curr_top) / len(prev_top)
 

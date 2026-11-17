@@ -96,6 +96,9 @@ class BatchBacktestEngine:
         Returns:
             {因子名: 回测结果}
         """
+        if self.factor_db is None:
+            raise ValueError("未提供因子数据库")
+
         results = {}
 
         # 串行执行（数据共享，避免多进程问题）
@@ -113,6 +116,7 @@ class BatchBacktestEngine:
 
     def _run_single_factor(self, factor_name: str, **engine_kwargs) -> Any:
         """回测单个因子"""
+        assert self.factor_db is not None
         # 获取因子数据
         factor_data = self.factor_db.get_factor(factor_name)
 

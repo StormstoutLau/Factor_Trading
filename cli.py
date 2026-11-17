@@ -45,7 +45,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         config = BacktestConfig(
             data_dir=Path(data_dir),
             factor_files=args.factors.split(",") if args.factors else ["factor_value.pkl"],
-            factor_weights=None,
+            factor_weights={},
             factor=FactorConfig(
                 winsorize_method=args.winsorize,
                 standardize_method=args.standardize,
@@ -84,8 +84,10 @@ def cmd_run(args: argparse.Namespace) -> None:
         engine = create_default_engine(config)
         engine.setup()
 
-        print(f"  Trade dates: {len(engine.dm.trade_dates)}")
-        print(f"  Date range:  {engine.dm.trade_dates[0]} ~ {engine.dm.trade_dates[-1]}")
+        dm = engine.dm
+        assert dm is not None
+        print(f"  Trade dates: {len(dm.trade_dates)}")
+        print(f"  Date range:  {dm.trade_dates[0]} ~ {dm.trade_dates[-1]}")
         print("\n  Running backtest...")
 
         results = engine.run()

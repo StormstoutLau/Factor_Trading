@@ -75,7 +75,7 @@ def _close(a: np.ndarray, b: np.ndarray, rtol: float, atol: float) -> bool:
     return bool(np.allclose(a, b, rtol=rtol, atol=atol))
 
 
-def verify_case(case_dir: Path, checks: Checks) -> None:
+def verify_case(case_dir: Path, checks: Checks) -> np.ndarray | None:
     spec, meta = load_meta(case_dir)
     case = spec.case
     close = pd.read_csv(case_dir / "close.csv", index_col=0).values
@@ -116,12 +116,12 @@ def verify_case(case_dir: Path, checks: Checks) -> None:
             "vectorbt 侧按 meta 豁免（v3_only：F-S9-P015-5 现金约束语义差）",
             "I5 阴性对照移至 V3 侧（跨 case 断言）",
         )
-        return pv_v3
+        return np.asarray(pv_v3)
     if not vbt_res_path.exists():
         checks.add(
             "G2", case, "vectorbt 侧结果存在", False, "vbt_results.csv 缺失（venv 侧未运行）"
         )
-        return
+        return None
 
     vbt = pd.read_csv(vbt_res_path, index_col=0)
     qty_vbt = vbt[[c for c in vbt.columns if c.startswith("qty_")]].values
@@ -220,7 +220,7 @@ def verify_case(case_dir: Path, checks: Checks) -> None:
             ok_i2c,
             f"max|Δ|={_maxdiff(diff, closed):.3e}",
         )
-    return pv_v3
+    return np.asarray(pv_v3)
 
 
 def cross_case_checks(checks: Checks, pv_by_case: dict[str, np.ndarray]) -> None:

@@ -96,12 +96,12 @@ def build_data(spec: CaseSpec) -> tuple[pd.DataFrame, pd.DataFrame, list[int]]:
 
 def select_top(signal_row: np.ndarray, top_n: int) -> np.ndarray:
     """V3 选股规则规格（engine_v3_vector.py:112-118 逐字翻译）。"""
-    s = np.nan_to_num(signal_row, nan=0.0)
+    s: np.ndarray = np.nan_to_num(signal_row, nan=0.0)
     if len(s) <= top_n:
-        return s > 0
-    abs_s = np.abs(s)
+        return np.asarray(s > 0)
+    abs_s: np.ndarray = np.abs(s)
     threshold = abs_s[np.argpartition(abs_s, -top_n)[-top_n]]
-    return abs_s >= threshold
+    return np.asarray(abs_s >= threshold)
 
 
 def _simulate(close: np.ndarray, factor: np.ndarray, spec: CaseSpec, size_on: str) -> dict:
