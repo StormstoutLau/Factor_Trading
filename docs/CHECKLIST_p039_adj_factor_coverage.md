@@ -2,11 +2,11 @@
 
 > **批次**: P-039 · **T1**（Layer-1：`core/data.py` + `tests/`）
 > **上游**: [IMPL_p039](IMPL_p039_adj_factor_coverage.md)（§3 精确规格 / §4 红态实测 / §8 Step 6 复审 pass：1 P2 + 2 P3）；[DESIGN_p039](DESIGN_p039_adj_factor_coverage.md)（D1-D4 / I1-I6 / V1-V6 / §8 Step 4 复审 pass：1 P2 + 2 P3）；[RESEARCH_p039](RESEARCH_p039_adj_factor_coverage.md)（§6 M-A / §12 / §13）
-> **状态**: **Step 9 完成（24/25），待提交回填 D4**
+> **状态**: **Step 9 完成（25/25），CI 四 job 全绿**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止与正文同一次写入时打勾
 > **基线读数（@`377b26a`，Step 7 实测）**: pytest **760 passed** / golden **13 passed, 747 deselected** / black `core tests` **121**（全仓 `.` **188**）/ mypy 12 面 `Success ... 103 source files` / AST `except Exception` **22** / `tests/*.py` **84** / `uv lock --check` exit **0**
 > **目标读数**: pytest **765** / golden 13 零重录 / black `core tests` **122**（全仓 **189**）/ mypy 12 面 **0** / AST **22** / `uv lock` exit 0
-> **代码证据时点**: HEAD `377b26a`
+> **代码证据时点**: HEAD `377b26a`（Step 1-8 基线）；Step 9 实测时点 = 提交 `7d96547`
 
 ---
 
@@ -56,7 +56,7 @@
 | D1 | black `core tests` **122**（+1 新测试文件）/ 全仓 **189** | `black --check` 两口径 | ✅ `122 files would be left unchanged` / `189 files would be left unchanged` |
 | D2 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零改动 | 命令 + `git diff` | ✅ exit **0**（`Resolved 148 packages`）；两文件 `git diff` 空 |
 | D3 | 门禁双载体（`tests.yml` L46 / adapter L67）零改动 | `git diff --numstat` | ✅ `tests.yml` / `spec_runner_adapter.py` diff 均空 |
-| D4 | 单提交原子（`core/data.py` + 新测试）；CI 四 job 全绿 | `git show --stat` + `gh run view` | [待 Step 9] |
+| D4 | 单提交原子（`core/data.py` + 新测试）；CI 四 job 全绿 | `git show --stat` + `gh run view` | ✅ 提交 `7d96547`（8 文件 **+802/−4**）；CI run [`44061765966`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44061765966) **success**（`lock-check` 8s + 3.10 1m43s + 3.11 1m59s + 3.12 1m30s） |
 | D5 | **V6b 真实数据证据**（F-S9-P039-3 改写）：修复生效 = `adj.shape=(1460, 5688)` / 全 NaN 行 **0** / 「adj 缺且 close 有值」**0**；「加载adj_factor数据失败」消失，链路推进至 `LimitRuleError(board=bse, 2020-01-23)`（新 P1 = U-P039-4，不属本批） | `DataManager` 直接探针（INFO 日志不可见，F-S9-P039-2）+ 早期 `run_single_backtest.py` stderr 摘录 | ✅ 探针四项读数全中；`LimitRuleError` 原文见 IMPL §9.3 |
 | D6 | 文档回填：IMPL §9 / PROGRESS §3.44.1 + §1.4 / CHANGELOG / U-P038-2 → done | 读回 | ✅ IMPL §9 九项读数 + PROGRESS §3.44.1 + CHANGELOG Fixed 条目；U-P038-2 → done |
 | D7 | 未决登记：U-P039-1（上游缺日）/ U-P039-2（列维度）/ U-P039-3（异构终审）/ **U-P039-4（bse 规则缺口，P1）** / O-P039-1/-2 | 读回 §1.4 | ✅ 六项均已建行（U-P039-4 为 Step 9 新增） |
@@ -68,7 +68,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **25**（A 6 + B 6 + C 6 + D 7 = 25，机械计数） |
-| 实测列回填 | **24/25**（仅 D4 待提交回填；其余 24 项均 `✅ + 证据`） |
+| 实测列回填 | **25/25**（A 6 / B 6 / C 6 / D 7 全 `✅ + 证据`） |
 
 > **RULE-2 统计溯源**：25 = 6 + 6 + 6 + 7（逐表行数，非估计）。
 > **RULE-5 声明**：Step 2/4/6 复审均自报 DeepSeek-V4.1-Flash（与作者同源）→ **异构三轮未成立**；U-P039-3 跟踪。
