@@ -1797,7 +1797,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **性质**: pre-batch RESEARCH（非单批 SPEC）；产出 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)，覆盖 §7 全 14 项，含官方监管/交易所/厂商文档 + 社区实践 + 本仓库代码锚点。
 - **通道变局（最重要发现）**: miniQMT 自 2026-07 起多家券商停止新申请并清退存量；**华鑫证券公告 2026-10-30 收盘后关闭 miniQMT**；QMT 标准版内置 Python 3.6.x 且 2026 起多地关闭文件读写/外网；PTrade 为券商云端单文件沙箱；仅券商机构 API（宽睿 OES 等）/CTP 支持完整外部接入。总纲「Windows + xtquant 常驻网关」假设已不稳健，**P-053 改为「交易通道网关」并前置通道可行性门**。
 - **做空路线**: 证监会 2024-07-11 暂停转融券、融券保证金升至 100%/120%；融券余额 2024-08 降至约 137 亿元（较峰值降逾九成）；市场中性转向 IF/IC/IM 对冲。**P-050 改为「空头与期货账目」、期货保证金优先**；股票负持仓降为研究模式；P-058 默认股指期货对冲。
-- **其余结论**: Q2 四级延迟 SLA（L1 3s / L2 10–50ms / 总线 p99≤20ms / WS p99≤50ms / 下单确认 p99≤100ms）；Q4 CTP 锁定期货期权（openctp 支持 Py3.7–3.13/Linux）；Q5 一期公告+Tushare 新闻约 1000 元/年、AKShare 兜底、无社交爬虫；Q6 `DataProvider` 唯一端口 + 数据指纹 + golden 默认零重录；Q7 PyPortfolioOpt 仅 `[research]` 对拍、核心自研；Q8 滚动重估+滤波概率+BIC+PBO；Q9 自用定位+程序化报备+速率上限 ≤1 笔/秒、≤1000 笔/日；Q10 分层 parity 阈值 + 20 日/100 笔 paper；Q11 虚拟子账户+净额+分层优先级；Q12 柜台/ Tushare /AKShare 三级源 + 本地快照；Q13 最小观测栈；Q14 独立 `[qmt]`/`[ctp]` extra，不假设 3.12。
+- **其余结论**: Q2 四级延迟 SLA（L1 3s / L2 10–50ms / 总线 p99≤20ms / WS p99≤50ms / 下单确认 p99≤100ms）；Q4 CTP 锁定期货期权（openctp 支持 Py3.7–3.13/Linux）；Q5 一期公告+Tushare 新闻约 1000 元/年、AKShare 兜底、无社交爬虫；Q6 `DataProvider` 唯一端口 + 数据指纹 + golden 默认零重录；Q7 PyPortfolioOpt 仅 `[research]` 对拍、核心自研；Q8 滚动重估+滤波概率+BIC+PBO；Q9 自用定位+程序化报备+速率上限 ≤1 笔/秒、≤1000 笔/日；Q10 分层 parity 阈值 + 20 日/100 笔 paper；Q11 虚拟子账户+净额+分层优先级；Q12 柜台/Tushare/AKShare 三级源 + 本地快照；Q13 最小观测栈；Q14 独立 `[qmt]`/`[ctp]` extra，不假设 3.12。
 - **P0 待裁决（已于 §3.47.3 裁决）**: Q1 交易通道、Q3 期货账目/做空路线、Q9 自用定位与报备、Q14 QMT Python/extra；当时口径为不裁决则 P-053 不得立项。
 - **总纲回写**: §7 增加调研入口与 P0 警示；§5 P-050/P-053/P-058 口径同步；§3.0 S4 补报告字段与速率上限；§3 F6 补 2026 通道变化注记；§9 下一步改为优先 P0 四项。
 
@@ -1806,6 +1806,14 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **用户裁决 D1-D5**: ①**多通道预留**（机构 API/QMT/PTrade/CTP/半自动均保留适配器）；②**自用工具 + 完成程序化报备**；③**期货账目优先、股票融券仅研究**；④接受**独立 Windows venv + 可能的 3.6 移植层**；⑤**宜粗不宜细**：开源数据优先（AKShare/交易所/巨潮）→ synthetic fixture → 付费（Tushare 可选）→ 本地在建管道（`E:\Macro_Data`/`E:\FinDatasets`/`F:\Open_Data`，**仅分析、暂不接入**）。
 - **回写**: 总纲新增 §7.1（D1-D4 裁决表）/§7.2（粒度与数据策略）；§5 P-042/P-046/P-049/P-050/P-053 前置与验收同步；§9 下一步改为「P0 已裁决，从 P-042 立项，先 synthetic 后接数据」；调研文档新增 §0.1/§2.3/§5 裁决记录，Q5/Q6/Q12/Q13 补粒度注记。
 - **结论**: P0 四项不再阻断；P-053 可立项但仍先交付 `ChannelCapability` + `MockLiveBridge` 骨架；每批必须有无外部数据的 synthetic fixture + golden，禁止因数据缺失阻断开发。
+
+### 3.47.4 总纲二轮独立复审：幻觉排查（GLM-5.3-Flash，2026-11-17）
+
+- **基座（RULE-5 异构成立）**: 复审 GLM-5.3-Flash ≠ 回写 DeepSeek-V4.1-Flash ≠ 初稿 Qwen4-Max；E1 探针脚本 `probe_master_review_r2.py`（可重放，全量重验不信任前轮结论）。
+- **重验成立（抽样）**: FastAPI/uvicorn/WebSocket 全仓 0 命中；agents 13 / streamlit 5 页 / tests 87 / golden G1-G7 / core 36；cli 恰 5 子命令；invariants I1-I7（8 个 check_*）；event_log ring buffer（L2/L46/L63，buffer_size=500）；pyproject 行号全对（scipy L31/cvxpy L34/pydantic L35/sklearn L39/sqlalchemy L42/redis L45）；live_bridge ABC L69-128 / Mock L144-242；portfolio COV L26-30 / round_lot L394 / build_optimizer L426；SignalTranslator L402 / T0FuturesPolicy L259；v2 run() L341 / v3 内核 78-153；limit_rules L19/L81/L132。
+- **发现**: **0 P1 + 3 P2 + 11 P3（14 项），全部当轮处置**。P2：①路线图「已裁决（Q5/Q7）」与调研 §5.2 待确认清单矛盾 → §5.2 重写为 D5 粗粒度采纳表；②§6 把 PyPortfolioOpt 归 `[dev]` 与「仅 `[research]` 对拍」矛盾 → 改 `[research]`；③§3 F1 舆情仍写「Tushare 优先」与 D5 开源优先矛盾 → 改写。P3 代表项：**TWAP 归属错误**（在 `order_strategy/strategies.py` L118 而非 execution.py；§1.1 拆分订正 + F6 改为复用既有 order_strategy + O-R4 登记 ARCHITECTURE 同源错误）、CI 44101454276 归因订正、LiveOrder L46→L47、golden 13 项拆分措辞、§10.5 P-053 前置补 044、§1.4 补 D3、F7 补「部分指数 5s」、头部补调研指引、调研 §3 加状态注记。
+- **观察项**: O-R4 新增（ARCHITECTURE「VWAP/TWAP/Close」归属 + 「10 种过滤器」列举 9 类）；O-R1~R3 维持。
+- **结论**: 二轮复审 pass（0 P1）；总纲与仓库事实一致、三方文档一致，未发现虚构锚点或无源外部断言；不改代码，门禁基线沿用。
 
 ---
 

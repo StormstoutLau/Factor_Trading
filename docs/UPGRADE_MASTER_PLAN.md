@@ -1,7 +1,7 @@
 # 升级总纲：回测框架 → 回测/实盘一体化量化平台
 
 > **文档定位**: 跨批次升级总纲（pre-batch master plan），**不是**单个 SPEC 批次。每个子项目按 `F:\Spec_Workflow\SPEC_PROCESS.md` 十步流程独立立项（P-042 起），本总纲提供架构约束、模块边界、批次序列与验收口径。
-> **日期**: 2026-11-17 · **基线**: 初稿 HEAD `646f40e`（P-041 关闭后）· **架构权威**: [ARCHITECTURE.md](ARCHITECTURE.md) · **独立复审**: §10（复审 + 盲区扫描，2026-11-17）
+> **日期**: 2026-11-17 · **基线**: 初稿 HEAD `646f40e`（P-041 关闭后）· **架构权威**: [ARCHITECTURE.md](ARCHITECTURE.md) · **独立复审**: §10（一轮复审 + 盲区扫描）/ §10.7（二轮幻觉排查，2026-11-17）· **开放问题调研与裁决**: [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md) + §7.1/§7.2（D1-D5）
 > **调研方式**: 4 个 subagent 并行深入调研（内部扩展点盘点 + vectorbt 择时/组合优化 + QMT/CTP/FastAPI 实时架构 + 风险/舆情/策略生命周期），结论与来源见 §8。
 > **取代关系**: 本总纲整合并取代 `BACKTEST_ENGINE_UPGRADE_PLAN.md` / `architecture_upgrade_plan.md` / `INTEGRATION_PROPOSAL.md` 三份旧提案（保留为历史存档）。
 
@@ -27,7 +27,7 @@
 
 - **APPLICATION**: `cli.py`（5 子命令）+ `web/streamlit_app/`（5 页面）+ `web/server.py`（**仅静态文件服务器，非 FastAPI**）。
 - **ANALYTICS & AGENTS**: `agents/`（13 模块：`agent_framework` 基类 + 4 Guru + 6 角色 ResearchTeam + 分层贝叶斯 + 情绪框架 + 多策略引擎 + 策略分配器 + 风格漂移 + 风格画像 + 风格反思 + 自动参数优化 + 自适应 + 假设监控）；Walk-Forward；Brinson 归因。
-- **CORE ENGINE**: V2 事件驱动主引擎（DI + 插拔 + T+1 + 待执行订单 + 止损/盯市）；V3 向量化预筛选（`@njit`，5000股×2500天 ~0.006s）；Factor Pipeline；**4 优化器（EqualW/MinVar/MVO/RiskPar）**；Execution（VWAP/TWAP/Close）；**五维风控（基本面/行业/宏观/资金流/情绪）**；Guard Pipeline（**6 类**：单票上限/冷却/回撤/白名单/换手/最小现金）；Tracker；目标持仓计算（`target_positions.py`）；Plugin Registry（`registry.py` + `engine_plugins.py` 集成层）；EventLog（JSONL+环形缓冲+订阅）；**Live Bridge（骨架）**。
+- **CORE ENGINE**: V2 事件驱动主引擎（DI + 插拔 + T+1 + 待执行订单 + 止损/盯市）；V3 向量化预筛选（`@njit`，5000股×2500天 ~0.006s）；Factor Pipeline；**4 优化器（EqualW/MinVar/MVO/RiskPar）**；ExecutionSimulator（开盘/VWAP/收盘/自定义价格类型）+ `order_strategy/`（TWAP/VWAP/冰山订单策略）；**五维风控（基本面/行业/宏观/资金流/情绪）**；Guard Pipeline（**6 类**：单票上限/冷却/回撤/白名单/换手/最小现金）；Tracker；目标持仓计算（`target_positions.py`）；Plugin Registry（`registry.py` + `engine_plugins.py` 集成层）；EventLog（JSONL+环形缓冲+订阅）；**Live Bridge（骨架）**。
 - **DATA**: DataManager（批量 pkl 懒加载）+ Data V3（NumPy）+ Factor_DB（Parquet+JSON 元数据）+ Stock Filter（10 种过滤器 + 可交易性掩码）。
 
 ### 1.2 能力矩阵：7 大目标 × 现状
@@ -39,7 +39,7 @@
 | 3 | 资金仓位管理 | **部分** | `tracker.py`（持仓/现金）、`guard_pipeline.py`（仓位限）、`rebalance.py`、`pending.py`、`target_positions.py`（权重→目标数量） | 缺 **vol-targeting / 分数凯利 / 风险预算 / 金字塔加减仓**等科学仓位方法；缺统一 Sizing 层 |
 | 4 | 量化择时（对标 vectorbt） | **部分** | `engine_v3_vector.py:78-153`（信号→目标仓位内核）、`execution_policy.py`（SignalTranslator）、Factor Pipeline | 缺 **entry/exit 信号掩码 + 交叉检测 + 冲突仲裁**；缺**逐持仓止损止盈状态机**；缺 size_type/目标→信号转换 |
 | 5 | 策略注入与全生命周期管理 | **部分** | `core/registry.py`（PluginEntry：name/factory/config_schema/metadata）+ `engine_plugins.py`（集成插件）、`agents/multi_strategy_engine.py`、`strategy_allocator.py`、`auto_parameter_optimizer.py`、`style_drift_analysis.py`、`walk_forward_engine.py`、`attribution.py` | 缺**统一策略接口 + 模板库**（网格/趋势/截面多空/月差）；缺**版本化注册→晋级门→实盘监控→regime 自适应→退役**流水线；缺**多策略共享账户的资金分配/虚拟子账户** |
-| 6 | QMT/CTP 柜台对接 + 微服务 | **骨架** | `live_bridge.py`：`LiveTradingBridge` ABC L69-128（place_intents/cancel_orders/sync_positions/query_order_status）、`LiveOrder` L46、`MockLiveBridge` L144-242，已接 `OrderIntent` | 缺 **QMT/CTP 具体子类**；缺异步事件驱动适配、断线重连、对账、公司行为/交易日历、网关事前风控；缺微服务拆分 |
+| 6 | QMT/CTP 柜台对接 + 微服务 | **骨架** | `live_bridge.py`：`LiveTradingBridge` ABC L69-128（place_intents/cancel_orders/sync_positions/query_order_status）、`LiveOrder` L47（@dataclass L46）、`MockLiveBridge` L144-242，已接 `OrderIntent` | 缺 **QMT/CTP 具体子类**；缺异步事件驱动适配、断线重连、对账、公司行为/交易日历、网关事前风控；缺微服务拆分 |
 | 7 | FastAPI + WebSocket 毫秒级推送 | **空白** | 无（全仓 0 处 FastAPI/WebSocket/uvicorn）；`web/server.py` 仅静态服务 | 全部新建：行情网关、消息总线、WS 扇出、snapshot+delta 重连 |
 
 ### 1.3 关键扩展点（已验证锚点）
@@ -62,7 +62,7 @@
 
 | 待办 | 级别 | 与升级的关系 |
 |------|------|--------------|
-| **U-P031-1** 中性策略负持仓账目（保证金/借券/负市值盯市） | P2 | **F5 截面多空 / F4 做空择时的前置**；需改 `tracker.py`/`execution.py`，波及 V2/V3/golden |
+| **U-P031-1** 空头账目（期货保证金/逐日结算/强平/换月优先；股票负持仓仅研究，D3） | P2 | **P-050 题干**；截面多空（P-058）/月差的硬前置；需改 `tracker.py`/`execution.py`，波及 V2/V3/golden |
 | **U-P025-1** EventLog 接入引擎作为统一事件通道 | P3 | **F6/F7 事件总线的前置** |
 | **U-P005-1** Factor_DB DuckDB 迁移 | P3 | F1 舆情因子 / F5 策略参数存储的查询层 |
 | `data.py` vs `data_v3.py` 双数据加载器 | 技术债 | **F1/F7 流式数据契约统一的前置** |
@@ -170,7 +170,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 - **新模块**: `core/risk_overlay.py`（风险→目标权重 overlay）、`core/sentiment_feed.py`（舆情因子化）、`live/streaming_feed.py`（实时数据适配）。
 - **复用**: `risk_monitor.py`（五维评分）、`global_contagion.py`（CoVaR）、`agents/sentiment_framework.py`（打分）、`guard_pipeline.py`（事前闸门）。
 - **范式**: **vol-targeting × 回撤闸门 × 暴露上限**三层叠加，输出**目标权重**而非直接下单（`w = min(1, σ目标/σ实测)`；DD>8% 减半、>12% 转防御；单票/行业/流动性上限；负面舆情→降权/黑名单）。
-- **舆情落地**: 先**巨潮公告 + Tushare 新闻/研报**（合规、PIT 易），词典→中文 FinBERT→LLM 事件抽取；按股×日聚合，**用发布时间戳滞后到次日开盘**防前视；含退市股防幸存者偏差。社交（股吧/雪球）后置（合规/噪声）。
+- **舆情落地（D5 粗粒度）**: **开源优先**——交易所/巨潮公告先行（AKShare 免费接口兜底）；Tushare 新闻为可选增强（约 1000 元/年）；研报需授权；**不做社交爬虫**。先用 synthetic 公告 fixture 跑通「解析→事件→因子→PIT」链路再接开源源。词典→中文 FinBERT→LLM 事件抽取；按股×日聚合，**用发布时间戳滞后到次日开盘**防前视；含退市股防幸存者偏差。
 - **A股约束**: T+1 下盘中以「监控+次日决策」为主，当日仅可卖存量。
 - **数据质量闸门**: 行情 seq 单调、时间戳滞后阈值、缺口检测、停牌标记、主备源切换；异常数据不得进入信号计算（详见 F7 与 §3.0 S6）。
 - **模型可审计**: FinBERT/LLM 版本固定并缓存推理结果，事件抽取输出带模型版本与 prompt hash。
@@ -217,7 +217,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 - **微服务边界**: 行情服务 / 策略引擎（只产信号）/ 风控服务（事前同步闸门）/ **交易网关（唯一对接柜台、每账户单写者）** / 持仓账户服务（成交驱动账本+对账）/ API+WS（只读扇出）。事件用 Redis Streams/NATS；下单路径风控用 gRPC 或进程内调用（路径尽量短）。
 - **公司行为与交易日历**: 分红/送转/配股/退市由柜台回报或数据源事件驱动，账本记 `corporate_action` 事件；对账时持仓数量差异须先归因公司行为再判异常。`session_calendar` 提供交易所日历、集合竞价/连续竞价/收盘竞价时段、`Asia/Shanghai` 时区与期货夜盘状态机。
 - **依赖与部署**: `xtquant`/`vnpy_ctp` 为可选 extra（`[qmt]`/`[ctp]`），仅 Windows gateway venv 安装并独立 pin Python（以 wheel 支持范围为准）；主包与 Linux CI 不依赖。QMT `session_id` 须单实例唯一，禁止重复登录；miniQMT 客户端升级后须跑回归。
-- **执行算法**: 大单走 `live/execution_algo.py`（TWAP/POV/冰山），参数与回测 `execution.py` 同口径，偏差进 parity 报告。
+- **执行算法**: 大单执行优先**复用/迁移 `order_strategy/strategies.py` 既有 TWAP/VWAP/冰山策略**（实盘化改造，`TWAPStrategy` L118 起），新增 POV；`live/execution_algo.py` 统一适配，参数与回测 `execution.py` 同口径，偏差进 parity 报告。
 - **验证审计**: **event sourcing**（意图/确认/成交/撤单/持仓快照/公司行为 append-only，单调 seq+时间戳，更正即新事件，状态由重放导出）；**幂等** client_order_id（UUID，网络调用前生成，网关去重）+ trade_id 去重；**对账**（盘中增量+盘后全量，query 对比本地账本，差异超阈值告警，阈值见 §4）。MockLiveBridge 已有→实盘子类用同一接口测试。
 
 ### F7 FastAPI + WebSocket 毫秒级推送
@@ -225,7 +225,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 - **拓扑**: 行情网关进程（xtdata/CTP）→ **Redis Streams** 总线 → 快照聚合器（Redis 存最新态）→ FastAPI+uvicorn(**uvloop**) 多 worker WS 扇出。
 - **背压**: 每连接 bounded asyncio.Queue，满则丢旧 tick/合并（**行情可丢、订单不可丢**）；订单/成交走 Streams 消费组+ack 可靠通道。
 - **重连**: snapshot+delta，消息带 seq，断线取快照再按 seq 补增量；ping/pong 心跳+客户端指数退避。
-- **延迟现实（必须向用户澄清）**: GIL 下事件循环只做「解析+入队」，重计算独立进程；机内总线亚毫秒~几ms，到浏览器端到端典型 **5–50ms**；**A股 Level-1 快照本身 3s 一笔**，「毫秒级」只优化内部新鲜度，非行情源频率。Python 不适合亚毫秒下单路径。
+- **延迟现实（必须向用户澄清）**: GIL 下事件循环只做「解析+入队」，重计算独立进程；机内总线亚毫秒~几ms，到浏览器端到端典型 **5–50ms**；**A股 Level-1 快照本身 3s 一笔（部分指数 5s）**，「毫秒级」只优化内部新鲜度，非行情源频率。Python 不适合亚毫秒下单路径。
 - **安全**: REST/WS 鉴权（API Key/JWT）+ TLS 终止 + 最小权限 + CORS 白名单；密钥经环境变量/密钥库注入，禁止入库（详见 §3.0 S5）。
 - **可观测性**: Prometheus 指标（下单延迟/拒单率/事件积压/WS 连接数/推送延迟分位）+ 结构化日志 + 告警规则；P-054 交付延迟基准报告。
 - **多 worker**: 每个 worker 独立订阅 Redis，连接/订阅状态存 Redis，禁止依赖进程内状态。
@@ -289,7 +289,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 | 实盘幂等 | 账本测试 | 重复 order_id/trade_id 应用为 no-op |
 | 安全合规 | 单测 + 故障注入 | §3.0 S1-S7 每项至少 1 个机械用例 |
 | 既有门禁 | pytest/mypy/black/AST/uv lock | 沿用（778 passed 基线，只增不减） |
-| **门禁落地** | CI / pyproject | mypy 靶加入 `live services strategies`；black 目标同步；新增 CI job 跑 `import-linter`；新增依赖按 extra 分档（`[dev]`：import-linter/PyPortfolioOpt/orjson；`[qmt]`：xtquant；`[ctp]`：vnpy_ctp；FastAPI/uvicorn 视部署进 `[services]`）并 `uv lock`；**仓库当前无 `.pre-commit-config.yaml`，不得假设 pre-commit 存在**；新 job 不得依赖 Windows |
+| **门禁落地** | CI / pyproject | mypy 靶加入 `live services strategies`；black 目标同步；新增 CI job 跑 `import-linter`；新增依赖按 extra 分档（`[dev]`：import-linter/orjson；`[research]`：PyPortfolioOpt（仅参考解对拍，Q7/D5）；`[qmt]`：xtquant；`[ctp]`：vnpy_ctp；FastAPI/uvicorn 视部署进 `[services]`）并 `uv lock`；**仓库当前无 `.pre-commit-config.yaml`，不得假设 pre-commit 存在**；新 job 不得依赖 Windows |
 
 ---
 
@@ -297,6 +297,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 > **调研已完成（2026-11-17）**: 14 项的证据、选项与推荐见 [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)；下列条目保留原始问题，**推荐结论以调研文档 §0/§3 为准**。
 > **P0 裁决状态**: Q1（交易通道）、Q3（期货账目优先）、Q9（自用定位与程序化报备）、Q14（QMT Python/extra）已于 2026-11-17 裁决，见 §7.1 D1-D4；**P-053 可立项**，但仍须先交付通道可行性门 + `MockLiveBridge` 骨架。
+> **D5 粗粒度采纳（2026-11-17）**: Q5/Q6/Q7/Q8/Q10/Q11/Q12/Q13 的推荐方向已按「宜粗不宜细」采纳（细节留各批次 RESEARCH，见调研 §5.2）；本地在建数据管道（`E:\Macro_Data`/`E:\FinDatasets`/`F:\Open_Data`）仅分析、暂不接入。
 > **关键外部变化**: 华鑫证券公告 2026-10-30 收盘后关闭 miniQMT；多家券商 2026 年起关闭 QMT 标准版内置 Python 的文件读写/外网；总纲初稿「Windows + xtquant 常驻网关」假设已不稳健。
 
 1. **QMT 仅 Windows + 客户端依赖**：实盘网关须 Windows 宿主；服务层 Linux 跨进程通信拓扑需确认部署环境。（调研推荐：通道可行性门；QMT/PTrade 仅半自动，机构 API/CTP 可 Linux——见调研 Q1）
@@ -379,13 +380,13 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 | **E1** | `os.path.isdir('live'/'services'/'strategies')` | 三者均 **False** → 「新建」成立 |
 | **E1** | 读 `pyproject.toml` 依赖段 | `redis>=4.5.0`(L45)、`sqlalchemy>=2.0.0`(L42)、`scipy`(L31)、`cvxpy`(L34)、`scikit-learn`(L39)、`pydantic>=2.0.0`(L35) **已声明**；`fastapi/uvicorn/xtquant/vnpy_ctp/import-linter/PyPortfolioOpt/orjson` **未声明** |
 | **E1** | 读 `.github/workflows/tests.yml` L46 | mypy 靶 = `core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library tools examples`，**不含新目录**；CI 无 black/AST/import-linter 步骤；仓库**无 `.pre-commit-config.yaml`** |
-| **E1** | `pytest tests -k golden --collect-only` | **13 项**（G1-G7 参数化 7 + schema 2 + 名称匹配 4）；`tests/golden/` 实际 **7 份 JSON（G1-G7）** |
-| **E1** | `len(glob('tests/*.py'))` | **87**（与 P-041 CHECKLIST 目标一致）；P-041 关闭 CI `44101454276` 四 job 全绿 |
+| **E1** | `pytest tests -k golden --collect-only` | **13 项**（G1-G7 参数化 7 + schema 2 + 类名匹配 4，`TestGoldenRebalanceIntegration`）；`tests/golden/` 实际 **7 份 JSON（G1-G7）** |
+| **E1** | `len(glob('tests/*.py'))` | **87**（与 P-041 CHECKLIST 目标一致）；总纲初稿 `646f40e` CI `44101454276` 四 job 全绿（P-041 批次 CI 为 44091229154/44092040919） |
 | **E2** | 运行时探针 | **N/A**：本次复审对象为文档，无运行时行为；不伪造探针 |
 | **E3** | 读 `core/portfolio.py` L26-30/L394/L426 | 4 优化器 + 3 协方差估计器（sample/ledoit_wolf/ewma）+ `round_lot_optimize` 成立 |
 | **E3** | 读 `core/interfaces.py` | 14 个 Protocol（IDataManager L25-95 / IOptimizer L179 / IExecutionSimulator L217-261）+ 4 个 Abstract ABC |
 | **E3** | 读 `core/engine_v2.py` L341-441 / `core/engine_v3_vector.py` L78-153 | `run()` 与 `_rebalance_kernel` 锚点**逐字成立** |
-| **E3** | 读 `core/live_bridge.py` | ABC L69-128 / `LiveOrder` L46 / `MockLiveBridge` L144-242 |
+| **E3** | 读 `core/live_bridge.py` | ABC L69-128 / `LiveOrder` L47（@dataclass L46）/ `MockLiveBridge` L144-242 |
 | **E3** | 读 `core/risk_monitor.py` | 五维监控器（Fundamental/Industry/Macro/CapitalFlow/Sentiment）+ `CompositeRiskEngine` + `LLMRiskAgent` 成立 |
 | **E3** | 读 `core/guard_pipeline.py` | **6 类 Guard**：MaxPosition/Cooldown/Drawdown/SymbolWhitelist/Turnover/MinCash（初稿枚举有误） |
 | **E3** | 读 `core/execution_policy.py` L402 | `SignalTranslator` 成立 |
@@ -463,7 +464,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 
 - **P1 3 项、P2 12 项、P3 12 项全部当轮处置**；修订后 §1-§7 与代码事实一致，路线图顺序自洽，实盘安全/合规/数据质量/运维边界补齐。
 - **准予作为 pre-batch 总纲**：用户裁决 §7 后，按修订后 §5 从 **P-042** 起逐批立项；每批仍走 SPEC_PROCESS 十步 + 异构终审。
-- **本次仅文档修订**，不改代码；代码门禁沿用 P-041 关闭基线（pytest 778 / golden 13·765 / black 124·191 / mypy 103 files 0 / AST 22 / tests 87 / uv 0；CI `44101454276` 四 job 全绿），未重跑。
+- **本次仅文档修订**，不改代码；代码门禁沿用 P-041 关闭基线（pytest 778 / golden 13·765 / black 124·191 / mypy 103 files 0 / AST 22 / tests 87 / uv 0；总纲初稿 CI `44101454276` 四 job 全绿），未重跑。
 
 ### 10.5 批次编号映射（初稿 → 修订稿）
 
@@ -472,7 +473,7 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 | P-050 策略模板+生命周期 | **P-051** | 去掉截面多空/月差模板（拆至 P-058）；前置补 P-050 |
 | P-051 做空账目 | **P-050** | 前移，作为截面多空/月差硬前置 |
 | — | **P-052 实盘安全闸门** | 新增（§3.0 S1-S7） |
-| P-052 QMT 网关 | **P-053** | 前置改为 P-043/P-050/P-052 |
+| P-052 QMT 网关 | **P-053** | 前置改为 P-043/044/050/052；更名「交易通道网关」（§7.1 D1/D4） |
 | P-053 FastAPI+WS | **P-054** | 前置 P-053 + §7.9 |
 | P-054 微服务拆分 | **P-055** | — |
 | P-055 CTP 期货/月差 | **P-056** | 月差模板部分移至 P-058 |
@@ -484,3 +485,60 @@ class LiveAdapter:       # 实时事件(on_tick/on_bar) + LiveTradingBridge 真�
 - **O-R1（P3）**: `test_all_cases_present` docstring 的「G1-G6」与 `tests/golden/` 实有 G1-G7 不一致（注释漂移，非测试逻辑缺陷）；建议下次触及该文件时一并订正。
 - **O-R2（P2）**: xtquant 支持的 Python 版本范围与 Linux 不可安装性需在 P-053 RESEARCH 阶段用 `pip index versions xtquant`/官方文档取证；当前仅按公开资料标注为约束。
 - **O-R3（P2）**: 程序化交易报告/高频认定的具体阈值须在 P-052 RESEARCH 阶段引用交易所细则原文取证；总纲不对数值作断言。
+
+### 10.7 第二轮独立复审：幻觉排查（GLM-5.3-Flash，2026-11-17）
+
+> **基座披露（RULE-4/5）**: 本轮复审基座 **GLM-5.3-Flash**；初稿 Qwen4-Max、一轮复审/调研/裁决回写 DeepSeek-V4.1-Flash → **异构成立**。复审对象：`693b82e`/`15c759e`/`4acaf98` 三次修订后的本文 + [RESEARCH_upgrade_open_questions.md](RESEARCH_upgrade_open_questions.md)。
+> **专项**: 排除幻觉——对全部代码锚点、依赖声明、目录/计数、外部事实归属做 E1/E3 全量重验（不信任前轮结论），并做总纲↔调研↔PROGRESS 三方一致性扫描。探针脚本 `probe_master_review_r2.py`（%TEMP%，可重放）。
+
+#### 10.7.1 证据矩阵（E1/E3 重验）
+
+| 项 | 探针结果（可重放） | 判定 |
+|----|--------------------|------|
+| 目录 | `live/services/strategies` 均 False；`.pre-commit-config.yaml` False | ✅ 成立 |
+| 空白声明 | 全仓（prune `.venv*`）fastapi/uvicorn/websocket **0 命中** | ✅ F7「空白」成立 |
+| 计数 | agents **13** / streamlit **5** 页 / `tests/*.py` **87** / golden **G1-G7 七份** / core **36** 模块 | ✅ 全部一致 |
+| cli | `add_parser` 恰 **5**（run/test/analyze/info/dashboard） | ✅「5 子命令」成立 |
+| live_bridge | ABC L69、`...` 至 L128、`LiveOrder` **L47**（@dataclass L46）、Mock L144-242（total 242） | ⚠️ L46→L47 订正（F-R2-06） |
+| portfolio | COV L26-30、round_lot L394、build_optimizer L426、`*Optimizer` 类 ×5（含 Base L98） | ✅ 成立 |
+| execution_policy | ExecutionTiming L35/OrderIntent L57/ExecutionPolicy L145/T1 L195/T0 L259/SignalTranslator L402 | ✅ 成立 |
+| engine | v2 `run()` L341、v3 `@njit` L78/def L79/返回 L153 | ✅「78-153」按块口径成立 |
+| invariants | `check_*` ×8；I7 存在（L314/L327） | ✅「I1-I7」成立 |
+| event_log | L2/L46/L63 明确 "ring buffer"（buffer_size=500，list 实现） | ✅「JSONL+环形缓冲+订阅」成立 |
+| execution.py | 仅 `Trade/TradeLog/ExecutionSimulator`；`ExecutionPriceType` 含 OPEN/VWAP/CLOSE/自定义；**TWAP 在 `order_strategy/strategies.py` L118（TWAPStrategy），不在 execution.py** | ⚠️ 「VWAP/TWAP/Close」归属订正（F-R2-04/14） |
+| pyproject | requires-python L10；scipy L31/cvxpy L34/pydantic L35/sklearn L39/sqlalchemy L42/redis L45 | ✅ 行号全对 |
+| CI | tests.yml L46 mypy 靶逐字一致 | ✅ 成立 |
+| golden 测试 | docstring「G1-G6」漂移（O-R1 维持）；`-k golden` 4 项经类名 `TestGoldenRebalanceIntegration`（L291）匹配 | ⚠️ 措辞订正（F-R2-07） |
+| limit_rules | RULESET_VERSION L19 / infer_board L81 / build_limit_prices L132 | ✅ 与 P-041 一致 |
+| 外部事实 | 监管阈值/华鑫公告/xtquant 版本/Level-1 频率/Tushare 价格均溯源调研 §7（官方源直取） | ✅ 无无源断言；E5 未使用 |
+
+#### 10.7.2 发现与当轮处置（0 P1 + 3 P2 + 11 P3，全部当轮处置）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-R2-01 | P2 | 路线图 P-046/P-049 标「已裁决（Q7/Q5）」但调研 §5.2 仍将 Q5/Q7 列为待确认 → 总纲↔调研矛盾 | 调研 §5.2 重写为「D5 粗粒度已采纳」表（遗留仅实施细节） |
+| F-R2-02 | P2 | §6 门禁落地把 PyPortfolioOpt 归 `[dev]`，与 Q7/D5「仅 `[research]` 对拍」矛盾 | §6 改为 `[research]`（仅对拍） |
+| F-R2-03 | P2 | §3 F1 舆情落地仍写「先巨潮公告 + Tushare 新闻/研报」，与 D5 开源优先矛盾 | 改写为开源优先 + synthetic 先行 + 无社交爬虫 |
+| F-R2-04 | P3 | §1.1「Execution（VWAP/TWAP/Close）」归属错误：TWAP 在 `order_strategy/strategies.py` L118，execution.py 仅 OPEN/VWAP/CLOSE/自定义 | §1.1 拆分表述；ARCHITECTURE 同源错误登记 O-R4 |
+| F-R2-05 | P3 | §10.1/§10.4 把 CI `44101454276` 归因为「P-041 关闭」，实为总纲初稿 `646f40e` 的 CI | 两处归因订正 |
+| F-R2-06 | P3 | `LiveOrder` 类在 L47（L46 为 @dataclass），两处写 L46 | 订正为 L47 |
+| F-R2-07 | P3 | §10.1 golden 13 项拆分写「名称匹配 4」，实为类名 `TestGoldenRebalanceIntegration` 匹配 | 订正措辞 |
+| F-R2-08 | P3 | §10.5 P-053 行前置漏 P-044（现行 §5 已含） | 订正 + 更名说明 |
+| F-R2-09 | P3 | §1.4 U-P031-1 行仍为股票负持仓口径，未反映 D3 期货优先 | 改写为空头账目 + P-050 题干 |
+| F-R2-10 | P3 | F7「Level-1 3s 一笔」缺「部分指数 5s」限定（调研 Q2 已注明） | 补注 |
+| F-R2-11 | P3 | 头部基线未指向 D1-D5 裁决与调研文档 | 补链接 |
+| F-R2-12 | P3 | 调研 §3 各节「待确认」在 D1-D5 后部分过时 | §3 节首加状态注记 |
+| F-R2-13 | P3 | PROGRESS §3.47.2「柜台/ Tushare」多余空格 | 订正 |
+| F-R2-14 | P3 | §3 F6 新建 `execution_algo` 未提及可复用的既有 `order_strategy/`（TWAP/VWAP/冰山已实现） | F6 改为复用/迁移 + 新增 POV |
+
+> **RULE-2 计数**: 14 = 3 P2（F-R2-01/02/03）+ 11 P3（F-R2-04..14）；0 P1。
+
+#### 10.7.3 观察项（新增/维持）
+
+- **O-R4（P3，新增）**: [ARCHITECTURE.md](ARCHITECTURE.md) 两处与代码不符——① `execution.py` 表述「VWAP/TWAP/Close」（TWAP 实在 `order_strategy/`）；② 「10 种过滤器」括号列举仅 9 类（filter 模块 9 个 .py）。权威文档既有口径问题，建议下次触及 ARCHITECTURE 时一并订正；本轮不改权威文档，总纲引用已同步订正。
+- O-R1/O-R2/O-R3 维持（未见恶化）。
+
+#### 10.7.4 结论
+
+- **二轮复审 pass**：0 P1；3 P2 + 11 P3 全部当轮处置。总纲代码锚点经全量重验后与仓库事实一致，跨文档矛盾消除；「环形缓冲」「I1-I7」「5 子命令」「agents 13」「pyproject 行号」等高风险声明均证实为真，**未发现虚构锚点或无源外部断言**。
+- 本次仅文档修订，不改代码；门禁基线沿用（pytest 778 / golden 13·765 / mypy 103 files 0 / AST 22 / tests 87 / uv 0）。
