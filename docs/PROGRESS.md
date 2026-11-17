@@ -1546,7 +1546,7 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **E1 门禁独立复跑（双份读数一致）**: mypy 10 面 `92 source files` 0 / pytest **760** / golden **13 passed, 747 deselected** / black **121** / `uv lock --check` exit 0 / CI 三 run（`44029888652` / `44030760894` / `44031073193`）四 job 全 success。机械计数：`raise`+ = 1（C1）/ `except`+ = 0 / `^-\s*def ` = 7 / 新增 ignore = 0；AST `except Exception`（P-029 口径校准 = handler 类型恰为 `Exception`）= **22**。
 - **发现分级（0 P1/P2）**: **F-S10-P036-1**（P3）DESIGN I6「双口径」/ I7+V6「带 code ≤3」未随 F-S9 更正回写 → 当轮 DESIGN §3 补口径注；**F-S10-P036-2**（P3）IMPL §4.3.2 三组「局部变量+改用局部」实为方法内直断 assert（零语义差）→ 当轮补落点注；**F-S10-P036-3**（P3，主会话自查补获）IMPL §12.5 与 §1.4 P-036 行「2 P2 + 5 P3」统计笔误 → 更正为 **3 P2 + 4 P3**；**O-S10-P036-1**（观察）本地 pytest 须 `MPLBACKEND=Agg`（CI 已设、非本批引入）。
 - **结论**: **pass——同基座终审闭合**；P-036 过程链 Step 1-10 完成，唯 **U-P036-6 异构终审** pending（交接清单 = CHECKLIST §11.6：E1 锚点 / E2 diff / E3 门禁 / E4 探针独立编写 / E5 修正复核 + SUMMARY_p036 随终审交付）。
-- **提交与 CI**: 见本节提交记录（docs-only；CHECKLIST §11 + 签字表 / DESIGN 三处口径注 / IMPL 两处补注 + §12.5 更正 / PROGRESS 台账四行格式修正 + U-P036-6 建行 + §3.41.14）。
+- **提交与 CI**: 提交 `32e574a`（4 文件 **+99/−7**，docs-only：CHECKLIST §11 + 签字表 + 状态行 / DESIGN 三处口径注 / IMPL 两处补注 + §12.5 更正 / PROGRESS 台账四行格式修正 + U-P036-6 建行 + §3.41.14）→ CI run [`44036545497`](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44036545497) **success**（`lock-check` + 3.10 / 3.11 / 3.12 四 job 全绿）。
 
 ---
 
