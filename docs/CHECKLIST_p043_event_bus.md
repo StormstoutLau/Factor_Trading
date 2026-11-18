@@ -2,7 +2,7 @@
 
 > **批次**: P-043 · **T1**（Layer-1：`core/event_log.py` 契约 + `core/engine_v2.py` 运行时 + `core/config.py` 字段 + `tests/`）
 > **上游**: [IMPL_p043](IMPL_p043_event_bus.md)（§3 逐处代码 / §4 V1-V8 / §9 Step 6 pass：0 P1/P2 + 3 P3）；[DESIGN_p043](DESIGN_p043_event_bus.md)（D1-D8 / I1-I10 / §10 Step 4 pass：0 P1/P2 + 5 P3）；[RESEARCH_p043](RESEARCH_p043_event_bus.md)（§7 S1-S10 / §13 Step 2 pass）
-> **状态**: **Step 10 ADD pass + U-P043-5 异构终审闭合（2026-11-18，GLM-5.3-Flash）——41/41；D7 提交与 CI 待用户授权；批次关闭以 D7 为条件**
+> **状态**: **批次关闭（2026-11-18）：41/41 + Step 10 ADD pass + U-P043-5 异构终审闭合（GLM-5.3-Flash，0 P1/P2 + 1 P3 观察）+ D7 提交 `cd65fd1` / CI `44248955777` 四 job 全绿**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]`；禁止预填
 > **基线读数（@`1306bf8`，P-042 关闭）**: pytest **795** / golden **13 passed, 782 deselected** / black `core tests` **129**（全仓 **196**）/ mypy **104 files 0** / AST `except Exception` **22** / `tests/*.py` **91** / `uv lock --check` exit **0**
 > **目标读数**: pytest **803** / golden 13 零重录 / black **130**（全仓 **197**）/ mypy **104 files 0** / AST **22（不变；core 外口径）** / `tests/*.py` **92** / uv exit **0**
@@ -67,7 +67,7 @@
 | D4 | mypy **104 source files 0** | 全量实现 | CI 逐字命令 | ✅ `Success: no issues found in 104 source files` |
 | D5 | AST `except Exception` **22（不变；core 外口径）**；新增 `# type: ignore` = 0 | A7 落码 | P-029 单行命令 + grep | ✅ AST 门禁 **22**；`core/` 内 28→29 非门禁（F-S9-P043-1）；新增 ignore **0** |
 | D6 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff | 全量实现 | 命令 + `git diff` | ✅ exit **0**；两文件无 diff |
-| D7 | 提交原子（3 生产文件 + 1 新建测试 + 6 文档）+ CI 四 job 全绿 | D1-D6 通过 | `git show --stat` + `gh run view` | ⏳ 门禁全绿；**提交与 CI 待用户授权**（未提交） |
+| D7 | 提交原子（3 生产文件 + 1 新建测试 + 6 文档）+ CI 四 job 全绿 | D1-D6 通过 | `git show --stat` + `gh run view` | ✅ **`cd65fd1`**（10 文件，F-S8-P043-1 合并后 V8 单函数）；push `1306bf8..cd65fd1`；CI **`44248955777`** run=completed/success（lock-check / test 3.10 / 3.11 / 3.12 四 job 全 success） |
 | D8 | 文档回填：IMPL §10 / PROGRESS 对应小节 / CHANGELOG / 本文件 **41/41** | D7 通过 | 读回 | ✅ IMPL §10 + PROGRESS §3.49.8 + CHANGELOG + **41/41** |
 
 ---
@@ -77,7 +77,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **41**（A 10 + B 12 + C 11 + D 8 = 41，机械计数；B10-B12 为取证项非新用例） |
-| 实测列回填 | **41/41**（40 × `✅`；D7 为 `⏳ 待用户授权提交`，门禁前置项 D1-D6 全绿） |
+| 实测列回填 | **41/41**（41 × `✅`；D7 含提交 `cd65fd1` + CI `44248955777` 四 job 全绿） |
 
 > **RULE-2 统计溯源**：41 = 10 + 12 + 11 + 8（逐表行数）；新用例 **8** = V1-V8（V8 单函数含 a/b 两段，F-S8-P043-1）。
 > **RULE-5 声明**：Step 2 同源（DeepSeek-V4.1-Flash）；Step 4 / Step 6 / **Step 8 异构成立**（GLM-5.3-Flash）；Step 10 异构终审由 GLM-5.3-Flash 承接（U-P043-5）。

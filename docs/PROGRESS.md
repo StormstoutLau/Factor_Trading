@@ -119,7 +119,7 @@
 | U-P021-2 | `numba` 依赖声明 | [RESEARCH_p021 §6](RESEARCH_p021_dependency_lock_maintenance.md)；未声明；缺失时降级 `py_func`；CI 无 JIT 覆盖（与 U-008 同源） | pending（条件触发：CI 需覆盖 JIT 或出现性能回归） | P3 |
 | U-P021-3 | 锁升级节奏 | [RESEARCH_p021 §6](RESEARCH_p021_dependency_lock_maintenance.md)；本批只补缺不升级（plain `uv lock`），既有 pin 保持 2026 年旧值 | pending（条件触发：安全通告 / 显式升级需求） | P3 |
 | U-P023-1 | `run()` 逐日 `except Exception: continue` 的 retry 语义 | [RESEARCH_p023 §6](RESEARCH_p023_quality_guardrails.md)；P-007 RESEARCH A26 已登记 `Catch Generic` 反模式 | **done（2026-11-13 由 P-025 承接并完成）**：触发条件经 P-025 Step 1 取证改判为**已成立**（探针 B2：`min_variance` + `cov_lookback=60` → 0 成交 / sharpe 0.0 / 零诊断）；P-025 落地三处统一采集 + `run_diagnostics` + `day_error_mode` 三态 + D7-O2 setup 预检，探针 B2 现由 setup 直接拦截，详见 [CHECKLIST_p025](CHECKLIST_p025_daily_loop_exception_semantics.md) | P3 |
-| U-P025-1 | `EventLog` 接入引擎作为统一事件通道 | 原条件「`run_diagnostics` 已落地**且有第二个消费方**」；**E3 复核第二消费方未出现**（web/scripts/batch 全仓 0 处 EventLog 读取，`01_Overview.py:114` 仅列组件名）→ **触发条件已改写为「路线图批次触发」**（总纲 §5 已排期 P-043，P-042 为前置；用户 2026-11-18 指令即立项依据）；P3 边界保留（不建 Redis / 微服务 / WS） | **in-progress（2026-11-18 由 P-043 承接；Step 1-2 pass，待 Step 3 DESIGN）**，见 §3.49.1 | P3 |
+| U-P025-1 | `EventLog` 接入引擎作为统一事件通道 | 原条件「`run_diagnostics` 已落地**且有第二个消费方**」；**E3 复核第二消费方未出现**（web/scripts/batch 全仓 0 处 EventLog 读取，`01_Overview.py:114` 仅列组件名）→ **触发条件已改写为「路线图批次触发」**（总纲 §5 已排期 P-043，P-042 为前置；用户 2026-11-18 指令即立项依据）；P3 边界保留（不建 Redis / 微服务 / WS） | **done（2026-11-18 由 P-043 承接并关闭）**：`IEventBus` + `EventType` + `replay` + 引擎 6 发射点 + `event_log_path` 开关；**803 passed** / CI `44248955777` 全绿；批次关闭见 §3.49.10 | P3 |
 | U-P025-2 | `EngineV3Vector` 是否需要同形诊断 | V3 出现「静默空结果」实例 | pending（条件触发；V3 单次向量求值无日循环） | P3 |
 | U-P025-3 | 其余 22 处 `except Exception` 治理 | 其中任一处产生可复现的静默错误 | **done（2026-11-13，P-025 + P-026 两批收口）**：22 处逐点裁决 D10 显形 / K8 保留（有理由零改动）/ 排除 4（非静默），见 [RESEARCH_p026 §5](RESEARCH_p026_silent_exception_governance.md)；ADD 审计 A+ | P3 |
 | U-P025-4 | 优化失败时退化为等权（而非跳过调仓） | — | **已裁决不做**：静默降级会掩盖配置错误（正是 F-D3-P025-1 的成因） | P3 |
@@ -1977,6 +1977,14 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **发现**: **0 P1 / 0 P2 / 1 P3 观察**——F-S10-P043-1（P3 观察）error 事件 payload 已截断 200，但**既有** `logger.error` 两条（L405/L1024）打印完整异常消息（P-025 时代既有行为，本批不动）→ 登记 **O-P043-2**（与 P-054 日志治理一并裁决）。
 - **结论**: **Step 10 ADD pass；U-P043-5 异构终审闭合**；G1/G3-G6 关闭、G2→O-P043-1、G7/G8 边界声明；批次仅剩 **D7 提交与 CI 待用户授权**。
 - **文档**: [CHECKLIST_p043_event_bus.md](CHECKLIST_p043_event_bus.md) §8（含 §8.3 E1-E5 取证矩阵）。
+
+### 3.49.10 P-043 D7 提交与 CI —— 批次关闭（2026-11-18）
+
+- **提交**: 用户授权后 **`cd65fd1`**（10 文件：3 生产 + 1 新测试 + 6 文档；V8 为 F-S8-P043-1 合并后的单函数形态）；push `1306bf8..cd65fd1`；工作区净。
+- **CI**: **`44248955777`** run=completed/success——lock-check / test (3.10) / test (3.11) / test (3.12) 四 job 全 success。
+- **D7 实测**: ✅（CHECKLIST **41/41**，状态行改为批次关闭）。
+- **未决/观察项移交**: U-P043-2（订单成交事件，P-053）/ U-P043-3（多实例同路径，文档声明不支持）/ U-P043-4（CLI 开关，P-054）/ **O-P043-1**（`EventLogPlugin.log_*` 死 API 去留，P-053/P-054）/ **O-P043-2**（既有 `logger.error` 异常消息不截断，P-054 日志治理）/ U-P025-1 **done**（由本批承接关闭）。
+- **下一步**: 按总纲 §5 顺序，候选 P-044（参数台账下一批以总纲排期为准）。
 
 ---
 
