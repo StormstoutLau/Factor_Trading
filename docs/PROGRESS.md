@@ -2096,8 +2096,8 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **盲区（E4）**: `_signal_mode`/`set_signal` 引用面仅 engine+测试（无泄漏）；P-042/P-043 产物零触碰；registry 新符号无 core 外消费方（预期）。
 - **结论**: **ADD pass（0 P1 / 0 P2 / 0 P3 新缺陷；零发现经多角度降级重扫后记合规，扫描范围见 CHECKLIST §8.2）**；G1-G7 全关闭；U-P044-3 维持（P-051）。
 - **文档**: [CHECKLIST_p044_strategy_interface.md](CHECKLIST_p044_strategy_interface.md) §8（四阶段 + 重扫表 + 取证矩阵 E1-E5 + 结论）。
-- **遗留**: **D7 提交与 CI 待用户授权**（提交原子 = 3 生产文件 + 1 新测试 + 6 文档含 CHANGELOG）；D8 随提交闭合至 45/45。
-- **下一步**: 用户授权后执行提交 + CI。
+- **遗留**: **D7 已闭合**——提交 **`c4281d1`**（10 文件，+2905/−31）push `96384f6..c4281d1`；CI **`44260469437`** run=completed/success（lock-check 12s / test 3.10 2m18s / 3.11 2m19s / 3.12 1m30s 四 job 全绿）；D8 随关闭回填闭合至 **45/45**（CHECKLIST + CHANGELOG P-044 条目）。
+- **下一步**: 批次关闭；下一批次待总纲调度（P-045 择时/止损为候选）。
 
 ---
 

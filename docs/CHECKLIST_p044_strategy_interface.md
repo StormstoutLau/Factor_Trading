@@ -2,7 +2,7 @@
 
 > **批次**: P-044 · **T1**（新建 `core/strategy.py` 契约 + `core/registry.py` 扩展 + `core/engine_v2.py` 信号模式分支 + `tests/`）
 > **上游**: [IMPL_p044](IMPL_p044_strategy_interface.md)（§3 逐处代码 / §4 V1-V8 / §9 Step 6 pass：0 P1/P2 + 2 P3）；[DESIGN_p044](DESIGN_p044_strategy_interface.md)（D1-D8 / I1-I10 / §10 Step 4 pass：0 P1/P2 + 5 P3 + 2 补记）；[RESEARCH_p044](RESEARCH_p044_strategy_interface.md)（§7 S1-S10 / §8 I1-I9 / §13 Step 2 pass / §14 E1-EXT 锚点）
-> **状态**: **Step 10 ADD pass + 异构终审闭合（2026-11-18）：43/45 实测 ✅ + 0 新缺陷；D7（提交 + CI）/ D8（CHANGELOG + 45/45 终值）待用户授权提交**
+> **状态**: **批次关闭（2026-11-18）：45/45 + Step 10 ADD pass + U-P044-5 异构终审闭合（GLM-5.3-Flash，0 P1/P2/P3 新缺陷）+ D7 提交 `c4281d1` / CI `44260469437` 四 job 全绿**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；禁止预填
 > **基线读数（@`96384f6`，P-043 关闭）**: pytest **803** / golden **13 passed, 790 deselected** / black `core tests` **130**（全仓 **197**）/ mypy **104 files 0** / AST `except Exception` **22**（core 外口径）/ `tests/*.py` **92** / `uv lock --check` exit **0**
 > **目标读数**: pytest **811** / golden 13 零重录 / black **132**（全仓 **199**）/ mypy **105 files 0** / AST **22（不变）** / `tests/*.py` **93** / uv exit **0**
@@ -71,8 +71,8 @@
 | D4 | mypy **105 source files 0**（+1 `core/strategy.py`；命令不含 `tests/`） | 全量实现 | CI 逐字命令 | ✅ `Success: no issues found in 105 source files` |
 | D5 | AST `except Exception` **22（不变；core 外口径）**；新增 `# type: ignore` = 0（`except (OSError, TypeError)` 不计） | A1-A13 落码 | P-029 单行命令 + grep | ✅ AST **22**（agents 11/filter 5/scripts 2/batch 2/strategy 1/cli 1）；生产文件新增 ignore **0** |
 | D6 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff | 全量实现 | 命令 + `git diff` | ✅ exit **0**（Resolved 148 packages）；两文件零 diff |
-| D7 | 提交原子（3 生产文件：`core/strategy.py` 新建 + `registry.py`/`engine_v2.py` 修改；1 新建测试；**6 文档**：RESEARCH/DESIGN/IMPL/CHECKLIST/PROGRESS/CHANGELOG）+ CI 四 job 全绿 | D1-D6 通过 | `git show --stat` + `gh run view` | [待 Step 10（提交需用户授权）] |
-| D8 | 文档回填：IMPL §10 / PROGRESS 对应小节 / CHANGELOG / 本文件 **45/45** | D7 通过 | 读回 | [待 Step 10（CHANGELOG 与 45/45 随提交闭合）] |
+| D7 | 提交原子（3 生产文件：`core/strategy.py` 新建 + `registry.py`/`engine_v2.py` 修改；1 新建测试；**6 文档**：RESEARCH/DESIGN/IMPL/CHECKLIST/PROGRESS/CHANGELOG）+ CI 四 job 全绿 | D1-D6 通过 | `git show --stat` + `gh run view` | ✅ **`c4281d1`**（10 文件，+2905/−31）；push `96384f6..c4281d1`；CI **`44260469437`** run=completed/success（lock-check 12s / test 3.10 2m18s / 3.11 2m19s / 3.12 1m30s 四 job 全 success） |
+| D8 | 文档回填：IMPL §10 / PROGRESS 对应小节 / CHANGELOG / 本文件 **45/45** | D7 通过 | 读回 | ✅ IMPL §10（落码/红绿/门禁/发现）+ PROGRESS §3.50.9·§3.50.10 + CHANGELOG（P-044 条目，`### Added` 首位）+ 本文件 **45/45** |
 
 ---
 
@@ -81,7 +81,7 @@
 | 项 | 读数 |
 |----|------|
 | 验收项总数 | **45**（A 14 + B 12 + C 11 + D 8 = 45，机械计数；B9-B12 为取证项非新用例） |
-| 实测列回填 | **43/45**（43 × `✅`；D7/D8 × `[待 Step 10]`，提交需用户授权） |
+| 实测列回填 | **45/45**（45 × `✅`；D7 含提交 `c4281d1` + CI `44260469437` 四 job 全绿） |
 
 > **RULE-2 统计溯源**：45 = 14 + 12 + 11 + 8（逐表行数）；新用例 **8** = V1-V8（8 函数，B6 含两条断言组）。
 > **RULE-5 声明**：Step 1-2 同源（DeepSeek-V4.1-Flash）；Step 4 / Step 6 / **Step 8 异构成立**（GLM-5.3-Flash）；Step 10 异构终审由 GLM-5.3-Flash 承接（U-P044-5）。
