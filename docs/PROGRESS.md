@@ -2099,6 +2099,117 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **遗留**: **D7 已闭合**——提交 **`c4281d1`**（10 文件，+2905/−31）push `96384f6..c4281d1`；CI **`44260469437`** run=completed/success（lock-check 12s / test 3.10 2m18s / 3.11 2m19s / 3.12 1m30s 四 job 全绿）；D8 随关闭回填闭合至 **45/45**（CHECKLIST + CHANGELOG P-044 条目）。
 - **下一步**: 批次关闭；下一批次待总纲调度（P-045 择时/止损为候选）。
 
+### 3.51.1 P-045 Step 1 调研（2026-11-18）
+
+- **题干（收窄后）**: ① `core/timing.py` 信号原语（long/short entry/exit 四掩码 + `crossed_above/below` + 冲突仲裁 + 信号→权重）；② `core/stops.py` 止损止盈状态机（`entry_price`/`peak_price`/`bar_count` + 固定/移动/止盈/时间止损 + bar 内触发顺序 + 分批退出）；③ 以 `Strategy` wrapper 组合（`TimingStrategy`/`StopsStrategy`，状态入 `StrategyState.extras`，复用 P-044 DESIGN §8 接口约定）；④ 止损 golden + vectorbt 隔离 venv 对拍。**明确不做**：做空（P-050）/ sizing 与金字塔（P-047）/ 订单层 size_type·call_seq·共享现金（P-047/P-053）/ 引擎主循环接线与风险 overlay 闭环（P-048）/ 盘中 bar / 重构 `MarkToMarketPolicy`。
+- **代码事实（E3 @`0482881`）**: `core/timing.py` / `core/stops.py` **均不存在**；`StopLossConfig` 固定止损存在（`stop_loss_pct=-0.10`，基于 `unrealized_pnl/cost_basis`）但 **`trailing_stop_pct` 死配置**（全仓仅声明 + 默认值断言 = 2 处，零逻辑读取）；`MarkToMarketPolicy` 产出的 `RiskActionItem` 在引擎 L520-526 **仅 `logger.warning` 不落单**；`Position` 无 `peak_price`/`entry_date`；`SignalTranslator.from_signals` 存在但**引擎零接线**（仅测试）；V3 内核 L78-155 为信号→top_n 等权，非择时原语。
+- **复用面**: `target_positions.build_target_positions` / `filter/limit_rules.build_limit_prices` / `ExecutionTiming.NEXT_OPEN` / P-044 `Strategy`+`BacktestAdapter`+`set_signal(weights)` / 对拍基础设施（`.venv-vbt` 存在，`vectorbt==1.2.0` / `pandas==3.1.1` / `numba==0.68.1`）/ golden `CASE_IDS` G1-G7。
+- **E1-EXT 外部锚点（vectorbt 官方文档 4 条）**: 四类止损 `sl_stop` / `tsl_stop`（跟随入场后最优价）/ `tp_stop` / `tsl_th`（激活阈值）；`from_signals` 阈值 **正数**语义（与本仓 `StopLossConfig` 负号约定相反）；`StopMarket` **触发后用下一 bar 开盘价成交**；「Stops are checked against each later bar」（防前视）。→ 支撑 S5 符号裁决 / S8 成交价口径 / I5 无前视。
+- **缺口 G1-G8**: G1 无信号原语（P2）/ G2 无冲突仲裁（P3）/ G3 移动止损死配置（P2）/ G4 无水位与入场价（P2）/ G5 无持仓龄（P3）/ G6 止损不落单（P2）/ G7 无 bar 内顺序与 A 股成交价口径（P2）/ G8 无 golden 与对拍（P3）。
+- **方案裁决**: **M-A 纯函数原语 + Strategy 组合器**（M-B 改引擎主循环 / M-C 只做 timing / M-D 运行时依赖 vbt / M-E 改造 risk_manager 均拒）；引擎接线与动作闭环归 **P-048**。
+- **批次切分**: B1 `core/timing.py` / B2 `core/stops.py` / B3 组合器 / B4 测试+golden+对拍+四文档；计数链 pytest **811 → 819**、`tests/*.py` **93 → 94**、mypy **105 → 107**、black **132·199 → 134·201**、AST **22 不变**；既有 golden **13 零重录**（新增止损 case 数量由 DESIGN 裁决，U-P045-3）。
+- **未决**: U-P045-1 short 侧范围 / U-P045-2 止损接入点 / U-P045-3 golden 新增 case / U-P045-4 对拍范围与符号约定 / U-P045-5 异构终审（GLM-5.3-Flash）。
+- **文档**: [RESEARCH_p045_timing_stops.md](RESEARCH_p045_timing_stops.md)（§1 题干 / §2 代码事实 / §3 E1 + E1-EXT / §4 G1-G8 / §5 M-A~M-E / §6 B1-B4 / §7 S1-S10 / §8 I1-I9 / §9 未决 / §10 命令 / §11 自查 / §12 判档 T1 / §13 待 Step 2）。
+- **下一步**: 进入 Step 2 Review（同基座 → U-P045-5 登记；Step 4 起须异构）。
+
+### 3.51.2 P-045 Step 2 评审（2026-11-18）
+
+- **评审基座**: GLM-5.3-Flash（≠ RESEARCH 作者 DeepSeek-V4.1-Flash）→ **异构提前成立**（作者头部预设「Step 2 同源」被实际执行推翻）；U-P045-5 维持登记至 Step 10 终审闭合（P-044 先例）。
+- **E1 独立重放**: timing/stops 不存在 ✓；trailing grep 实测 **3**（订正初稿 2，漏 docstring L85；「零逻辑读取」结论不变）；`CASE_IDS`=7 ✓；锚点抽检六处全命中。
+- **E2 探针**: ① `StopLossConfig()` 实测 `-0.1 / -0.05 / True` → 负号约定实证（支撑 U-P045-4 符号裁决）；② **隔离 venv `vectorbt==1.2.0` 导入成功**，`from_signals` stop 参数实测 8 个（`sl_stop/sl_trail/tp_stop/stop_entry_price/stop_exit_price/upon_stop_exit/upon_stop_update/use_stops`）→ **G8 对拍可行性证实**，E1-EXT 升级为 E2 本地证据；`tsl_stop`/`tsl_th` 为 PRO 专有不在免费版（与 U-P045-4 倾向一致）。
+- **发现 6 项（2 P2 + 4 P3，全部当轮回写）**: **F-S2-P045-1（P2）I3 对拍口径收窄**——vbt 免费版同 bar 触发+成交 vs 本仓 T 日判触发 T+1 开盘成交，成交/NAV 层不可逐值对拍 → 收窄为「触发判定序列逐值 + 差异按 P-015 恒等式闭式声明」；**F-S2-P045-2（P2）新增缺口 G9**——止损触发需 OHLC 而 P-044 `MarketView` 仅 close，载体缺口（倾向 `StopEngine.update` 显式 OHLC 参数，零契约变更）为 DESIGN 必答；F-S2-P045-3 S2 NaN 语义补注；F-S2-P045-4 S4 exit 后权重保持注；F-S2-P045-5 I8 计数链补 golden **+N_g** 注；F-S2-P045-6 三处订正（头部基座 / §3.1 计数 / §3.2+§7-S5 PRO/免费版区分）。
+- **结论**: **pass（2 P2 + 4 P3）→ 准予进入 Step 3 DESIGN**（强制输入：U-P045-1/2/3/4 + F-S2-P045-1 对拍口径 + F-S2-P045-2 OHLC 载体）。
+- **文档**: [RESEARCH_p045_timing_stops.md](RESEARCH_p045_timing_stops.md) §13（9 项复核读数 + 6 项发现处置 + 结论）与头部/§3.1/§3.2/§4/§7/§8/§9 同步修订。
+- **下一步**: 进入 Step 3 DESIGN。
+
+### 3.51.3 P-045 Step 3 设计（2026-11-18）
+
+- **决策 D1-D9**: D1 模块职责（timing/stops 均为矩阵级纯变换，**不提供 Strategy wrapper**——G9 OHLC 载体冲突）；D2 `SignalSet`（short 侧类型位忽略）；D3 交叉检测（NaN 恒 False）；D4 冲突仲裁 exit 优先 + `holdings` 向量化状态机 + **不重归一**；D5 `StopConfig` 五字段**正数阈值**（与 vbt 对齐，既有负号 `StopLossConfig` 不复用）+ `StopBar/State/Decision/Trigger/Result`；D6 bar 内顺序（固定→移动→止盈→时间，SL 优先）+ `entry_price=建仓日收盘` 近似声明；D7 `apply_stops` 矩阵级叠加（OHLC 四键映射 + 不可交易延迟退出 `deferred`）；D8 golden **规格锁定**（独立 schema，P-013 harness 零 diff）；D9 零行为边界。
+- **核心设计期发现 F-D3-P045-1（P2）**: 止损需 OHLC 而 P-044 `MarketView` 仅 close → `StopsStrategy` wrapper 不可实现（G9）→ 裁决**矩阵级叠加**，`StopResult.states` 承载可序列化状态；**已回写 P-044 DESIGN §8 的 P-045 行修正注**（P-044 契约零改动）。
+- **计数链订正 F-D3-P045-2（P3）**: RESEARCH 只计 2 源文件 → black **135·202**（+2 源 +1 测试，原记 134·201）；pytest **811→821**（+10：V1-V8 + 2 golden）/ golden **13→15** / mypy **105→107** / AST **22** / tests **93→94** / uv **0**。
+- **其余发现**: F-D3-P045-3 golden 独立 schema（P-013 零 diff，规格锁定强于行为录制）；F-D3-P045-4 `trailing_activate_pct` 为 PRO 专有不在对拍范围；F-D3-P045-5 `entry_price` 近似登记 O-P045-1；F-D3-P045-6 分批退出归 P-047。
+- **边界七条**: 触发≠成交（无前视）/ entry_price 近似 / 不可交易延迟 / 无分批退出 / 空头仅类型位 / 不重归一 / 避免循环 import。
+- **测试规格**: V1-V8 + G1/G2（10 用例）；红态预测 **10 failed**。
+- **文档**: [DESIGN_p045_timing_stops.md](DESIGN_p045_timing_stops.md)（§1 范围 / §2 D1-D9（含 §2.0 上游未决裁决表）/ §3 签名 / §4 数据流与七边界 / §5 V1-V8+G1/G2 / §6 I1-I9+计数链 / §7 R1-R7 / §8 后续接口 / §9 六项发现 + §9.1 两项观察 / §10 待 Step 4）。
+- **观察项**: O-P045-1（`entry_price` 收盘近似 → 精化归 P-048/P-053）/ O-P045-2（`states` 仅末日快照，逐日轨迹不外扩）。
+- **跨批次回写**: P-044 DESIGN §8 的 P-045 行已加修正注（矩阵级叠加，P-044 契约零改动）。
+- **下一步**: 进入 Step 4 Design Review（**异构 GLM-5.3-Flash，0 预填**）。
+
+### 3.51.4 P-045 Step 4 设计评审（2026-11-18）
+
+- **评审基座**: GLM-5.3-Flash（≠ DESIGN 作者 DeepSeek-V4.1-Flash）→ **异构复审成立**（Step 2/4 连续两轮异构）；U-P045-5 维持至 Step 10。
+- **取证**: 运行时探针 5 组（Python 3.12）+ 机械复核（计数链 / §2.0 裁决覆盖 / 映射 / 跨批次回写）。
+- **探针结论**: D4 holdings 状态机 mask 序+ffill 语义实证（同日冲突 exit 优先 `[F,F,F,F,F]`）；D3 NaN 语义实证（prev=NaN 阻断）；`low<=open` OHLC 不变量实证（open 分支冗余）；apply_timing 不重归一实证（`[1.0, 0.6]`）；**两项实现级缺陷**——`DataFrame.reindex` 位置参数形式 TypeError（§3.1 代码片段不可实现）、含 DataFrame 字段 frozen dataclass `==` 抛真值歧义 ValueError（`SignalSet`/`StopResult` 禁用 `==`）。
+- **发现 8 项（全 P3，当轮处置）**: F-S4-P045-1 reindex keyword 订正 / F-S4-P045-2 `==` 禁用注（五类标量 dataclass 可用）/ F-S4-P045-3 open 分支冗余注明 / F-S4-P045-4 D6 三点显式化（优先级链 SL>trailing>TP>time、同 bar 激活即触发、建仓日免疫理由）/ F-S4-P045-5 targets NaN fail-fast / F-S4-P045-6 RESEARCH 计数链与 wrapper 提案订正注 / F-S4-P045-7 legacy 口径不在本批 / F-S4-P045-8 deferred 日持仓龄递增显式。
+- **一致性复核**: 计数链自洽（pytest 821 / golden 15（13=9+4 构成实证）/ black 135·202 / mypy 107 / AST 22 / tests 94）；§2.0 裁决表覆盖全部上游输入；P-044 §8 修正注已回写。
+- **结论**: **准予进入 Step 5 IMPL**（无 P1/P2 阻塞）。
+- **文档**: [DESIGN_p045_timing_stops.md](DESIGN_p045_timing_stops.md) §10（探针证据 + 8 项发现处置 + 机械复核 + 结论）与正文 §3.1/D2/D5/D6/D7 同步修订；RESEARCH §6/§8 订正注。
+- **下一步**: 进入 Step 5 IMPL。
+
+### 3.51.5 P-045 Step 5 实施规划（2026-11-18）
+
+- **文档**: [IMPL_p045_timing_stops.md](IMPL_p045_timing_stops.md)（§1 范围 / §2 B1-B3 / §3 完整代码 / §4 V1-V8+G1/G2 与 **golden 期望手工推导** / §5 低效排除 / §6 兼容性 / §7 门禁 / §8 回退 / §9-§10 待回填）。
+- **B1 `core/timing.py`**: `crossed_above/below`（NaN 恒 False）+ `SignalSet`（构造期形状校验）+ `resolve_conflicts`（exit 优先）+ `holdings_from_signals`（mask 序 + ffill）+ `weights_from_holdings`（等权不重归一）+ `apply_timing`（**reindex keyword 形式**，F-S4-P045-1）。
+- **B2 `core/stops.py`**: `StopConfig`（正数阈值 + `__post_init__` 校验）/ `StopBar` / `StopState`（JSON 往返）/ `StopDecision` / `StopTrigger` / `StopResult` / `StopEngine.update`（SL→trailing→TP→time 优先级）/ `ohlc_from_data`（raw 四键）/ `apply_stops`（三类 fail-fast + `deferred` 延迟退出 + 只减不增）。
+- **B3 测试**: V1-V8 + `test_golden_p045_s1/s2`（10 函数）；**golden 期望由手工推导**（S1：A 固定止损 d3、C SL 优先 d2、B 移动止损 d4；S2：时间止损 + Y 跌停延迟 deferred=1），写入两份独立 schema JSON；P-013 harness 零 diff。
+- **红态预测**: **`10 failed`**（`core.timing`/`core.stops` 不存在）。
+- **门禁目标**: pytest **811→821** / golden **13→15** / black **135·202** / mypy **105→107** / AST **22** / tests **93→94** / uv **0**。
+- **下一步**: 进入 Step 6 IMPL Review（**异构 GLM-5.3-Flash，0 预填**）。
+
+### 3.51.6 P-045 Step 6 实施 Review（2026-11-18）
+
+- **审查者**: GLM-5.3-Flash（异构基座 ≠ 作者 DeepSeek-V4.1-Flash，RULE-5 成立）；本步零代码执行，E3 静态对拍 + golden 期望手工独立重推 + 计数链机械复核。
+- **复核读数**: S1/S2 golden 期望独立重推逐值一致（S1：A stop_loss 01-04、B trailing 01-05（01-03 peak 53≥52.5 激活）、C SL 优先于 TP 01-03；S2：X time_stop 01-03/01-05、Y 01-03 跌停 deferred=1 → 01-04 退出）；签名与 DESIGN §3 逐项对拍落实；计数链 821/15/135·202/107/22/94/uv 0 自洽；红态推演 **10 failed / 0 passed**；B1-B3 纯新增、既有面零触碰。
+- **发现 3 项（1 P2 + 2 P3，当轮处置）**: F-S6-P045-1（**P2**）总纲验收「与 vectorbt 对拍」在 IMPL 无落点 → 增补 §2 任务行 + §4.6 对拍规格（`scripts/external_benchmark/verify_p045.py` 隔离 venv + 触发序列逐值 + waiver 豁免）+ §7 门禁行；F-S6-P045-2（P3）止损退出日禁同日重建 → DESIGN D7 补注（反证：同日重建 C 将以 peak=122 于 01-04 trailing_stop 再退出，与 G1 冲突）；F-S6-P045-3（P3）golden 装饰字段无校验 → 登记观察不阻断。
+- **结论**: **pass**（无 P1）——准予进入 Step 7 CHECKLIST。
+- **文档**: [IMPL_p045_timing_stops.md](IMPL_p045_timing_stops.md) §9 回填 + §2/§4.6/§7 同步增补；[DESIGN_p045_timing_stops.md](DESIGN_p045_timing_stops.md) D7 补注。
+- **下一步**: 进入 Step 7 CHECKLIST。
+
+### 3.51.7 P-045 Step 7 审查验收清单（2026-11-18）
+
+- **文档**: [CHECKLIST_p045_timing_stops.md](CHECKLIST_p045_timing_stops.md)（§1 A 组代码 14 / §2 B 组测试与 golden 14 / §3 C 组不变式 10 / §4 D 组门禁提交文档 9 / §5 预填检查 / §6 Step 7→8 交接 / §7 待 Step 8 回填）。
+- **总数**: **47 项**（14+14+10+9 机械计数）；零预填 = 45 × `[待 Step 9]` + 2 × `[待 Step 10]`（D8 提交 / D9 文档回填）。
+- **A 组要点**: A1-A6 `core/timing.py` 七符号（交叉 NaN 语义 / SignalSet 构造期校验 / exit 优先 / mask+ffill / 等权不重归一 / reindex keyword）；A7-A12 `core/stops.py` 九符号（五字段正数校验 / 状态往返 / 七步 update 优先级链 / OHLC raw 四键 / 三类 fail-fast + deferred + 禁同日重建）；A13 纯函数零 I/O；A14 `verify_p045.py` 对拍脚本（F-S6-P045-1）。
+- **B 组要点**: B1-B8 = V1-V8 逐用例断言值入册；B9/B10 = G1/G2 规格锁定（triggers 3 条 / 4 条 + deferred 1）；B11 红态预测 **10 failed / 0 passed**；B12 绿态 10 passed；B13 既有测试零订正；B14 golden 独立 schema + P-013 harness 零 diff。
+- **C 组要点**: I1-I9 逐条落项（零行为 / 纯函数 / 对拍触发序列 / 确定性 / 无前视（`targets[T]` 行置 0 → T+1 成交）/ 可成交性 / 零依赖 / JSON 往返 / 状态清理）+ C10 既有语义零 diff。
+- **D 组要点**: pytest **811→821** / golden **13→15**（`15 passed, 806 deselected`）/ black **132·199→135·203**（F-S9-P045-5 订正：+1 对拍脚本） / mypy **105→107** / AST **22 不变** / `tests/*.py` **93→94** / `verify_p045 exit 0` / uv **0**。
+- **交接 7 条**: 红态口径 / 计数链 / 零预填 45+2 / ID 不混用（DESIGN-D* vs D 组；P045 G1/G2 vs P-013 G1-G7）/ golden 先审规格（R6）/ 对拍口径收窄 + waiver 显式 / 不做清单。
+- **下一步**: 进入 Step 8 一致性 Review（**须异构基座**）。
+
+### 3.51.8 P-045 Step 8 一致性 Review（2026-11-18）
+
+- **审查者**: GLM-5.3-Flash（异构基座 ≠ 四文档作者 DeepSeek-V4.1-Flash，RULE-5 成立；Step 2/4/6/8 连续四轮异构）；E3 机械复核（行数点数 / 计数链交叉 / ID 闭环 grep / 对齐矩阵逐行 / golden 期望抽检），零代码执行。
+- **机械五项**: 清单 47 = 14+14+10+9、零预填 45+2 保持；计数链五文档 821/15/135·202/107/22/94/uv 0 一致（DESIGN §6 本轮补对拍行）；10 函数 = V1-V8+G1/G2、811+10=821、deselected 806、红态 10F 三文档一致；ID 链四组 F-*（S2×6/D3×6/S4×8/S6×3）全闭环（1 处悬空引用订正）；基座链四轮异构记录一致（CHECKLIST §5 声明订正）。
+- **对齐矩阵**: S1-S10/I1-I9/G1-G9 ↔ D1-D9 ↔ IMPL §2-§4 ↔ CHECKLIST A/B/C 逐行 ✅（S10 wrapper 被 D1 推翻补注；RESEARCH I8 计数链→DESIGN §6 表编号移位注登记）；G8→A14/D7/C3、G9→D7/A12、G6 显式延后 P-048。
+- **发现 10 项（全 P3，当轮回写）**: F-S8-P045-1 RESEARCH M-A/S10 wrapper 未注被推翻 / -2 对拍对象三文档漂移（交叉 vs 止损；vbt 无交叉原语）→ DESIGN I3 + RESEARCH I3 订正 / -3 RESEARCH §10 对拍命令 stale / -4 engine_v3_vector 零 diff 缺位（DESIGN I1 + CHECKLIST C10 补）/ -5 DESIGN §3.1 bullet 旧 reindex 口径 / -6 D6/边界1/I5「次日权重」措辞歧义（golden 锁定 T 行归 0）/ -7 DESIGN §5 夹具 vs IMPL 纯内联 / -8 DESIGN §6 缺对拍行 / -9 CHECKLIST §5「Step 1-2 同源」基座链错误 / -10 CHECKLIST 裸 D 引用 + F-S9 悬空引用。
+- **结论**: **pass**（0 P1/P2）——准予进入 Step 9 TDD。
+- **文档**: [CHECKLIST_p045_timing_stops.md](CHECKLIST_p045_timing_stops.md) §7 回填 + §5/§6/A1/A4/B2/C10 订正；[DESIGN_p045_timing_stops.md](DESIGN_p045_timing_stops.md) I1/I3/I5/§3.1/§4-边界1/§5/§6/D6 订正；[RESEARCH_p045_timing_stops.md](RESEARCH_p045_timing_stops.md) §5/§7-S10/§8-I3/§10 补注。
+- **下一步**: 进入 Step 9 TDD（落码 B1/B2 → 测试 → golden JSON → 对拍脚本；红态 10 failed → 绿态 10 passed + 八门禁 + verify_p045）。
+
+### 3.51.9 P-045 Step 9 TDD 实施（2026-11-18）
+
+- **TDD 顺序**: 先落 `tests/test_p045_timing_stops.py`（V1-V8 + G1/G2）+ 2 份 golden JSON → 红态 → 落 `core/timing.py` + `core/stops.py` → 绿态 → 八门禁 → 对拍脚本。
+- **红态实测**: **`10 failed in 0.75s`**（0 passed，全 `ModuleNotFoundError`）——与 IMPL §4.5 预测逐字一致。
+- **绿态实测**: **`10 passed in 0.58s`**（black 重排后复跑仍 10 passed）。
+- **门禁终态**: pytest **811→821 passed**（57.55s）/ golden **13→15**（`15 passed, 806 deselected`，既有 13 零重录）/ black **132·199→135·203**（F-S9-P045-5 订正：+1 对拍脚本） / mypy **105→107 files 0** / AST `except Exception` **22 不变** / `tests/*.py` **93→94** / `uv lock --check` exit **0**（Resolved 148）/ 新增 `# type: ignore` **0** / **verify_p045 exit 0**（7 断言 + 4 waiver）。
+- **既有回归**: `test_golden_baseline` + `test_p044_strategy_interface` + `test_engine_plugins` + `test_manifest` = **32 passed**（零订正）；受保护面（engine_v2 / engine_v3_vector / strategy / risk_manager / config / target_positions / execution_policy / agents / filter / `_golden_cases` / `test_golden_baseline` / `G1..G7.json` / pyproject / uv.lock）`git status` **全空**。
+- **发现 5 项（1 P2 + 4 P3，全当轮处置）**: F-S9-P045-1（**P2**）P-013 `test_all_cases_present` 以 `glob("*.json")` 扫全目录 → 新增 P045 golden 触发断言冲突（实测 `1 failed, 820 passed`）→ **golden 隔离到 `tests/golden/p045/`**（P-013 harness 零 diff 保持）；F-S9-P045-2（P3）black 重排 2 文件（style-only）；F-S9-P045-3（P3）verify C3 首跑因遍历顺序 fail → 两侧按 `(date, code)` 规范化排序后比较；F-S9-P045-4（P3）vbt 免费版 trades/orders 无 reason 列 → waiver W1，A/C 退出价 90.0 间接断言 SL 优先；F-S9-P045-5（P3）black 全仓计数漏算对拍脚本（202→实测 **203**）→ 五文档订正。
+- **对拍读数（E2）**: C1 本仓触发序列 == 规格锁定；C2 三标的各恰一笔平仓（A 01-04@90 / B 01-05@47.7 / C 01-03@90）；C3 触发序列逐值一致；C4/C5 SL 优先于 TP；W1-W4 豁免（reason / 成交价-NAV / trailing 幅度 / 激活阈值）。附录 [APPENDIX_p045_external_calibration.md](APPENDIX_p045_external_calibration.md)。
+- **CHECKLIST**: 实测列 **45/47** 已回填（D8 提交 / D9 文档回填待 Step 10）。
+- **文档**: [IMPL_p045_timing_stops.md](IMPL_p045_timing_stops.md) §10 回填 + §2 目录订正 + §4.1 GOLDEN_DIR + §4.5 实测；[CHECKLIST_p045_timing_stops.md](CHECKLIST_p045_timing_stops.md) 45 项实测列。
+- **下一步**: 进入 Step 10 ADD 审计与异构终审（GLM-5.3-Flash，U-P045-5 闭合）→ 提交 + CI。
+
+### 3.51.10 P-045 Step 10 ADD 审计与异构终审（2026-11-18）
+
+- **终审基座**: GLM-5.3-Flash ≠ Step 9 实施（DeepSeek-V4.1-Flash）→ **异构成立**；U-P045-5 五轮异构链（Step 2/4/6/8/10）闭合。
+- **取证**: E1 门禁八项独立复跑（逐字命令）+ E2 独立探针 **31+1 断言**（非测试套件，含对抗场景与套件未覆盖增量；探针开发期 5 处期望错误全部以实测反证修正探针自身、代码零改动）+ E3 静态读码 @未提交工作区（HEAD `0482881` + diff）+ E4 盲区扫描 14 项。
+- **E1 复跑实测**: pytest **821 passed**（56.49s）/ golden **`15 passed, 806 deselected`** / black **135·203** / mypy **`Success: no issues found in 108 source files`** / AST `except Exception` **22**（verify_p045 零命中）/ `tests/*.py` **94** / `uv lock --check` exit **0** / **verify_p045 exit 0**（7 断言 + 4 waiver）。
+- **ADD 四阶段**: Phase 0 规格净 / Phase 1 完整性（timing 7 符号 + stops 9 符号全落地）/ Phase 2 忠实度（timing ↔ IMPL §3.1 逐字一致；stops 仅 F-S8-P045-6 docstring 订正 + black style-only）/ Phase 3 必要性（变更面 3 M + 9 新全映射 B1-B3；core 外消费方 = 仅测试文件，零生产接线 = P-048 边界）/ Phase 4 语义意图（触发≠成交无前视；vbt 触发序列一致；I1-I9 全过）——全部 ✅。
+- **发现 5 项（3 P3 订正 + 2 观察；0 P1/P2）**: F-S10-P045-1（P3）mypy 读数漂移——Step 9 记 107、复跑实测 **108**（根因：Step 9 门禁早于 verify_p045.py 落盘，mypy 命令含 `scripts/`；105+2 源+1 脚本=108；0 issues 不变）→ CHECKLIST 头部/D4/§5/§6 + IMPL §7/§9.1/§10 + DESIGN §6/§10.3 五处订正；F-S10-P045-2（P3）CHECKLIST A1-A12+C5 共 13 处行号证据为 black 重排前时点 → 按当前文件订正（提交后随 hash 稳定）；F-S10-P045-5（P3）D8 提交清单漏 APPENDIX 新文档与 DESIGN_p044 已跟踪订正 → 订正为 **14 文件**原子；F-S10-P045-3（观察）`trailing_activate_pct=None` 立即激活路径套件未覆盖 → 补探针 PASS（登记，P-048 触及时补 case）；F-S10-P045-4（观察）触发日目标权重恰为 0 时 trigger 仍记录（可达、无害、D7 规格符合）→ 登记不阻断。
+- **E4 盲区 14 项**: 接线缺口 / G9 OHLC 载体 / short 侧 P-050 / wrapper 缺失 / 前视 / 禁同日重建 / deferred 推进 / trailing None 激活 / 同 bar 激活即触发 / bars NaN / `_BAR_KEYS` 顺序 / golden harness 兼容 / trigger-on-zero-target 边角 / 提交面完整性——全部 ✅ 闭式（详见 [CHECKLIST_p045 §8.5](CHECKLIST_p045_timing_stops.md)）。
+- **CHECKLIST**: 新增 §8（E1 复跑表 / E2 探针增量 / 四阶段判定 / 发现处置 / E4 盲区 / 结论）；实测列维持 **45/47**（D8/D9 待提交授权）。
+- **下一步**: 待用户提交授权 → git commit（14 文件原子）+ push + CI 四 job → 回填 D8/D9 至 47/47。
+
 ---
 
 ## 4. 审查记录

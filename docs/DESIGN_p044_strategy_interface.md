@@ -364,7 +364,7 @@ class BacktestAdapter: ...                       # 见 D4
 
 | 批次 | 依赖本批的什么 |
 |------|----------------|
-| P-045 择时/止损 | `Strategy.generate_signals` 可在内部叠加状态机；`StrategyState.extras` 携带状态 |
+| P-045 择时/止损 | `Strategy.generate_signals` 可在内部叠加状态机；`StrategyState.extras` 携带状态。**（P-045 D1 修正注）**止损需 OHLC 而 `MarketView` 仅 close → P-045 采用**矩阵级叠加**（`apply_timing`/`apply_stops`），`extras` 仅承载 `StopResult.states` 序列化形态；P-044 契约零改动（见 [DESIGN_p045 §2-D1](DESIGN_p045_timing_stops.md) F-D3-P045-1） |
 | P-047 仓位管理 | `TargetWeights` 由 sizing 产出；`set_signal(mode="weights")` 作为投放口 |
 | P-051 策略模板库 | `strategies/` 继承 `Strategy`，registry 注册 + `meta.code_hash` 追溯 |
 | P-053 实盘 | `LiveAdapter` 复用同一 `Strategy`，逐事件驱动 |
