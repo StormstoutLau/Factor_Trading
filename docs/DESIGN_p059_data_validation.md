@@ -591,4 +591,28 @@ SCENARIOS["S15"] = ScenarioSpec(
 
 ### 17.4 Step 10 终审
 
-[待 Step 10]
+**2026-11-19，GLM-5.3-Flash**（与作者 DeepSeek-V4.1-Flash 异构成立，RULE-5；**U-P059-6 于此闭合**）。
+
+#### 17.4.1 门禁独立复跑（不采信 Step 9 自报）
+
+pytest **906 passed**（239 warnings, 102.18s）/ `-k golden` **18 passed, 888 deselected** / collect **60**（39+16+5）/ black **146**（core tests）· **215**（全仓）unchanged / mypy（CI 命令）**110 source files, 0 issue** / AST `except Exception` core 外 **22**（agents 11 / filter 5 / scripts 2 / batch_backtest 2 / strategy_evaluation 1 / cli 1）、core **29**、全扫 **55** / `tests/*.py` **104** / `uv lock --check` exit **0** / 工作区 **17 文件**（4 M + 13 ??，与 CHECKLIST F1 清单逐项一致）——与 Step 9 自报读数逐项一致。
+
+#### 17.4.2 锚点核对与派生需求抽核
+
+| 项 | 结果 |
+|----|------|
+| CHECKLIST F1/F2/F3 `[待 Step 10]` + §10 占位 | 在位 |
+| 本文 §17.4 占位 | 在位（本节即回填产物） |
+| `scripts/verify_scenario.py` L45 `dataclasses.asdict` | 在位（F-S6-P059-1 修复实证） |
+| `_scenarios_cases.py` S11 `gaps=("BZ1","G10")` | 在位（F-S8-P059-1 双侧订正实证） |
+| CHANGELOG 惯例 | `[Unreleased]` 每批次登记（P-011..P-047 全覆盖）→ P-059 增 Added 条目 |
+| 遗留后台 diff（`core/stops.py` / `tests/test_p047_position_sizing.py`） | P-047 已入库内容陈旧输出，不在本批 17 文件，无需处理 |
+
+#### 17.4.3 D8 / D9 提交记录
+
+- **D8**（用户 AskUserQuestion 明确授权后执行）：commit **`4eed0fa`** `feat(P-059): 数据校验与边界场景库（17 场景 + 逐日 trace + 10 断言原语 + G4 修复）`，17 files **+3823/−7**；push `5f85363..4eed0fa`；CI run **44385648682** **四 job 全绿**（lock-check 8s / test 3.10 2m2s / 3.11 2m38s / 3.12 2m19s）。
+- **D9**：CHECKLIST F1/F2/F3 ✅ + §10 终审小结 + §7 Step 10 行 + 状态头；PROGRESS §3.53.11；CHANGELOG P-059 Added 条目；关闭提交 `docs(P-059)` + push + CI 复验。
+
+#### 17.4.4 终审结论
+
+**PASS**：CHECKLIST **61/61 ✅ / 0 ❌ / 0 新发现**（无 P1/P2/P3）；门禁独立复跑与 Step 9 一致；全链锚点闭合。**批次 P-059 关闭**。遗留登记项 F-S6-P059-4 / -5 / -6 随台账跟踪，不在本批。

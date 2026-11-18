@@ -2592,6 +2592,15 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **结论**: **58 ✅ / 3 `[待 Step 10]` / 0 ❌**，全部门禁达标，**准予进入 Step 10 终审**。
 - **提交状态**: 全部改动仍在工作区（**17 文件**：4 已跟踪改动 + 13 新增；未 commit/push，等用户明确授权）。
 
+#### 3.53.11 Step 10 终审（2026-11-19，GLM-5.3-Flash）
+
+- **终审身份**: GLM-5.3-Flash（与作者 DeepSeek-V4.1-Flash 异构成立，RULE-5；**U-P059-6 于此闭合**）。
+- **门禁独立复跑**（不采信 Step 9 自报）: pytest **906 passed**（102.18s）/ golden **18**（888 deselected）/ collect **60**（39+16+5）/ black **146·215** unchanged / mypy **110 files 0 issue** / AST **22·29** 不变 / `tests/*.py` **104** / `uv lock --check` exit **0** / 工作区 **17 文件**（4 M + 13 ??）——与 Step 9 自报逐项一致。
+- **锚点核对**: CHECKLIST 3 项 `[待 Step 10]` + §10 占位、DESIGN §17.4 占位、`verify_scenario.py` L45 `asdict` 修复、S11 `gaps=("BZ1","G10")` —— 全部在位；CHANGELOG 惯例判定需 Added 条目（P-011..P-047 全覆盖惯例）。
+- **D8 提交**（用户 AskUserQuestion 明确授权「授权，执行 D8+D9」后执行）: commit **`4eed0fa`** `feat(P-059): 数据校验与边界场景库（17 场景 + 逐日 trace + 10 断言原语 + G4 修复）`，**17 files +3823/−7**；push `5f85363..4eed0fa`；CI run **44385648682** **四 job 全绿**（lock-check 8s / test 3.10 2m2s / 3.11 2m38s / 3.12 2m19s）。
+- **D9 关闭回填**: [CHECKLIST F1/F2/F3 ✅ + §10 终审小结](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p059_data_validation.md)（**61/61 ✅ / 0 ❌**）；[DESIGN §17.4 终审](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p059_data_validation.md)（PASS / 0 新发现）；本节；CHANGELOG P-059 Added 条目；关闭提交 `docs(P-059)` + push + CI 复验。
+- **终审结论**: **PASS（0 新发现）**，**批次 P-059 关闭**。遗留登记项 F-S6-P059-4 / -5 / -6 随台账跟踪，不在本批。
+
 ---
 
 ## 4. 审查记录

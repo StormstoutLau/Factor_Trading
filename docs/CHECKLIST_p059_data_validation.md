@@ -2,7 +2,7 @@
 
 > **批次**: P-059 · 场景库地基 + 17 条边界场景 + 逐日 trace + 10 断言原语 + 统一 CLI + G4 修复
 > **上游**: [DESIGN_p059](DESIGN_p059_data_validation.md)（§6 断言原语 / §7 R1-R3 / §8 S01-E03 / §10 能力边界 / §12 I1-I13 / §15 DoD A1-A12 / §16.1 Step 5 执行回写 / §17.2 Step 6 pass：1 P2 + 7 P3 / §17.3 Step 8 pass：1 P2 + 3 P3）；[RESEARCH_p059](RESEARCH_p059_data_validation.md)；[PROGRESS §3.53.1-§3.53.9](PROGRESS.md)
-> **状态**: Step 7 产出（2026-11-19，DeepSeek-V4.1-Flash）；**Step 9 验收回填 58/58 `✅`**（2026-11-19）；F 组 3 项 `[待 Step 10]`；`❌` **0**
+> **状态**: Step 7 产出（2026-11-19，DeepSeek-V4.1-Flash）；**Step 9 验收回填 58/58 `✅`**（2026-11-19）；**Step 10 终审回填 61/61 `✅`**（2026-11-19，GLM-5.3-Flash；批次关闭 commit `4eed0fa` / CI 44385648682 四 job 全绿）；`❌` **0**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；禁止预填
 > **行号口径（F-S10-P045-2 教训）**: 本文件行号均 @未提交工作区（HEAD `5f85363` + diff）；提交后随 commit hash 稳定
 > **基线读数（@`5f85363`，P-047 关闭）**: pytest **846** / `-k golden` **18** / mypy **109 files 0** / black `core tests` **137**、全仓 **205** / `tests/*.py` **95** / AST `except Exception`（core 外生产面）**22** / `uv lock --check` exit **0**
@@ -99,9 +99,9 @@
 
 | ID | 验收项（DoD） | DoR | 证据出口 | 实测 |
 |----|---------------|-----|----------|------|
-| F1 | 提交原子（**17 文件** = 新源 **1** `scripts/verify_scenario.py` + 新测试 **9** `tests/_scenarios_*.py`×6 + `tests/test_p059_*.py`×3 + 已跟踪源 **2** `core/engine_v2.py` + `filter/limit_rules.py` + 新文档 **3** RESEARCH/DESIGN/CHECKLIST + 已跟踪文档 **2** PROGRESS/UPGRADE_MASTER_PLAN；核算 1+9+2+3+2 = 17）；**须用户明确授权后才可 commit** | E1-E7 通过 + 用户授权 | `git show --stat` | [待 Step 10] |
-| F2 | CI 四 job 全绿（lock-check / Python 3.10 / 3.11 / 3.12） | F1 | `gh run view` | [待 Step 10] |
-| F3 | 文档回填：DESIGN §16.1 / §17.2 / §17.3 在位；PROGRESS §3.53.6-§3.53.11（Step 5-10）；本文件 61 行实测列（58 项已回填 + 3 项待终审）；CHANGELOG 是否需要条目按仓库惯例判定 | F2 | 读回 | [待 Step 10] |
+| F1 | 提交原子（**17 文件** = 新源 **1** `scripts/verify_scenario.py` + 新测试 **9** `tests/_scenarios_*.py`×6 + `tests/test_p059_*.py`×3 + 已跟踪源 **2** `core/engine_v2.py` + `filter/limit_rules.py` + 新文档 **3** RESEARCH/DESIGN/CHECKLIST + 已跟踪文档 **2** PROGRESS/UPGRADE_MASTER_PLAN；核算 1+9+2+3+2 = 17）；**须用户明确授权后才可 commit** | E1-E7 通过 + 用户授权 | `git show --stat` | ✅ commit **`4eed0fa`**：**17 files changed, +3823/−7**（13 create mode + 4 modified），清单与 DoD 逐项一致（`git status` 提交前核对 4 M + 13 ??）；用户 AskUserQuestion 明确授权（2026-11-19「授权，执行 D8+D9」） |
+| F2 | CI 四 job 全绿（lock-check / Python 3.10 / 3.11 / 3.12） | F1 | `gh run view` | ✅ run **44385648682**（push `4eed0fa` 触发）四 job 全绿：lock-check **8s** / test 3.10 **2m2s** / 3.11 **2m38s** / 3.12 **2m19s** |
+| F3 | 文档回填：DESIGN §16.1 / §17.2 / §17.3 在位；PROGRESS §3.53.6-§3.53.11（Step 5-10）；本文件 61 行实测列（58 项已回填 + 3 项待终审）；CHANGELOG 是否需要条目按仓库惯例判定 | F2 | 读回 | ✅ 读回：DESIGN §16.1 / §17.2 / §17.3 在位 + §17.4 本步回填；PROGRESS §3.53.6-§3.53.11 在位（§3.53.11 本步补）；本文件 61 行实测列全 ✅（本步回填 F1-F3）；CHANGELOG 按仓库惯例增 **P-059 Added 条目**（`[Unreleased]` 首位） |
 
 ---
 
@@ -112,11 +112,12 @@
 | 验收项总数 | **61**（A 12 + B 9 + C 13 + D 17 + E 7 + F 3 = 61，逐表行数机械计数） |
 | Step 7 实测列状态（产出时） | `[待 Step 9]` **58** + `[待 Step 10]` **3**；`✅` **0**；`❌` **0** |
 | Step 9 实测列状态（回填后） | `✅` **58** + `[待 Step 10]` **3**；`❌` **0**；**58 + 3 = 61 ✓** |
+| Step 10 实测列状态（回填后） | `✅` **61**；`[待 Step 9]` **0**；`[待 Step 10]` **0**；`❌` **0**；**61 = 61 ✓** |
 | 新用例数 | **60** = `test_p059_scenarios` **39**（17 场景 + 1 注册 + 17 闭式 + 1 桶/reason + 1 能力 + 1 trace-off + 1 trace 闭合）+ `test_p059_metamorphic` **16**（15 关系 + 1 注册）+ `test_p059_g4_cash_parity` **5** |
 | Step 9 门禁实测 | pytest **906**（100.28s）/ golden **18**（888 deselected）/ collect **60**（39+16+5）/ black **146·215**（0 reformatted）/ mypy **110 files 0 issue** / AST **22·29**（不变）/ `tests/*.py` **104** / uv exit **0** |
 
 > **RULE-2 统计溯源**：61 = 12 + 9 + 13 + 17 + 7 + 3（逐表行数）；58 + 3 = 61（Step 9 回填）；60 = 39 + 16 + 5（模块 collect）；906 = 846 + 60；110 = 109 + 1（`scripts/verify_scenario.py`）；146 = 137 + 9（`tests/_scenarios_*` 6 + `tests/test_p059_*` 3）；215 = 205 + 10（上列 9 + 1 脚本）；104 = 95 + 9；AST 22/29 不变（本批文件零 `try/except Exception`）。
-> **RULE-5 声明**：Step 1/3/5/7/9 作者 **DeepSeek-V4.1-Flash**；Step 2 / 4 / 6 / 8 复审**异构成立**（GLM-5.3-Flash：RESEARCH §11 / DESIGN §17.1 / DESIGN §17.2 / DESIGN §17.3）；Step 10 终审**待 GLM-5.3-Flash**。
+> **RULE-5 声明**：Step 1/3/5/7/9 作者 **DeepSeek-V4.1-Flash**；Step 2 / 4 / 6 / 8 复审**异构成立**（GLM-5.3-Flash：RESEARCH §11 / DESIGN §17.1 / DESIGN §17.2 / DESIGN §17.3）；Step 10 终审**已由 GLM-5.3-Flash 执行**（§10，与作者异构成立）。
 
 ---
 
@@ -160,6 +161,28 @@
 
 ---
 
-## 10. Step 10 终审小结
+## 10. Step 10 终审小结（2026-11-19，GLM-5.3-Flash）
 
-[待 Step 10]
+> 终审者 GLM-5.3-Flash 与作者 DeepSeek-V4.1-Flash 异构成立（RULE-5）；**U-P059-6（终审异构）于此闭合**。
+
+**门禁独立复跑**（不采信 Step 9 自报，全部本步骤重跑）：
+
+| 门禁 | 实测 | 目标 | 判定 |
+|------|------|------|------|
+| pytest 全量 | **906 passed**, 239 warnings, 102.18s | 906 | ✅ |
+| golden 计数 | **18 passed / 888 deselected** | 18 / 888 | ✅ |
+| 用例收集 | **39 + 16 + 5 = 60** | 60 | ✅ |
+| black | **146**（core tests）/ **215**（全仓）unchanged | 146·215 | ✅ |
+| mypy（CI 命令） | **110 source files, 0 issue** | 110 | ✅ |
+| AST `except Exception` | core 外 **22** / core **29** / 全扫 **55** | 22·29 不变 | ✅ |
+| `tests/*.py` | **104** | 104 | ✅ |
+| `uv lock --check` | exit **0** | exit 0 | ✅ |
+| 工作区（提交前） | **17 文件**（4 M + 13 ??） | 17 | ✅ |
+
+**锚点核对与派生需求抽核**：CHECKLIST 3 项 `[待 Step 10]`（L102-104）+ §10 占位在位；DESIGN §17.4 占位在位；`scripts/verify_scenario.py` L45 `dataclasses.asdict`（F-S6-P059-1 修复）在位；`_scenarios_cases.py` S11 `gaps=("BZ1","G10")`（F-S8-P059-1 对齐）在位；CHANGELOG 惯例核对（`[Unreleased]` 每批次登记，P-011..P-047 全覆盖）→ P-059 需 Added 条目。遗留后台 diff（`core/stops.py` / `tests/test_p047_position_sizing.py` 格式化对比）为 P-047 已入库内容的陈旧输出，不在本批 17 文件内，无需处理。
+
+**D8 提交**（用户 AskUserQuestion 明确授权后执行）：commit **`4eed0fa`** `feat(P-059): 数据校验与边界场景库（17 场景 + 逐日 trace + 10 断言原语 + G4 修复）`，**17 files +3823/−7**；push `5f85363..4eed0fa`；CI run **44385648682** 四 job 全绿（lock-check 8s / 3.10 2m2s / 3.11 2m38s / 3.12 2m19s）。
+
+**D9 关闭回填**：本文件 F1/F2/F3 ✅ + §10 本节 + §7 Step 10 行 + 状态头；DESIGN §17.4；PROGRESS §3.53.11；CHANGELOG P-059 Added 条目；关闭提交 `docs(P-059)` + push + CI 复验。
+
+**结论**：**61/61 ✅ / 0 ❌ / 0 新发现**，**批次 P-059 关闭**。遗留登记项 F-S6-P059-4 / -5 / -6（`assert_target_deviation` 未接线 / BUY 兜底死代码 / 末日幂等合并不彻底）随台账跟踪，不在本批。
