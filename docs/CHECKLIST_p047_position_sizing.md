@@ -1,11 +1,11 @@
 # CHECKLIST：P-047 仓位管理（position sizing）
 
 > **批次**: P-047 · **T1**（新建 `core/sizing.py` + `engine_v2` 最小 BUY 现金闸门 + 测试模块 + 3 golden case）
-> **上游**: [DESIGN_p047](DESIGN_p047_position_sizing.md)（§2 裁决 D1-D7 / §3 精确签名 / §4 边界 / §5 V1-V12 / §6 I1-I10 / §7 R1-R5 / §10 Step 4 pass：1 P2 + 5 P3 / **§11 Step 6 pass：4 P3 + 2 INFO** / **§12 Step 8 pass：1 P2 + 5 P3 + 3 INFO**）；[RESEARCH_p047](RESEARCH_p047_position_sizing.md)（§7 S1-S11 / §8 I1-I10 / §13 Step 2 有条件通过）；[PROGRESS §3.52.1-§3.52.10](PROGRESS.md)
-> **状态**: Step 7 产出（2026-11-18，DeepSeek-V4.1-Flash）；**Step 9 验收回填完成（2026-11-18）**：**43/45 `✅` + 2 `[待 Step 10]`（D8/D9）**，`❌` **0**
+> **上游**: [DESIGN_p047](DESIGN_p047_position_sizing.md)（§2 裁决 D1-D7 / §3 精确签名 / §4 边界 / §5 V1-V12 / §6 I1-I10 / §7 R1-R5 / §10 Step 4 pass：1 P2 + 5 P3 / **§11 Step 6 pass：4 P3 + 2 INFO** / **§12 Step 8 pass：1 P2 + 5 P3 + 3 INFO**）；[RESEARCH_p047](RESEARCH_p047_position_sizing.md)（§7 S1-S11 / §8 I1-I10 / §13 Step 2 有条件通过）；[PROGRESS §3.52.1-§3.52.11](PROGRESS.md)
+> **状态**: Step 7 产出（2026-11-18，DeepSeek-V4.1-Flash）；Step 9 验收回填（43 ✅）；**Step 10 终审通过并关闭批次（2026-11-18，GLM-5.3-Flash）：45/45 `✅`，`❌` 0**（D8 commit `d91ff57` / CI run `44334432312` 四 job 全绿；D9 随关闭提交）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；禁止预填
 > **行号口径（F-S10-P045-2 教训）**: 本文件行号均 @未提交工作区（HEAD `531795e` + diff）；提交后随 commit hash 稳定，Step 9 已按当时文件逐条复核
-> **基线读数（@`531795e`，P-046 关闭）**: pytest **821** / `-k golden` **15** / mypy **108 files 0** / AST `except Exception` **22** / `tests/*.py` **94** / black `core tests` **135**、全仓 **203** / `uv lock --check` exit **0**
+> **基线读数（@`531795e`，P-045 关闭——F-S10-P047-1 订正，Step 7 版误标 P-046）**: pytest **821** / `-k golden` **15** / mypy **108 files 0** / AST `except Exception` **22** / `tests/*.py` **94** / black `core tests` **135**、全仓 **203** / `uv lock --check` exit **0**
 > **目标读数**: pytest **846**（+25）/ `-k golden` **18**（+3，既有 15 零重录）/ mypy **109 files 0**（+1 源）/ AST **22（不变）** / `tests/*.py` **95**（+1）/ black `core tests` **基线+2**（+1 源 +1 测试）、全仓 **基线+2** / `uv lock --check` exit **0**
 
 ---
@@ -72,8 +72,8 @@
 | D5 | AST `except Exception` **22（不变）**；`core/sizing.py` 新增 `try/except` / `# type: ignore` 均 **0** | A12 落码 | AST 静态检查 + `git diff` | ✅ AST **22**（agents 11 / filter 5 / scripts 2 / batch_backtest 2 / strategy_evaluation 1 / cli 1）；`core/sizing.py` try/except **0**、`# type: ignore` **0** |
 | D6 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff | 全量实现 | 命令 + `git diff` | ✅ `uv lock --check` → `Resolved 148 packages in 9ms`，exit **0**；两文件零 diff |
 | D7 | 全量回归无 P-047 相关失败；Tk/Tcl 环境性异常须以 `MPLBACKEND=Agg` 口径复跑排除（O-S5-P047-1），若仍复现须单独隔离并记录为环境缺陷非本批回归 | D1-D6 通过 | 两次复跑对照 | ✅ 两次全量复跑（前台 60.32s / 后台副本 65.19s）均 **846 passed**，零失败；Agg 口径下无 Tk/Tcl 异常 |
-| D8 | 提交原子（**10 文件**）：新源 1（`core/sizing.py`）+ golden 3（`tests/golden/p047/P047_S1/S2/S3.json`）+ 新测试 1（`tests/test_p047_position_sizing.py`）+ 已跟踪源订正 1（`core/engine_v2.py`）+ 新文档 3（RESEARCH / DESIGN / CHECKLIST）+ 已跟踪文档 1（PROGRESS）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12） | D1-D7 通过 | `git show --stat` + `gh run view` | [待 Step 10] |
-| D9 | 文档回填：DESIGN §11（Step 6）/ §12（Step 8）/ PROGRESS §3.52.6-§3.52.10 / 本文件 **45/45** 实测列；CHANGELOG 是否需要条目按仓库惯例判定 | D8 通过 | 读回 | [待 Step 10] |
+| D8 | 提交原子（**10 文件**）：新源 1（`core/sizing.py`）+ golden 3（`tests/golden/p047/P047_S1/S2/S3.json`）+ 新测试 1（`tests/test_p047_position_sizing.py`）+ 已跟踪源订正 1（`core/engine_v2.py`）+ 新文档 3（RESEARCH / DESIGN / CHECKLIST）+ 已跟踪文档 1（PROGRESS）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12） | D1-D7 通过 | `git show --stat` + `gh run view` | ✅ commit `d91ff57`（**10 files, +2271**，8 A + 2 M，`git show --stat` 复核）；CI run `44334432312` **四 job 全绿**（lock-check 9s / 3.10 1m52s / 3.11 2m6s / 3.12 1m38s） |
+| D9 | 文档回填：DESIGN §11（Step 6）/ §12（Step 8）/ PROGRESS §3.52.6-§3.52.10 / 本文件 **45/45** 实测列；CHANGELOG 是否需要条目按仓库惯例判定 | D8 通过 | 读回 | ✅ DESIGN §11/§12 随 `d91ff57` 在位 + **§13 终审节**新增；PROGRESS §3.52.6-§3.52.11；本文件 **45/45**（本提交补齐 D8/D9）；CHANGELOG 判定=**需要条目**（仓库惯例：P-042~P-045 feat 批次提交均含），随关闭提交补录（D8 十文件清单未含，不 amend） |
 
 ---
 
@@ -83,6 +83,7 @@
 |----|------|
 | 验收项总数 | **45**（A 12 + B 14 + C 10 + D 9 = 45，逐表行数机械计数） |
 | 实测列回填（Step 9） | **43/45 `✅`**（A 12 + B 14 + C 10 + D 7）；**2 × `[待 Step 10]`**（D8/D9）；`❌` **0**；累计 `45 = 43 + 2` |
+| 实测列回填（Step 10） | **45/45 `✅`**（D8/D9 补齐：commit `d91ff57` + CI `44334432312` 四 job 全绿 + 关闭提交回填）；`❌` **0** |
 | 新用例数 | **25 收集**（23 函数：V1-V12 共 19 个函数 + golden/隔离 4 个；`v9` 参数化 3 → 净 +2 实例） |
 | Step 9 门禁实测 | pytest **846**（60.32s）/ `-k golden` **18**（828 deselected）/ black **137·205**（0 reformatted）/ mypy **109 files 0 issue** / AST **22** / `tests/*.py` **95** / `uv lock --check` exit **0** |
 
@@ -125,3 +126,32 @@
 - **F-S9-P047-1（P3，文档笔误）**：本文件 A2 的 DoD 在 Step 7 版写作 `CashBudgetResult` 含 `qty`，与 DESIGN §D2 及实现（[sizing.py L109-116](file:///f:/Coding/Factor_Trading_v3.0/core/sizing.py#L109-L116)，4 字段）不符。**处置**：以 DESIGN 为准订正 DoD 文本，`qty` 由 `weights`（已含整手折算后的权重）+ `buy_cost` 表达，无需新增字段；不影响 A8/V8/golden S3 的任何断言。
 
 **结论**：45 项中 **43 项 ✅ / 2 项 `[待 Step 10]` / 0 项 ❌**，全部门禁达标，**准予进入 Step 10 终审**。
+
+---
+
+## 8. Step 10 终审小结（2026-11-18，GLM-5.3-Flash）
+
+> **评审身份**: GLM-5.3-Flash（≠ Step 1-9 文档作者 DeepSeek-V4.1-Flash，RULE-5；**U-P047-5 于此闭合**）。对象：门禁独立重跑（不采信 Step 9 自报）+ 四文档读回 + 派生需求 D-R1~R4 实证 + D8/D9。
+
+**门禁独立复核（E1 全部重跑，与 Step 9 记录逐项一致）**:
+
+| 门禁 | 终审复跑读数 | Step 9 记录 | 判定 |
+|------|--------------|-------------|------|
+| pytest 全量（`MPLBACKEND=Agg`） | 846 passed, 184 warnings, 63.65s | 846 | ✅ |
+| `-k golden` | 18 passed / 828 deselected | 18 / 828 | ✅ |
+| collect（新测试文件） | 25 collected | 25 | ✅ |
+| black（`core tests` / 全仓） | 137 / 205 unchanged, 0 reformatted | 137 / 205 | ✅ |
+| mypy（CI 确切命令 `--explicit-package-bases --check-untyped-defs` 十四目录） | Success: no issues found in 109 source files | 109 | ✅ |
+| AST `except Exception` | core 外全扫 **47** = 生产面 **22**（agents 11 / filter 5 / scripts 2 / batch_backtest 2 / strategy_evaluation 1 / cli.py 1）+ tests 21 + tools 3 + examples 1 | 生产面 22（各目录逐一吻合） | ✅ |
+| `tests/*.py` | 95 | 95 | ✅ |
+| `uv lock --check` | exit 0（Resolved 148 packages） | exit 0 | ✅ |
+
+- **D-R1~R4 实证**: `apply_sizing` no_price（[sizing.py L329-334](file:///f:/Coding/Factor_Trading_v3.0/core/sizing.py#L329-L334)）/ `pyramid_step` `atr<=0 → 0`（L433-434）/ 预留三字段仅定义处（L53-55，grep 全文件 3 行零消费）/ golden S3 整手反推（`qty = round(...)` + `qty % granularity == 0`，测试 L538-541）✓
+- **AST 口径澄清（终审注记，不改门禁值）**: 历史口径 22 = **生产面**（P-029 十文件口径传承，不含 tests/tools/examples）；终审全扫 47 与各目录分布逐一吻合，本批零新增。
+- **发现（当轮处置 1 P3）**:
+  - **F-S10-P047-1（P3，文档笔误）**: 本文件头部基线读数归属误标「P-046 关闭」——`531795e` = docs(P-045) 关闭回填提交（git log E1），RESEARCH §3.1-L 明示 821 = P-045 关闭读数，P-046 尚未立项实施（总纲批次表前置「已裁决 Q7」，无 feat 提交）。**处置**: 改标「P-045 关闭」（随关闭提交）。
+- **U-P047-5**: 异构终审由 GLM-5.3-Flash 执行（本节 + DESIGN §13），**闭合**。
+- **D8**: commit `d91ff57`（`feat(P-047)`，10 files, +2271）→ push `531795e..d91ff57` → **CI run `44334432312` 四 job 全绿**（lock-check 9s / 3.10 1m52s / 3.11 2m6s / 3.12 1m38s）。
+- **D9**: 本文件 **45/45** + DESIGN §13 + PROGRESS §3.52.11 + CHANGELOG `[Unreleased]→Added` 条目补录（随关闭提交）。
+
+**结论**: **终审通过，P-047 批次关闭**（0 P1 / 0 P2 / 1 P3 当轮处置；遗留登记 P-046 / P-048 / P-051 与 O 系列见 DESIGN §12 / §13.4）。

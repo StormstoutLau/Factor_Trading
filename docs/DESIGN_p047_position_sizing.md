@@ -451,3 +451,31 @@ weights(策略/优化器) ──apply_sizing(method/cov/expected_returns)──�
 ### 12.4 结论
 
 **通过，准予进入 Step 9**。发现 9 项（1 P2 + 5 P3 + 3 INFO）全部当轮处置：6 项正文订正（B1 范围声明 / 对角近似 / 术语 / 步长 / 区间 / 函数计数）、CHECKLIST 两处注记、派生需求 D-R1~D-R4 集中登记。本批**无 P1**；唯一 P2（F-S8-P047-1）为文档声明缺口而非代码缺陷——代码行为（外部传入 cov/atr）自 Step 5 起即被 V1-V12/golden 正确锁定，订正后 RESEARCH↔DESIGN↔IMPL↔CHECKLIST 四方口径闭合。Step 9 验收时按 §12.3 派生需求核对实现即可，无新增代码义务。
+
+## §13 Step 10 终审（异构基座 GLM-5.3-Flash，已回填）
+
+> **评审身份**: GLM-5.3-Flash（≠ Step 1-9 作者 DeepSeek-V4.1-Flash，RULE-5；**U-P047-5 于此闭合**）。对象：门禁独立重跑（不采信 Step 9 自报）+ 四文档读回 + D-R1~R4 实证 + D8/D9。
+
+### 13.1 门禁独立复核（全 ✅，与 Step 9 记录逐项一致）
+
+pytest 全量 **846 passed**（63.65s，`MPLBACKEND=Agg`）/ `-k golden` **18 passed / 828 deselected** / 新测试文件 collect **25** / black **137**（`core tests`）·**205**（全仓）0 reformatted / mypy **CI 确切命令**（`--explicit-package-bases --check-untyped-defs` 十四目录）**109 files 0 issue** / `tests/*.py` **95** / `uv lock --check` exit **0**。
+
+### 13.2 代码与文档核对
+
+- **D-R1~R4 实证**: `apply_sizing` no_price 处置（L329-334）/ `pyramid_step` `atr<=0 → 0`（L433-434）/ 预留三字段 `vol_lookback/atr_period/atr_k` 仅定义处 L53-55（grep 全文件 3 行，零消费）/ golden S3 整手反推（`qty = round(...)` + `qty % granularity == 0`）✓
+- **AST 口径澄清（终审注记，不改门禁值）**: core 外全扫 `except Exception` = **47** = 生产面 **22**（agents 11 / filter 5 / scripts 2 / batch_backtest 2 / strategy_evaluation 1 / cli.py 1，P-029 十文件口径传承）+ tests **21** + tools **3** + examples **1**；各目录计数与基线逐一吻合，本批零新增。CHECKLIST D5 的「22」口径为生产面，继续沿用。
+- **V1-V12 / golden 读回**: 测试模块与 §5 规格逐条对应（V12 三例含跳过/成交/continue 语义；golden 三例 `inputs/config/expected/tolerance` schema + S3 整手反推）✓
+
+### 13.3 发现与处置（当轮处置 1 P3）
+
+| ID | 级别 | 发现 | 处置 |
+|----|------|------|------|
+| F-S10-P047-1 | P3 | CHECKLIST L8 基线读数归属误标「P-046 关闭」：`531795e` = docs(P-045) 关闭回填提交（git log E1），RESEARCH §3.1-L 明示 821 = P-045 关闭读数，P-046 尚未立项实施（总纲批次表前置「已裁决 Q7」，无 feat 提交） | CHECKLIST L8 改标「P-045 关闭」（随关闭提交） |
+
+### 13.4 结论与批次关闭
+
+**终审通过，P-047 批次关闭**（0 P1 / 0 P2 / 1 P3 当轮处置；U-P047-5 闭合）。
+
+- **D8**: commit `d91ff57`（`feat(P-047): 仓位管理 sizing 纯函数层 + 引擎 BUY 现金闸门（U-P031-2）`，10 files, +2271）→ push `531795e..d91ff57` → **CI run `44334432312` 四 job 全绿**（lock-check 9s / test 3.10 1m52s / 3.11 2m6s / 3.12 1m38s）。
+- **D9**: CHECKLIST 45/45 + 本节 + PROGRESS §3.52.11 + CHANGELOG `[Unreleased]→Added` 条目补录（关闭提交 `docs(P-047)`；D8 十文件清单未含 CHANGELOG，按仓库惯例需条目故于关闭提交补录，不 amend）。
+- **遗留（不阻塞）**: P-046（矩阵式凯利 / 风险预算求解 / `RiskParityOptimizer` 默认 `max_weight=0.10` clip 破坏 ERC）、P-048（R1/R2 观察与风险动作闭环）、P-051（`apply_sizing` 引擎接线 + `insufficient_history` + `SizingState` JSON round-trip + `zero_vol` warning）；O-S5-P047-1/2、O-S6-P047-1/2。

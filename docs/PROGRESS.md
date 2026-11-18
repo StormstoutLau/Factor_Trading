@@ -2380,6 +2380,16 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **结论**: **通过，准予进入 Step 10 终审**。全部门禁达标；45 项零 ❌。
 - **待办**: Step 10 终审（异构 GLM-5.3-Flash）；D8 原子提交（10 文件）+ D9 文档回填；**提交仍须用户明确授权**。
 
+#### 3.52.11 P-047 Step 10 终审与批次关闭（2026-11-18，GLM-5.3-Flash）
+
+- **评审身份**: GLM-5.3-Flash（≠ Step 1-9 作者 DeepSeek-V4.1-Flash，RULE-5）；**U-P047-5 闭合**。对象：门禁独立重跑（不采信 Step 9 自报）+ 四文档读回 + D-R1~R4 实证 + D8/D9。
+- **终审独立复核（全部与 Step 9 记录逐项一致）**: pytest 全量 **846 passed**（63.65s，Agg）/ `-k golden` **18 passed / 828 deselected** / collect **25** / black **137·205**（0 reformatted）/ mypy **CI 确切命令**（`--explicit-package-bases --check-untyped-defs` 十四目录）**109 files 0** / AST 生产面 **22**（core 外全扫 47 = 生产面 22 + tests 21 + tools 3 + examples 1，P-029 口径传承注记）/ `tests/*.py` **95** / `uv lock --check` exit **0**；D-R1~R4 实证（no_price L329-334 / `atr<=0` L433-434 / 预留字段零消费 L53-55 / golden S3 整手反推）。
+- **发现（当轮处置 1 P3）**: **F-S10-P047-1（P3，文档笔误）**: CHECKLIST L8 基线读数归属误标「P-046 关闭」——`531795e` = docs(P-045) 关闭回填提交，821 基线属 P-045 关闭（RESEARCH §3.1-L），P-046 尚未立项实施；处置改标「P-045 关闭」。
+- **D8**: commit **`d91ff57`**（`feat(P-047): 仓位管理 sizing 纯函数层 + 引擎 BUY 现金闸门（U-P031-2）`，10 files, +2271）→ push `531795e..d91ff57` → **CI run `44334432312` 四 job 全绿**（lock-check 9s / test 3.10 1m52s / 3.11 2m6s / 3.12 1m38s）。
+- **D9**: CHECKLIST **45/45**（D8/D9 补齐）+ DESIGN §13 + PROGRESS §3.52.11 + CHANGELOG `[Unreleased]→Added` 条目补录（随关闭提交；D8 十文件清单未含 CHANGELOG，按仓库惯例需条目、不 amend）。
+- **结论**: **终审通过，P-047 批次 done**（0 P1 / 0 P2 / 1 P3 当轮处置）。门禁演进：pytest **821 → 846** / golden **15 → 18** / mypy **108 → 109** / black **135·203 → 137·205** / tests **94 → 95** / AST 22 不变 / uv 0。
+- **遗留（不阻塞，登记不重复）**: P-046（矩阵式凯利 / 风险预算求解 / clip 破坏 ERC）、P-048（R1/R2 观察与风险动作闭环）、P-051（`apply_sizing` 引擎接线 + `insufficient_history` + `SizingState` JSON round-trip + `zero_vol` warning）；O-S5-P047-1/2、O-S6-P047-1/2。
+
 ---
 
 ## 4. 审查记录
