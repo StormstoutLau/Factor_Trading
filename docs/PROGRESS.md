@@ -2390,6 +2390,208 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **结论**: **终审通过，P-047 批次 done**（0 P1 / 0 P2 / 1 P3 当轮处置）。门禁演进：pytest **821 → 846** / golden **15 → 18** / mypy **108 → 109** / black **135·203 → 137·205** / tests **94 → 95** / AST 22 不变 / uv 0。
 - **遗留（不阻塞，登记不重复）**: P-046（矩阵式凯利 / 风险预算求解 / clip 破坏 ERC）、P-048（R1/R2 观察与风险动作闭环）、P-051（`apply_sizing` 引擎接线 + `insufficient_history` + `SizingState` JSON round-trip + `zero_vol` warning）；O-S5-P047-1/2、O-S6-P047-1/2。
 
+### 3.53 P-059 模拟数据验证体系（data validation harness）
+
+#### 3.53.1 Step 1 调研（2026-11-18，DeepSeek-V4.1-Flash）
+
+- **触发**: 用户 2026-11-18 指定——「在 P-048 之前单独立项」：框架缺模拟数据验证，需验证计算准确性、涨跌停调仓买卖等边界处理准确性，并让后续任何模块开发都能挂载数据验证、方便排查每一步；先调研历史批次是否已有类似机制，有则扩展。
+- **执行序**: **P-048 之前**；编号**追加式分配**（不重排 P-042..P-058）。
+- **判档**: **T1**（测试侧基础设施 + 可能触碰 `core/engine_v2.py` 次日路径，取决于 U-P059-1 裁决）。
+- **E3 取证时点**: HEAD `5f85363`（P-047 关闭，工作区净）。
+- **调研核心结论**: **已有类似机制，须扩展而非新建**——①golden 基线 18 实例（末值 + `nav`/`trades` 摘要，`_golden_cases.py` 硬编码 7 case）；②`tests/_synth_fixture.py`（可写 OHLC/adj/suspend/st/universe，但 `open/high/low` 缺省复用 `close`）；③`scripts/prepare_test_fixture.py`（baseline/biased 两套 pkl，含涨停开盘/ST/停牌/除权）；④`_reference_impl` 差分 9 用例（仅指标/成本层）；⑤`invariants.py` I1-I7（事后账目恒等）；⑥`filter/limit_rules.py`（板别/ST 比例唯一真源）；⑦`universe_filter_clean._build_limit_masks`（`open>=limit_up-EPS` 不可买 / `open<=limit_down+EPS` 不可卖）；⑧`manifest.py`/`change_report.py`（指纹 + 六层归因）；⑨P-014 停牌账目 7 用例；⑩`external_benchmark` 隔离 venv 外派对拍。
+- **缺口（G1-G9，其中 G5 已撤回）**: G1 无统一场景库（边界散落 8 文件 54 用例）/ G2 无逐日中间态 trace（仅末值 + 日志）/ G3 夹具 OHLC 非独立 / **G4 两路径现金口径分裂**（队列 `estimate_buy_cash` vs 次日 `qty*open*1.002`，[engine_v2.py L1274](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L1274)）/ **G5 撤回**（初判「次日路径订单无过期」不成立——[L1233](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L1233) 有 P-014 D7 过期，且 [test_p014 L247-266](file:///f:/Coding/Factor_Trading_v3.0/tests/test_p014_suspension_accounting.py#L247-L266) 已锁定「买 5 / 卖 10 自然日」口径）/ G6 涨跌停价舍入边界无用例 / G7 连续不可买时目标偏离与现金闲置无量化断言 / G8 新增模块验证挂载成本高（P-047 需改 4 处）/ G9 交叉场景（停牌×跌停×ST）无覆盖。
+- **方案**: **M-A 扩展现有基建**（`tests/scenarios/` 场景注册表 + 构造器 + 逐日 trace + 断言原语 + `scripts/verify_scenario.py` 统一入口）；M-B（只扩 golden）/ M-C（Hypothesis）/ M-D（第三方框架对拍）均否决，理由见 RESEARCH §5。
+- **拆分 B1-B6（初版）**: 场景库地基 / 边界场景集（≥10 例）/ 逐日 trace / 断言原语 / 统一 CLI 入口 / 接入规范与回归；B7（G4/G5 生产修复）当时待裁决 → **后续见 §3.53.2：B7 收窄为仅 G4**。
+- **未决（初版登记，多数已在 §3.53.2 闭合）**: **U-P059-1** 本批是否修复 G4/G5（→ 已闭合：仅 G4）；U-P059-2 trace 位置（建议测试侧）；U-P059-3 编号（P-059）；U-P059-4 Hypothesis（否）；U-P059-5 场景必做 10 例；U-P059-6 Step 10 异构终审（GLM-5.3-Flash）。
+- **产出**: [RESEARCH_p059_data_validation.md](file:///f:/Coding/Factor_Trading_v3.0/docs/RESEARCH_p059_data_validation.md)（§1-§10 完备，§11-§13 零预填预留）。
+- **结论（初版）**: Step 1 初稿完成；同轮增补见 §3.53.2。
+- **待办（已由 §3.53.2 处理）**: U-P059-1 / U-P059-3 裁决。
+
+#### 3.53.2 Step 1 正式调研（2026-11-18 同轮增补：盲区扫描 + 外锚 + 决策锚点）
+
+- **用户裁决（指令 B）**: 「立项 P-059，**不局限于用户举例的边界情况**，需要进行**盲区扫描**，开始正式调研，**充分搜索社区案例、学术资料**，**建立决策锚点**」。
+- **E4 盲区扫描（7 层，BZ1-BZ18）**: 覆盖 L1 数据 / L2 因子 / L3 权重 / L4 执行 / L5 账目 / L6 风控 / L7 策略与调度。登记 **18 项 = 有效 17 + 撤回 1（BZ8）**；有效项严重度：P1 2 + P2 10 + P3 5 = 17（**Step 2 重分级后为 P1 1 / P2 8 / P3 8**，见 §3.53.3）；分层 L1 3 / L2 2 / L3 2 / L4 5（有效 4）/ L5 3 / L6 1 / L7 2 = **18 ✓**。证据完备度：已读码 **9** + 候选 **9**（候选项 Step 2 必须复核定性）。
+- **当轮发现（RULE-1 强制更正）**: **F-S1-P059-1（P1，结论性误判）**: 初判「次日路径订单无过期、零测试」**不成立**——实现 [engine_v2.py L1233](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L1233)（P-014 D7）+ 测试 [test_p014 L247-266](file:///f:/Coding/Factor_Trading_v3.0/tests/test_p014_suspension_accounting.py#L247-L266) + docstring「买 5 / 卖 10 **自然日**」三者齐备 → **BZ8 / G5 撤回**，本批生产改动范围收窄为 **仅 G4**。已在 RESEARCH §2.3 建「更正记录」并同步撤回 7 处。
+- **外锚 X6-X14（社区 + 学术 + 官方规则）**: 变质关系（Referential Labs）/ 属性测试方法学（S. Potter）/ Characterization Testing（M. Feathers）/ PBO·Deflated Sharpe（Bailey & López de Prado，用于能力边界）/ 上交所《交易规则（2026 修订）》6.6 条（不设涨跌幅三类窗口）/ 上交所《股票上市规则》9.6 条（退市整理期 15 日 + 停牌累计 ≤5 日）/ 深交所退市整理首日盘中临停 / EvoMarket·PulseCheck（价格路径外统计量保真）/ A 股回测六件事社区实践。**全部只作方法学与规则锚点，零运行时依赖**。
+- **缺口扩展（G10-G21）**: 12 项由 BZ1-BZ18 与 X6-X14 映射 → 累计登记 **21 项（有效 20）**。处置归属：生产修复 **1**（G4）/ 验证设施 **17** / 能力边界 **1**（G21）/ 方法学形态 **1**（G20），**1+17+1+1=20 ✓**。
+- **决策锚点 D1-D11（已裁决，直接作为 Step 3 输入）**: D1 方案 M-A 扩展不新建 / D2 **仅 G4 修复**（G5 撤回）/ D3 trace 落测试侧 / D4 编号 P-059 / D5 不引入 Hypothesis 但采纳变质关系 / D6 场景 ≥10 例且覆盖 ≥6 层 / D7 能力边界显式声明（不证明策略 alpha）/ D8 日频口径（不含分钟·tick·盘中临停·集合竞价撮合）/ D9 脏数据守卫仅验证侧 / D10 18 golden 零重录 / D11 不引入第三方框架全链路对拍。
+- **规格与不变式扩展**: S11-S14（变质关系必声明 / 变换保持可成交性 / 能力边界机器可读 / 脏数据守卫仅验证侧）；I9-I12（价格缩放 / 惰性标的 / 日期平移 / 脏数据显式失败）。
+- **拆分修订**: B7 收窄为「**仅 G4** 生产修复 + G5 口径转述（S13）」。
+- **未决状态**: U-P059-1 **已闭合**（→ D2）；U-P059-7 **已闭合**（自然日为设计口径，不变更）；余 U-P059-2..6 见 RESEARCH §9.2。
+- **产出**: [RESEARCH_p059_data_validation.md](file:///f:/Coding/Factor_Trading_v3.0/docs/RESEARCH_p059_data_validation.md) 增补 §3.3（BZ1-BZ18）、§3.2-X6-X14、§4-G10-G21、§5-M-A 增强、§7-S11-S14、§8-I9-I12、§9 决策锚点。
+- **结论**: Step 1 **正式完成**；待 **Step 2 异构复审（GLM-5.3-Flash）**，重点复核 9 项候选项与 F-S1-P059-1 更正是否彻底。
+
+#### 3.53.3 Step 2 异构复审（2026-11-19，GLM-5.3-Flash，RULE-5）
+
+- **复审者/环境**: GLM-5.3-Flash（≠ 作者 DeepSeek-V4.1-Flash）；PowerShell 5.1 / Python 3.12 / HEAD `5f853637d6dc`。
+- **E1-E4 独立重放（全部复现）**: 全量 **846 passed**（62.67s）/ golden **18 passed** / HEAD 一致 / **G4 成立**（[engine_v2.py L1274](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L1274) 字面 `1.002` vs 队列 L907 `estimate_buy_cash`）/ **G5 撤回成立**（`pending.py` L215 自然日 + `test_p014` L247-266）/ reference diff 9 / invariants 11 / tests 95 文件 / BZ1、BZ2、BZ5、BZ11 逐条复现（`delist_start_date` 全仓零功能消费 → BZ11 证据加强）。
+- **发现 8 项（0 P1 / 3 P2 / 5 P3，已登记 RESEARCH §11.2）**:
+  - **F-S2-P059-4（P2，最重要）**: **BZ12 原表述不成立**——复权默认 **hfq**（[data.py L490](file:///f:/Coding/Factor_Trading_v3.0/core/data.py#L490)）→ 后复权序列无除权跳空，持仓股数设计上无需调整（X14 前提不存在）；真实残余盲区 =「复权因子变更日 NAV 连续性」+「hfq 非整分价格 vs `limit_rules` 前收盘口径一致性」→ **BZ12 降 P1→P2 并改写**，G15 同步改写。
+  - **F-S2-P059-2（P2）**: **BZ13 过度悲观**——退市清算价口径已有实现（P-012 D5）+ `test_delist_settlement_uses_delist_return` / `…_without_return_uses_last_close` 2 专项测试锁定 → 降 P2→P3，残余改写为「回测末日未平仓净值」；G16 同步收窄。
+  - **F-S2-P059-3（P2）**: **BZ14 部分覆盖**——P-014 7 用例 + golden G7 已锁停牌账目主体 → 降 P2→P3。
+  - **F-S2-P059-1（P3）**: §2.2/§3.1-C 方法学标签错误（顶格 `^def test_` = 42，54 来自 `test_rebalance_exits.py` 类内缩进）→ 已订正标签。
+  - **F-S2-P059-5/6/8（P3）**: BZ6 部分锁定（`test_u1` 同代码路径）/ BZ9 部分锁定（`test_g5_sells_precede_buys`）/ BZ3 部分守卫（[factor.py L436-442](file:///f:/Coding/Factor_Trading_v3.0/core/factor.py#L436-L442)）→ 均已标注。
+  - **F-S2-P059-7（P3，Step 3 处置）**: `special_no_limit_mask` docstring 与实现不符（声称依赖 `delist_start_date` 但零消费）→ 建议纳入 G14 处置。
+- **统计重算（RULE-2）**: 有效 17 项重分级 = P1 **1**（BZ7）+ P2 **8**（BZ1/BZ3/BZ5/BZ9/BZ10/BZ11/BZ12/BZ15）+ P3 **8**（BZ2/BZ4/BZ6/BZ13/BZ14/BZ16/BZ17/BZ18），**1+8+8=17 ✓**；候选 9 项中 5 项已复核，剩余 4（BZ4/BZ16/BZ17/BZ18）Step 3 先复核。
+- **复审结论**: **PASS**（0 P1 / 3 P2 / 5 P3）——核心结论（G4 成立、G5 撤回正确、M-A 方向、盲区框架）全部经独立重放确认；3 项 P2 均为严重度/定性修正，不推翻批次方向；全部修正按「Step 2 回写」落盘。
+- **产出**: RESEARCH §11（11.1 重放表 / 11.2 发现 / 11.3 结论）+ 正文 9 处「Step 2 回写」标注。
+- **下一步**: **Step 3 DESIGN**（消化 D1-D11 + F-S2-P059-4/7 的场景定义与 docstring 订正）。
+
+#### 3.53.4 Step 3 设计（2026-11-19，DESIGN 产出）
+
+- **产出**: [DESIGN_p059_data_validation.md](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p059_data_validation.md)（§1 目标/非目标 → §16 IMPL 映射，§17 零预填）。
+- **核心设计决策（DD1-DD6，须 Step 4 重点复审）**:
+  - **DD1 复用不新建**: 复用 `_synth_fixture` / `TOLERANCE` / `core/invariants`；不建第二套生成器、容差表、账目校验。
+  - **DD2 布局改扁平**（**与 RESEARCH §5「`tests/scenarios/`」措辞存在差异，已声明**）: 改 `tests/_scenarios_*.py` 扁平前缀，理由 = `tests/` 无 `__init__.py`（pytest basedir 插 `sys.path`）+ `scripts/record_golden.py` L27-32 已确立扁平导入约定 + `python_files=["test_*.py"]` 不误收集。
+  - **DD3 单一执行入口**: `build_scenario()` 同时服务 pytest 与 CLI，杜绝双夹具漂移；OHLC 显式给出，`ohlc_synthetic` 标记可被断言拒绝（S03 要求 False）。
+  - **DD4 trace = proxy 注入**: `RecordingExecutor/Tracker/Optimizer` 全部 `__getattr__` 透传，**不缓存可变状态**；`enabled=False` 时**不 attach**（I3 零行为）。
+  - **DD5 日分桶**: 以 `tracker.update_market_values(date, …)`（engine_v2 L512）为边界，同日二次调用（结算路径 L665-666）**幂等合并**；新增 **I13 桶数 == 交易日数且日期递增**。
+  - **DD6 变质关系**: R1 价格缩放 / R2 惰性标的 / R3 日期平移；每条带**前提**（S12 防假阳性，R1 明确禁止跨越 `A=5000` 佣金口径反转点）。
+- **场景清单**: **14 必做**（S01-S14，覆盖 L1-L7 **全 7 层**）+ **3 扩展**（E01-E03），满足 D6「≥10 例且 ≥6 层」。
+- **G4 修复设计（§9）**: 仅 [engine_v2.py L1273-1277](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L1273-L1277) 改 6 行（改用已导入的 `estimate_buy_cash`，L23）；数量基数不变、SELL 零改动。
+  - **影响带手算（RULE-2）**: `old=1.002A`；`new=A+max(0.0003A,5)+0.001A` → `A<5000` 新口径更严（差 `5-0.001A`）；`5000≤A≤16666.67` 新宽松 ≤5 元；`A>16666.67` 新宽松 `0.0007A`。临界点 `A=5000`（口径反转）/ `A=16666.67`（`cmin` 让位）。
+  - **冲突升级**: T7 首步跑 `pytest -k golden`；若漂移则**停止并登记 `U-P059-8`** 交用户裁决，不自行重录（D10）。
+- **能力边界 8 键（§10）**: `timeframe / intraday_auction / intraday_halt / delist_period_no_limit / expiry_basis / alpha_claim / execution_price / limit_price_rounding`；断言键集合**完全等于**（多/少均失败）。
+- **本轮新增发现（Step 3 读码）**:
+  - **F-S3-P059-1（P3）**: `build_limit_prices`（[limit_rules.py L170-176](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L170-L176)）**不做 0.01 分位舍入**（直接浮点乘）→ 与交易所口径存在 ≤0.005 元差异；E01 已改写为锁现状 + 能力边界声明（本批不改生产，D2 仅授权 G4）。
+  - **F-S3-P059-2（P3）**: 主板 ST 5% 规则**仅到 2026-07-06**（[RULES L57-58](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L57-L58) 该日起 10%）→ S05 增加「日期必须 < 2026-07-06」约束，防止未来日期漂移导致场景失效。
+  - **F-S3-P059-3（P3，复核 F-S2-P059-7）**: `special_no_limit_mask` 函数体**只实现 IPO 前 5 日**（[L192-202](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L192-L202)），docstring 声称的 `delist_start_date` 分支**不存在** → Step 3 维持「本批只订正 docstring + 能力边界声明，不实现退市整理期无限制」。
+- **DoD（§15）**: A1-A12，含「全量 ≥864 passed（846+18）」「18 golden 零重录」「无 `core/` 变更除 G4 一处」「能力边界 8 键」。
+- **待办**: **Step 4 设计复审（GLM-5.3-Flash）**，重点：DD2 布局差异是否可接受、R1 前提是否充分、G4 影响带手算是否正确、AST 门禁豁免口径。
+
+#### 3.53.5 Step 4 设计复审（2026-11-19，GLM-5.3-Flash，RULE-5）
+
+- **复审者/环境**: GLM-5.3-Flash（≠ 作者）；独立读码复核 DESIGN 全部代码引用。
+- **设计决策复核（6/6 成立）**:
+  - **DD1** ✅ 复用点存在（`_synth_fixture` / `TOLERANCE` 公开常量）；
+  - **DD2** ✅ 三前提核实：`tests/__init__.py` 不存在（Glob）+ `python_files=["test_*.py"]`（pyproject L104）+ `record_golden.py` L27-32 扁平导入约定；
+  - **DD4** ✅ **32 处组件引用全部为方法内局部绑定**（`xxx = self.executor` 形式），setup 后替换 `self.*` 有效；补充纪律 = 必须**包装**而非替换（否则丢失 L303 setup 期 error sink）；
+  - **DD5** ✅ **升格为必需设计**：[engine_v2.py L421](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L421) 以默认参数调用 `_force_liquidation`（`update_market_values=True`）→ 最后交易日真实发生二次盯市（L665-666 + L512）→ 幂等合并不可省略；`_settle_delisted` 路径 L720-725 显式传 False ✓；
+  - **DD6** ✅ 三变质关系成立，R1 前提补整手边界条款。
+- **G4 影响带独立验算**: 三区间（`A<5000` 更严 `5-0.001A` / `5000≤A≤16666.67` 宽松 ≤5 元 / `A>16666.67` 宽松 `0.0007A`）+ 两零点（`A=5000` 口径反转 / `A=16666.67` cmin 让位）**全部复算正确**。
+- **发现 5 项（0 P1 / 1 P2 / 4 P3，已登记 DESIGN §17.1.4）**:
+  - **F-S4-P059-1（P2）**: §16 任务映射缺「`special_no_limit_mask` docstring 订正」任务行（F-S2-P059-7/F-S3-P059-3 已声明纳入但 T1-T9 无对应）→ **已回写**：并入 T9，含 AST 第二条豁免；
+  - **F-S4-P059-2（P3）**: S09 原断言「`required_cash` 相等」不可直接观测（队列路径仅日志 L913-918、次日路径静默 append L1275-1277）→ **已回写**：改为现金边界行为矩阵（`cash∈{1004,1010}×{queue,nextday}` fill/no-fill 对称），§9.4 + A6 同步；
+  - **F-S4-P059-3（P3）**: CI mypy 命令含 `scripts`（tests.yml L46）→ `verify_scenario.py` 入扫，mypy **109→110 files**（0 issue 维持）→ **已回写**：§13；
+  - **F-S4-P059-4（P3）**: AST 等价为批次内 ad-hoc 实践（tests/ 与 workflows 均无 `ast.parse`），非 CI 常驻；口径 scripts 2 = `record_golden`/`prepare_test_fixture`，`verify_scenario.py` 不在 22 清单 → **已回写**：§13 澄清；
+  - **F-S4-P059-5（P3）**: R1 前提补「k 远离整手 floor 边界」→ **已回写**：§7.1。
+- **复审结论**: **PASS**（0 P1 / 1 P2 / 4 P3）——六项设计决策全部经独立读码确认，G4 数学验算正确，唯一 P2 已回写修复。**Step 5 可开工**（T1→T9；T7 可先行并首验 golden）。
+- **产出**: DESIGN §17.1（17.1.1 决策复核 / 17.1.2 G4 验算 / 17.1.3 场景门禁核对 / 17.1.4 发现 / 17.1.5 结论）+ 正文 5 处「Step 4 回写」。
+
+#### 3.53.6 Step 5 实现（2026-11-19，DeepSeek-V4.1-Flash）
+
+- **执行者/环境**: DeepSeek-V4.1-Flash；Python 3.12（`C:\Users\Peng\AppData\Local\Programs\Python\Python312`）、`MPLBACKEND=Agg`、PowerShell 5.1；实现依据 = DESIGN §16.1。
+- **任务 T1-T9：9/9 ✅**（逐项证据见 [DESIGN §16.1](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p059_data_validation.md)）
+  - **T7 唯一生产改动**: [engine_v2.py L1273-1284](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py#L1273-L1284) 次日路径改用 `estimate_buy_cash`；修复前 golden `18 passed`、修复后 `18 passed`（零漂移）。
+  - **T9 第二条生产改动（仅 docstring）**: [limit_rules.py L180-189](file:///f:/Coding/Factor_Trading_v3.0/filter/limit_rules.py#L180-L189) 删除不存在的 `delist_start_date` 分支表述，并补记「`list_date` 过早 → 窗口内前 5 日全部无涨跌幅」的副作用。
+- **本步骤新增文件（10）**: `tests/_scenarios_{spec,trace,builder,assert,capability,cases}.py`（6）、`tests/test_p059_{scenarios,metamorphic,g4_cash_parity}.py`（3）、`scripts/verify_scenario.py`（1）；另在 Step 3 产出的 DESIGN 上增补 §16.1（不计入新增）。
+- **测试计数（RULE-2 算术来源）**:
+  - `test_p059_scenarios.py` = 17 场景 + 1 注册契约 + 17 闭式期望 + 1 桶/reason 契约 + 1 能力边界 + 1 trace-off + 1 trace 闭合 = **39**；
+  - `test_p059_metamorphic.py` = 15 关系（R1 11 / R2 2 / R3 2）+ 1 注册契约 = **16**；
+  - `test_p059_g4_cash_parity.py` = 1 手算边界 + 2 档位对称 + 1 拒绝 + 1 成交 = **5**；
+  - 合计 39 + 16 + 5 = **60**；全量 846 + 60 = **906 passed**。
+- **门禁（全部实跑）**:
+
+| 门禁 | 命令 | 结果 |
+|------|------|------|
+| P-059 | `pytest tests/test_p059_*.py -q` | **60 passed**（49.76s） |
+| golden | `pytest tests/ -q -k golden` | **18 passed, 888 deselected**（零重录） |
+| 全量 | `pytest tests/ -q` | **906 passed**（95.90s） |
+| 格式 | `black --check`（line-length 100） | 11 个 P-059 文件 reformat 后 **unchanged** |
+| 类型 | CI mypy 命令（含 `scripts`） | **110 source files, 0 issue**（109 → 110，F-S4-P059-3 预期） |
+| 依赖 | `uv lock --check` | exit 0（零新依赖） |
+
+- **DoD A1-A12（Step 5 视点）**:
+
+| # | 状态 | 证据 |
+|---|------|------|
+| A1 | ✅ | `verify_scenario.py --list` = 17 条、层覆盖 7/7 |
+| A2 | ✅ | `test_each_scenario_declares_closed_form`（17 项） |
+| A3 | ✅ | `test_every_backtest_scenario_declares_relation`（14 条 backtest 全覆盖，三关系齐） |
+| A4 | ✅ | 桶键 **10**（§4.3 表格口径；原文「9 键」为计数笔误，A4 已订正）+ reason 闭集 |
+| A5 | ✅ | `test_trace_disabled_keeps_native_components`（组件 `is` 原生实例、`buckets == {}`） |
+| A6 | ✅ | `test_p059_g4_cash_parity.py`：1004 双路径拒单 / 1010 双路径成交（买入后 4.00、期末 997.00） |
+| A7 | ✅ | golden 18 passed |
+| A8 | ✅ | 全量 906 ≥ 864 |
+| A9 | ✅ | black / mypy 110 / uv 三绿 |
+| A10 | ✅ | `--boundaries` 8 键 |
+| A11 | ✅ | `SCENARIOS` 为 dict，新增一条 = 注册表加一行（测试/CLI 自动拾取） |
+| A12 | ✅ | `core/` 仅 `engine_v2.py` 一处行为改动（G4）+ `filter/limit_rules.py` 仅 docstring |
+
+- **IMPL 发现 8 项（F-S5-P059-1 ~ 8）**: 已登记 [DESIGN §16.1](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p059_data_validation.md) 表；其中 4 项为设计/实现假设被运行时推翻（S12 前提、夹具 list_date 副作用、S02 取消再平衡语义、G4 末日强平），均已按实际行为与手算值收敛，未录制任何期望。
+- **未决**: 无新增 U 项。**提交状态**：全部改动仍在工作区（未 commit/push，等用户明确授权）。
+- **下一步**: Step 6 IMPL Review（异构基座 GLM-5.3-Flash，作者 ≠ 复审者）。
+
+#### 3.53.7 Step 6 实现复审（2026-11-19，GLM-5.3-Flash，RULE-5）
+
+- **复审者/环境**: GLM-5.3-Flash（≠ 作者 DeepSeek-V4.1-Flash）；独立读码复核 T1-T9 全部产物，不依赖 Step 5 自报；全文见 [DESIGN §17.2](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p059_data_validation.md)。
+- **对齐核对（Step 6 清单 6 项全过）**: 实现与设计对齐 / 依赖真实（零新三方）/ API 签名可实现（`_next_day_orders` 条目结构 engine_v2 L1215-1217 与注入一致）/ stdlib 下限（`dataclasses.asdict` 3.7+）/ 低效操作排除（`_match_fills` O(n²) n≤6 可接受）/ 兼容性验证（I3 trace-off 实跑）。
+- **手算闭式值抽核（A2 反录制）**: S01/S05/S10/S14 整手股数（关键发现：S05 4900 股按 **d0 创建日价 10** 计算、d2 @10.5 成交——订单量按创建日价而非执行日价）；S02 NAV 90200 及 R1(1.5) 变体 135300 = 90200×1.5；S06 IPO 窗口 d0-d4、d5 = 14.3 涨停；G4 边界 1006 / 买入后 4.00 / 期末 997.00。**全部复算成立**。
+- **门禁独立复跑（全实跑）**: P-059 **60 passed** / golden **18 passed** / 全量 **906 passed** / black **119 unchanged** / mypy **110 files 0 issue** / uv **exit 0**。
+- **发现 8 项（0 P1 / 1 P2 / 7 P3）**（F-S6-P059-1..8，详见 DESIGN §17.2.4）:
+  - **F-S6-P059-1（P2）**: `verify_scenario.py --json` **崩溃**（`_plain` 未转换 `FillExpectation` dataclass → `TypeError`，实跑复现 exit 1；Step 5 冒烟只测了非 `--json` 路径漏检）→ **复审中修复**（`dataclasses.asdict` 递归转换），修复后 exit 0；
+  - F-S6-P059-2（P3）: `--boundaries` 输出文本与 §10「输出 JSON」不符 → **复审中修复**（改为 `json.dumps`）；
+  - F-S6-P059-3（P3）: **A6 红→绿缺红态实证** → **复审补证**：临时回滚 G4（旧 `1.002` 口径）→ 对拍 **2 failed**（1004 档次日路径成交、与队列不对称）；恢复后文件哈希一致（`434B8F16…`）→ 60 passed，红→绿闭环完成；
+  - F-S6-P059-4（P3）: `assert_target_deviation` 已定义未接线 → **登记** + §6 补注；
+  - F-S6-P059-5（P3）: trace `_reject_reason` BUY 兜底死代码（L261-263 两分支同值）→ **登记**；
+  - F-S6-P059-6（P3）: `close_bucket` 幂等合并不彻底（末日二次调用重复追加 retry/rejected 条目；断言为集合语义不受影响）→ **登记**；
+  - F-S6-P059-7（P3）: §12 I1「双跑全等」未单列测试 → **已回写** §12；
+  - F-S6-P059-8（P3）: §3.1/DD1「场景不重复实现账目恒等」与 `_assert_cash_identity` 逐桶复核不符（增强而非矛盾）→ **已回写** §3.1。
+- **复审结论**: **PASS**（0 P1 / 1 P2 / 7 P3）——唯一 P2 复审中修复并重验；红态证据补齐；7 项 P3 = 2 修复 + 3 登记 + 2 回写。**Step 7（CHECKLIST）可开工**。
+- **提交状态**: 全部改动仍在工作区（未 commit/push，等用户明确授权）。
+
+#### 3.53.8 Step 7 验收清单（2026-11-19，DeepSeek-V4.1-Flash）
+
+- **产出**: [CHECKLIST_p059_data_validation.md](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p059_data_validation.md)（**61 项**，六组）
+- **分组与计数（RULE-2）**: A 组 DoD **12**（DESIGN §15 A1-A12 逐项对齐）+ B 组任务交付 **9**（T1-T9）+ C 组不变式 **13**（§12 I1-I13）+ D 组场景逐条 **17**（S01-S14 + E01-E03，每行含手算闭式关键值）+ E 组门禁 **7**（pytest 906 / golden 18 / collect 60 / black 146·215 / mypy 110 / AST 22 / uv 0）+ F 组提交与文档 **3**（D8/D9 类，`[待 Step 10]`）= **61**。
+- **零预填机械核对（RULE-1）**: 逐行扫描 `^\| [A-F]\d+ \|` → 项目行 **61**；`[待 Step 9]` **58**、`[待 Step 10]` **3**、`✅` **0**、`❌` **0**（58 + 3 = 61，无预填）。
+- **表头基线与目标读数（Step 7 允许的声明层，非验收结论）**:
+  - 基线 @`5f85363`（P-047 关闭）: pytest 846 / golden 18 / mypy 109 / black 137·205 / `tests/*.py` 95 / AST 22 / uv 0；
+  - 目标: pytest **906** / golden **18（零重录）** / mypy **110** / black **146·215** / `tests/*.py` **104** / AST **22（不变）** / uv **0**。
+- **R3 门禁实测（Step 7 时点，仅作目标值的物理基础）**: `tests/*.py` **104**、`black --check core tests` **146 unchanged**、`black --check .` **215 unchanged**、AST `except Exception` core 外生产面 **22**（agents 11 / filter 5 / scripts 2 / batch_backtest 2 / strategy_evaluation 1 / cli 1）、core 内 **29** —— 与目标读数一致，本批零新增。
+- **口径锚点（写入 §8 交接）**: 整手公式按**订单创建日价**（S05 反例）；G4 1010 档「买入后现金 4.00 ≠ 期末 997.00」（末日强平）；`assert_target_deviation` **不接线**（F-S6-P059-4）；I1 为「闭式期望逐日全等」而非独立双跑（F-S6-P059-7）。
+- **发现**: 无新增（Step 7 为声明层产出；Step 6 的 8 项已全部处置/登记）。
+- **下一步**: Step 8 文档一致性 Review。
+
+#### 3.53.9 Step 8 一致性复审（2026-11-19，GLM-5.3-Flash，RULE-5）
+
+- **复审者/环境**: GLM-5.3-Flash（≠ 作者 DeepSeek-V4.1-Flash）；对象 = RESEARCH / DESIGN / CHECKLIST / PROGRESS 四文档 + 实现文件交叉核对；实施记录载体 = §3.53.6（本批无独立 IMPL 文档，DESIGN §3.2 DD2 已声明扁平布局）。全文见 [DESIGN §17.3](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p059_data_validation.md)。
+- **SPEC Step 8 清单 7 项**: 时序 ✓ / 派生需求登记 ✓（F-S5/F-S6 共 16 项均已单独登记）/ RESEARCH→DESIGN 使用 ✓ / DESIGN↔实施对应 ✓ / 实施↔CHECKLIST 覆盖 ✓ / 文档矛盾 ⚠️→修复 / 术语一致 ✓。
+- **机械矩阵（R/D/C/P 命中数）**: `906`=0/1/7/7；`110`=0/2/2/3；`17 条`=0/1/3/9；`61 项`=0/0/1/1；`--dump`=1/0/0/0；`I1-I12`=2/0/0/1 vs `I1-I13`=0/0/3/1；UPGRADE_MASTER_PLAN 增量 = P-059 注册行 + 关键路径，与 RESEARCH 执行序一致。
+- **发现 4 项（0 P1 / 1 P2 / 3 P3）**（F-S8-P059-1..4）:
+  - **F-S8-P059-1（P2）**: **场景 `gaps` 元组与 DESIGN §8「覆盖」列系统性不一致**（17 条中 13 条不一致，如 S11 脏数据挂 G18/BZ16 应为 BZ1/G10、E01 舍入挂 G17 应为 G6）——可追溯链断裂；`gaps` 无断言消费故测试全绿未暴露 → **双侧订正**：`_scenarios_cases.py` 17 处 `gaps` 按 §8 重写 + §8.1 三行回写（S01 删 BZ7/G4 笔误、S05 删 BZ11、S12 随 F-S5-P059-2 改写为全停牌改挂 BZ14/G9）；修复后 **60 passed** / black clean，无行为影响；
+  - F-S8-P059-2（P3）: RESEARCH S7 字段清单与 §4.3 十键聚合差异未声明 → §4.3 补注（语义等价）；
+  - F-S8-P059-3（P3）: S11 收窄 backtest-only + B5 `--dump`→`--json`/`--day` 未声明 → §7.1 / §3.2 补注；
+  - F-S8-P059-4（P3）: RESEARCH §8 I1-I12 与 DESIGN §12 I1-I13 **同号不同义**（I2/I7/I13；P-047 O-S8-P047-1 同型）→ §12 + CHECKLIST §8.3 补注，C 组锚定 DESIGN 口径。
+- **复审结论**: **PASS**（0 P1 / 1 P2 / 3 P3）——唯一 P2 双侧订正并复验；3 项 P3 全部回写为显式声明。**Step 9（CHECKLIST 回填）可开工**。
+- **提交状态**: 全部改动仍在工作区（未 commit/push，等用户明确授权）。
+
+#### 3.53.10 Step 9 验收（2026-11-19，DeepSeek-V4.1-Flash）
+
+- **产出**: [CHECKLIST §9 验收小结](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p059_data_validation.md) 回填 **58/58**（F 组 3 项留 `[待 Step 10]`）。
+- **回填机械核对（RULE-1 / RULE-2）**: 逐行扫描 `^\| [A-F]\d+ \|` → 项目行 **61**；`✅` **58**、`[待 Step 10]` **3**、`[待 Step 9]` **0**、`❌` **0**（58 + 3 = 61）。
+- **门禁实测（全部本步骤复跑）**:
+
+| 门禁 | 实测 | 目标 | 判定 |
+|------|------|------|------|
+| pytest 全量 | **906 passed**, 239 warnings, 100.28s | 906 | ✅ |
+| `-k golden` | **18 passed / 888 deselected**, 13.99s | 18 / 888 | ✅ |
+| 用例收集 | **39 + 16 + 5 = 60** | 60 | ✅ |
+| black | **146**（core tests）/ **215**（全仓）unchanged, 0 reformatted | 146·215 | ✅ |
+| mypy（CI 命令） | **110 source files, 0 issue** | 110 | ✅ |
+| AST `except Exception` | core 外 **22** / core **29** / 全扫 **55** | 22·29 不变 | ✅ |
+| `tests/*.py` | **104** | 104 | ✅ |
+| `uv lock --check` | exit **0**（Resolved 148 packages） | exit 0 | ✅ |
+| diff 范围 | `core/engine_v2.py` **+8/−1**；`filter/limit_rules.py` **+6/−3**（docstring） | A12 | ✅ |
+| CLI 五命令 | `--list` / `--scenario` / `--day` / `--json` / `--boundaries` 全 exit 0 | 5/5 | ✅ |
+| golden 目录 | `git status tests/golden/` 空输出 | 零改动 | ✅ |
+
+- **发现 2 项（均 P3）**:
+  - **F-S9-P059-1**: CHECKLIST F3 预写的 PROGRESS 章节号错位（§3.53.8/§3.53.9 → 实为 Step 7/8）→ 订正为 §3.53.6-§3.53.11（Step 5-10），并按实际序号登记本节；
+  - **F-S9-P059-2**: A6 红态不在 Step 9 重复破坏性验证，沿用 Step 6 §17.2.4-F-S6-P059-3 实证（旧口径 2 failed → 恢复全绿 + 文件哈希一致）。
+- **结论**: **58 ✅ / 3 `[待 Step 10]` / 0 ❌**，全部门禁达标，**准予进入 Step 10 终审**。
+- **提交状态**: 全部改动仍在工作区（**17 文件**：4 已跟踪改动 + 13 新增；未 commit/push，等用户明确授权）。
+
 ---
 
 ## 4. 审查记录

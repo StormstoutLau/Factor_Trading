@@ -180,9 +180,12 @@ def build_limit_prices(
 def special_no_limit_mask(dates: pd.DatetimeIndex, codes: pd.Index, snap: object) -> pd.DataFrame:
     """True = 当日不适用涨跌停限制。
 
-    - IPO 前 5 个交易日（``list_date <= t < list_date + 5 交易日``）；
-    - 退市整理期首日依赖 ``delist_start_date``；字段缺失时该部分全 False，
-      由调用方在报告标注 ``delist_period_handled=false``（U-D2）。
+    仅实现 IPO 规则：自 ``list_date`` 起（若上市日早于窗口则自窗口首日起）的
+    **前 5 个交易日** 标记为无涨跌幅。注意副作用：若快照里的 ``list_date`` 被填成
+    很早的日期，则窗口内前 5 个交易日会**全部**被判为无涨跌幅。
+
+    退市整理期**不在此实现**：``UniverseSnapshot`` 无 ``delist_start_date`` 字段，
+    该能力在 §10 能力边界里声明为不支持（``delist_period_no_limit.supported=false``）。
     """
     mask = pd.DataFrame(False, index=dates, columns=codes, dtype=bool)
     list_date = getattr(snap, "list_date", None)

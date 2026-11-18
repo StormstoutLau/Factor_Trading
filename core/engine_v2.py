@@ -1271,7 +1271,14 @@ class BacktestEngineV2:
                 continue
 
             if order.side == OrderSide.BUY:
-                required_cash = order.quantity * open_price * 1.002
+                # G4 修复（P-059）：与队列路径共用 estimate_buy_cash，
+                # 消除 1.002 近似（A<5000 更严、5000~16666.67 宽松 ≤5 元）。
+                required_cash = estimate_buy_cash(
+                    order.quantity * open_price,
+                    commission_rate=self.cfg.cost.commission_rate,
+                    commission_min=self.cfg.cost.commission_min,
+                    slippage_pct=self.cfg.cost.slippage_pct,
+                )
                 if tracker.get_cash() < required_cash:
                     failed_orders.append(order_info)
                     continue
