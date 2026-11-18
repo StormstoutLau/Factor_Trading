@@ -2207,8 +2207,8 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **ADD 四阶段**: Phase 0 规格净 / Phase 1 完整性（timing 7 符号 + stops 9 符号全落地）/ Phase 2 忠实度（timing ↔ IMPL §3.1 逐字一致；stops 仅 F-S8-P045-6 docstring 订正 + black style-only）/ Phase 3 必要性（变更面 3 M + 9 新全映射 B1-B3；core 外消费方 = 仅测试文件，零生产接线 = P-048 边界）/ Phase 4 语义意图（触发≠成交无前视；vbt 触发序列一致；I1-I9 全过）——全部 ✅。
 - **发现 5 项（3 P3 订正 + 2 观察；0 P1/P2）**: F-S10-P045-1（P3）mypy 读数漂移——Step 9 记 107、复跑实测 **108**（根因：Step 9 门禁早于 verify_p045.py 落盘，mypy 命令含 `scripts/`；105+2 源+1 脚本=108；0 issues 不变）→ CHECKLIST 头部/D4/§5/§6 + IMPL §7/§9.1/§10 + DESIGN §6/§10.3 五处订正；F-S10-P045-2（P3）CHECKLIST A1-A12+C5 共 13 处行号证据为 black 重排前时点 → 按当前文件订正（提交后随 hash 稳定）；F-S10-P045-5（P3）D8 提交清单漏 APPENDIX 新文档与 DESIGN_p044 已跟踪订正 → 订正为 **14 文件**原子；F-S10-P045-3（观察）`trailing_activate_pct=None` 立即激活路径套件未覆盖 → 补探针 PASS（登记，P-048 触及时补 case）；F-S10-P045-4（观察）触发日目标权重恰为 0 时 trigger 仍记录（可达、无害、D7 规格符合）→ 登记不阻断。
 - **E4 盲区 14 项**: 接线缺口 / G9 OHLC 载体 / short 侧 P-050 / wrapper 缺失 / 前视 / 禁同日重建 / deferred 推进 / trailing None 激活 / 同 bar 激活即触发 / bars NaN / `_BAR_KEYS` 顺序 / golden harness 兼容 / trigger-on-zero-target 边角 / 提交面完整性——全部 ✅ 闭式（详见 [CHECKLIST_p045 §8.5](CHECKLIST_p045_timing_stops.md)）。
-- **CHECKLIST**: 新增 §8（E1 复跑表 / E2 探针增量 / 四阶段判定 / 发现处置 / E4 盲区 / 结论）；实测列维持 **45/47**（D8/D9 待提交授权）。
-- **下一步**: 待用户提交授权 → git commit（14 文件原子）+ push + CI 四 job → 回填 D8/D9 至 47/47。
+- **CHECKLIST**: 新增 §8（E1 复跑表 / E2 探针增量 / 四阶段判定 / 发现处置 / E4 盲区 / 结论）；实测列 45/47（D8/D9 待提交授权）→ 回填后 **47/47**。
+- **提交与 CI（2026-11-18 用户授权）**: commit `1782f8d`（14 文件原子，+3219/−1）→ push `0482881..1782f8d` → CI run `44296636231` 四 job 全绿（lock-check 6s / test 3.10 1m46s / 3.11 1m51s / 3.12 1m50s）→ CHECKLIST D8/D9 回填，P-045 **done**。
 
 ---
 

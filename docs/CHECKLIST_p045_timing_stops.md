@@ -2,7 +2,7 @@
 
 > **批次**: P-045 · **T1**（新建 `core/timing.py` + `core/stops.py` + `tests/` + 2 golden case + 对拍脚本）
 > **上游**: [IMPL_p045](IMPL_p045_timing_stops.md)（§2 B1-B3 / §3 完整代码 / §4 V1-V8+G1/G2 / §4.6 对拍规格 / §7 门禁 / §9 Step 6 pass：1 P2 + 2 P3）；[DESIGN_p045](DESIGN_p045_timing_stops.md)（D1-D9 / §6 不变式 I1-I9 / §10 Step 4 pass：8 P3）；[RESEARCH_p045](RESEARCH_p045_timing_stops.md)（§7 S1-S10 / §8 I1-I9 / §13 Step 2 pass）
-> **状态**: Step 10 ADD 审计 **pass**（2026-11-18；异构 GLM-5.3-Flash，U-P045-5 闭合，见 §8）；实测列 **45/47**（D8/D9 待提交授权）；2 P3 当轮订正（F-S10-P045-1/2）+ 1 P3 订正（F-S10-P045-5）+ 2 观察（F-S10-P045-3/4）；八门禁复跑全绿 + 对拍 exit 0 + 探针 32 断言全过
+> **状态**: Step 10 ADD 审计 **pass**（2026-11-18；异构 GLM-5.3-Flash，U-P045-5 闭合，见 §8）；实测列 **47/47**（D8 `1782f8d` / D9 CI `44296636231` 四 job 全绿，2026-11-18 回填）；2 P3 当轮订正（F-S10-P045-1/2）+ 1 P3 订正（F-S10-P045-5）+ 2 观察（F-S10-P045-3/4）；八门禁复跑全绿 + 对拍 exit 0 + 探针 32 断言全过
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；禁止预填
 > **基线读数（@`0482881`，P-044 关闭）**: pytest **811** / golden **13 passed, 798 deselected** / black `core tests` **132**（全仓 **199**）/ mypy **105 files 0** / AST `except Exception` **22**（core 外口径）/ `tests/*.py` **93** / `uv lock --check` exit **0**
 > **目标读数**: pytest **821** / golden **15**（既有 13 零重录）/ black **135**（全仓 **203**）/ mypy **108 files 0**（F-S10-P045-1 订正）/ AST **22（不变）** / `tests/*.py` **94** / `verify_p045` exit **0** / uv exit **0**
@@ -73,8 +73,8 @@
 | D5 | AST `except Exception` **22（不变）**；新增 `# type: ignore` = **0**（两模块无 try/except） | A1-A12 落码 | P-029 单行命令 + grep | ✅ AST **22**；新增 `# type: ignore` **0** |
 | D6 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff | 全量实现 | 命令 + `git diff` | ✅ exit **0**（Resolved 148 packages）；两文件零 diff |
 | D7 | `verify_p045` exit **0**：触发序列逐值断言全过；waiver 条目显式列出（激活阈值 / 成交价 / NAV）；附录已记录读数（E2） | A14 + B9 | 隔离 venv 运行 + 附录 | ✅ exit **0**（7 断言 + 4 waiver；附录已落盘） |
-| D8 | 提交原子（2 新源 + 1 新测试 + 2 golden JSON + 1 对拍脚本 + 5 新文档：RESEARCH/DESIGN/IMPL/CHECKLIST/**APPENDIX** + 3 已跟踪订正：PROGRESS/CHANGELOG/DESIGN_p044，共 **14 文件**；F-S10-P045-5 订正）+ CI 四 job 全绿 | D1-D7 通过 | `git show --stat` + `gh run view` | [待 Step 10] |
-| D9 | 文档回填：IMPL §10（落码/红绿/门禁/发现）/ PROGRESS 对应小节 / CHANGELOG / 本文件 **47/47** | D8 通过 | 读回 | [待 Step 10] |
+| D8 | 提交原子（2 新源 + 1 新测试 + 2 golden JSON + 1 对拍脚本 + 5 新文档：RESEARCH/DESIGN/IMPL/CHECKLIST/**APPENDIX** + 3 已跟踪订正：PROGRESS/CHANGELOG/DESIGN_p044，共 **14 文件**；F-S10-P045-5 订正）+ CI 四 job 全绿 | D1-D7 通过 | `git show --stat` + `gh run view` | ✅ commit `1782f8d`（14 文件 / +3219 −1）+ CI run `44296636231` 四 job 全绿（lock-check 6s / test 3.10 1m46s / 3.11 1m51s / 3.12 1m50s） |
+| D9 | 文档回填：IMPL §10（落码/红绿/门禁/发现）/ PROGRESS 对应小节 / CHANGELOG / 本文件 **47/47** | D8 通过 | 读回 | ✅ IMPL §10 + PROGRESS §3.51.10（含 D8 回填行）+ CHANGELOG 已回填；本文件 **47/47** |
 
 ---
 
