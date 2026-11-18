@@ -119,7 +119,7 @@
 | U-P021-2 | `numba` 依赖声明 | [RESEARCH_p021 §6](RESEARCH_p021_dependency_lock_maintenance.md)；未声明；缺失时降级 `py_func`；CI 无 JIT 覆盖（与 U-008 同源） | pending（条件触发：CI 需覆盖 JIT 或出现性能回归） | P3 |
 | U-P021-3 | 锁升级节奏 | [RESEARCH_p021 §6](RESEARCH_p021_dependency_lock_maintenance.md)；本批只补缺不升级（plain `uv lock`），既有 pin 保持 2026 年旧值 | pending（条件触发：安全通告 / 显式升级需求） | P3 |
 | U-P023-1 | `run()` 逐日 `except Exception: continue` 的 retry 语义 | [RESEARCH_p023 §6](RESEARCH_p023_quality_guardrails.md)；P-007 RESEARCH A26 已登记 `Catch Generic` 反模式 | **done（2026-11-13 由 P-025 承接并完成）**：触发条件经 P-025 Step 1 取证改判为**已成立**（探针 B2：`min_variance` + `cov_lookback=60` → 0 成交 / sharpe 0.0 / 零诊断）；P-025 落地三处统一采集 + `run_diagnostics` + `day_error_mode` 三态 + D7-O2 setup 预检，探针 B2 现由 setup 直接拦截，详见 [CHECKLIST_p025](CHECKLIST_p025_daily_loop_exception_semantics.md) | P3 |
-| U-P025-1 | `EventLog` 接入引擎作为统一事件通道 | `run_diagnostics` 已落地且有第二个消费方（web/批处理）需要事件流 | pending（条件触发，本批不接入） | P3 |
+| U-P025-1 | `EventLog` 接入引擎作为统一事件通道 | 原条件「`run_diagnostics` 已落地**且有第二个消费方**」；**E3 复核第二消费方未出现**（web/scripts/batch 全仓 0 处 EventLog 读取，`01_Overview.py:114` 仅列组件名）→ **触发条件已改写为「路线图批次触发」**（总纲 §5 已排期 P-043，P-042 为前置；用户 2026-11-18 指令即立项依据）；P3 边界保留（不建 Redis / 微服务 / WS） | **in-progress（2026-11-18 由 P-043 承接；Step 1-2 pass，待 Step 3 DESIGN）**，见 §3.49.1 | P3 |
 | U-P025-2 | `EngineV3Vector` 是否需要同形诊断 | V3 出现「静默空结果」实例 | pending（条件触发；V3 单次向量求值无日循环） | P3 |
 | U-P025-3 | 其余 22 处 `except Exception` 治理 | 其中任一处产生可复现的静默错误 | **done（2026-11-13，P-025 + P-026 两批收口）**：22 处逐点裁决 D10 显形 / K8 保留（有理由零改动）/ 排除 4（非静默），见 [RESEARCH_p026 §5](RESEARCH_p026_silent_exception_governance.md)；ADD 审计 A+ | P3 |
 | U-P025-4 | 优化失败时退化为等权（而非跳过调仓） | — | **已裁决不做**：静默降级会掩盖配置错误（正是 F-D3-P025-1 的成因） | P3 |
@@ -1887,6 +1887,96 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **结论**: **U-P042-1 pass，批次 P-042 关闭**——G1-G6 全关闭、DR-P042-1 已验收、O-P042-1~5 观察项、U-P042-6 未触发。
 - **提交与 CI**: `83587c1`（终审记录回填）；CI **`44135130615`** 四 job 全绿（lock-check 10s / 3.10 120s / 3.11 108s / 3.12 104s）。
 - **下一步**: P-043 事件总线（EventLog 接入引擎，U-P025-1）。
+
+### 3.49.1 P-043 Step 1-2 调研（2026-11-18）
+
+- **题干（范围收窄）**: ① 总线契约——`IEventBus` Protocol + `EventType` 5 常量 + `EventLog.replay()`；② 引擎接入——`BacktestConfig.event_log_path`（默认 `None` 关闭）+ `BacktestEngineV2(event_bus=...)`，在 5 个生命周期点发射（`run_started` / `rebalance` / `day_end` / `error` / `run_finished`）；③ 默认关闭零磁盘 I/O / 零结果键 / golden 13 零重录；④ 可验证 seq 连续（含重开续号）、订阅与磁盘一致、`replay(after_seq)`、错误事件不中断。**明确不做**：Redis/WS/FastAPI（P-054）、`live/`（P-053）、`pending_order_events.csv` 迁移、`run_diagnostics`/layer dump 迁移、逐订单成交事件、与 P-042 `MarketEvent` 合类。
+- **判档**: **T1**（`core/engine_v2.py` 运行时改动 + `core/event_log.py` 契约新增；判档规则 2「契约变更」强制）。
+- **代码事实（E3 @`1306bf8`）**: `engine_v2.py` 的 `EventLog` 符号 **0**（唯一 `event_log` 子串 = L1271 `pending_queue.get_event_log()`，`PendingOrderQueue` 独立 DataFrame 通道）；`EventLogPlugin.log_rebalance/log_trade/log_pending/log_day_end` **仅** `tests/test_engine_plugins.py` 调用；`IEventBus` / `def replay(` 全仓 **0** 命中；`from core.event_log import` 生产 **1**（`engine_plugins.py:32`）+ 测试 **3**；web/scripts/batch **0** 处 EventLog 读取方；`core/event_log.py` **400 行**（双写 JSONL + ring buffer、`RLock`、`buffer_size=500`），缺省路径 `data/events.jsonl` 且 `log_event()` 首次调用即建文件。
+- **缺口 G1-G8**: G1 引擎未接入（P2）/ G2 插件 `log_*` 死 API（P2）/ G3 无 `IEventBus`（P2）/ G4 无 `replay()`（P3）/ G5 事件类型无单一常量表（P3）/ G6 缺省路径隐式建文件（P3）/ G7 双实例同路径 seq 冲突（P3）/ G8 `pending_order_events.csv` 与总线双通道（P3）。
+- **方案裁决**: **M-A 契约 + 引擎原生接入**（M-B 引擎调插件 / M-C 全量迁移 / M-D 只加协议 / M-E 直接 Redis 均拒，理由见 RESEARCH §5）。
+- **语义 S1-S10 / 不变式 I1-I9（要点）**: 5 事件常量逐字 `engine.*`；`IEventBus` 4 方法；`replay` 的 handler 异常**向外传播**（区别于 listener 吞错）；注入优先级 `event_bus` > `cfg.event_log_path` 且不建第二实例；`_emit` 永不抛错（`_event_bus_errors += 1`）；结果键 `additional_info["event_bus"]` **仅启用时出现**；`pending_order_events.csv` / `run_diagnostics` / `invariant_report` / layer dump / manifest 零改动。
+- **批次切分**: B1 契约与重放 / B2 引擎接入 / B3 测试与文档；计数链 pytest **795 → 803**、`tests/*.py` **91 → 92**、mypy **104** / black **129·196** 不变。
+- **U-P025-1 触发条件改写（显式裁决）**: 原「第二消费方」条件经 E3 实测**未满足**（web/scripts/batch 全仓 0 读取）→ 改为「**路线图批次触发**」（总纲 §5 已排期、P-042 为前置、用户指令即依据），P3 边界保留。
+- **Step 2 Review**: pass（同基座 DeepSeek-V4.1-Flash；**1 P2 + 3 P3** 当轮处置）——F-S2-P043-1（P2）即 U-P025-1 触发改写；F-S2-P043-2（P3）双实例同路径 → S6 注入优先级 + U-P043-3；F-S2-P043-3（P3）缺省路径误读 → S5 明确 `None` 默认关闭、引擎不使用全局单例；F-S2-P043-4（P3）§3 读数 A/C 口径不严（大小写不敏感子串 vs 符号引用；import 清单漏 2 测试文件）→ 当轮订正，结论不变。
+- **未决**: U-P043-1 协议放置（倾向 `core/event_log.py`，Step 3 裁决）/ U-P043-2 订单成交事件（P-053）/ U-P043-3 多实例同路径（文档声明不支持）/ U-P043-4 CLI 开关（P-054）/ U-P043-5 异构终审（GLM-5.3-Flash）。
+- **文档**: [RESEARCH_p043_event_bus.md](RESEARCH_p043_event_bus.md)（§1 题干 / §2 代码事实 / §4 G1-G8 / §5 M-A~M-E / §6 B1-B3 / §7 S1-S10 / §8 I1-I9 / §9 未决 / §13 Step 2 Review）。
+- **下一步**: 进入 Step 3 DESIGN（U-P043-1 裁决 + B1-B3 精确签名与回退点）。
+
+### 3.49.2 P-043 Step 3 设计（2026-11-18）
+
+- **决策 D1-D8**: D1 协议与实现同置 `core/event_log.py`（`EventType` + `IEventBus` + `replay`；拒绝 `interfaces.py` 反向依赖与新文件）；D2 `config.event_log_path` + `event_bus=` 构造注入，`setup()` 步骤 14 解析（注入优先、不建第二实例）；D3 5 类事件 **6 处发射点**（`error` 两处），`day_end` 在 `update_market_values` 后、`run_finished` 在 `_generate_results()` 前；D4 `_emit` 永不抛错（`except Exception` 计数 **22 → 23** 预登记 + `errors` 结果键显形）；D5 `replay` 为 `read` 薄封装、handler 异常向外传播；D6 默认关闭不构造 `EventLog`（其 `__init__` 会 `mkdir`）；D7 结果键 `additional_info["event_bus"]` 仅启用时出现；D8 缺口映射（G1/G3-G6 关闭；**G2 重分类 O-P043-1**；G7 文档声明；G8 边界声明）。
+- **精确规格**: 5 事件 payload 键集逐字（`run_started{start,end,n_dates}` / `rebalance{date,n_targets}` / `day_end{date,total_value}` / `error{date,stage,error_type,message}` / `run_finished{elapsed_s,n_days}`）；`source="engine_v2"`；日期 `%Y-%m-%d`；`error.stage ∈ {day_loop, rebalance}` 与 `_diagnostics.record` 站点一一对应。
+- **测试规格**: `tests/test_p043_event_bus.py` V1-V8（局部导入以保证逐用例红）；红态预测 **`7 failed, 1 passed`**（V3 重开续号为非回归护栏）；V7 伪总线故障隔离、V8 fake trigger 错误不中断。
+- **计数链**: pytest **795 → 803** / golden **13·782 零重录** / black **129·196 → 130·197**（+1 测试文件）/ mypy **104** / AST `except Exception` **22 → 23** / `tests/*.py` **91 → 92** / uv exit 0。
+- **设计期发现**: F-D3-P043-1（P3）RESEARCH B3「black 不变」订正为 130·197；F-D3-P043-2（P3）RESEARCH M-A「关闭 G1-G5」过宽 → G2 重分类；F-D3-P043-3（P3）新增 config 字段改变 manifest `input_fingerprint`（`_jsonable` 遍历全字段）→ I9 显式声明（无固定指纹断言，`test_manifest.py:118-126` 仅同输入对比）。
+- **风险 R1-R8**: 位置参数顺序 / `EventLog` 构造即 mkdir / 双实例 seq / `_emit` 吞错 / manifest 指纹 / I/O 放大 / 协议漂移 / 事件影响交易语义；回退点三批独立。
+- **文档**: [DESIGN_p043_event_bus.md](DESIGN_p043_event_bus.md)（§1 范围 / §2 D1-D8 / §3 签名 / §4 payload / §5 V1-V8 / §6 I1-I10 + 计数链 / §7 R1-R8 / §9 设计期发现 / §10 Step 4 Review）。
+- **下一步**: 进入 Step 4 Design Review（**0 预填**；原假设同基座，实际执行为异构 GLM-5.3-Flash，见 §3.49.3）。
+
+### 3.49.3 P-043 Step 4 Design Review（2026-11-18）
+
+- **基座（RULE-5 异构成立）**: 复审 **GLM-5.3-Flash** ≠ 作者 DeepSeek-V4.1-Flash（P-042 五轮同源复审的惯例在本轮打破）；U-P043-5 维持——Step 6/8 若回到同基座，Step 10 终审仍须异构。
+- **机械复核 11 项全过**: 发射点行号 @`1306bf8` / config 先例与 `_jsonable` Path 支持 / `EventLog.__init__` mkdir（L81）/ 重开续号（L303-329）/ `read` 磁盘升序 / **AST 计数非测试硬编码**（tests+scripts 无 `ExceptHandler` 断言，口径为 P-029 单行命令测量 → `_emit` 22→23 预登记充分，无需改既有测试）/ black 双口径 129·196 / 结果键与指纹无既有断言冲突 / mypy 结构化满足 + 门禁不含 tests / 红态局部导入形态（无收集期 error）/ 计数链 795+8=803 自洽。
+- **发现**: **0 P1 / 0 P2 / 5 P3 全部当轮处置**——F-S4-P043-1（P3）rebalance 阶段 error 事件无测试载体 → V8 扩两段（V8b 注入恒抛 fake optimizer → error×5 `stage=="rebalance"`、`rebalance` 事件 0 条 I3 反向）；F-S4-P043-2（P3）raise 中断时 `run_finished` 不发射 + 末日 `day_end` 强平前净值 → §4 补两条边界；F-S4-P043-3（P3）空交易日「同一失败语义」措辞订正；F-S4-P043-4（P3）注入优先时 config 路径静默忽略 → D2 补 `logger.info`；F-S4-P043-5（P3）rebalance 发射锚点钉死 `_last_target_stocks` 赋值后。
+- **结论**: **Step 4 Review pass**，准予进入 Step 5 IMPL。
+- **文档**: [DESIGN_p043_event_bus.md](DESIGN_p043_event_bus.md) §10。
+
+### 3.49.4 P-043 Step 5 实施规划（2026-11-18）
+
+- **任务拆解**: B1 `core/event_log.py`（typing +2 / `EventType` 5 常量 / `IEventBus` 4 方法 `@runtime_checkable` / `EventLog.replay`）→ B2 `core/config.py`（+`event_log_path: Path|None=None`）+ `core/engine_v2.py`（import / `__init__` +1 参数 +3 属性 / `setup()` 步骤 14 / `_emit` / **6 处发射** / 结果键）→ B3 `tests/test_p043_event_bus.py`（V1-V8）。
+- **精确锚点**: `run()` L351-356 整块替换（`trade_dates` 局部变量复用）；error 发射在 `_diagnostics.record` 后、`raise_if_needed` 前；`run_finished` 在 `elapsed` 后、`_generate_results()` 前；`day_end` 在 `update_market_values` 后；`rebalance` 在 `_last_target_stocks` 赋值后；结果键在 `metrics_method` 后、产物写盘前。
+- **测试规格**: 夹具复用 `_synth_fixture`（5 日 × 2 股 / 零费用 / daily / `enable_pending_orders=False` / `write_manifest=False`）；核心符号函数内导入；V8 单函数含 V8a（day_loop）/ V8b（rebalance 阶段 error×5、rebalance 事件 0 条）两段（F-S8-P043-1 订正「拆两函数」表述）。
+- **红态预测**: **`7 failed, 1 passed`**（V3 重开续号护栏 PASS；V4-V8 全部因 `event_log_path`/`event_bus` 参数缺失 TypeError 失败）；以 Step 9 实测为准回填（P-042 F-S9-P042-1 教训）。
+- **低效排除**: 5 行（不新增写盘缓冲 / 关闭时仅小 dict 且 `_emit` 首行短路 / 不新增线程 / 测试不共享引擎 / `last_seq` 只读内存）。
+- **门禁目标**: pytest **795 → 803** / golden **13·782** / black **129·196 → 130·197** / mypy **104** / AST **22 → 23** / `tests/*.py` **91 → 92** / uv exit 0。
+- **文档**: [IMPL_p043_event_bus.md](IMPL_p043_event_bus.md)（§1 范围 / §2 任务拆解 / §3 逐处代码 / §4 V1-V8 完整代码 + 红态 / §5 低效排除 / §6 兼容 / §7 门禁 / §8 回退 / §9-§10 待执行）。
+- **下一步**: 进入 Step 6 实施 Review（**0 预填**；原假设同基座 DeepSeek-V4.1-Flash，实际执行为异构 GLM-5.3-Flash，见 §3.49.5）。
+
+### 3.49.5 P-043 Step 6 实施 Review（2026-11-18）
+
+- **基座（RULE-5 异构成立，连续第二轮）**: 复审 **GLM-5.3-Flash** ≠ 作者 DeepSeek-V4.1-Flash；§3.49.4 预写「同基座」已证伪并当轮订正；U-P043-5 终审维持（Step 8 若回同基座，Step 10 异构终审仍必要）。
+- **复核 10 项全过**: B1 符号与既有 API 逐参同型 / import 增补 / config+engine 9 处锚点读码核实 @`1306bf8` / DESIGN §10 五项处置全承接 / 红态逐用例失败模式分型（ImportError·AttributeError·TypeError）/ 测试确定性（V5 `info` 相等断言隐含 errors==0；V8a 第 2 次调用=交易日 index 1；夹具参数与 `_golden_cases._v2_config` 同源）/ mypy 窄化与 `MAX_MESSAGE` 类属性 / 计数链 / 既有测试零触碰。
+- **发现**: **0 P1 / 0 P2 / 3 P3 全部当轮处置**——F-S6-P043-1（P3）error payload `message=str(e)` 无截断，与 P-025 `DayErrorCollector.MAX_MESSAGE=200` 纪律不一致（异常消息可达数 KB → 事件 JSONL 无界增长）→ IMPL ⑥⑧ 改 `str(e)[: self._diagnostics.MAX_MESSAGE]` + DESIGN §4 补注；F-S6-P043-2（P3）config `Path` 导入锚点 L5→L12 订正；F-S6-P043-3（P3）V5 增补 5 条确定性断言（rebalance 事件==5、start/end/n_dates、n_targets==2，I3 正向 + S7 值覆盖）。
+- **结论**: **Step 6 Review pass**，准予进入 Step 7 CHECKLIST。
+- **文档**: [IMPL_p043_event_bus.md](IMPL_p043_event_bus.md) §9。
+
+### 3.49.6 P-043 Step 7 验收清单（2026-11-18）
+
+- **清单规模**: **41 项**（A 代码 10 + B 测试 12 + C 不变式 11 + D 门禁/提交/文档 8）；每项含 **DoR / DoD / 证据出口**，实测列 **0/41**（全部 `[待 Step 9]`，零预填）。
+- **用例映射**: V1 契约 / V2 replay / V3 续号护栏 / V4 默认关闭 / V5 发射与 seq / V6 订阅一致 / V7 故障隔离 / V8 错误不中断（单函数含 a/b 两段，F-S8-P043-1 订正「9 函数项」误计）；B10 红态 / B11 绿态 / B12 既有测试零订正为取证项。
+- **新增承接口**: A10 `message` 截断 `MAX_MESSAGE`（F-S6-P043-1）；C9 manifest 指纹变化为预期（F-D3-P043-3）；C10 `grep '"engine\.' core/engine_v2.py` = 0（事件类型唯一来源）。
+- **计数链**: 795+8=**803** / golden 13·782 零重录 / black 129·196→**130·197** / mypy **104** / AST 22→**23** / `tests/*.py` 91→**92** / uv 0。
+- **文档**: [CHECKLIST_p043_event_bus.md](CHECKLIST_p043_event_bus.md)（§1 A 组 / §2 B 组 / §3 C 组 / §4 D 组 / §5 预填检查 + RULE-2/5 声明 / §6 Step 7→8 交接 5 项 / §7-§9 待执行）。
+- **下一步**: 进入 Step 8 一致性 Review（**0 预填**）。
+
+### 3.49.7 P-043 Step 8 一致性 Review（2026-11-18）
+
+- **基座（RULE-5 异构成立，连续第三轮）**: 复审 **GLM-5.3-Flash** ≠ 作者 DeepSeek-V4.1-Flash；U-P043-5 终审维持。
+- **机械五项 + 对齐矩阵（RESEARCH S/I ↔ DESIGN ↔ IMPL ↔ CHECKLIST 十行）全过**——清单 41 = 10+12+11+8 逐表核实；计数链五文档一致；ID 链（F-S2/F-D3/F-S4/F-S6 四族）闭环；DESIGN-D 与 D 组无混用；基座链披露一致。
+- **发现**: **1 P2 + 2 P3 全部当轮处置**——F-S8-P043-1（**P2**）F-S4-P043-1 将 V8 扩为两段时声明「803 不变」，但 IMPL §4.2 落为 9 个测试函数（+9=804、红态 8F/1P），五文档计数链系统性矛盾 → **合并为单函数** `test_v8_error_events_emitted_without_interruption`（技术要点：独立 `events_a/events_b.jsonl` 防第二引擎重开续号污染 `read()`），803 / 7F+1P / 8 passed 恢复有效；F-S8-P043-2（P3）RESEARCH I2 补「空路径」细化注；F-S8-P043-3（P3）D7 文档数 4→6、D8 小节号改以实际登记为准。
+- **结论**: **Step 8 Review pass**，准予进入 Step 9 TDD（红态预测维持 `7 failed, 1 passed`，实测为准）。
+- **文档**: [CHECKLIST_p043_event_bus.md](CHECKLIST_p043_event_bus.md) §7。
+
+### 3.49.8 P-043 Step 9 TDD 实施（2026-11-18）
+
+- **红 → 绿**: 红 **`7 failed, 1 passed in 2.46s`**（与 IMPL §4.3 预测**逐项一致**：V1/V5/V8 ImportError、V2 AttributeError、V4/V6/V7 TypeError；V3 护栏 PASS）→ 绿 **`8 passed, 7 warnings in 8.51s`**。
+- **落码**: `core/event_log.py`（typing +2 / `EventType` L50-57 / `IEventBus` L60-77 / `replay` L212-226）；`core/config.py` L344；`core/engine_v2.py` 9 处（import / `__init__` / `setup` 步骤 14 / `_emit` / `run()` 三处 / `day_end` / `rebalance`+`error` / 结果键）；`tests/test_p043_event_bus.py` 新建（8 函数）。
+- **门禁（E1）**: pytest **`803 passed, 179 warnings in 53.65s`** / golden **`13 passed, 790 deselected`**（目录净）/ black **130·197**（首跑 128·195，格式化 2 文件后复测）/ mypy **`104 source files 0`** / AST 门禁 **22 不变**（core 外口径；`core/` 内 28→29 非门禁）/ `tests/*.py` **92** / `uv lock --check` exit **0** / 既有四文件 **37 passed**（零订正）。
+- **实施期发现**: F-S9-P043-1（P3）**AST 门禁口径误判**——预登记 22→23，实测门禁命令仅覆盖 core 外十文件（agents 11 + filter 5 + scripts 2 + batch 2 + strategy 1 + cli 1 = 22，P-029 口径），`_emit` 位于 core 内不计入 → 门禁仍 **22**；DESIGN/IMPL/CHECKLIST 全部订正。F-S9-P043-2（P3）black 首跑 2 文件待格式化（`logger.info` 折叠 + 测试文件重排）→ 格式化后复跑 130·197，零语义变化（重跑 8 + 803 确认）。
+- **文档**: [IMPL_p043_event_bus.md](IMPL_p043_event_bus.md) §10；[CHECKLIST_p043_event_bus.md](CHECKLIST_p043_event_bus.md) 实测 **41/41**（D7 待授权提交）；CHANGELOG 已回填。
+- **下一步**: Step 10 ADD 审计（四阶段 + E1-E5）→ U-P043-5 异构终审（GLM-5.3-Flash）。**提交与 CI 待用户授权**（D7）。
+
+### 3.49.9 P-043 Step 10 ADD 审计 + U-P043-5 异构终审（GLM-5.3-Flash，2026-11-18）
+
+- **基座（RULE-5）**: 审计者 **GLM-5.3-Flash** ≠ Step 9 实施者 DeepSeek-V4.1-Flash → **本轮 ADD 即异构终审**（Step 4/6/8/10 四轮异构；**U-P043-5 在本轮闭合**，不再设独立终审轮）。E3 绑定：未提交工作区（HEAD `1306bf8` + diff；D7 待授权）。
+- **Phase 0-4 全过**: 模糊词 0 / D1-D8 落地逐项命中 / 生产 diff 与 IMPL §3 语义逐字（black 格式差异已披露）/ 变更面白名单外**零越界**（恰 10 文件）/ 深挖探针 + 盲区全净。
+- **E1 七门禁独立复跑全命中**: pytest **`803 passed, 179 warnings in 82.47s`** / golden **`13 passed, 790 deselected`** / mypy **`104 source files 0`** / black **130·197** / AST 门禁 **22** / `tests/*.py` **92** / uv exit **0**。
+- **E2 八组独立探针（自编脚本，非测试套件）**: P1 契约 / P2 replay+传播 / P3 重开续号 / P4 默认关闭 / P5 发射 N=12 / P6 故障隔离 / **P7 message 截断恰 200**（套件未覆盖增量）/ **P8 注入优先且 config 路径文件未创建**（套件未覆盖增量）——`PROBE_OK p043_all_8_groups`。
+- **E3/E4**: `except Exception` 恰 3（HEAD 2 + `_emit` 1）；裸 `"engine\.` 字符串 **0**；`get_event_log` 唯一命中 = `pending_queue` 独立通道；`suppress`/`type: ignore` 均 0；变更面外零文件。
+- **发现**: **0 P1 / 0 P2 / 1 P3 观察**——F-S10-P043-1（P3 观察）error 事件 payload 已截断 200，但**既有** `logger.error` 两条（L405/L1024）打印完整异常消息（P-025 时代既有行为，本批不动）→ 登记 **O-P043-2**（与 P-054 日志治理一并裁决）。
+- **结论**: **Step 10 ADD pass；U-P043-5 异构终审闭合**；G1/G3-G6 关闭、G2→O-P043-1、G7/G8 边界声明；批次仅剩 **D7 提交与 CI 待用户授权**。
+- **文档**: [CHECKLIST_p043_event_bus.md](CHECKLIST_p043_event_bus.md) §8（含 §8.3 E1-E5 取证矩阵）。
 
 ---
 

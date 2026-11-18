@@ -341,6 +341,7 @@ class BacktestConfig:
     data_dir: Path = field(default_factory=lambda: Path("./data"))
     output_dir: Path = field(default_factory=lambda: Path("./output"))
     dump_layers_dir: Path | None = None  # 六层归因 dump 目录；None=关闭（零 I/O）
+    event_log_path: Path | None = None  # 事件总线输出路径（P-043）；None=关闭（零 I/O）
     invariant_mode: Literal["off", "report", "raise"] = "report"  # 不变量校验（P-011 D2）
     day_error_mode: Literal["off", "report", "raise"] = "report"  # 日级异常策略（P-025 D1）
     risk_free_rate: float = 0.03  # 年化无风险利率（P-011 D5，两引擎共享）

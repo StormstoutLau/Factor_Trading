@@ -20,6 +20,7 @@ from core.analytics import generate_report
 from core.change_report import LayerDumper
 from core.config import BacktestConfig
 from core.data import DataManager
+from core.event_log import EventLog, EventType, IEventBus
 from core.execution import ExecutionSimulator, is_valid_price
 from core.invariants import InvariantViolationError, check_all
 from core.manifest import build_manifest, write_manifest
@@ -114,6 +115,7 @@ class BacktestEngineV2:
         pending_queue: Optional[IPendingOrderQueue] = None,
         execution_policy: Optional[ExecutionPolicy] = None,
         risk_manager: Optional[MarkToMarketPolicy] = None,
+        event_bus: Optional[IEventBus] = None,
     ):
         """初始化回测引擎
 
@@ -130,6 +132,7 @@ class BacktestEngineV2:
             pending_queue: 待执行订单队列（可选，默认PendingOrderQueue）
             execution_policy: 执行策略（可选，默认None使用旧路径）
             risk_manager: 风险管理器（可选，默认None不启用）
+            event_bus: 事件总线（可选，默认None=关闭；优先于 cfg.event_log_path）
         """
         self.cfg = config
 
@@ -143,6 +146,7 @@ class BacktestEngineV2:
         self._injected_executor = executor
         self._injected_tracker = tracker
         self._injected_pending_queue = pending_queue
+        self._injected_event_bus = event_bus
 
         # 新增抽象层 (P0 集成)
         self._execution_policy: Optional[ExecutionPolicy] = execution_policy
@@ -170,6 +174,8 @@ class BacktestEngineV2:
         self.executor: Optional[IExecutionSimulator] = None
         self.tracker: Optional[IPositionTracker] = None
         self.pending_queue: Optional[IPendingOrderQueue] = None
+        self._event_bus: Optional[IEventBus] = None
+        self._event_bus_errors: int = 0
 
         # 预计算数据
         self._composite_signal: Optional[pd.DataFrame] = None
@@ -307,6 +313,17 @@ class BacktestEngineV2:
                     "全轮调仓将必然失败"
                 )
 
+        # 14. 事件总线（P-043 D2）：默认关闭零 I/O；注入优先，且不创建第二实例
+        if self._injected_event_bus is not None:
+            self._event_bus = self._injected_event_bus
+            if self.cfg.event_log_path is not None:
+                logger.info("已注入事件总线，忽略 cfg.event_log_path=%s", self.cfg.event_log_path)
+        elif self.cfg.event_log_path is not None:
+            self._event_bus = EventLog(log_path=self.cfg.event_log_path)
+            logger.info("事件总线已启用: %s", self.cfg.event_log_path)
+        else:
+            self._event_bus = None
+
         elapsed = time.perf_counter() - t0
         logger.info(f"回测引擎V2设置完成，耗时: {elapsed:.2f}秒")
 
@@ -352,8 +369,18 @@ class BacktestEngineV2:
         self._run_started_at = datetime.now()
         logger.info("开始回测...")
 
-        last_date_index = len(self.dm.trade_dates) - 1
-        for i, date in enumerate(self.dm.trade_dates):
+        trade_dates = self.dm.trade_dates
+        self._emit(
+            EventType.RUN_STARTED,
+            {
+                "start": trade_dates[0].strftime("%Y-%m-%d"),
+                "end": trade_dates[-1].strftime("%Y-%m-%d"),
+                "n_dates": int(len(trade_dates)),
+            },
+        )
+
+        last_date_index = len(trade_dates) - 1
+        for i, date in enumerate(trade_dates):
             try:
                 self._process_trading_day(date, i)
 
@@ -364,6 +391,15 @@ class BacktestEngineV2:
 
             except Exception as e:
                 self._diagnostics.record(date, "day_loop", e)
+                self._emit(
+                    EventType.ERROR,
+                    {
+                        "date": date.strftime("%Y-%m-%d"),
+                        "stage": "day_loop",
+                        "error_type": type(e).__name__,
+                        "message": str(e)[: self._diagnostics.MAX_MESSAGE],
+                    },
+                )
                 logger.error(f"处理交易日 {date} 时发生错误: {e}")
                 if self.cfg.day_error_mode == "raise":
                     self._diagnostics.raise_if_needed()
@@ -381,6 +417,10 @@ class BacktestEngineV2:
             self._layer_dumper.finalize(trades_df)
 
         elapsed = time.perf_counter() - t0
+        self._emit(
+            EventType.RUN_FINISHED,
+            {"elapsed_s": float(elapsed), "n_days": int(len(self.dm.trade_dates))},
+        )
         logger.info(f"回测完成，总耗时: {elapsed:.2f}秒")
 
         return self._generate_results()
@@ -390,6 +430,17 @@ class BacktestEngineV2:
         if self.cfg.legacy_adjustment:
             return dm.get_adj_price(kind, self.cfg.adjustment_type)
         return dm.get_adj_price(kind, "raw")
+
+    def _emit(self, event_type: str, payload: dict[str, Any]) -> None:
+        """发射引擎域事件（P-043 D4）：总线故障永不改变回测流程。"""
+        bus = self._event_bus
+        if bus is None:
+            return
+        try:
+            bus.append(event_type, payload, source="engine_v2")
+        except Exception as exc:  # noqa: BLE001 — 总线路由不得改变回测流程
+            self._event_bus_errors += 1
+            logger.debug("事件总线写入失败（不影响回测）: %s", exc)
 
     def _process_trading_day(self, date: pd.Timestamp, date_index: int):
         """处理单个交易日"""
@@ -427,6 +478,13 @@ class BacktestEngineV2:
         # 更新持仓市值
         close_prices = self._exec_price(dm, "close").loc[date]
         tracker.update_market_values(date, close_prices)
+        self._emit(
+            EventType.DAY_END,
+            {
+                "date": date.strftime("%Y-%m-%d"),
+                "total_value": float(tracker.get_total_value()),
+            },
+        )
 
         # 主动盯市 (risk_manager)
         if self._risk_manager is not None:
@@ -952,6 +1010,15 @@ class BacktestEngineV2:
 
         except Exception as e:
             self._diagnostics.record(date, "rebalance", e)
+            self._emit(
+                EventType.ERROR,
+                {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "stage": "rebalance",
+                    "error_type": type(e).__name__,
+                    "message": str(e)[: self._diagnostics.MAX_MESSAGE],
+                },
+            )
             logger.error(f"组合优化失败: {e}")
             return
 
@@ -985,6 +1052,13 @@ class BacktestEngineV2:
         self._last_target_stocks = {
             stock for stock, target in targets.items() if target.target_quantity > 0
         }
+        self._emit(
+            EventType.REBALANCE,
+            {
+                "date": date.strftime("%Y-%m-%d"),
+                "n_targets": len(self._last_target_stocks),
+            },
+        )
         if self._layer_dumper.enabled:
             self._layer_dumper.record_targets(date, self._last_target_stocks)
 
@@ -1255,6 +1329,14 @@ class BacktestEngineV2:
             **METRICS_METHOD,
             "risk_free_rate": self.cfg.risk_free_rate,
         }
+
+        # 事件总线（P-043 D7）：仅启用时出现；last_seq 已含 run_finished
+        if self._event_bus is not None:
+            additional_info["event_bus"] = {
+                "enabled": True,
+                "last_seq": int(self._event_bus.last_seq()),
+                "errors": int(self._event_bus_errors),
+            }
 
         if not trades_df.empty:
             trades_path = output_dir / "trades.csv"

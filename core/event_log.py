@@ -18,7 +18,15 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, Optional, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Protocol,
+    TypeVar,
+    runtime_checkable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +45,36 @@ class EventLogEntry:
 
 
 EventListener = Callable[[EventLogEntry], None]
+
+
+class EventType:
+    """引擎生命周期事件类型（单一来源；引擎侧禁止写裸字符串）"""
+
+    RUN_STARTED = "engine.run_started"
+    REBALANCE = "engine.rebalance"
+    DAY_END = "engine.day_end"
+    ERROR = "engine.error"
+    RUN_FINISHED = "engine.run_finished"
+
+
+@runtime_checkable
+class IEventBus(Protocol):
+    """事件总线最小契约（P-043 D1）：写入 / 游标 / 回放读 / 订阅"""
+
+    def append(
+        self, event_type: str, payload: dict[str, Any], source: str = ""
+    ) -> EventLogEntry: ...
+
+    def last_seq(self) -> int: ...
+
+    def read(
+        self,
+        after_seq: int = 0,
+        limit: Optional[int] = None,
+        event_type: Optional[str] = None,
+    ) -> list[EventLogEntry]: ...
+
+    def subscribe(self, listener: EventListener) -> Callable[[], None]: ...
 
 
 class EventLog:
@@ -170,6 +208,22 @@ class EventLog:
             logger.warning(f"EventLog read error: {e}")
 
         return results
+
+    def replay(
+        self,
+        after_seq: int = 0,
+        handler: Optional[EventListener] = None,
+    ) -> list[EventLogEntry]:
+        """重放磁盘事件：``seq > after_seq`` 升序全集。
+
+        与订阅监听器不同，``handler`` 异常**向外传播**（P-043 D5）——
+        重放消费方必须可失败，不得静默丢事件。
+        """
+        entries = self.read(after_seq=after_seq)
+        if handler is not None:
+            for entry in entries:
+                handler(entry)
+        return entries
 
     def query(
         self,
