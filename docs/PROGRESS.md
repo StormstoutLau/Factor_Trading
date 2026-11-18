@@ -2212,6 +2212,176 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 
 ---
 
+### 3.52 P-047 仓位管理（sizing）
+
+#### 3.52.1 P-047 Step 1 调研（2026-11-18）
+
+- **判档**: **T1**（新建 `core/sizing.py` + `tests/` + golden；U-P031-2 若批内闭合将触及 `core/engine_v2.py`）。
+- **证据时点**: HEAD `531795e`（P-045 关闭回填；工作区净）。
+- **题干**: 统一 Sizing 层——分数凯利（1/4~1/2）、vol-target（`风险预算/(k·ATR)`）、风险预算（边际风险贡献）、金字塔加减仓（只浮盈加仓且递减、禁摊亏）、max/min size + granularity=100；复用 `tracker`/`guard_pipeline`/`pending`/`target_positions`。
+- **E1 取证（只读，12 项）**: `core/sizing.py` ❌ 不存在；全仓 sizing 方法 grep 3 命中**零实现**（2 统计字段 + 1 标签）；ATR 原语 **0 命中**；`tracker.execute_trade` L200-204 直接扣现金**无检查**；`engine_v2._process_pending_orders` L841-935 **无 BUY 现金检查**；`_execute_next_day_orders` L1257-1261 有 `required_cash` **整单跳过**（非夹紧）；`engine_v2` 全文 grep `guard` **0 命中**（`MinCashGuard` 仅在 `engine_plugins` 可插拔）；权重→数量三条路径口径不一致（`build_target_positions` 0.985+floor 整手 / `SignalTranslator.from_weights` 无缓冲浮点 / `T1StockPolicy.create_orders` 仅 `int()`）；风险平价 ERC 已实现（`portfolio.py` L326-391）；现金守恒测试仅本地模拟无断言（`test_phase5_business.py:106-140`）；golden 15 实例；基线 pytest 821 / black 135·203 / mypy 108 / AST 22 / tests 94 / uv 0。
+- **E1-EXT 锚点（X1-X7）**: Thorp 2006（半凯利 `g=0.75g*`、分数凯利=与现金线性混合、估计误差敏感）；Harvey et al. 2018 JPM 45(1):14-33 DOI `10.3905/jpm.2018.45.1.014`（vol-target 改善风险资产 Sharpe、非 alpha）；Moreira & Muir 2017 JF（波动管理，市场 Sharpe 约 +25%）；Roncalli 2013 / Maillard et al. 2010（`RC_i=w_i(Σw)_i/σ_p`）；上交所《交易规则（2026 修订）》3.1.4 T+1 + 100 股整数倍；Wilder 1978（TR/ATR；ATR 默认 14）；Turtle 原始规则（0.5N 加仓、最多 4 单位，T2/T3 中置信）。
+- **缺口**: G1-G11（**P1 = G2 U-P031-2**；P2 = G3/G4/G5/G6/G7/G9/G10；P3 = G8/G11）。
+- **方案裁决倾向**: **M-A 纯函数 Sizing 层**（输出可执行目标权重，统一经 `build_target_positions` 落地，引擎默认零 diff）；M-B 引擎夹紧仅作 U-P031-2 的可选子项；M-C/M-D/M-E 已拒（语义/职责/依赖）。
+- **核心未决**: **U-P047-1**——U-P031-2 在本批闭合方式：**✅ 已裁决 A2（2026-11-18 用户）** = sizing 预算法 + 队列路径最小 BUY 现金检查（S11：执行前逐单、`price*qty*(1+commission_rate)`、整单跳过、保留队列、不改顺序、无开关）；须 golden 15 零差异证明。另有 U-P047-2 风险预算边界、U-P047-3 默认参数、U-P047-4 golden 新增 case、U-P047-5 异构终审。
+- **追加调研（A2 锚点，X8-X15）**: QuantConnect `INSUFFICIENT_BUYING_POWER(-3)` 拒单 + `IsSufficient` 预检（T2）；Backtrader `Margin` 状态「每 bar 执行前因现金被占用而失败」→ 支撑逐单执行时点检查（T2）；JoinQuant 资金不足拒单/调量且**含手续费**（T2/T3）；rqalpha「用剩余现金建单」= clamp 备选，**已拒**（T2）；上交所 3.3.8/3.3.9 买入 100 整数倍、卖出零股一次性、单笔 ≤100 万股（T1）；Kelly 参数不确定性收缩 `t²/(1+t²)`（T3）；金字塔实务证据冲突（Concretum T3 vs 反例 T4）→ **默认关闭**。
+- **产出**: [RESEARCH_p047_position_sizing.md](RESEARCH_p047_position_sizing.md)（零预填；§13 Step 2 预留）。
+- **下一步**: Step 2 异构评审（GLM-5.3-Flash）；提交仍须用户明确授权。
+
+#### 3.52.2 P-047 Step 2 异构复审（2026-11-18，GLM-5.3-Flash）
+
+- **结论**: **有条件通过**。E3 机械复核 **24 项全 ✅**（契约缺失/现金根因链/A2 落点/口径分裂/ERC/MinCashGuard 拒绝语义/无 Guard 接线/golden 结构与算术/invariant 行号精确命中）；外部锚点承重项 **X5/X8/X12/X13 复审重放检索原文命中**（QuantConnect -3 拒单、rqalpha clamp、上交所 3.3.8/3.3.9/3.1.4），X1/X3/X4/X6 元数据级通过；零预填、编号体系、逻辑一致性合规；T1 判档维持。
+- **发现 6 项（1 MEDIUM + 1 LOW + 4 INFO；均不推翻裁决）**:
+  - **F1（MEDIUM，DESIGN 前置条件）**: S11② 费式与既有代码**不同源**——`_execute_next_day_orders` L1258 是字面常量 `qty*open*1.002`（非 `cfg.commission_rate` 字段），且队列路径 engine 只知 `open_price`、滑点在 executor 内部施加，「含滑点 exec_price」执行前不可得。Step 3 DESIGN 必须二选一：(i) 复刻 `1.002` 字面（**复审倾向**，跨路径一致）；(ii) 配置驱动打包系数（需 golden 零差异证明）。
+  - F2（LOW）「无断言」措辞过强（`test_b3_insufficient_cash` 有 1 处 setup assert；`return False` 在 pytest 下不计失败）——G3 实质成立，DESIGN 顺带订正。
+  - F3（INFO）golden「13 实例」为 `-k golden` 收集数口径（15=13+2），非文件数 9/参数化数 7；I8 建议备注口径。
+  - F4（INFO）S9 `ceil_lot` 预算的量化不动点 → 「预估保守 + S11 闸门兜底」双层结构交 DESIGN 声明。
+  - F5（INFO）S11③ `+1e-9` 容差 vs 既有严格 `<` → 建议同式。
+  - F6（INFO）S5 `σ_p=0 → scale=1` 需 diagnostics 显式警示。
+- **复审形态**: E1 重放未执行（只读会话，pytest/black/mypy/uv 归 Step 9）；E2 无对象可探（`core/sizing.py` 未建）→ 以 E3 静态复核替代，已在 RESEARCH §13 取证形态声明中写明。
+- **产出**: RESEARCH §13（13.1 复核矩阵 / 13.2 引用核验 / 13.3 发现清单 / 13.4 合规检查 / 13.5 结论）。
+- **下一步**: Step 3 DESIGN（前置：F1 费式裁决；并裁决 U-P047-2/3/4 + R1 是否稳定排序）；提交仍须用户明确授权。
+
+#### 3.52.3 P-047 Step 3 前置补充调研（2026-11-18，DeepSeek-V4.1-Flash）
+
+- **范围**: 仅补证据与决策锚点，不写 DESIGN、不改代码。
+- **新代码证据 D1-D6**（全部静态读码 @`531795e`）:
+  - **D1（决定 F1）**: 本仓滑点是**费用行**（[execution.py L404-405](core/execution.py#L404-L405) `slippage = amount*slippage_pct; cost += slippage`），`net_amount = amount + cost` → 「exec_price 含滑点」不成立，S11② 漏 0.1%。
+  - **D2（决定 F1）**: 默认 `commission_rate=0.0003 / commission_min=5.0 / stamp_tax_rate=0.001（仅卖） / slippage_pct=0.001` → 买入实际含费率 = `max(amount·0.0003, 5)/amount + 0.001`；**`amount < 5,000` 元时 > 0.2%**（`5/amount+0.001>0.002`），即字面 `1.002` 对小单也低估。
+  - **D3**: `execution_price_type` 默认 `OPEN` → 闸门用 `open_price` 与成交口径一致。
+  - **D4（决定 R1）**: 队列按**插入顺序**遍历（`list.append`），无优先级排序 → 「先卖后买」属行为变更。
+  - **D5（决定 U-P047-2）**: `RiskParityOptimizer.optimize` **无预算参数** → 只能解等预算，非等预算须新求解器（归 P-046）。
+  - **D6（决定 U-P047-4）**: 根目录断言 `glob("*.json")==set(CASE_IDS)`；P-045 已用「子目录 + 独立模块」装载 → `tests/golden/p047/` 不污染根断言。
+- **新外部锚点 X16-X18**: X16 财政部/税务总局 2023 年第 39 号（印花税 2023-08-28 起减半；本仓 0.001 为减半前口径，偏保守，本批不改）；X17 Harvey et al. 2018（波动用 20 日半衰期 EWMA；实践窗口 60-120 日更稳）；X18 QuantConnect 论坛（退出单先执行、MOO 滑点致 buying power 不足）。
+- **决策建议（交 Step 3 裁决）**: **F1 → 精确成本式** `amount + max(amount·c, c_min) + amount·s`（sizing 与闸门共用；若 golden 命中小额临界用例则闸门回退字面 `1.002`）；**R1 → 不重排**（登记 P-048）；**U-P047-2 → 只做诊断 + 等预算对拍**；**U-P047-3 → 0.5 / 0.15 / 60 / 14 / 2.0 / 0.985，`method="none"`**；**U-P047-4 → 3 个 case（kelly / vol_target / cash_budget），`-k golden` 15 → 18**；F4 floor 量化+断言；F5 严格 `<`；F6 `zero_vol` 诊断。
+- **落点**: RESEARCH 新增 §3.3-补（含 3.3-补.1/2/3）；同步 S9、S11② 行内批注与 §9 U-P047-1/2/3/4 证据等级；**语义正文未擅改**，待 DESIGN 统一订正。
+- **下一步**: Step 3 DESIGN（按上表裁决后落 DESIGN 文档）；提交仍须用户明确授权。
+
+#### 3.52.4 P-047 Step 3 DESIGN（2026-11-18，DeepSeek-V4.1-Flash）
+
+- **判档**: T1 维持（新建 `core/sizing.py` + `tests/` + golden；`core/engine_v2.py` 单点 BUY 现金闸门）。
+- **证据时点**: HEAD `531795e`（代码零 diff；工作区仅文档）。
+- **产出**: [DESIGN_p047_position_sizing.md](DESIGN_p047_position_sizing.md)（§1 范围与前置 / §2 决策 D1-D7 + §2.0 裁决表 / §3 精确签名 / §4 数据流与边界 / §5 测试规格 V1-V12 / §6 不变式 I1-I10 / §7 风险与回退 R1-R5 / §8 后续批次接口 / §9 设计期发现 / §10 Step 4 预留）。
+- **上游未决裁决（§2.0）**:
+  - **F1 费式（MEDIUM）** → **精确成本式** `amount + max(amount·commission_rate, commission_min) + amount·slippage_pct`（与 `ExecutionSimulator._calculate_cost` 同源）；废除 `exec_price·qty·(1+commission_rate)`；回退条款 R1（golden 命中小额临界 → 闸门回退字面 `1.002`）。
+  - **R1 排序** → **不重排**（保插入顺序，接受「同日先买后卖多跳过」，登记 P-048）。
+  - **U-P047-2** → 只做 `risk_contributions` 诊断 + 等预算对拍（I10）；非等预算归 P-046。
+  - **U-P047-3** → `method="none"`；`0.5 / 0.15 / 60 / 14 / 2.0 / 100 / 0.985`；金字塔默认关闭。
+  - **U-P047-4** → 3 例 golden（`P047_S1_kelly` / `S2_vol_target` / `S3_cash_budget`），置 `tests/golden/p047/` + 独立模块；`-k golden` **15 → 18**。
+  - **F2** 措辞订正；**F3** 计数口径统一为 `-k golden` 收集数；**F4** 预算缩减后 floor 量化 + 断言（不做二次 ceil）；**F5** 闸门严格 `<`（无 `1e-9`）；**F6** `σ_p=0 → scale=1.0` + `reason="zero_vol"` + warning。
+- **关键设计点**: `estimate_buy_cash` 置于 `core/sizing.py` 作为**唯一口径**（sizing 预算与引擎闸门共用，避免 `sizing → execution` 反向依赖）；引擎 diff 限「1 import + `_process_pending_orders` BUY 分支闸门」；`core/config.py` 零新增字段。
+- **设计期发现（§9）**: F-D3-P047-1..3（均已当轮处置，无遗留阻断）。
+- **待办**: Step 4 Review（异构 GLM-5.3-Flash；DESIGN §10 现为 `[待 Step 4]`，零预填）；提交仍须用户明确授权。
+
+#### 3.52.5 P-047 Step 4 Review（2026-11-18，GLM-5.3-Flash 异构复审）
+
+- **评审基座**: GLM-5.3-Flash（≠ 作者 DeepSeek-V4.1-Flash）→ RULE-5 异构成立。
+- **取证**: E1 重放 7 项 ✅ + E2 运行时探针（31 断言全 PASS：P1 同源对拍 10 档 / P2a-P2b ERC 对照 / P3 算术双临界 / P4 预算迭代 / P5 缺陷复现）+ E3 行号验证 20 项 ✅ @`531795e`。
+- **发现**: **F-S4-P047-1..6（1 P2 + 5 P3），全部当轮处置完毕**：
+  - **P2 F-1**: I10/V6 等预算对拍按字面必 FAIL——`RiskParityOptimizer.optimize` 尾部 `_apply_constraints`（portfolio.py L389）默认 `max_weight=0.10` clip+归一化把 ERC 解破坏为等权（探针 P2a pct=[0.158,0.322,0.520]）；放宽 `max_weight=1.0` 后 pct=1/3 精确成立（P2b）→ DESIGN §6 I10 / §5 V6 订正构造并登记 P-046。
+  - **P3 F-2..6**: `estimate_buy_cash(0)=5` → D4 补零守卫；D5 伪码局部别名 + 落点精确化；闸门跳过不触发 fallback 补注；「同源」限定 STOCK 无 `asset_costs` 覆盖；V9 订正净现金式。
+- **落点**: DESIGN §10 已回填（10.1 探针 / 10.2 发现与处置 / 10.3 机械复核 / 10.4 结论）；正文 D4/D5/V6/V8/V9/I10 同步修订。
+- **结论**: **有条件通过，准予 Step 5 IMPL**；无 P1 阻塞项；R1 回退条款必要性获探针差值表支撑。
+- **待办**: Step 5 IMPLEMENTATION（作者基座）；提交仍须用户明确授权。
+
+#### 3.52.6 P-047 Step 5 IMPLEMENTATION（2026-11-18，DeepSeek-V4.1-Flash）
+
+- **判档/证据时点**: T1；HEAD `531795e` + 未提交工作区（`M core/engine_v2.py`、`?? core/sizing.py`、`?? tests/test_p047_position_sizing.py`、`?? tests/golden/p047/`、文档三件）。
+- **产出（1 M + 4 新）**:
+  - [core/sizing.py](file:///f:/Coding/Factor_Trading_v3.0/core/sizing.py)（新，14 符号）：`SizingConfig` / `SizingDiagnostics` / `SizingResult` / `RiskContribution` / `CashBudgetResult` / `SizingState` / `estimate_buy_cash` / `kelly_fraction_scale` / `vol_target_scale` / `risk_contributions` / `apply_sizing` / `cash_budget_scale` / `pyramid_step` / `holding_age`。
+  - [core/engine_v2.py](file:///f:/Coding/Factor_Trading_v3.0/core/engine_v2.py)（**+16 / −0**）：1 import + `_process_pending_orders` BUY 现金闸门（`required_cash = estimate_buy_cash(open_price·qty, …)`，不足 → `continue` 整单跳过、订单保留队列；跳过 ≠ `execute_order` 失败，不触发 `enable_fallback`）。
+  - [tests/test_p047_position_sizing.py](file:///f:/Coding/Factor_Trading_v3.0/tests/test_p047_position_sizing.py)（新，22 函数 / **24 收集**）：V1-V12 + D6 golden 装载（`GOLDEN_DIR = tests/golden/p047`）。
+  - `tests/golden/p047/P047_S1/S2/S3.json`（3 例规格锁定，闭式推导，非行为录制）。
+- **测试实测**: P-047 单模块 **24 passed（2.61s）**；全量 **845 passed（57.26s）**（`MPLBACKEND=Agg`；821 → 845 = **+24**）。
+- **门禁（E1 复跑）**: `-k golden` **15 → 18**（`18/845 collected, 827 deselected`，DESIGN I8 口径兑现）/ mypy **CI 等价**口径（`core agents filter scripts batch_backtest strategy_evaluation cli.py order_strategy web factor_library tools examples`）**109 files 0 issue**（基线 108 + `core/sizing.py`）/ black 4 变更文件 clean（`core/sizing.py`、`tests/test_p047_position_sizing.py` 各 1 次 style-only 重排；`engine_v2.py` 零重排 = diff 纯 +16）/ `tests/*.py` **94 → 95** / `pyproject.toml` + `uv.lock` 零 diff / AST `except Exception` 口径不变（`core/sizing.py` 全文零 `try/except`）。
+- **发现（当轮处置 3 + 环境 2）**:
+  - **F-S5-P047-1（P3）**: golden 落地形态与 DESIGN §3.3 / D6 不一致——独立 `tests/test_p047_golden.py` 使 `-k golden` 收集 **19**（`-k` 匹配含模块名，函数改名无效）；**处置**：装载并入 `test_p047_position_sizing.py`（DESIGN 原文落点），删除独立模块，实测 **18**。
+  - **F-S5-P047-2（P3）**: `apply_sizing` 对 `method="none"` 提前 `return` → 显式 `max_weight / min_size / max_size` 被静默忽略（V7 暴露）；**处置**：约束层对所有 method 生效（默认配置下仍幂等，I1 不破）。
+  - **F-S5-P047-3（P3）**: DESIGN D6 夹具规模与落地不符（S1 3→2 标的、S3 5→2 标的且 `cash` 100000→60000）；**处置**：DESIGN D6 表按实订正 + 补注边界覆盖归属（负 μ / `σ²=0` / 最低佣金临界 → V3 / V5 / V8-V9），golden 锁定的算式关系不变。
+  - **O-S5-P047-1（环境）**: 本机 Python312 的 Tcl/Tk 数据文件损坏，全量跑测随机命中 `_tkinter.TclError`（`tests/test_p043_event_bus.py` 不同用例，单独跑该用例通过）；`MPLBACKEND=Agg` 下 **845 passed**，与 P-047 无关。
+  - **O-S5-P047-2（环境）**: `scripts/external_benchmark/verify_p045.py` 本机缺 `vectorbt` 无法执行（P-045 对拍脚本，非本批门禁）；受保护面零变更由 `git status` + 845 passed 佐证。
+- **I1 零行为佐证**: 闸门仅在「现金确实不足」时生效；既有 13 根 golden + 2 例 `p045/` 与 G1-G7 全部零重录通过（`enable_pending_orders` 默认 `True`，闸门在默认路径上仍零命中）。
+- **待办**: Step 6 IMPL Review（异构 GLM-5.3-Flash）；提交仍须用户明确授权。
+
+#### 3.52.7 P-047 Step 6 IMPL Review（2026-11-18，GLM-5.3-Flash，异构）
+
+- **判档/证据时点**: T1；HEAD `531795e` + 工作区（同 §3.52.6）。复审对象：`core/sizing.py` 全文、`engine_v2.py` diff（+16/−0）、P-047 测试、golden ×3，对照 DESIGN §2-§7。
+- **证据**: **E1** 重放 7 项全 ✅（24→25 passed / `-k golden` 18 / `core/config.py` 零 diff / engine 无 sizing 接线 0 命中 / mypy 109 files 0 issue / black clean）；**E2** 探针 **33 断言全 PASS**（golden 三例闭式独立复算逐位一致：S1 kelly / S2 `σ_p²=0.0355`、scale=0.7961173386514129 / S3 三迭代 qty (4900,1900)→(3000,1200)→(2900,1100)、cost=56573.45；T7 两订单 continue 语义；T8 I4 纯函数 AST；T9 V9 净现金式）；**E3** 静态逐行（闸门 L905-918 落点 / 严格 `<` L913 / `continue` L918 / 不触发 fallback / `qty` 定义 L882）。
+- **发现（当轮处置 4 P3 + 登记 2 INFO）**:
+  - **F-S6-P047-1（P3）**: V12 单订单场景无法区分闸门 `continue` 与 `break`（规格要求断言「继续处理后续订单」）；**处置**：补 `test_v12_gate_continues_to_later_orders_after_skip`（双标的：AAA 被拒保留、BBB 继续成交、现金精确扣减），**24→25 passed**。
+  - **F-S6-P047-2（P3）**: F6 裁决「+ `logger.warning`」未落地（`sizing.py` 无 logger，与 I4/D1 白名单张力）；**处置**：DESIGN F6 行订正——warning 由接线方（P-051）落地。
+  - **F-S6-P047-3（P3）**: D3「未知 code 保持原权重 + `no_cov`」仅 kelly 分支成立，`vol_target`/`risk_parity` 越界 `ValueError`；**处置**：DESIGN D3 行订正（fail-fast 区分）。
+  - **F-S6-P047-4（P3）**: D3 `risk_contributions`「+ `zero_vol`」无 reason 载体（`RiskContribution` 无该字段）；**处置**：DESIGN D3 行订正（全 0 即语义）。
+  - **O-S6-P047-1/2（INFO）**: V2 字面数值由 V3 语义等价覆盖；kelly 分支 mu 默认值顺序冗余。登记不改。
+- **回填**: [DESIGN_p047_position_sizing.md](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p047_position_sizing.md) 新增 §11（11.1 证据 / 11.2 发现处置 / 11.3 机械复核 / 11.4 结论）+ 正文 3 处订正（F6/D3×2）。
+- **结论**: **通过，准予进入 Step 7 CHECKLIST**（详见 DESIGN §11.4）。无 P1/P2 阻塞项。
+- **待办**: Step 7 CHECKLIST；提交仍须用户明确授权。
+
+#### 3.52.8 P-047 Step 7 CHECKLIST（2026-11-18，DeepSeek-V4.1-Flash）
+
+- **判档/证据时点**: T1；HEAD `531795e` + 工作区（同 §3.52.6/§3.52.7）。产物：[CHECKLIST_p047_position_sizing.md](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p047_position_sizing.md)。
+- **结构**: **45 项** = A 组代码变更 **12**（A1-A12：`SizingConfig` 19 字段 + 5 结果类型 + 6 公共函数 + 引擎 3 处 diff + 纯函数约束）+ B 组测试与 golden **14**（B1-B12 = V1-V12、B13 = golden×3+隔离、B14 = 红态口径声明）+ C 组不变式 **10**（I1-I10 + 既有语义零变更）+ D 组门禁/提交/文档 **9**。
+- **零预填（RULE-1）**: 实测列 **0/45**；机械计数 `[待 Step 9]` **43** + `[待 Step 10]` **2**（D8/D9）= 45；单元格 `✅` **0**（`✅` 仅出现在 RULE-1 规则说明行）。
+- **计数链（RULE-2 溯源）**: 846 = 821 + 25；18 = 15 + 3；109 = 108 + 1 源；95 = 94 + 1；AST 22 不变；black 增量 +2（1 源 + 1 测试）。**明确禁止沿用 P-045 的 135/203 旧读数**（基线以 Step 9 复跑为准）。
+- **关键 DoD 锚点**:
+  - A11 引擎 diff **仅 3 处**（L28 import / L905-918 闸门 / 其他零改动），且**不触发 `enable_fallback`**；
+  - B12 含 F-S6-P047-1 补测（`continue` ≠ `break` 双标的场景）；
+  - B14 红态口径：本批落码前移至 Step 5，**无红态读数**，替代取证 = DESIGN §5 规格先于实现 + golden 闭式手推（Step 6 E2 独立复算逐位）；
+  - C1/C10 既有一切 golden 与受保护文件**零 diff**；
+  - D5 新增 `try/except` 与 `# type: ignore` 生产代码 **0**。
+- **§6 交接（7 条）**: 计数链核验 / 零预填核验 / ID 不混用（DESIGN-D1-D7 vs 本文件 D1-D9）/ golden 先审规格（R6，禁改期望迁就实现）/ 行号口径（@未提交工作区，提交后按 hash 重取，F-S10-P045-2 同类）/ 不做清单（P-050/P-051/R2/asset_costs 限定）/ 遗留登记（P-046、P-048、O-S5-P047-1/2、O-S6-P047-1/2）。
+- **RULE-5**: Step 1-7 文档作者 DeepSeek-V4.1-Flash；Step 2/4/6 异构成立（GLM-5.3-Flash）；Step 8 一致性 Review 与 Step 10 终审待 GLM。
+- **结论**: **CHECKLIST 完成，准予进入 Step 8**（一致性 Review，异构 GLM-5.3-Flash）。
+- **待办**: Step 8 Review；提交仍须用户明确授权。
+
+#### 3.52.9 P-047 Step 8 一致性 Review（2026-11-18，GLM-5.3-Flash，异构）
+
+- **判档/证据时点**: T1；HEAD `531795e` + 工作区。对象：RESEARCH ↔ DESIGN ↔ CHECKLIST 三向一致性 + PROGRESS 台账（本批无 IMPL 文档）。
+- **机械校验（全 ✅）**: 四文档互引 0 broken / RESEARCH 引用锚点（§4-§9、§13、§3.3-补）全部真实存在 / F1-F6 定级一致 / 无 ADR 双向补链义务 / CHECKLIST **45 = 12+14+10+9** 机械复核 / 零预填 **43+2** / `✅` 0 / 计数链三文档一致。
+- **发现（当轮处置 1 P2 + 5 P3 + 登记 3 INFO）**:
+  - **F-S8-P047-1（P2）**: **B1 波动原语静默裁剪**——DESIGN §1 声称「做（B1→B5）」但 `estimate_volatility`/`atr` 三处均无；`SizingConfig.vol_lookback/atr_period/atr_k` 实现零消费（死字段）；§7 R4 `insufficient_history` 无实现载体。属文档声明缺口而非代码缺陷（外部传入 cov/atr 的行为自 Step 5 起被 V1-V12/golden 锁定）；**处置**：DESIGN §1 B1 范围收窄声明 + D2 三字段【预留】注 + §7 R4 订正 + CHECKLIST A1 注记。
+  - **F-S8-P047-2（P3）**: kelly 矩阵式（RESEARCH S4 `Σ⁻¹μ`）→ 逐标的对角近似未声明；**处置**：D3 加对角近似声明（矩阵式归 P-046）。
+  - **F-S8-P047-3（P3）**: `risk_budget` → `risk_parity` 术语漂移未声明；**处置**：D2 定名注。
+  - **F-S8-P047-4（P3）**: 金字塔步长 0.5N（X7）→ `pyramid_step_atr=1.0` 未声明；**处置**：D2 保守化理由注。
+  - **F-S8-P047-5（P3）**: `kelly_fraction` 校验 `(0,1]` vs RESEARCH `[0.25,0.5]` 未声明；**处置**：D2 区间注（合法性 vs 推荐运行区间）。
+  - **F-S8-P047-6（P3）**: DESIGN §1 做①「6 个纯函数」与 §3.1 八签名不符（`holding_age` 漏列）；**处置**：改「7 个」并补列。
+  - **O-S8-P047-1（INFO）**: RESEARCH §8 与 DESIGN §6 的 I1-I10 **同号不同义**；**处置**：CHECKLIST §6 交接补 I 系列映射注记（C 组锚定 DESIGN 口径）。
+  - **O-S8-P047-2（INFO）**: RESEARCH I9 `SizingState` JSON round-trip 验收无落点；**处置**：登记随 P-051。
+  - **O-S8-P047-3（INFO）**: 派生需求散落未汇总；**处置**：DESIGN 新增 **§12.3 D-R1~D-R4**（no_price 处置 / atr<=0 防御 / 预留字段 / golden S3 round 反推）。
+- **回填**: [DESIGN_p047_position_sizing.md](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p047_position_sizing.md) 新增 §12（12.1 机械校验 / 12.2 发现处置 / 12.3 派生需求 / 12.4 结论）+ 正文 6 处订正（§1×2 / D2×4 行 / D3×1 / §7 R4）；[CHECKLIST_p047_position_sizing.md](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p047_position_sizing.md) A1 + §6 交接 2 条注记（实测列 45 项零预填不变）。
+- **RULE-5**: Step 8 异构成立（GLM-5.3-Flash ≠ Step 7 作者 DeepSeek-V4.1-Flash）。
+- **结论**: **通过，准予进入 Step 9**（45 项验收实测 + 门禁复跑）。无 P1；唯一 P2 为文档缺口、代码零缺陷。
+- **待办**: Step 9（45 项实测回填 + 门禁复跑）；提交仍须用户明确授权。
+
+#### 3.52.10 P-047 Step 9 验收（2026-11-18，DeepSeek-V4.1-Flash）
+
+- **判档/证据时点**: T1；HEAD `531795e` + 工作区（未提交）。对象：[CHECKLIST_p047_position_sizing.md](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p047_position_sizing.md) 45 项实测回填 + 门禁复跑（E1/E2/E3 全覆盖）。
+- **门禁实测（全部达标）**:
+
+| 门禁 | 实测读数 | 目标 | 判定 |
+|------|----------|------|------|
+| pytest 全量（`MPLBACKEND=Agg`，Python312） | **846 passed, 184 warnings, 60.32s** | 846 | ✅ |
+| `-k golden` | **18 passed, 828 deselected, 18.07s** | 18 / 828 | ✅ |
+| 用例收集（`tests/test_p047_position_sizing.py`） | **25 tests collected** | 25 | ✅ |
+| black 26.5.0（`core tests`） | **137 unchanged, 0 reformatted** | 基线 +2 | ✅ |
+| black 26.5.0（全仓） | **205 unchanged, 0 reformatted** | 基线 +2 | ✅ |
+| mypy（CI 等价十四目录） | **Success: no issues found in 109 source files** | 109 / 0 | ✅ |
+| AST `except Exception`（core 外） | **22**（agents 11 / filter 5 / scripts 2 / batch_backtest 2 / strategy_evaluation 1 / cli 1） | 22 不变 | ✅ |
+| `tests/*.py` | **95** | 95 | ✅ |
+| `uv lock --check` | Resolved 148 packages in 9ms，exit **0** | exit 0 | ✅ |
+| `git diff --stat` | `core/engine_v2.py` **+16/−0**；`docs/PROGRESS.md` +143 | 见 CHECKLIST A11/C9 | ✅ |
+| 纯函数性（AST + 读码） | `core/sizing.py` try/except **0**、`# type: ignore` **0** | 0 | ✅ |
+| `git status tests/golden/` | 仅 `?? tests/golden/p047/`（3 JSON） | 3 新 | ✅ |
+
+- **回填统计（RULE-1）**: **45 = 43 `✅` + 2 `[待 Step 10]`（D8/D9）+ 0 `❌`**；分组 = A 12 + B 14 + C 10 + D 7 全 ✅。回填前实测 43 + 2（零预填无损）。
+- **发现（当轮处置 1 P3）**:
+  - **F-S9-P047-1（P3，文档笔误）**: CHECKLIST A2 的 DoD 在 Step 7 版写作 `CashBudgetResult` 含 `qty`，与 DESIGN §D2 及实现（[core/sizing.py L109-116](file:///f:/Coding/Factor_Trading_v3.0/core/sizing.py#L109-L116)，4 字段 `weights/buy_cost/budget/scale`）不符；**处置**：以 DESIGN 为准订正 DoD 文本（`qty` 信息由 `weights` + `buy_cost` 表达），不影响 A8/V8/golden S3 任一断言。
+- **红态口径**: 本批测试与实现同批产出（Step 5），**无 TDD 红态读数**；替代取证 = DESIGN §5 规格先于实现（Step 4 pass）+ DESIGN §11.1 E2 闭式独立复算逐位（B14 口径成立）。
+- **结论**: **通过，准予进入 Step 10 终审**。全部门禁达标；45 项零 ❌。
+- **待办**: Step 10 终审（异构 GLM-5.3-Flash）；D8 原子提交（10 文件）+ D9 文档回填；**提交仍须用户明确授权**。
+
+---
+
 ## 4. 审查记录
 
 ### 4.1 独立 pass（2026-11-04）

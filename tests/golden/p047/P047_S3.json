@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "case_id": "P047_S3",
+  "git_commit": "531795e",
+  "kind": "sizing_cash_budget",
+  "config": {
+    "method": "none",
+    "cash_buffer": 0.985,
+    "granularity": 100,
+    "commission_rate": 0.0003,
+    "commission_min": 5.0,
+    "slippage_pct": 0.001
+  },
+  "inputs": {
+    "weights": {"A": 0.5, "B": 0.5},
+    "cash": 60000.0,
+    "prices": {"A": 10.0, "B": 25.0},
+    "total_value": 100000.0
+  },
+  "expected": {
+    "weights": {"A": 0.29, "B": 0.275},
+    "qty": {"A": 2900, "B": 1100},
+    "buy_cost": 56573.45,
+    "budget": 59100.0,
+    "scale": 0.6016833112092723,
+    "scale_lt_one": true
+  },
+  "tolerance": {"rtol": 1e-09, "atol": 1e-06}
+}

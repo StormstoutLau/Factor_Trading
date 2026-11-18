@@ -25,6 +25,7 @@ from core.execution import ExecutionSimulator, is_valid_price
 from core.invariants import InvariantViolationError, check_all
 from core.manifest import build_manifest, write_manifest
 from core.metrics import METRICS_METHOD
+from core.sizing import estimate_buy_cash
 from core.execution_policy import (
     ExecutionPolicy,
     SignalTranslator,
@@ -900,6 +901,21 @@ class BacktestEngineV2:
             if not is_valid_price(open_price):
                 skipped_price.append(order.stock)
                 continue
+
+            # P-047 A2：BUY 最小现金闸门（队列路径整单拒绝，订单保留在队列）
+            if order.side == OrderSide.BUY:
+                required_cash = estimate_buy_cash(
+                    open_price * qty,
+                    commission_rate=self.cfg.cost.commission_rate,
+                    commission_min=self.cfg.cost.commission_min,
+                    slippage_pct=self.cfg.cost.slippage_pct,
+                )
+                if tracker.get_cash() < required_cash:
+                    logger.warning(
+                        f"BUY 现金不足，整单跳过（保留队列）: {order.stock} "
+                        f"qty={qty} 需要={required_cash:.2f} 可用={tracker.get_cash():.2f}"
+                    )
+                    continue
 
             if qty < order.quantity:
                 logger.warning(

@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "case_id": "P047_S2",
+  "git_commit": "531795e",
+  "kind": "sizing_vol_target",
+  "config": {
+    "method": "vol_target",
+    "target_vol": 0.15
+  },
+  "inputs": {
+    "weights": {"A": 0.5, "B": 0.5},
+    "codes": ["A", "B"],
+    "cov": [
+      [0.04, 0.006],
+      [0.006, 0.09]
+    ]
+  },
+  "expected": {
+    "weights": {"A": 0.39805866932570644, "B": 0.39805866932570644},
+    "scale": 0.7961173386514129,
+    "reasons": {}
+  },
+  "tolerance": {"rtol": 1e-09, "atol": 0.0}
+}
