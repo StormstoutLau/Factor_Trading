@@ -10,7 +10,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -180,6 +180,9 @@ class BacktestEngineV2:
         # 预计算数据
         self._composite_signal: Optional[pd.DataFrame] = None
         self._returns_matrix: Optional[np.ndarray] = None
+
+        # 信号模式（P-044 D5）：默认 scores 零行为；weights=策略直出目标权重
+        self._signal_mode: Literal["scores", "weights"] = "scores"
 
         # 六层归因 dump（默认关闭；setup 时按 cfg.dump_layers_dir 重建）
         self._layer_dumper = LayerDumper(None)
@@ -354,6 +357,34 @@ class BacktestEngineV2:
         self._composite_signal = processed.fillna(0)
 
         logger.info(f"✓ 因子加载完成: {self._composite_signal.shape}")
+
+    def set_signal(
+        self, signal: pd.DataFrame, *, mode: Literal["scores", "weights"] = "scores"
+    ) -> None:
+        """显式注入信号矩阵（P-044 D5）：``scores``=因子分（默认原行为）；``weights``=目标权重。
+
+        ``weights`` 模式要求每行权重和 ≤ 1 且不得为负（空头属 P-050）；
+        缺列按 0 补齐（目标权重语义），未知标的与 index 不一致 fail-fast。
+        """
+        if self.dm is None:
+            raise RuntimeError("请先调用setup()方法")
+        if mode not in ("scores", "weights"):
+            raise ValueError(f"未知信号模式: {mode}")
+        if not signal.index.equals(self.dm.trade_dates):
+            raise ValueError("signal.index 必须与 dm.trade_dates 完全一致")
+        unknown = set(signal.columns) - set(self.dm.stock_codes)
+        if unknown:
+            raise ValueError(f"signal 含未知标的: {sorted(unknown)[:5]}")
+        aligned = signal.reindex(columns=self.dm.stock_codes)
+        if mode == "weights":
+            values = aligned.fillna(0.0)
+            if (values.to_numpy() < 0).any():
+                raise ValueError("weights 模式不接受负权重（空头属 P-050）")
+            if (values.sum(axis=1) > 1.0 + 1e-9).any():
+                raise ValueError("weights 模式要求每行权重和 ≤ 1")
+            aligned = values
+        self._composite_signal = aligned
+        self._signal_mode = mode
 
     def run(self) -> dict[str, Any]:
         """运行回测"""
@@ -990,37 +1021,40 @@ class BacktestEngineV2:
             logger.warning(f"日期 {date} 没有可交易股票")
             return
 
-        # 组合优化
-        try:
-            if date_index >= self.cfg.optimizer.cov_lookback:
-                assert returns_matrix is not None
-                start_idx = date_index - self.cfg.optimizer.cov_lookback
-                end_idx = date_index
-                returns_data = pd.DataFrame(
-                    returns_matrix[start_idx:end_idx],
-                    index=dm.trade_dates[start_idx:end_idx],
-                    columns=dm.stock_codes,
+        # 组合优化（P-044 D5）：weights 模式策略直出，跳过优化器（权重不得二次优化）
+        if self._signal_mode == "weights":
+            target_weights = daily_signal.clip(lower=0.0)
+        else:
+            try:
+                if date_index >= self.cfg.optimizer.cov_lookback:
+                    assert returns_matrix is not None
+                    start_idx = date_index - self.cfg.optimizer.cov_lookback
+                    end_idx = date_index
+                    returns_data = pd.DataFrame(
+                        returns_matrix[start_idx:end_idx],
+                        index=dm.trade_dates[start_idx:end_idx],
+                        columns=dm.stock_codes,
+                    )
+                else:
+                    returns_data = None
+
+                target_weights = optimizer.optimize(tradable_stocks, returns_data)
+
+                logger.debug(f"优化得到{len(target_weights)}只股票的目标权重")
+
+            except Exception as e:
+                self._diagnostics.record(date, "rebalance", e)
+                self._emit(
+                    EventType.ERROR,
+                    {
+                        "date": date.strftime("%Y-%m-%d"),
+                        "stage": "rebalance",
+                        "error_type": type(e).__name__,
+                        "message": str(e)[: self._diagnostics.MAX_MESSAGE],
+                    },
                 )
-            else:
-                returns_data = None
-
-            target_weights = optimizer.optimize(tradable_stocks, returns_data)
-
-            logger.debug(f"优化得到{len(target_weights)}只股票的目标权重")
-
-        except Exception as e:
-            self._diagnostics.record(date, "rebalance", e)
-            self._emit(
-                EventType.ERROR,
-                {
-                    "date": date.strftime("%Y-%m-%d"),
-                    "stage": "rebalance",
-                    "error_type": type(e).__name__,
-                    "message": str(e)[: self._diagnostics.MAX_MESSAGE],
-                },
-            )
-            logger.error(f"组合优化失败: {e}")
-            return
+                logger.error(f"组合优化失败: {e}")
+                return
 
         # 计算目标持仓（含调出标的的清仓项）
         try:

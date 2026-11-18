@@ -12,6 +12,7 @@ Plugin Registry — 统一插件注册中心
 - Filter (股票池过滤器)
 - Guard (风控规则)
 - Agent (Agent 类型)
+- Strategy (策略)
 """
 
 from __future__ import annotations
@@ -178,6 +179,7 @@ _trigger_registry: Optional[PluginRegistry[Any]] = None
 _filter_registry: Optional[PluginRegistry[Any]] = None
 _guard_registry: Optional[PluginRegistry[Any]] = None
 _agent_registry: Optional[PluginRegistry[Any]] = None
+_strategy_registry: Optional[PluginRegistry[Any]] = None
 
 
 def get_optimizer_registry() -> PluginRegistry[Any]:
@@ -218,6 +220,14 @@ def get_agent_registry() -> PluginRegistry[Any]:
     if _agent_registry is None:
         _agent_registry = PluginRegistry("agent")
     return _agent_registry
+
+
+def get_strategy_registry() -> PluginRegistry[Any]:
+    """获取 Strategy 注册中心"""
+    global _strategy_registry
+    if _strategy_registry is None:
+        _strategy_registry = PluginRegistry("strategy")
+    return _strategy_registry
 
 
 # ==================== Decorator Helpers ====================
@@ -317,6 +327,27 @@ def register_agent(
 
     def decorator(factory: Callable[..., Any]) -> Callable[..., Any]:
         get_agent_registry().register(
+            name=name,
+            factory=factory,
+            description=description,
+            config_schema=config_schema,
+            metadata=metadata,
+        )
+        return factory
+
+    return decorator
+
+
+def register_strategy(
+    name: str,
+    description: str = "",
+    config_schema: Optional[dict[str, Any]] = None,
+    metadata: Optional[dict[str, Any]] = None,
+):
+    """Strategy 注册装饰器"""
+
+    def decorator(factory: Callable[..., Any]) -> Callable[..., Any]:
+        get_strategy_registry().register(
             name=name,
             factory=factory,
             description=description,

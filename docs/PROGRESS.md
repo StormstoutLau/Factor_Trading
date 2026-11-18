@@ -1986,6 +1986,119 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **未决/观察项移交**: U-P043-2（订单成交事件，P-053）/ U-P043-3（多实例同路径，文档声明不支持）/ U-P043-4（CLI 开关，P-054）/ **O-P043-1**（`EventLogPlugin.log_*` 死 API 去留，P-053/P-054）/ **O-P043-2**（既有 `logger.error` 异常消息不截断，P-054 日志治理）/ U-P025-1 **done**（由本批承接关闭）。
 - **下一步**: 按总纲 §5 顺序，候选 P-044（参数台账下一批以总纲排期为准）。
 
+### 3.50.1 P-044 Step 1-2 调研（2026-11-18）
+
+- **题干（范围收窄）**: ① 策略契约——`core/strategy.py` 的 `StrategyMeta` / `StrategyState` / `MarketView` / `TargetWeights` / `Strategy`（`@runtime_checkable` Protocol，`generate_signals` 纯函数）；② 回测适配器——`BacktestAdapter` 产逐日目标权重矩阵，复用既有执行链；③ 既有策略**等价迁移**（默认因子信号路径 + 三方向 `StrategyConfig` long/short/both，逐值锁定零行为）；④ registry 增 `strategy` 类别（§6 可追溯门禁）；⑤ 状态 JSON 往返 + 重放一致。**明确不做**：`strategies/`（P-051）、`live/`（P-053）、`StrategyEngine` 内部重构（U-P044-3）、择时/止损（P-045）、风险 overlay（P-048）、负权重/空头（P-050）。
+- **判档**: **T1**（新建 `core/strategy.py` 契约 + `core/registry.py` 扩展 + `tests/`）。
+- **代码事实（E3 @`96384f6`）**: `core/strategy.py` / `strategies/` **均不存在**；全仓代码 `BacktestAdapter` / `MarketView` / `StrategyState` / `StrategyMeta` / `TargetWeights` **0 命中**（仅 master plan 文档）；`core/registry.py` 仅 **5** 类别（optimizer/trigger/filter/guard/agent）；引擎信号消费点为 `optimizer.optimize(daily_signal)` → `build_target_positions`，无策略抽象；`_composite_signal` 为私有且无公共 setter；三方向定义在 `agents/multi_strategy_engine.py:626-663`（long/short/both）。
+- **缺口 G1-G7**: G1 无策略契约（P2）/ G2 无状态模型与序列化（P2）/ G3 无回测适配器（P2）/ G4 registry 无 strategy 类别（P3）/ G5 无 code hash/版本追溯（P3）/ G6 三方向与 core 路径双实现无等价证明（P3）/ G7 无公共信号注入入口（P3）。
+- **方案裁决**: **M-A 契约 + 纯内存适配器 + 等价迁移**（M-B 引擎重构 / M-C 只加协议 / M-D 先建模板库 / M-E vnpy 依赖 均拒）。
+- **语义 S1-S10 / 不变式 I1-I9（要点）**: `StrategyMeta` 四要素；`StrategyState` frozen + JSON 安全；`MarketView` 只读；`TargetWeights=pd.Series`（非负边界）；`code_hash` = 类源码 sha256 前 12 hex；三方向映射逐字对齐 P-031 D2；默认路径零改动。
+- **批次切分**: B1 契约与注册 / B2 回测适配器 / B3 等价迁移 / B4 测试文档；计数链 pytest **803 → 811**、`tests/*.py` **92 → 93**、mypy **104 → 105**、black **130·197 → 131·198**、AST **22 不变**。
+- **Step 2 Review**: pass（同基座 DeepSeek-V4.1-Flash；**1 P2 + 2 P3** 当轮处置）——F-S2-P044-1（P2）「迁移」按字面重构 `StrategyEngine` 会触碰 P-031/P-033 锁定语义 → 裁决为**等价 wrapper + 逐值锁定**，`agents/` 零 diff；F-S2-P044-2（P3）私有 `_composite_signal` 注入 → U-P044-2 倾向公共 `set_signal`；F-S2-P044-3（P3）`TargetWeights` 别名不承载非负约束 → S4 声明 + 测试断言。
+- **未决**: U-P044-1 协议放置 / U-P044-2 适配器产物与注入入口 / U-P044-3 `StrategyEngine` 内部重构（P-051）/ U-P044-4 `code_hash` 范围 / U-P044-5 异构终审（GLM-5.3-Flash）。
+- **文档**: [RESEARCH_p044_strategy_interface.md](RESEARCH_p044_strategy_interface.md)（§1 题干 / §2 代码事实 / §4 G1-G7 / §5 M-A~M-E / §6 B1-B4 / §7 S1-S10 / §8 I1-I9 / §9 未决 / §13 Step 2 Review）。
+- **下一步**: 进入 Step 3 DESIGN（U-P044-1/2/4 裁决 + B1-B4 精确签名）。
+
+### 3.50.2 P-044 补充调研：三个决策点的社区锚点（2026-11-18）
+
+- **触发**: 用户要求对 U-P044-1（协议放置）/ U-P044-2（适配器形态与 `set_signal`）/ U-P044-4（`code_hash` 范围）补充调研，搜索社区案例与文档找决策锚点。
+- **方法**: WebSearch 限定 qlib / vnpy / backtrader / freqtrade / vectorbt / Python 官方文档 / PEP 544 / joblib / MLflow / hexagonal architecture；证据等级 **E1-EXT**（URL 可复核，只证明社区主流做法，不作本地正确性证据）。
+- **U-P044-1 锚点**: qlib `BaseStrategy` / vnpy `CtaTemplate` / backtrader `Strategy` 均为**专用策略模块**；hexagonal「端口定义在领域层」→ 推荐 **`core/strategy.py`**（拒 `interfaces.py` 反向依赖）。
+- **U-P044-2 锚点**: qlib `WeightStrategyBase`「策略只产权重→框架转订单」+ vectorbt `from_weights/targetpercent` + freqtrade 批量 DataFrame；vnpy/backtrader 逐 bar 回调属实盘形态 → 回测侧**批量 `signals_frame` DataFrame**，契约仍逐日纯函数；`set_signal(df)` 属既有 `setup()→run()` 生命周期的显式入口（setter 注入风险以「前置对齐校验」化解；拒私有属性写入与 `run(strategy=...)`）。
+- **U-P044-4 锚点**: CPython `inspect.getsource` 源不可得抛 `OSError`（内置对象 `TypeError`）→ 必须显式 fallback；getsources/fastflowtransform 均为「getsource → dedent → 回退链」；MLflow/DVC 用 git commit 短哈希 → 本项目取**类源码 + dedent + 换行归一 + sha256 前 12 hex**，回退链前缀 `q:` 不静默；拒模块级/bytecode/git-only。
+- **文档**: [RESEARCH_p044_strategy_interface.md](RESEARCH_p044_strategy_interface.md) §14（§14.1-14.5，含决策对照汇总）。
+- **下一步**: 进入 Step 3 DESIGN（以 §14.4 推荐为初值逐条裁决）。
+
+### 3.50.3 P-044 Step 3 设计（2026-11-18）
+
+- **决策 D1-D8**: D1 契约放 `core/strategy.py`（qlib/vnpy/backtrader 同域 + hexagonal 端口归领域）；D2 三 frozen dataclass + `TargetWeights=pd.Series` + `Strategy` Protocol（`meta` 用 property，规避 `runtime_checkable` 对非方法成员 `issubclass` 的 `TypeError`）；D3 `code_hash` 类源码 + dedent + 换行归一 + sha256 前 12 hex + `q:` 前缀回退；D4 `BacktestAdapter`（`signals_frame` 批量物化 + `views_from_data` + `state_history`）；D5 **引擎信号模式**（`_signal_mode="scores"` 默认 + `set_signal(df, mode=...)` + `_execute_rebalance` 单分支）；D6 等价迁移映射（`FactorSignalStrategy` / `DirectionalStrategy` long/short/both，复用同一 `IOptimizer` 实例）；D7 registry +strategy 类别；D8 零行为边界（`agents/` 零 diff、Config 零新字段、golden 零重录）。
+- **核心发现 F-D3-P044-1（P2，设计期）**: 权重不能直接塞 `_composite_signal`——下游优化器会把权重当分数二次优化 → D5 引入显式模式（默认 `scores` 零行为），`weights` 模式跳过优化器并以 V5 逐值等价锁定。
+- **边界规格**: `set_signal` 四类 fail-fast（index 不一致 / 未知标的 / 负权重 / 行和 >1）；缺列填 0 文档化；`weights` 模式 `should_trigger` 语义边界登记 O-P044-2（fixed/daily 不读 signal）。
+- **测试规格**: V1 契约 / V2 code_hash（含 CRLF/LF 同值与动态类回退）/ V3 状态往返 / V4 零行为护栏 / V5 weights 集成等价 / V6 三方向等价 / V7 set_signal 边界 / V8 registry；红态预测 **`7 failed, 1 passed`**（V4 护栏）。
+- **计数链**: pytest **803 → 811** / golden **13·790 零重录** / black **130·197 → 131·198**（源码+测试各 +1）/ mypy **104 → 105** / AST **22 不变** / `tests/*.py` **92 → 93** / uv **0**。
+- **风险 R1-R8**: 模式误用 / 静默丢列 / 行和 >1 / hash 漂移 / getsource 失败 / 触发器语义 / 状态膨胀 / 双实现漂移；回退点四批独立。
+- **文档**: [DESIGN_p044_strategy_interface.md](DESIGN_p044_strategy_interface.md)（§1 范围 / §2 D1-D8 / §3 签名 / §4 数据流 / §5 V1-V8 / §6 I1-I10 + 计数链 / §7 R1-R8 / §8 后续接口 / §9 设计期发现 / §10 待 Step 4）。
+- **下一步**: 进入 Step 4 Design Review（**0 预填**）。
+
+### 3.50.4 P-044 Step 4 设计评审（2026-11-18）
+
+- **评审基座**: GLM-5.3-Flash（≠ 正文作者 DeepSeek-V4.1-Flash）→ **异构复审成立**（头部约定同源评审才触发 U-P044-5，本轮不触发；Step 10 终审另轮）。
+- **取证**: 运行时探针（Python 3.12，5 组 A-E）+ 读码 core/rebalance.py + 机械复核（计数链 / V↔I 映射 / 回退点）。
+- **探针结论**: property 与注解成员的协议 `isinstance` 均 True、`issubclass` 均 TypeError（A1-C2）→ **证伪 D2「property 规避 TypeError」论据**（设计不变，V1 仅 isinstance）；`exec` 动态类对类取源抛 `TypeError`（`__module__='builtins'`）、方法抛 OSError（D1/D2）→ D3 回退链双异常确认；CRLF/LF 归一同 hash `e8d8903c0aed`（E1）。
+- **读码结论**: FixedIntervalTrigger 不读 signal（L47-111）；ConditionalTrigger 直接读（L138-177）；HybridTrigger 经 L265 `**kwargs` 透传间接读 → **O-P044-2 范围扩大**（weights 模式禁配 conditional/hybrid）。
+- **发现 5 项（全 P3，当轮处置）**: F-S4-P044-1 D2 论据订正 / F-S4-P044-2 weights 不强制 tradable 语义差异（V5 显式同源传 tradable）/ F-S4-P044-3 `views_from_data` 历史不足→None 规格 + 内存口径 / F-S4-P044-4 weights 仍需占位 factor_files 边界 / F-S4-P044-5 clip 冗余注明防御性；另 2 项补记（D3 文字规格补 TypeError、O-P044-2 扩大）。
+- **一致性复核**: 计数链自洽（pytest 811 / black +1+1 / mypy +1 / AST 22 / tests 93）、V↔I 映射全覆盖、B1-B4 回退点独立、agents/ 零 diff 与 M-A 一致。
+- **结论**: **准予进入 Step 5 IMPL**（无 P1/P2 阻塞）。
+- **文档**: [DESIGN_p044_strategy_interface.md](DESIGN_p044_strategy_interface.md) §10（探针/读码证据 + 发现处置 + 结论）与正文 D2/D3/D4/D5/§4/§5/§7/§9 同步修订。
+- **下一步**: 进入 Step 5 IMPL。
+
+### 3.50.5 P-044 Step 5 实施规划（2026-11-18）
+
+- **文档**: [IMPL_p044_strategy_interface.md](IMPL_p044_strategy_interface.md)（§1 范围 / §2 B1-B4 / §3 精确代码 / §4 V1-V8 / §5 低效排除 / §6 兼容性 / §7 门禁 / §8 回退 / §9-§10 待回填）。
+- **批次**: B1 `core/strategy.py`（新建：`canonical_json` / `code_hash` / 3 frozen dataclass / `TargetWeights` / `Strategy` Protocol / `FactorSignalStrategy` / `DirectionalStrategy` / `BacktestAdapter`）→ B2 `core/registry.py`（+strategy 类别 3 符号）→ B3 `core/engine_v2.py`（typing +`Literal` / `_signal_mode` 属性 / `set_signal` / `_execute_rebalance` 单分支，原 try 体逐字缩进进 else）→ B4 测试 8 用例。
+- **锚点（@`96384f6`）**: `__init__` L104-190（`_returns_matrix` L182 后插模式属性）；`_precompute_factors` L330-356 与 `run()` L358 之间插 `set_signal`；`_execute_rebalance` L993-1023 整块替换（组合优化段）；`registry.py` L180/L220/L327 三处追加。
+- **边界声明（§3.4 六条）**: weights 全 0 行 = 清仓（与 scores 空→跳过不同，策略欲保持须回填 `state.positions`）/ tradable 不强制 / 缺列填 0（weights）或保 NaN（scores）/ `factor_files` 占位 / conditional·hybrid 禁配 / 负权重 fail-fast。
+- **实施期发现 F-S5-P044-1（P3，文档订正）**: DESIGN §6 与 §10.4 原记 black **131·198**（+1）漏算测试文件——`core tests` 与全仓两口径均含 `tests/`（P-043 已证 129·196→130·197 为 +1 测试文件），本轮新增 2 文件 → **132·199**；DESIGN 两处已同步订正并标注 S5 来源。
+- **实施期技术校验（本机 pandas 探针）**: ① `signals_frame` 须**先求列并集再构造** DataFrame，否则 `.loc` 首次赋值新建列留 NaN 而非 0（违反契约）；② `performance_metrics` 含 `cumulative_return_series` 数组 → V4/V5 整字典相等会抛 `ValueError`，改为标量键 `pytest.approx` 断言。两条已写入 IMPL §3.1/§4.3。
+- **红态预测**: `7 failed, 1 passed`（V1/V2/V3/V5/V6 导入失败、V7 `set_signal` 缺失、V8 注册器缺失；V4 护栏 PASS）。
+- **门禁目标**: pytest **803→811** / golden **13·790 零重录** / black **132·199** / mypy **104→105** / AST **22 不变** / `tests/*.py` **92→93** / uv **0**。
+- **下一步**: 进入 Step 6 IMPL Review（**异构 GLM-5.3-Flash，0 预填**）。
+
+### 3.50.6 P-044 Step 6 实施评审（2026-11-18）
+
+- **评审基座**: GLM-5.3-Flash（≠ IMPL 作者 DeepSeek-V4.1-Flash）→ **异构复审成立**（Step 4/6 连续两轮异构）。
+- **取证**: 读码锚点核对（engine_v2 / registry / target_positions / data / filter @`96384f6`）+ 本机探针（pandas-stubs find_spec）+ 机械复核（计数链 / 红态 / 回退点）。
+- **关键语义证实**: `build_target_positions` L82-84→L100-111 实测**零权重项 ≡ 缺席项**（同一 `weight <= 0.0` 分支清仓）→ V5 等价性与「全 0 = 清仓」边界升级为 E3 证据；`dm.returns`/`universe.tradable` 列序经 dm 矩阵重索引对齐 `stock_codes` → 适配器窗口/掩码 ≡ 引擎构造。
+- **mypy 风险排除**: `ignore_missing_imports=true` + pandas-stubs 未安装 → pandas 调用 Any 化，`frame.loc[list]=` 无风险。
+- **发现 2 项（全 P3，当轮处置）**: F-S6-P044-1 V6 增补非法 direction `ValueError` 覆盖（已落 §4.2）；F-S6-P044-2 `code_hash` `q:` 种子类目标退化声明（§3.1 补行，不改码——实例侧读 meta 循环依赖）。
+- **结论**: **pass（0 P1 / 0 P2 / 2 P3）→ 准予进入 Step 7 CHECKLIST**。
+- **文档**: [IMPL_p044_strategy_interface.md](IMPL_p044_strategy_interface.md) §9（10 项复核读数 + 发现处置 + 结论）与 §3.1/§4.2 同步修订。
+- **下一步**: 进入 Step 7 CHECKLIST。
+
+### 3.50.7 P-044 Step 7 验收清单（2026-11-18）
+
+- **文档**: [CHECKLIST_p044_strategy_interface.md](CHECKLIST_p044_strategy_interface.md)（A 14 + B 12 + C 11 + D 8 = **45 项**；§5 预填检查 / §6 交接 / §7-§8 待回填）。
+- **A 组（14）**: `core/strategy.py` 十项（`code_hash` 双异常回退 / 三 frozen dataclass / `TargetWeights`+`Strategy` Protocol / `FactorSignalStrategy` / `DirectionalStrategy` / `BacktestAdapter` 三项 / 零 I/O）+ registry 三符号 + 引擎四处（`Literal`/`_signal_mode`/`set_signal` 五类 fail-fast/`_execute_rebalance` 单分支）。
+- **B 组（12）**: V1-V8 八用例 + 红态 7F/1P 留证 + 绿态 8 passed + 既有四文件零订正 + 夹具一致性。
+- **C 组（11）**: I1-I10 全覆盖 + C11 既有语义零变更（`SignalTranslator`/portfolio/target_positions/rebalance 零 diff；原 try 体仅缩进）。
+- **D 组（8）**: pytest **811** / golden 13 零重录 / black **132·199** / mypy **105** / AST **22** / uv 0 / 提交+CI / 文档 45-45。
+- **零预填**: 45 × `[待 Step 9]`；DoR 交叉引用已自检（无悬空 ID）。
+- **下一步**: 进入 Step 8 一致性 Review（**异构 GLM-5.3-Flash**）。
+
+### 3.50.8 P-044 Step 8 一致性评审（2026-11-18）
+
+- **评审基座**: GLM-5.3-Flash（≠ 四文档作者 DeepSeek-V4.1-Flash）→ **异构成立**（Step 4/6/8 连续三轮）；U-P044-5 维持登记至 Step 10。
+- **机械五项**: 清单 45=14+12+11+8 零预填 / 计数链五文档一致（订正后 811·132·199·105·22·93）/ 8 函数=V1-V8、红态 7F/1P 三文档一致（无 P-043 F-S8-P043-1 同类断裂）/ 发现 ID 引用闭环 / 基座链一致。
+- **对齐矩阵**: RESEARCH S1-S10 / I1-I9 / G1-G7 ↔ DESIGN D1-D8 ↔ IMPL §2-§3 ↔ CHECKLIST 45 项全闭合；G1-G7 全部有 D 映射（Step 10 复核）。
+- **发现 4 项（全 P3，当轮处置）**: F-S8-P044-1 RESEARCH 计数链 stale black 131·198→132·199（§8/§13.1 两处订正）；F-S8-P044-2 批次字母三文档漂移（DESIGN §1/§8 对齐 IMPL §2，RESEARCH §6 补取代注）；F-S8-P044-3 DESIGN 头部 U-P044-5 措辞订正（维持登记至 Step 10 承接闭合）；F-S8-P044-4 DESIGN D4 positions 存非零项补注（零≡缺席已证）。
+- **结论**: **pass（0 P1 / 0 P2 / 4 P3）→ 准予进入 Step 9 TDD**（红态 7F/1P 以实测为准）。
+- **文档**: [CHECKLIST_p044_strategy_interface.md](CHECKLIST_p044_strategy_interface.md) §7；RESEARCH §6/§8/§13.1、DESIGN 头部/§1/§8/D4 同步修订。
+- **下一步**: 进入 Step 9 TDD。
+
+### 3.50.9 P-044 Step 9 TDD 实施（2026-11-18）
+
+- **红态**: 测试先落 → **`7 failed, 1 passed in 8.61s`**，与 IMPL §4.3 预测逐项一致（V1/V2/V3/V5/V6 `ModuleNotFoundError: core.strategy`；V7 `AttributeError: set_signal`；V8 `ImportError: get_strategy_registry`；**V4 护栏 PASS**）。
+- **落码**: B1 `core/strategy.py`（L34 `TypeAlias` / L42-77 hash / L80-125 三 dataclass / L128-135 Protocol / L138-166 因子策略 / L169-219 方向策略 / L222-322 适配器）；B2 registry 四符号；B3 `engine_v2` 四处（`Literal` L13 / `_signal_mode` L184-185 / `set_signal` L361-387 / 分支 L1024-1057）。
+- **绿态**: 新文件 **`8 passed, 5 warnings in 5.49s`**；含新文件与既有四文件 **45 passed**（零订正）。
+- **门禁（E1）**: pytest **811** / golden **13 passed, 798 deselected**（零重录）/ black **132·199** / mypy **105 files 0** / AST **22**（分项 11+5+2+2+1+1）/ `tests/*.py` **93** / uv **0**。
+- **实施期发现（3 P3）**: F-S9-P044-1 `TargetWeights = pd.Series` 作注解触发 mypy 12 errors（`valid-type`）→ 改 `TargetWeights: TypeAlias = pd.Series`，运行时 `is pd.Series` 不变（IMPL §3.1 / DESIGN D2 同步订正；IMPL §9.1-8 的「Any 化」结论补全）；F-S9-P044-2 black 首跑 1 文件待格式化 → 格式化后 132·199 unchanged + 复跑 811 确认零语义；F-S9-P044-3 `engine_v2` diff +96/−31 含约 27 行缩进位移（`git diff -w` 等价，Step 10 复核）。
+- **文档**: [IMPL_p044_strategy_interface.md](IMPL_p044_strategy_interface.md) §10（落码/红绿/门禁/发现/结论）；[CHECKLIST_p044_strategy_interface.md](CHECKLIST_p044_strategy_interface.md) 实测 **43/45**（D7/D8 待 Step 10）。
+- **遗留**: D7 提交 + CI 需用户授权；Step 10 ADD 审计与异构终审（GLM-5.3-Flash）待执行。
+- **下一步**: 进入 Step 10 ADD 审计与异构终审。
+
+### 3.50.10 P-044 Step 10 ADD 审计与异构终审（2026-11-18）
+
+- **审计基座**: GLM-5.3-Flash（≠ Step 9 实施者 DeepSeek-V4.1-Flash）→ **本轮 ADD 即异构终审**（Step 4/6/8/10 四轮异构；**U-P044-5 在本轮闭合**）。
+- **四阶段**: Phase 0 模糊词自审净 / Phase 1 D1-D8 落地逐项命中（E2 探针）/ Phase 2 生产 diff 对拍（`git diff -w`：engine_v2 真实语义 **+38/−2**，~58 行缩进位移，F-S9-P044-3 证实）/ Phase 3 变更面恰 9 文件（3 M + 6 新），config/event_log/streaming/agents/golden/pyproject/uv.lock 零 diff / Phase 4 深挖全净。
+- **E2 独立探针（非测试套件）**: 15 断言全过 `PROBE_OK p044_all_8_groups`——含**套件未覆盖增量** P5（`returns_window` 历史不足→None + 窗口=截至前一日，V5 因 cov_lookback=60>5 全 None 未触达）与 P2（类级 hash 区分两策略 + `canonical_json` 键序无关）。
+- **七门禁独立复跑（E1）**: pytest **811**（63.47s）/ golden **13·798** / black **132·199** / mypy **105 files 0** / AST **22** / tests **93** / uv **0**——全命中目标。
+- **盲区（E4）**: `_signal_mode`/`set_signal` 引用面仅 engine+测试（无泄漏）；P-042/P-043 产物零触碰；registry 新符号无 core 外消费方（预期）。
+- **结论**: **ADD pass（0 P1 / 0 P2 / 0 P3 新缺陷；零发现经多角度降级重扫后记合规，扫描范围见 CHECKLIST §8.2）**；G1-G7 全关闭；U-P044-3 维持（P-051）。
+- **文档**: [CHECKLIST_p044_strategy_interface.md](CHECKLIST_p044_strategy_interface.md) §8（四阶段 + 重扫表 + 取证矩阵 E1-E5 + 结论）。
+- **遗留**: **D7 提交与 CI 待用户授权**（提交原子 = 3 生产文件 + 1 新测试 + 6 文档含 CHANGELOG）；D8 随提交闭合至 45/45。
+- **下一步**: 用户授权后执行提交 + CI。
+
 ---
 
 ## 4. 审查记录
