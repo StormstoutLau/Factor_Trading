@@ -2,9 +2,9 @@
 
 > **批次**: P-048 · **T1**（新建 `core/risk_overlay.py` 纯函数模块 + `set_signal` 可选校验 + engine 三处 opt-in 接线 + 2 测试模块 + S15 场景）
 > **上游**: [DESIGN_p048](DESIGN_p048_risk_overlay.md)（§5 缩放算法 / §6 策略 / §7 接入与门控 / §8 测试与场景 / §9 改动面 / §10 能力边界 / §12 I1-I7 / §15 A1-A9 / **§18.1 Step 4 pass：1 P2 + 5 P3** / **§18.2 Step 6 pass：1 P2 + 4 P3 + 5 正面核验** / **§18.3 Step 8 pass：2 P2 + 7 P3 + 1 INFO**）；[IMPL_p048](IMPL_p048_risk_overlay.md)（§2-§4 代码骨架 / §5 T4 / §6 T5 接线 / §7 T6 测试与 S15 / §8 12 锚点 / §9 门禁 / §10 风险回退 / §11 五项微调 / §13 Step 6 吸收 5/5）；[RESEARCH_p048](RESEARCH_p048_risk_overlay.md)（§15 DoD / §18 Step 2 pass：2 P2 + 5 P3）
-> **状态**: Step 7 产出（2026-11-19，DeepSeek-V4.1-Flash）；**Step 8 复审 PASS**（[DESIGN §18.3](DESIGN_p048_risk_overlay.md)：2 P2 + 7 P3 + 1 INFO，修正已 10/10 吸收——计数链 / 基线读数以本文件现行值为准）；**Step 9 验收回填完成（2026-11-19，GLM-5.3-Flash，异构于 Step 5 落码）**：A/B/C/D1-D9 共 **39 项全 `✅`**（门禁对照见 §8），D10 留 `[待 Step 10]`
+> **状态**: Step 7 产出（2026-11-19，DeepSeek-V4.1-Flash）；**Step 8 复审 PASS**（[DESIGN §18.3](DESIGN_p048_risk_overlay.md)：2 P2 + 7 P3 + 1 INFO，修正已 10/10 吸收——计数链 / 基线读数以本文件现行值为准）；**Step 9 验收回填完成（2026-11-19，GLM-5.3-Flash，异构于 Step 5 落码）**：A/B/C/D1-D9 共 **39 项全 `✅`**（门禁对照见 §8）；**Step 10 终审 PASS + D10 关闭（2026-11-19/20，Qwen3.8-Max 终审 / DeepSeek-V4.1-Flash 回填）**：**40 项全 `✅`**，提交 `c12497c`，CI run `44558140801` 四 job 全绿
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；禁止预填
-> **行号口径（F-S10-P045-2 教训）**: 本文件行号均 @未提交工作区（HEAD `73f9807` + diff）；提交后须以 commit hash 绑定重取
+> **行号口径（F-S10-P045-2 教训）**: 本文件行号 @未提交工作区（基线 `73f9807` + diff）；主提交 **`c12497c`** 已落盘，行号对 `c12497c` 有效（提交后复核无位移）
 > **基线读数（@`73f9807`，P-059 关闭）**: pytest **906** / `-k golden` **18** / `-k p059` **60**（Step 8 实测订正 F-S8-P048-1：原记 39 系 P-059 B8 `test_p059_scenarios.py` 单模块 collect 误升格）/ 全量 collect **906** / mypy **110 files 0** / black `core tests` **146**、全仓 **215** / `tests/*.py` **104** / AST `except Exception`（core 外生产面）**22** / `uv lock --check` exit **0**
 > **目标读数**: pytest **932**（906 + 26，Step 5 实测订正 F-S5-P048-3）/ `-k golden` **18（零重录）** / `-k p059` **63**（60 + 3）/ 全量 collect **932** / mypy **111 files 0**（+1 源）/ black `core tests` **149**、全仓 **218**（+3）/ `tests/*.py` **106**（+2）/ AST **22（不变）** / `uv lock --check` exit **0**
 
@@ -68,7 +68,7 @@
 | D7 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` **零 diff** | 全量实现 | 命令 + `git diff` | `✅` `uv lock --check` → `Resolved 148 packages` exit **0**；`git diff --stat -- pyproject.toml uv.lock` **空输出** |
 | D8 | **改动面白名单**：**新建 7**（`core/risk_overlay.py` + `tests/test_p048_risk_overlay.py` + `tests/test_p048_overlay_engine.py` + 四文档）；**改 7**（`core/config.py` +8 / `core/engine_v2.py` +48 / `tests/_scenarios_cases.py` / `tests/_scenarios_builder.py` / `tests/test_p059_scenarios.py`〔第二处计数硬编码，F-S5-P048-4〕/ `scripts/verify_scenario.py`〔docstring 计数〕/ `docs/PROGRESS.md`）；**零 diff 面**：`core/guard_pipeline.py` / `core/sizing.py` / `core/config_v2.py` / `tests/_scenarios_assert.py` / `tests/_scenarios_spec.py` / `tests/golden/`；回退点按 IMPL §10 可执行（删新源 + 撤 6 锚点 + 撤 S15；T4 可单独回退） | 全量实现 | `git diff --stat` + `git status --short` + 读 IMPL §10 | `✅` `git status --short` = **M×7 + ??×7 = 14 文件**，与白名单逐项吻合；numstat：`core/config.py` **7/1**（总 8 行）、`core/engine_v2.py` **47/1**（总 48 行）；零 diff 面 6 项 `git diff --stat` **空输出**；回退清单读回（IMPL §10）可执行 |
 | D9 | **文档回写**：DESIGN §16.1 Step 5 执行回写；PROGRESS 登记 P-048；IMPL §12 执行记录表由 `[待执行]` 改为实测；本文件 D8 引用的回退清单与 IMPL §10 逐项一致 | D1-D8 通过 | 读回 diff | `✅` [DESIGN §16.1 @L470](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p048_risk_overlay.md) Step 5 执行回写（929→932）；[PROGRESS §3.54](file:///f:/Coding/Factor_Trading_v3.0/docs/PROGRESS.md) P-048 登记；IMPL §12 执行记录表已实测化（§14 六项发现 F-S5-P048-1..6）；D8 引用与 IMPL §10 回退清单逐项一致（读回核验） |
-| D10 | **提交与 CI**：提交原子（新源 1 + 新测试 2 + 新文档 4 + 已跟踪源 2〔config / engine〕+ 已跟踪测试 3〔cases / builder / test_p059_scenarios〕+ 脚本 1〔verify_scenario〕+ PROGRESS）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12）；**须用户明确授权后方可 commit/push** | D1-D9 通过 | `git show --stat` + `gh run view` | `[待 Step 10]` |
+| D10 | **提交与 CI**：提交原子（新源 1 + 新测试 2 + 新文档 4 + 已跟踪源 2〔config / engine〕+ 已跟踪测试 3〔cases / builder / test_p059_scenarios〕+ 脚本 1〔verify_scenario〕+ PROGRESS）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12）；**须用户明确授权后方可 commit/push** | D1-D9 通过 | `git show --stat` + `gh run view` | `✅` 授权来源：用户「继续」（Step 10 指令）。提交 **`c12497c`**（`git show --stat`：**14 files changed, 3147 insertions(+), 9 deletions(-)**；新建 7 = risk_overlay + 2 测试 + 4 文档，改 7 = config / engine_v2 / verify_scenario / cases / builder / test_p059_scenarios / PROGRESS + CHANGELOG 关闭回填另提交），已 push `73f9807..c12497c`；CI run **`44558140801`** 四 job **全 success**（lock-check 10s / test(3.10) 2m18s / test(3.11) 3m55s / test(3.12) 3m04s；`gh run view --log-failed` 空） |
 
 ---
 
@@ -79,6 +79,7 @@
 | 验收项总数 | **40**（A 12 + B 11 + C 7 + D 10 = 40，逐表行数机械计数） |
 | 实测列初始状态 | A/B/C/D1-D9 共 **39 × `[待 Step 9]`**；D10 **1 × `[待 Step 10]`**；`✅` 出现即为违规 |
 | Step 9 回填后状态 | A/B/C/D1-D9 **39 × `✅ + 证据`**；D10 **1 × `[待 Step 10]`**；`[待 Step 9]` 实测列残留 **0**（说明性引用 L5/L6/L80/L108 不计） |
+| Step 10 关闭后状态 | **40 项全 `✅ + 证据`**；`[待 Step 9]` / `[待 Step 10]` 实测列残留均 **0** |
 | 新用例数（目标） | **26 收集** = 16 纯函数（含 I6 专测）+ 4 接线 + 3 external_max_weight（B9，F-S7-P048-1）+ 3 场景族实例（S15 进入 scenario / 第二参数化 / metamorphic，F-S5-P048-3） |
 | Step 9 门禁目标 | pytest **932** / `-k golden` **18** / `-k p059` **63** / 全量 collect **932** / mypy **111** / black **149·218** / `tests/*.py` **106** / AST **22** / `uv lock --check` exit **0**（解释器：`.venv\Scripts\python.exe`，DESIGN §18.3.3） |
 
@@ -138,7 +139,7 @@
 
 ### 8.3 结论
 
-- **39 项验收全 ✅**（A12 + B11 + C7 + D9），D10 留 Step 10（提交 + CI，须用户明确授权）。
-- 零预填纪律：回填前实测列 **39×`[待 Step 9]` + 1×`[待 Step 10]`** 机械核验通过；回填后 `[待 Step 9]` 仅余说明性引用（L5/L6/L80/L108），实测列残留 **0**。
+- **40 项验收全 ✅**（A12 + B11 + C7 + D10），Step 10 关闭：提交 `c12497c` + CI run `44558140801` 四 job 全绿。
+- 零预填纪律：回填前实测列 **39×`[待 Step 9]` + 1×`[待 Step 10]`** 机械核验通过；Step 9 回填后 `[待 Step 9]` 实测列残留 **0**，Step 10 关闭后 `[待 Step 10]` 亦归 **0**。
 - 门禁八项（七条命令 + tests 计数）实测全部命中目标读数；S15 期望以手算闭式对照实现通过（A5 禁录制成立）。
-- **未 commit/push**。下一步 Step 10：异构终审（非 Step 5/9 基座）→ 授权提交 → CI 四 job（lock-check / 3.10 / 3.11 / 3.12）。
+- **批次关闭**：Step 10 异构终审 PASS（Qwen3.8-Max，1 P3 已吸收，DESIGN §18.4）→ 主提交 `c12497c` 已 push（`73f9807..c12497c`）→ CI run `44558140801` 四 job 全 success，`gh run view --log-failed` 空。

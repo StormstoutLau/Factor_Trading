@@ -503,7 +503,7 @@ cash        = 1 − scale_total · Σw
 | Step 7 | CHECKLIST（零预填，40 项） | ✅ [CHECKLIST_p048](CHECKLIST_p048_risk_overlay.md)（A12 + B11 + C7 + D10；39 × `[待 Step 9]` + 1 × `[待 Step 10]`；F-S7-P048-1 补登 T4 用例） |
 | Step 8 | 文档一致性复审 | ✅ [DESIGN §18.3](DESIGN_p048_risk_overlay.md)（PASS 带修正项：2 P2 + 7 P3 + 1 INFO；P2 = `-k p059` 基线实测 60 非 39、CHECKLIST 计数链漏计 B9 三例） |
 | Step 9 | 验收回填 | ✅ [CHECKLIST §8](CHECKLIST_p048_risk_overlay.md)（39 项全 `✅`；门禁八项全命中：pytest **932** / golden **18** / p059 **63** / mypy **111** / black **149·218** / AST **22** / uv exit 0 / tests **106**；发现 F-S9-P048-1 已修） |
-| Step 10 | 终审 + 提交 + CI | `[待 Step 10]` |
+| Step 10 | 终审 + 提交 + CI | ✅ **批次关闭**：异构终审 PASS（Qwen3.8-Max，[DESIGN §18.4](DESIGN_p048_risk_overlay.md)；0 P1/P2，1 P3 已吸收）→ 提交 **`c12497c`**（14 文件，+3147/−9）→ CI run **`44558140801`** 四 job 全 success |
 
 ---
 

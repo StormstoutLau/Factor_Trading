@@ -2638,6 +2638,14 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **发现 F-S9-P048-1（P3，已修）**: D6 要求 `risk_overlay.py` 内 `try/except 0` 且 `# type: ignore 0`，初测 1/1（`resolve_policy` EAFP + 裸 `type` 值类型）；LBYL 改写（值类型 `Callable[[RiskOverlayConfig], IDefensivePolicy]` + `.get` 判 None）后复测 0/0，p048 两模块 **23 passed** / mypy **111 files 0** / black **149 unchanged**，零行为变更。登记 [IMPL §14](IMPL_p048_risk_overlay.md) / [DESIGN §16.2](DESIGN_p048_risk_overlay.md)。
 - **状态**: 工作区 **未 commit/push**；下一步 **Step 10 异构终审 + 授权提交 + CI 四 job**。
 
+#### 3.54.4 Step 10 终审 + 提交 + CI（2026-11-20，**批次关闭**）
+
+- **异构终审（Qwen3.8-Max，与作者 DeepSeek-V4.1-Flash / Step 9 回填者 GLM-5.3-Flash 均异构）**: 八条门禁 **E1 全量重放**（不采信 Step 9 读数）全部命中——pytest **932 passed, 219 warnings in 103.78s** / golden **18 passed, 914 deselected** / p059 collect **63/932** / mypy **111 files 0** / black **149·218** / AST core 外 **22** 且 risk_overlay `ast.Try`=0、`type: ignore`=0 / `uv lock --check` exit 0 / `tests/*.py` **106**；静态核验 F-S9-P048-1 修正码逐行成立、engine_v2 **六锚点**在位、S15 计数双写、四文档无 929 目标残留、改动面 14 文件与 D8 白名单吻合。
+- **终审发现 F-S10-P048-1（P3，已当场吸收）**: CHECKLIST A2 证据区间 `L72-L91` 漏 RiskOverlayConfig（L46），实质断言为真但区间不完整 → 订正为 **L46-L91** 并逐项列出三处。判定 **PASS（0 方向性推翻、0 P1/P2）**，记录 [DESIGN §18.4](DESIGN_p048_risk_overlay.md)。
+- **提交**: `c12497c`（`feat(P-048)`，**14 files changed, 3147 insertions(+), 9 deletions(-)**；新建 7 / 改 7），push `73f9807..c12497c`。提交信息首稿因 PowerShell 5.1 `Set-Content -Encoding UTF8` 注入 BOM，经 `--amend` + `[IO.File]::WriteAllText(..., UTF8Encoding($false))` 修正（push 前完成，未污染远端历史）。
+- **CI**: run **`44558140801`**（headSha `c12497c`）**四 job 全 success**——`lock-check` 10s / `test (3.10)` 2m18s / `test (3.11)` 3m55s / `test (3.12)` 3m04s；`gh run view --log-failed` 空。唯一 annotation 为 GitHub 平台级 `actions/checkout@v4` Node.js 20 弃用提示，与本批无关。
+- **批次关闭**: [CHECKLIST_p048](CHECKLIST_p048_risk_overlay.md) **40/40 ✅**（A12 + B11 + C7 + D10）；CHANGELOG `[Unreleased] Added` 已补 P-048 条目（关闭回填提交）。
+
 ---
 
 ## 4. 审查记录
