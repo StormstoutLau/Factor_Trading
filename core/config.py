@@ -10,7 +10,10 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
+
+if TYPE_CHECKING:  # 仅类型检查期导入，避免运行期循环（engine → config → risk_overlay）
+    from core.risk_overlay import RiskOverlayConfig
 
 
 class ExecutionPriceType(str, Enum):
@@ -400,6 +403,9 @@ class BacktestConfig:
     log_level: str = "INFO"  # 日志级别
     save_intermediate: bool = False  # 保存中间结果
     debug_mode: bool = False  # 调试模式
+
+    # 风险 overlay（P-048）；None = 未配置（零行为变更，18 条 golden 不受影响）
+    risk_overlay: "RiskOverlayConfig | None" = None
 
     def validate(self) -> list[str]:
         """验证配置参数的有效性"""

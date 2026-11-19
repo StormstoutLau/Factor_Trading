@@ -2603,6 +2603,43 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 
 ---
 
+### 3.54 P-048 风险 overlay（risk overlay / F1 决策闭环）
+
+#### 3.54.1 立项到 Step 8 摘要（2026-11-19）
+
+- **触发**: 用户裁决三个歧义——①overlay 在 optimizer 之前还是之后；②与既有 `DrawdownGuard` 的关系；③「>12% 转防御」的动作定义（多方案 + 策略基类 + 先易后难 + 预留接口）。
+- **架构裁决（RESEARCH §3）**: **三层**——`RiskModel(pre, Σ) → Optimizer(in, 横截面约束) → RiskOverlay(post, 组合级缩放)`；决定性依据 `σ_p=sqrt(wᵀΣw)` 需 `w`，optimizer 之前无权重对象。顺序不可交换（先约束后缩放保持比例；先缩放后约束需重归一，破坏 vol target）。
+- **6 个未决项 U-P048-1..6 全部闭合**（RESEARCH §10）；`b_min=0` 强度为「中」。
+- **判档**: T1（新增纯函数模块 + 测试；生产面仅 opt-in 接线）。
+- **复审链（全部异构 GLM-5.3-Flash，RULE-5）**: Step 2（2 P2 + 5 P3）/ Step 4（1 P2 + 5 P3）/ Step 6（1 P2 + 4 P3）/ **Step 8（2 P2 + 7 P3 + 1 INFO）**——四次全部 PASS（带修正项），**0 方向性推翻**，修正 100% 吸收。
+- **Step 8 关键更正**: `-k p059` 基线实测 **60**（非三文档记录的 39——39 系 P-059 B8 单模块 collect 误升格）；CHECKLIST 计数链补登 T4 三例。
+- **产出**: [RESEARCH](file:///f:/Coding/Factor_Trading_v3.0/docs/RESEARCH_p048_risk_overlay.md) / [DESIGN](file:///f:/Coding/Factor_Trading_v3.0/docs/DESIGN_p048_risk_overlay.md) / [IMPL](file:///f:/Coding/Factor_Trading_v3.0/docs/IMPL_p048_risk_overlay.md) / [CHECKLIST](file:///f:/Coding/Factor_Trading_v3.0/docs/CHECKLIST_p048_risk_overlay.md)（40 项，零预填）。
+
+#### 3.54.2 Step 5 代码落盘与门禁（2026-11-19）
+
+- **新源**: `core/risk_overlay.py`（254 行，11 导出符号）——`RiskOverlayConfig`（8 字段 + 4 校验）/ `DeRiskContext` / `DeRiskPlan`（含 `weights` 预留通道）/ `IDefensivePolicy`（无状态协议）/ 4 实现 + 2 预留（`sector_rotation` / `hedge_overlay` → `CapabilityError`）/ `DEFENSIVE_POLICIES` 6 键 / `OVERLAY_CAPABILITIES` 2 键 / `compute_drawdown` / `apply_overlay`。
+- **生产接线（6 锚点）**: `core/config.py` +`risk_overlay` 字段（TYPE_CHECKING 导入）；engine `set_signal` +`external_max_weight`；weights 分支补 `returns_data=None`；`optimize` 后 / `build_target_positions` 前调用 overlay（cov 用 `returns_data.columns` 对齐 + `np.atleast_2d`）；`_nav_history` 常驻空 list + **仅 L512 后条件 append**。
+- **场景**: S15（L2，6 日路径，DD 腿端到端）→ `SCENARIOS` 18 条；builder 新增 dict→`RiskOverlayConfig` 转换。
+- **实施发现 6 项（IMPL §14）**:
+  - **F-S5-P048-1（P2）**: S15 手算漏 `value_buffer=0.985` → 应为 **5400 股（卖 4400）**而非 5500/4300（跨整手边界，按初稿必红）；已实证订正。
+  - **F-S5-P048-2（P3）**: 5 日路径触发「同单既 filled 又 dropped」（末日清仓挂单 + 强平双写，F-S6-P059-6 连带）→ 改 6 日，末日持仓归零。
+  - **F-S5-P048-3（P3）**: 计数偏差 → 总量 929→**932**、`-k p059` 61→**63**（S15 参与 3 处参数化）、纯函数 15→16（补 I6 专测）。
+  - **F-S5-P048-4（P3）**: 场景计数存在第二处硬编码（`test_registry_contract`）+ 3 处注释 → 同步 18。
+  - **F-S5-P048-5（P3）**: 测试名含 `golden` 使 `-k golden` 变 19 → 重命名 `test_default_none_keeps_baseline`，恢复 18。
+  - **F-S5-P048-6（P3 环境）**: `.venv` 缺 black/mypy/pip → `uv pip install "black~=26.0" "mypy~=2.4.1"`（实得 26.10.1 / 2.4.1），未改 `pyproject.toml` / `uv.lock`。
+- **门禁实测（venv + `MPLBACKEND=Agg`）**: pytest **932 passed** / `-k golden` **18**（零重录）/ `-k p059` **63** / mypy **111 files 0 issue** / black **149·218**（0 reformatted）/ AST **22 不变** / `uv lock --check` exit **0** / `tests/*.py` **106**。
+- **状态**: 代码与文档在工作区，**未 commit/push**（等用户明确授权）；下一步 Step 9 验收回填。
+
+#### 3.54.3 Step 9 验收回填（2026-11-19，GLM-5.3-Flash，异构于 Step 5 落码）
+
+- **零预填核验**: 回填前实测列 **39×`[待 Step 9]` + 1×`[待 Step 10]`** 机械核验通过（✅ 仅出现于规则文本 L6/L80/L108）。
+- **门禁八项全命中**（venv 解释器 + `MPLBACKEND=Agg`）: pytest **932 passed, 219 warnings in 121.75s** / `-k golden` **18 passed, 914 deselected**（零重录，`tests/golden/` 零触碰）/ `-k p059` collect **63/932** / mypy **111 files 0** / black **149·218** unchanged / AST core 外 **22**、core **29**（双口径）/ `uv lock --check` exit 0 / `tests/*.py` **106**。
+- **回填结果**: [CHECKLIST_p048](CHECKLIST_p048_risk_overlay.md) A12 + B11 + C7 + D9 = **39 项全 `✅ + 证据`**，D10 留 Step 10；新增 §8 Step 9 验收小结节（门禁对照表 + 发现 + 结论）。
+- **发现 F-S9-P048-1（P3，已修）**: D6 要求 `risk_overlay.py` 内 `try/except 0` 且 `# type: ignore 0`，初测 1/1（`resolve_policy` EAFP + 裸 `type` 值类型）；LBYL 改写（值类型 `Callable[[RiskOverlayConfig], IDefensivePolicy]` + `.get` 判 None）后复测 0/0，p048 两模块 **23 passed** / mypy **111 files 0** / black **149 unchanged**，零行为变更。登记 [IMPL §14](IMPL_p048_risk_overlay.md) / [DESIGN §16.2](DESIGN_p048_risk_overlay.md)。
+- **状态**: 工作区 **未 commit/push**；下一步 **Step 10 异构终审 + 授权提交 + CI 四 job**。
+
+---
+
 ## 4. 审查记录
 
 ### 4.1 独立 pass（2026-11-04）

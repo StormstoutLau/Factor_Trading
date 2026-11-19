@@ -1,6 +1,7 @@
 """P-059 场景注册表（DESIGN §8 / Step 5 T4-T5、T9）。
 
-17 条单一来源：S01-S14 必做（覆盖 L1-L7 全部 7 层）+ E01-E03 扩展。
+17 条单一来源：S01-S14 必做（覆盖 L1-L7 全部 7 层）+ E01-E03 扩展
++ S15（P-048 风险 overlay 端到端，共 18 条）。
 全部 ``expected`` 为**手算闭式值**（A2，禁录制）；关键推导写在各自 ``title``/``gaps``
 与下方注释中。金额单位：元。
 
@@ -643,13 +644,89 @@ def _cases() -> List[ScenarioSpec]:
         )
     )
 
+    # ------------------------------------------------------------------
+    # S15 L2 风险 overlay：DD 腿端到端 + 引擎接线（P-048；target_vol=None → 只验 DD 腿）
+    # 三项时序口径（缺一必红）：
+    #   ① 整手数量按**订单创建日收盘价**；
+    #   ② 成交价 = **次日 open**；
+    #   ③ rebalance(d) 只见 nav(0..d-1)（rebalance 在 L508，nav append 在 L512）。
+    # 手算（cost=0，initial=100_000，value_buffer=0.985）：
+    #   d0 close 10.00 → floor(1.0*100000*0.985/10/100)*100 = 9800 股（BUY 单，d1 执行）
+    #   d1 open 10.00 成交 9800 → 现金 2000；收盘 10.50 → NAV 104,900（running peak）
+    #   d2 rebalance 见 nav=[100000, 104900] → DD=0；收盘 10.00 → NAV 100,000
+    #   d3 rebalance 见 nav=[100000, 104900, 100000]
+    #      DD = 4900/104900 = 4.6711% → t = (0.046711-0.02)/(0.08-0.02) = 0.445186
+    #      scale_dd = 1 - 0.445186 = 0.554814
+    #      total_value = 2000 + 9800*9.20 = 92,160
+    #      目标 = floor(0.554814*92160*0.985/9.20/100)*100 = floor(54.744)*100 = 5400 股
+    #      → SELL 4400（d4 开盘成交）；收盘 9.20 → NAV = 2000+9800*9.20 = 92,160
+    #   d4 rebalance 见 nav=[...,92160]：DD = 1-92160/104900 = 12.145% ≥ 8% → scale=0
+    #      → SELL 5400（d5 开盘成交）；期末持仓归零
+    #   d5 rebalance：持仓 0 + 目标 0 → 无新订单（避免与末日强平双写，F-S6-P059-6）
+    #      收盘 NAV = 42,480 + 5,400*9.20 = 92,160 → 末日无持仓可强平
+    # ------------------------------------------------------------------
+    d = _bd(6)
+    s15_close = np.array([[10.00], [10.50], [10.00], [9.20], [9.20], [9.20]])
+    s15_open = np.array([[10.00], [10.00], [10.50], [10.00], [9.20], [9.20]])
+    s15_high, s15_low = _ohlc_consistent(s15_open, s15_close)
+    cases.append(
+        ScenarioSpec(
+            scenario_id="S15",
+            title="风险 overlay DD 腿：ramp 减仓后深度回撤清仓",
+            layer="L2",
+            gaps=("G-P048-2",),
+            dates=d,
+            codes=(A,),
+            close=s15_close,
+            open=s15_open,
+            high=s15_high,
+            low=s15_low,
+            factors={"factor_alpha": _grid(6, 1, 1.0)},
+            signal=_grid(6, 1, 1.0),
+            config={
+                "cost": dict(NO_COST),
+                # builder 默认 N_days=len(dates) → 必须显式 daily，否则只再平衡一次
+                "rebalance": {"frequency": "daily"},
+                # 缩短 cov 回看（本场景 target_vol=None，vol 腿不参与）
+                "optimizer": {"cov_lookback": 2},
+                "risk_overlay": {
+                    "enabled": True,
+                    "target_vol": None,
+                    "defensive_policy": "cash_scaling",
+                    "dd_soft": 0.02,
+                    "dd_hard": 0.08,
+                    "b_min": 0.0,
+                    "scale_floor": 0.0,
+                    "dd_hysteresis": False,
+                },
+            },
+            expected=ExpectedBlock(
+                fills=_fills(
+                    (_d(d, 1), A, "BUY", 9800, 10.00),
+                    (_d(d, 4), A, "SELL", 4400, 9.20),
+                    (_d(d, 5), A, "SELL", 5400, 9.20),
+                ),
+                nav_days=(
+                    (_d(d, 1), 104_900.0),
+                    (_d(d, 2), 100_000.0),
+                    (_d(d, 3), 92_160.0),
+                    (_d(d, 4), 92_160.0),
+                ),
+                final_cash=92_160.0,
+                final_nav=92_160.0,
+                final_positions={},
+            ),
+            metamorphic=(Metamorphic.r2_inert("601988"),),
+        )
+    )
+
     return cases
 
 
 SCENARIOS: dict[str, ScenarioSpec] = {spec.scenario_id: spec for spec in _cases()}
 
 # 单一来源自检（导入期即暴露重复/遗漏）
-assert len(SCENARIOS) == 17, f"场景数应为 17，实际 {len(SCENARIOS)}"
+assert len(SCENARIOS) == 18, f"场景数应为 18，实际 {len(SCENARIOS)}"
 assert {spec.layer for spec in SCENARIOS.values()} == {
     "L1",
     "L2",

@@ -59,6 +59,7 @@ from core.portfolio import build_optimizer
 from core.diagnostics import DayErrorCollector
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
+from core.risk_overlay import apply_overlay
 from core.tracker import PositionTracker
 from core.validation import build_validation_declaration
 from filter.limit_rules import RULESET_VERSION, unknown_board_count
@@ -181,6 +182,9 @@ class BacktestEngineV2:
         # 预计算数据
         self._composite_signal: Optional[pd.DataFrame] = None
         self._returns_matrix: Optional[np.ndarray] = None
+
+        # 组合级 NAV 序列（P-048 overlay）：常驻空 list，append 由 enabled 门控
+        self._nav_history: list[float] = []
 
         # 信号模式（P-044 D5）：默认 scores 零行为；weights=策略直出目标权重
         self._signal_mode: Literal["scores", "weights"] = "scores"
@@ -360,12 +364,18 @@ class BacktestEngineV2:
         logger.info(f"✓ 因子加载完成: {self._composite_signal.shape}")
 
     def set_signal(
-        self, signal: pd.DataFrame, *, mode: Literal["scores", "weights"] = "scores"
+        self,
+        signal: pd.DataFrame,
+        *,
+        mode: Literal["scores", "weights"] = "scores",
+        external_max_weight: Optional[float] = None,
     ) -> None:
         """显式注入信号矩阵（P-044 D5）：``scores``=因子分（默认原行为）；``weights``=目标权重。
 
         ``weights`` 模式要求每行权重和 ≤ 1 且不得为负（空头属 P-050）；
         缺列按 0 补齐（目标权重语义），未知标的与 index 不一致 fail-fast。
+        ``external_max_weight``（P-048 D4）为**可选**单票上限：仅显式给值且
+        ``mode="weights"`` 时校验，默认 None → 行为逐字不变。
         """
         if self.dm is None:
             raise RuntimeError("请先调用setup()方法")
@@ -383,6 +393,16 @@ class BacktestEngineV2:
                 raise ValueError("weights 模式不接受负权重（空头属 P-050）")
             if (values.sum(axis=1) > 1.0 + 1e-9).any():
                 raise ValueError("weights 模式要求每行权重和 ≤ 1")
+            if external_max_weight is not None:
+                row_max = values.max(axis=1)
+                breach = row_max[row_max > external_max_weight + 1e-12]
+                if not breach.empty:
+                    worst_date = breach.idxmax()
+                    worst_code = values.loc[worst_date].idxmax()
+                    raise ValueError(
+                        f"weights 模式单票超限: {worst_code} @ {worst_date} = "
+                        f"{float(row_max.max()):.6f} > {external_max_weight}"
+                    )
             aligned = values
         self._composite_signal = aligned
         self._signal_mode = mode
@@ -510,6 +530,11 @@ class BacktestEngineV2:
         # 更新持仓市值
         close_prices = self._exec_price(dm, "close").loc[date]
         tracker.update_market_values(date, close_prices)
+        # 风险 overlay 的 NAV 序列（P-048）：仅启用时维护，唯一 append 位点
+        # （结算路径 L665-666 不得重复 append，否则 NAV 双计、DD 系统性低估）
+        overlay_cfg = self.cfg.risk_overlay
+        if overlay_cfg is not None and overlay_cfg.enabled:
+            self._nav_history.append(float(tracker.get_total_value()))
         self._emit(
             EventType.DAY_END,
             {
@@ -1040,6 +1065,7 @@ class BacktestEngineV2:
         # 组合优化（P-044 D5）：weights 模式策略直出，跳过优化器（权重不得二次优化）
         if self._signal_mode == "weights":
             target_weights = daily_signal.clip(lower=0.0)
+            returns_data = None  # 统一定义（P-048 overlay 的 cov 来源判空）
         else:
             try:
                 if date_index >= self.cfg.optimizer.cov_lookback:
@@ -1071,6 +1097,26 @@ class BacktestEngineV2:
                 )
                 logger.error(f"组合优化失败: {e}")
                 return
+
+        # 风险 overlay（P-048，opt-in；D1 三层架构的 post-optimizer 层）
+        overlay_cfg = self.cfg.risk_overlay
+        if overlay_cfg is not None and overlay_cfg.enabled:
+            if returns_data is not None and len(returns_data) >= 2:
+                # np.atleast_2d：单标的时 np.cov 返回 0-d 标量，需升维成 (1,1) 才过 _check_cov
+                cov = np.atleast_2d(np.cov(returns_data.to_numpy().T))
+                cov_codes = [str(code) for code in returns_data.columns]
+            else:
+                cov, cov_codes = None, []
+            overlay_result = apply_overlay(
+                {str(code): float(weight) for code, weight in target_weights.items()},
+                nav_history=self._nav_history,
+                cov=cov,
+                codes=cov_codes,
+                config=overlay_cfg,
+            )
+            target_weights = (
+                pd.Series(overlay_result.weights).reindex(target_weights.index).fillna(0.0)
+            )
 
         # 计算目标持仓（含调出标的的清仓项）
         try:

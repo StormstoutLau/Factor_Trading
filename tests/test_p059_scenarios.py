@@ -1,6 +1,6 @@
 """P-059 场景回归测试（DESIGN §16 T8）。
 
-17 条场景由 ``_scenarios_cases.SCENARIOS`` 单一来源驱动；
+18 条场景由 ``_scenarios_cases.SCENARIOS`` 单一来源驱动（P-048 追加 S15）；
 ``assert_scenario`` 完成全原语组合断言（A4/A5）。
 """
 
@@ -77,9 +77,9 @@ def test_p059_scenario(spec: ScenarioSpec, tmp_path: Any) -> None:
 
 
 def test_registry_contract() -> None:
-    """A1：17 条单一来源，id 唯一，7 层全覆盖。"""
-    assert len(SCENARIOS) == 17
-    assert len(set(IDS)) == 17
+    """A1：18 条单一来源（P-048 追加 S15），id 唯一，7 层全覆盖。"""
+    assert len(SCENARIOS) == 18
+    assert len(set(IDS)) == 18
     assert {spec.layer for spec in SCENARIOS.values()} == {"L1", "L2", "L3", "L4", "L5", "L6", "L7"}
 
 

@@ -2,7 +2,7 @@
 
 用法::
 
-    python scripts/verify_scenario.py --list                      # 列出 17 条场景
+    python scripts/verify_scenario.py --list                      # 列出 18 条场景
     python scripts/verify_scenario.py --scenario S02              # 跑单场景并断言
     python scripts/verify_scenario.py --scenario S02 --day 2024-01-04
     python scripts/verify_scenario.py --scenario S02 --json       # 机器可读

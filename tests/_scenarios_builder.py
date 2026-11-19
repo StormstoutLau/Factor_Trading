@@ -123,6 +123,11 @@ def build_config(spec: ScenarioSpec, root: Path) -> BacktestConfig:
         invariant_mode="report",
     )
     overrides = {k: v for k, v in spec.config.items() if k not in RESERVED_KEYS}
+    # P-048：risk_overlay 为 dataclass；_apply_overrides 不做 dict→dataclass 转换
+    if isinstance(overrides.get("risk_overlay"), dict):
+        from core.risk_overlay import RiskOverlayConfig
+
+        overrides["risk_overlay"] = RiskOverlayConfig(**overrides["risk_overlay"])
     _apply_overrides(cfg, overrides)
     return cfg
 
