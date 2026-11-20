@@ -53,6 +53,7 @@ class DayErrorRecord:
     error_type: str
     message: str
     retryable: bool
+    detail: Optional[dict[str, Any]] = None  # P-046a：结构化诊断（不参与去重）
 
 
 def classify_day_error(stage: str, exc: BaseException) -> tuple[str, bool]:
@@ -60,6 +61,9 @@ def classify_day_error(stage: str, exc: BaseException) -> tuple[str, bool]:
     if stage == "execution":
         return "execution", True
     if stage == "rebalance":
+        if type(exc).__name__ == "InfeasibleConstraintError":
+            # P-046a：约束不可行属配置错误，不 import core.portfolio（避免环）
+            return "config", False
         if isinstance(exc, np.linalg.LinAlgError):
             return "solver", False
         if type(exc).__name__ in {"SolverError", "DCPError"}:
@@ -159,6 +163,47 @@ class DayErrorCollector:
             self._index.add(key)
         except Exception:
             logger.error("日级异常采集失败（已忽略）", exc_info=True)
+
+    def record_detail(
+        self,
+        date: Any,
+        stage: str,
+        *,
+        category: str,
+        error_type: str,
+        message: str,
+        retryable: bool = False,
+        **detail: Any,
+    ) -> Optional[DayErrorRecord]:
+        """记录一条非异常的结构化诊断（P-046a AC-C-07）；本方法不得抛错（I3）"""
+        if self._mode == "off":
+            return None
+        try:
+            rec = DayErrorRecord(
+                date=str(date),
+                stage=str(stage),
+                category=str(category),
+                error_type=str(error_type),
+                message=str(message)[: self.MAX_MESSAGE],
+                retryable=bool(retryable),
+                detail=dict(detail) if detail else None,
+            )
+            self._counts[rec.stage] = self._counts.get(rec.stage, 0) + 1
+            self._category_counts[rec.category] = self._category_counts.get(rec.category, 0) + 1
+            if rec.category in RAISE_CATEGORIES and self._first_raiseable is None:
+                self._first_raiseable = rec
+            key = (rec.date, rec.stage, rec.category, rec.error_type, rec.message)
+            if key in self._index:
+                return rec
+            if len(self._records) >= self.MAX_SAMPLES:
+                self._truncated = True
+                return rec
+            self._records.append(rec)
+            self._index.add(key)
+            return rec
+        except Exception:
+            logger.error("日级诊断采集失败（已忽略）", exc_info=True)
+            return None
 
     def summary(self) -> dict[str, Any]:
         """结果字典载荷；off 模式最小化（I4）"""

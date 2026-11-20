@@ -70,7 +70,7 @@ def _make_engine(
     base_cfg = BacktestConfig(
         enable_pending_orders=enable_pending,
         rebalance=RebalanceConfig(frequency="daily"),
-        optimizer=OptimizerConfig(method="equal_weight", round_lot=True),
+        optimizer=OptimizerConfig(method="equal_weight", round_lot=True, max_weight=1.0),
         cost=_zero_cost() if zero_cost else CostConfig(),
     )
     dm = _P031DM(n_days=n_days, stocks=universe_stocks)

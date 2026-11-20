@@ -150,13 +150,16 @@ def test_enabled_scales_weights(tmp_path):
     assert disabled["last_target_weight"] == pytest.approx(1.0)
     assert enabled["last_target_weight"] < 1.0
 
-    # vol 腿闭式：σ_A 由最近两日收益（close[2]/close[1]、close[3]/close[2]）估计
-    returns = np.array([10.6 / 10.5 - 1.0, 11.2 / 10.6 - 1.0])
-    sigma = float(np.std(returns, ddof=1))
+    # vol 腿闭式：σ_A 由最近两日收益（close[2]/close[1]、close[3]/close[2]）经
+    # LedoitWolf 估计（P-046a 起 overlay 复用引擎单一 Σ 入口，单资产时 LW 退化为
+    # sklearn 的有偏样本协方差，即 ddof=0）
+    from sklearn.covariance import LedoitWolf
+
+    returns = np.array([10.6 / 10.5 - 1.0, 11.2 / 10.6 - 1.0]).reshape(-1, 1)
+    sigma = float(np.sqrt(LedoitWolf().fit(returns).covariance_[0, 0]))
     assert sigma > 0.01  # 保证 scale < 1（非零波动）
     expected = min(1.0, 0.01 / sigma)
     assert enabled["last_target_weight"] == pytest.approx(expected, rel=1e-6)
-    assert enabled["last_target_weight"] == pytest.approx(0.3004, abs=5e-3)
 
 
 def test_nav_history_not_accumulated_when_disabled(tmp_path):

@@ -10,7 +10,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -55,7 +55,7 @@ from core.pending import (
     create_pending_order,
     select_fallback_stocks,
 )
-from core.portfolio import build_optimizer
+from core.portfolio import OptimizationResult, build_optimizer, estimate_cov
 from core.diagnostics import DayErrorCollector
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
@@ -66,6 +66,31 @@ from filter.limit_rules import RULESET_VERSION, unknown_board_count
 from filter.universe_filter_clean import UniverseFilter, UniverseFilterConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _optimize_with_diagnostics(
+    optimizer: Any,
+    factor_scores: pd.Series,
+    returns: Optional[pd.DataFrame],
+    cov_matrix: Optional[pd.DataFrame],
+) -> OptimizationResult:
+    """调用优化器并统一返回结构化结果（P-046a D-R2）。
+
+    注入的自定义优化器可能只实现旧 2 参 ``optimize``（测试桩）→ 回退包装。
+    """
+    run = getattr(optimizer, "optimize_with_diagnostics", None)
+    if callable(run):
+        return cast(OptimizationResult, run(factor_scores, returns, cov_matrix))
+    weights = optimizer.optimize(factor_scores, returns)
+    cfg = getattr(optimizer, "cfg", None)
+    return OptimizationResult(
+        weights=weights,
+        method=type(optimizer).__name__,
+        n_selected=len(weights),
+        max_weight=float(getattr(cfg, "max_weight", 0.0)),
+        min_weight=float(getattr(cfg, "min_weight", 0.0)),
+        cash_residual=max(0.0, 1.0 - float(weights.sum())),
+    )
 
 
 class BacktestEngineV2:
@@ -1063,6 +1088,7 @@ class BacktestEngineV2:
             return
 
         # 组合优化（P-044 D5）：weights 模式策略直出，跳过优化器（权重不得二次优化）
+        cov_matrix = None  # P-046a：单一入口，optimizer 与 overlay 共用
         if self._signal_mode == "weights":
             target_weights = daily_signal.clip(lower=0.0)
             returns_data = None  # 统一定义（P-048 overlay 的 cov 来源判空）
@@ -1080,10 +1106,31 @@ class BacktestEngineV2:
                 else:
                     returns_data = None
 
-                target_weights = optimizer.optimize(tradable_stocks, returns_data)
+                cov_matrix = None
+                if returns_data is not None and len(returns_data) >= 2:
+                    cov_matrix = estimate_cov(returns_data, method=self.cfg.optimizer.cov_method)
+
+                result = _optimize_with_diagnostics(
+                    optimizer, tradable_stocks, returns_data, cov_matrix
+                )
+                target_weights = result.weights
+                if result.infeasible_kind is not None or result.message:
+                    self._diagnostics.record_detail(
+                        date,
+                        "rebalance",
+                        category="config" if result.infeasible_kind == "lower" else "optimizer",
+                        error_type="InfeasibleConstraints",
+                        message=result.message or str(result.infeasible_kind),
+                        retryable=False,
+                        infeasible_kind=result.infeasible_kind,
+                        method=result.method,
+                        n_selected=result.n_selected,
+                        max_weight=result.max_weight,
+                        min_weight=result.min_weight,
+                        cash_residual=result.cash_residual,
+                    )
 
                 logger.debug(f"优化得到{len(target_weights)}只股票的目标权重")
-
             except Exception as e:
                 self._diagnostics.record(date, "rebalance", e)
                 self._emit(
@@ -1101,10 +1148,10 @@ class BacktestEngineV2:
         # 风险 overlay（P-048，opt-in；D1 三层架构的 post-optimizer 层）
         overlay_cfg = self.cfg.risk_overlay
         if overlay_cfg is not None and overlay_cfg.enabled:
-            if returns_data is not None and len(returns_data) >= 2:
-                # np.atleast_2d：单标的时 np.cov 返回 0-d 标量，需升维成 (1,1) 才过 _check_cov
-                cov = np.atleast_2d(np.cov(returns_data.to_numpy().T))
-                cov_codes = [str(code) for code in returns_data.columns]
+            if cov_matrix is not None:
+                # P-046a：复用 optimizer 同一份 Σ（单一入口，消除裸 np.cov 旁路）
+                cov = cov_matrix.to_numpy()
+                cov_codes = [str(code) for code in cov_matrix.columns]
             else:
                 cov, cov_codes = None, []
             overlay_result = apply_overlay(

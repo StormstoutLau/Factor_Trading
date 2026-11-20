@@ -294,7 +294,21 @@ class OptimizerConfig:
     # 协方差估计参数
     cov_method: str = "ledoit_wolf"  # 协方差估计方法
     cov_lookback: int = 60  # 协方差估计回看期
-    cov_shrinkage: float = 0.1  # 压缩估计参数（如果适用）
+    cov_shrinkage: float = 0.1  # 已废弃（P-046a：LW 由 sklearn 内部估计，零消费）
+
+    def __post_init__(self) -> None:
+        """静态配置校验（U1-D）；运行时不可行由 ``_precheck`` 负责（U1-B）。"""
+        if not (0.0 < self.max_weight <= 1.0):
+            raise ValueError(f"max_weight 必须在 (0, 1] 区间: {self.max_weight}")
+        if self.min_weight < 0.0:
+            raise ValueError(f"min_weight 不得为负: {self.min_weight}")
+        if self.min_weight >= self.max_weight:
+            raise ValueError(
+                f"min_weight 必须小于 max_weight: min_weight={self.min_weight}, "
+                f"max_weight={self.max_weight}"
+            )
+        if self.target_count < 1:
+            raise ValueError(f"target_count 必须 >= 1: {self.target_count}")
 
 
 @dataclass
