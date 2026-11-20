@@ -990,3 +990,58 @@ R1/R2/R3 与整体 revert **均未触发**（无需回退）；`_apply_constrain
 
 - 改动**未提交**（用户未授权）；D10 提交与 CI 待 Step 10。
 - 作者基座 DeepSeek-V4.1-Flash；Step 10 终审须异构基座（RULE-5）。
+
+---
+
+## 21. Step 10 异构终审报告（ADD 审计，2026-11-20）
+
+> **基座**: GLM-5.3-Flash（异构于作者 DeepSeek-V4.1-Flash，RULE-5 ✓）；**对象**: 提交 `15f608a`（原子实现提交，含 Step 1-9 全部产出）。
+> **方法**: SPEC_PROCESS v1.7.2 Step 10 = ADD 四阶段审计 + 取证矩阵（RULE-6）+ 诚实结果列。
+
+### 21.1 四阶段结论
+
+| 阶段 | 审什么 | 结论 |
+|---|---|---|
+| Phase 0 Spec 质量门 | DESIGN 可审计性 | ✅ Step 4/8 已复审通过（§17/§19）；分支矩阵、AC 映射、门禁命令均为机械可核对形态 |
+| Phase 1 完整性（design→code） | DESIGN §1.1 T1-T9 每项在代码有实现 | ✅ 九项逐一落码（取证矩阵第 8 行 E3 行号）；无缺失分支 |
+| Phase 2 忠实度（双向对照） | 实现与设计一致 | ✅ 主体一致；**发现 3 项 P3 微偏差**（§21.3），无 P1/P2、无静默语义改写 |
+| Phase 3 必要性（code→design） | 代码行为均有设计依据 | ✅ 全部派生行为已登记（mypy 修复×4、退化输入等权重建→I3、`feas=None` 默认参→F-D-10、2 参桩回退→D-R2、I8 三 method 用例→CHECKLIST B11、U1-C 落账→I5）；**盲区扫描 0 项未登记派生** |
+| Phase 4 语义 | 意图层：不可行不再静默破坏约束 + Σ 单一入口 | ✅ golden 18 零漂移（兼容面）+ U1-A/B 显式用例 + E2 对抗全过；批次意图达成 |
+
+### 21.2 取证矩阵（RULE-6，诚实结果列）
+
+| 取证手段（等级） | 覆盖项 | 结果 |
+|---|---|---|
+| 全量 pytest（E1） | T1-T7 全部 AC / A1-A12 / B 组 / I1-I4 | ✅ **987 passed**（114.65s，终审重跑） |
+| `-k golden` + `git status tests/golden/`（E1） | I7 / AC-C-01b | ✅ 18 passed；零 diff |
+| mypy CI 逐字命令（E1） | A6 类型兼容 | ✅ 111 files 0 issue |
+| black 双口径 + `tests/*.py` 计数（E1） | D4 | ✅ 152 · 221 unchanged；109 |
+| `uv lock --check`（E1） | D7 | ✅ exit 0 |
+| AST `except Exception` 扫描脚本（E1） | D5 | ✅ core 30 / core 外 26；`portfolio.py` 0 try-except、0 type-ignore |
+| **E2 对抗脚本**（场景选择理由：边界轮 + 异常输入 + 退化输入） | A2/A3/A5/B5/B8/C2/C8 | ✅ 21/21（首轮 2 例**脚本口径错误**——U1-B 阈值误用 1e-13（正确语义 `>1+1e-12`）、空集与无数据混淆；修正后复跑全过，原样记录） |
+| 静态读码行号（E3 `@15f608a`） | T1-T9 落点 | ✅ `_precheck` L77-95、`_scale_to_budget` L102-149（短路 L123-125 / 终态断言 L144-148）、`_psd_project` L190-196、`estimate_cov` L199-228、D-R2 接口 L243-259、legacy L296-300、minvar/mvo U1-A 单点解 L388-406/L452-470、零方差防护 L527-542、engine 单一 Σ L1109-1115 + record_detail L1117-1131 + except 兜底 L1134-1146 + overlay 复用 L1151-1156、config `__post_init__` L299-311、diagnostics config 分流 L64 + `record_detail` L167 |
+| grep 盲区扫描（E4，扫描范围：① 静默归一化残留 `/sum()` ② `np.cov` 残留 ③ `cov_shrinkage` 消费者） | Phase 2/3 | **发现 0 项**：① 仅 `legacy`（对拍专用）与 `round_lot_optimize`（死面白名单）② 仅 `_cov_sample`（合法）与 `global_contagion.py`（本批范围外零 diff）③ 零消费 |
+| 全文读码降级重扫（E4，engine_v2 优化段 L1100-1146 逐行） | I6 静默路径 | **发现 0 项**（第二角度复核后维持零发现，声明扫描范围如左） |
+| `git diff` 白名单核对（E1） | D6 零 diff 面 | ✅ `config_v2` / `interfaces` / `risk_overlay` / `target_positions` / golden / scenarios 全部不在提交内 |
+
+### 21.3 发现登记（P1=0 / P2=0 / P3=3 / INFO=1）
+
+| ID | 级别 | 内容 | 处置 |
+|---|---|---|---|
+| **F-S10-P046-1** | P3 | DESIGN §4.4 / IMPL §5.5 规定零方差防护返回 `message="zero_vol"`；实现只 break 保持等权、`message=""`（[portfolio.py L527-542@15f608a](file:///f:/Coding/Factor_Trading_v3.0/core/portfolio.py#L527-L542)）。行为面（无 NaN / 等权 / 不崩）已实现并被 `test_zero_variance_window` 固化，仅诊断消息缺失；且若直接补消息，engine L1117-1131 会把 zero_vol 误标 `error_type="InfeasibleConstraints"`——需先定义独立 error_type 语义 | **登记不修**，归 P-046b（非阻断；补消息须连带 engine 误标修正，超出本批冻结面） |
+| **F-S10-P046-2** | P3 | `estimate_cov` 有效行 <2 退化分支：IMPL §4.2 骨架含 `logger.warning("回退 sample")`，实现无 warning，且补零后沿用**选定 method**（LW 时伪协方差非严格 0）而非 sample。数值方向已由 IMPL §8.3-6（F-E-5）登记为与 DESIGN「同向」的偏差 | **登记不修**；P-046b 补 warning（行为面无风险：输出仍经 `psd_fix` 保 PSD，`test_nan_listwise` 已锁不抛不 NaN） |
+| **F-S10-P046-3** | P3 | `estimate_cov(codes=...)` 参数语义与 DESIGN §3.1 docstring 不符——文档「reindex（缺失列补 0）」，实现为**静默取交集**（E2 第 D 组实测：codes 含缺失码 → 返回交集列）。当前**零生产调用方**传 codes（engine / `_cov_for` 均不传），无行为影响 | **登记不修**；P-046b 收口（改 KeyError 或删参数，与 §5.1 F-E-6「缺失码 KeyError」口径对齐） |
+| **F-S10-P046-4** | INFO | ① engine record_detail stage 实测 `"rebalance"`（∈STAGES ✓）而非 IMPL §7.2 骨架笔误的 `"rebalance_optimizer"`（∉STAGES）——实现正确；② DESIGN §2.3 代码块 `_precheck(n, cfg)` 签名未同步 F-E-1 的三参形态（以 CHECKLIST A2 为准） | 文档层面已知差异，随下次触碰相应文档时顺带修正；不单独开批 |
+
+### 21.4 提交记录（D10）
+
+| 项 | 值 |
+|---|---|
+| 实现原子提交 | **`15f608a`** `feat(P-046a): 组合优化语义修复——约束投影 + 协方差单一入口`（14 files，+3263/−240） |
+| 白名单核对 | 4 源（portfolio/config/engine_v2/diagnostics）+ 3 新测试 + 2 既有测试（语义修正）+ 4 文档 + PROGRESS；零 diff 面全部不在提交内 ✅ |
+| 终审文档提交 | 本节 + CHECKLIST D10 回填 + PROGRESS §3.55.3 + dev log（第二步提交） |
+| CI 四 job | 提交为本地 master；**push 与 CI 触发未执行**（用户授权范围 = 终审 + 提交；push 须另行确认） |
+
+### 21.5 终审结论
+
+**PASS（有登记）**：P1/P2 清零，3 项 P3 微偏差均为「诊断消息/文档口径」级别、行为面已由测试与 E2 取证固化，处置全部登记至 P-046b 入口。ADD 循环收敛，P-046a 批次验收通过。

@@ -72,7 +72,7 @@
 | D7 | `uv lock --check` exit **0**；`pyproject.toml` / `uv.lock` 零 diff（sklearn 已在依赖内） | 全量落码 | 命令 + `git diff` | ✅ exit 0；两文件未修改 |
 | D8 | **文档回写**：IMPL 追加「执行记录」小节（T1-T7 实际落码与偏差）/ DESIGN §8.3 门禁读数 / PROGRESS P-046 登记 / 本文件实测列回填；`_apply_constraints_legacy` 的保留理由与删除条件须在 PROGRESS 登记为后续批次入口 | D1-D7 通过 | 读回 diff | ✅ IMPL §13 / DESIGN §8.3 / PROGRESS §3.55.2 / 本文件 §1-§4 与 §8；legacy 删除条件见 PROGRESS §3.55.2 |
 | D9 | **遗留与回退**：`U-P046-12`（HRP 一手原文缺失，仅阻塞 P-046b）与 `G-P046-5..9` 归属登记；IMPL §10 四个回退点逐项可执行（R1 legacy 单点切回 / R2 sample 临时回退 / R3 校验不许删 / 整体分段 revert） | D1-D8 通过 | 读码 + 读 IMPL §10 | ✅ PROGRESS §3.55.2「D9 归属」逐条登记；IMPL §10 R1-R3 + 整体 revert 可执行，本批零触发 |
-| D10 | **提交与 CI**：提交原子（4 源 + 3 测试 + 5 测试改 + 4 文档 + PROGRESS）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12）；**须用户明确授权后方可 commit/push** | D1-D9 通过 | `git show --stat` + `gh run view` | `[待 Step 10]` |
+| D10 | **提交与 CI**：提交原子（4 源 + 3 测试 + 5 测试改 + 4 文档 + PROGRESS）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12）；**须用户明确授权后方可 commit/push** | D1-D9 通过 | `git show --stat` + `gh run view` | ✅ 原子提交 **`15f608a`**（14 files，+3263/−240，白名单核对 ✅，RESEARCH §21.4）；push/CI 未执行（授权范围 = 终审+提交，push 待另行确认） |
 
 ---
 
@@ -83,7 +83,7 @@
 | 验收项总数 | **43**（A 12 + B 13 + C 8 + D 10 = 43，逐表行数机械计数） |
 | AC 覆盖范围 | **仅被裁决分支**（AC-C-01a..10 + AC-B1-01..06 + AC-B2-01..08）；RESEARCH §15.4 的 **AC-B3-01..04 与 AC-B4-01..02 为落选备选（「备选」标注），不在本批 43 项内**（Step 8 显式声明，防误读为遗漏） |
 | 实测列初始状态（Step 7） | A/B/C/D1-D9 共 **42 × `[待 Step 9]`**；D10 **1 × `[待 Step 10]`**；`✅` 出现即为违规 |
-| 实测列终态（Step 9） | **42 × `✅`** + D10 **1 × `[待 Step 10]`**；`[待 Step 9]` **0** |
+| 实测列终态（Step 9） | **43 × `✅`**（Step 10 回填 D10 后全绿）；`[待 Step 9]` **0** |
 | 新用例数（计划） | **41 收集** = constraints 27 + cov 7 + engine 7 |
 | 新用例数（实测） | **55** = constraints **38** + cov **10** + engine **7**（F-S9-P046-1） |
 | Step 9 门禁目标 | pytest **973** / `-k golden` **18** / mypy **111** / black **152·221** / `tests/*.py` **109** / AST **22·30** / `uv lock --check` exit **0**（解释器 `.venv\Scripts\python.exe`） |
