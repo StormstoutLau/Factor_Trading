@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -333,14 +333,91 @@ def check_v3_cost_identity(
     return violations
 
 
+def check_margin_identity(
+    positions: Sequence[Any],
+    specs: Mapping[str, Any],
+    *,
+    rtol: float = 1e-9,
+    atol: float = 1e-6,
+) -> list[Violation]:
+    """P050-I6（P-050 C2）：``margin_used == |qty| × settle_base × m × ratio``。
+
+    仅校验 ``asset_type == FUTURE`` 且有持仓的标的；``I6`` 编号已被
+    ``check_v3_static_positions`` 占用，故代码串加 ``P050-`` 前缀消歧。
+    """
+    violations: list[Violation] = []
+    for position in positions:
+        asset_type = getattr(position, "asset_type", None)
+        if getattr(asset_type, "name", asset_type) != "FUTURE":
+            continue
+        qty = abs(float(getattr(position, "quantity", 0.0) or 0.0))
+        if qty < 1e-12:
+            continue
+        spec = specs.get(getattr(position, "stock", ""))
+        if spec is None:
+            continue
+        expected = (
+            qty
+            * float(getattr(position, "settle_base", 0.0) or 0.0)
+            * float(getattr(position, "multiplier", 1.0) or 1.0)
+            * float(getattr(spec, "margin_ratio", 0.0) or 0.0)
+        )
+        actual = float(getattr(position, "margin_used", 0.0) or 0.0)
+        if not _close_enough(actual, expected, rtol=rtol, atol=atol):
+            violations.append(
+                Violation(
+                    code="P050-I6",
+                    detail=f"{getattr(position, 'stock', '')} margin={actual} != {expected}",
+                    value=actual - expected,
+                )
+            )
+    return violations
+
+
+def check_notional_identity(
+    positions: Sequence[Any],
+    prices: Mapping[str, float] | None = None,
+    *,
+    rtol: float = 1e-9,
+    atol: float = 1e-6,
+) -> list[Violation]:
+    """P050-I7（P-050 C3）：``notional_value == |qty| × price × m``。
+
+    ``price`` 缺省用 ``settle_base``（未盯市时也非 0，I-P050-10）。
+    """
+    violations: list[Violation] = []
+    for position in positions:
+        qty = abs(float(getattr(position, "quantity", 0.0) or 0.0))
+        if qty < 1e-12:
+            continue
+        stock = getattr(position, "stock", "")
+        price = None if prices is None else prices.get(stock)
+        if price is None:
+            price = float(getattr(position, "settle_base", 0.0) or 0.0)
+        if price <= 0:
+            continue
+        expected = qty * float(price) * float(getattr(position, "multiplier", 1.0) or 1.0)
+        actual = float(getattr(position, "notional_value", 0.0) or 0.0)
+        if not _close_enough(actual, expected, rtol=rtol, atol=atol):
+            violations.append(
+                Violation(
+                    code="P050-I7",
+                    detail=f"{stock} notional={actual} != {expected}",
+                    value=actual - expected,
+                )
+            )
+    return violations
+
+
 def check_all(
     snapshots: Sequence[PortfolioSnapshot],
     trades: Sequence[Trade],
     stats: dict[str, Any],
     initial_capital: float,
     mode: InvariantMode = "report",
+    specs: Optional[Mapping[str, Any]] = None,
 ) -> InvariantReport:
-    """执行 V2 引擎上下文的不变量 I1-I4。"""
+    """执行 V2 引擎上下文的不变量 I1-I4（+ 期货 P050-I6/P050-I7）。"""
     if mode not in ("off", "report", "raise"):
         raise ValueError(f"未知 invariant_mode: {mode!r}")
     violations: list[Violation] = []
@@ -348,6 +425,10 @@ def check_all(
     violations.extend(check_position_identity(snapshots, trades))
     violations.extend(check_cost_identity(trades, stats))
     violations.extend(check_return_identity(snapshots, initial_capital))
+    if specs and snapshots:
+        last_positions = list(snapshots[-1].positions.values())
+        violations.extend(check_margin_identity(last_positions, specs))
+        violations.extend(check_notional_identity(last_positions))
     report = InvariantReport(mode=mode, checked=len(snapshots), violations=violations)
     if violations:
         logger.error("不变量校验发现 %d 项违规（mode=%s）", len(violations), mode)

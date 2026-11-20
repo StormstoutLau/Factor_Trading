@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Mapping, Optional, cast
 
 import numpy as np
 import pandas as pd
 
-from core.config import AssetType, BacktestConfig, CostConfig, ExecutionPriceType
+from core.config import AssetInfo, AssetType, BacktestConfig, CostConfig, ExecutionPriceType
 from core.pending import OrderSide, PendingOrder
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,10 @@ class Trade:
     amount: float
     cost: float
     net_amount: float
+    # P-050 期货账目（全部默认值 → 股票路径逐位不变）
+    asset_type: AssetType = AssetType.STOCK
+    multiplier: float = 1.0
+    settlement_price: Optional[float] = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典格式"""
@@ -172,6 +176,7 @@ class ExecutionSimulator:
         cost_config: CostConfig,
         execution_price_type: ExecutionPriceType = ExecutionPriceType.OPEN,
         custom_price_callback: Optional[Callable] = None,
+        asset_specs: Optional[Mapping[str, Any]] = None,
     ):
         """初始化交易执行模拟器
 
@@ -179,10 +184,12 @@ class ExecutionSimulator:
             cost_config: 交易成本配置
             execution_price_type: 执行价格类型
             custom_price_callback: 自定义价格回调函数 (date, stock, side) -> float
+            asset_specs: 合约元数据（P-050；None = 纯股票，乘数 1、成本口径不变）
         """
         self.cost_cfg = cost_config
         self.execution_price_type = execution_price_type
         self.custom_price_callback = custom_price_callback
+        self._asset_specs: Mapping[str, Any] = asset_specs or {}
         self.trade_log = TradeLog()
 
         # 日级异常旁路（P-025 D5）：None = 零行为变化。
@@ -323,11 +330,14 @@ class ExecutionSimulator:
                         f"差异={price_diff_ratio:.2%}"
                     )
 
-            # 计算交易金额
-            amount = quantity * execution_price
+            # 计算交易金额（P-050：期货乘数必须在落 amount 前生效，否则成本错 1/m）
+            info = self._asset_specs.get(stock)
+            multiplier = float(getattr(info, "multiplier", 1.0) or 1.0)
+            asset_type = getattr(info, "asset_type", AssetType.STOCK)
+            amount = quantity * execution_price * multiplier
 
             # 计算交易成本
-            cost = self._calculate_cost(amount, side)
+            cost = self._calculate_cost(amount, side, asset_type=asset_type)
 
             # 【修复E16】净金额统一为扣除成本后的实际收支
             # 买入：支付金额 + 成本（总支出）
@@ -344,6 +354,8 @@ class ExecutionSimulator:
                 amount=amount,
                 cost=cost,
                 net_amount=net_amount,
+                asset_type=asset_type,
+                multiplier=multiplier,
             )
 
             # 记录交易
@@ -395,8 +407,12 @@ class ExecutionSimulator:
         if asset_cost.exchange_fee > 0:
             cost += amount * asset_cost.exchange_fee
 
-        # 印花税（卖出单边，按资产类型）
-        if side == OrderSide.SELL and asset_cost.stamp_tax_rate > 0:
+        # 印花税（卖出单边，按资产类型；期货恒 0）
+        if (
+            side == OrderSide.SELL
+            and asset_type != AssetType.FUTURE
+            and asset_cost.stamp_tax_rate > 0
+        ):
             stamp_tax = amount * asset_cost.stamp_tax_rate
             cost += stamp_tax
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
-from typing import Mapping, Optional
+from typing import Iterable, Mapping, Optional
 
 import pandas as pd
 
@@ -49,6 +49,8 @@ def build_target_positions(
     round_lot: bool = True,
     lot_size: int = 100,
     value_buffer: float = 0.985,
+    allow_short: bool = False,
+    multipliers: Optional[Mapping[str, float]] = None,
 ) -> dict[str, TargetPosition]:
     """由目标权重、当前持仓与价格推导目标持仓（含调出标的的清仓项）。
 
@@ -76,8 +78,8 @@ def build_target_positions(
     if not math.isfinite(total_value) or total_value <= 0:
         raise ValueError(f"total_value 必须为有限正数，当前为 {total_value!r}")
 
-    if len(target_weights) > 0 and bool((target_weights < 0).any()):
-        raise ValueError("目标权重不允许为负（A股不做空）")
+    if len(target_weights) > 0 and bool((target_weights < 0).any()) and not allow_short:
+        raise ValueError("目标权重不允许为负（A股不做空；研究模式需 allow_short=True）")
 
     weight_map: dict[str, float] = {
         str(stock): float(weight) for stock, weight in target_weights.items()
@@ -97,9 +99,9 @@ def build_target_positions(
         weight = weight_map.get(stock, 0.0)
         price = _resolve_price(prices, stock)
 
-        # 情形 4/8：未入选或权重为 0 → 有持仓则清仓，空仓则不输出
-        if weight <= 0.0:
-            if current > 0:
+        # 情形 4/8：未入选或权重为 0 → 有持仓（含空头）则清仓，空仓则不输出
+        if weight == 0.0 or (weight < 0.0 and not allow_short):
+            if current != 0:
                 targets[stock] = TargetPosition(
                     stock=stock,
                     current_quantity=current,
@@ -110,9 +112,40 @@ def build_target_positions(
                 )
             continue
 
+        # 负权重（仅研究模式）：目标为负数量
+        if weight < 0.0:
+            if price is None:
+                if current != 0:
+                    logger.warning("%s 缺少有效价格，维持现有持仓 %d 股", stock, current)
+                    targets[stock] = TargetPosition(
+                        stock=stock,
+                        current_quantity=current,
+                        target_quantity=current,
+                        price=None,
+                        weight=weight,
+                        is_exit=False,
+                    )
+                continue
+            multiplier = float(multipliers.get(stock, 1.0)) if multipliers is not None else 1.0
+            raw_quantity = weight * total_value * value_buffer / (price * multiplier)
+            if round_lot:
+                lot = 1 if multiplier != 1.0 else lot_size
+                target_quantity = int(math.ceil(raw_quantity / lot) * lot)
+            else:
+                target_quantity = int(raw_quantity)
+            targets[stock] = TargetPosition(
+                stock=stock,
+                current_quantity=current,
+                target_quantity=target_quantity,
+                price=price,
+                weight=weight,
+                is_exit=target_quantity == 0 and current != 0,
+            )
+            continue
+
         # 情形 6/9：无法定价
         if price is None:
-            if current > 0:
+            if current != 0:
                 logger.warning("%s 缺少有效价格，维持现有持仓 %d 股", stock, current)
                 targets[stock] = TargetPosition(
                     stock=stock,
@@ -127,9 +160,11 @@ def build_target_positions(
             continue
 
         # 情形 1/2/3/5：按权重与缓冲系数计算目标数量
-        raw_quantity = weight * total_value * value_buffer / price
+        multiplier = float(multipliers.get(stock, 1.0)) if multipliers is not None else 1.0
+        raw_quantity = weight * total_value * value_buffer / (price * multiplier)
         if round_lot:
-            target_quantity = int(math.floor(raw_quantity / lot_size) * lot_size)
+            lot = 1 if multiplier != 1.0 else lot_size
+            target_quantity = int(math.floor(raw_quantity / lot) * lot)
         else:
             target_quantity = int(raw_quantity)
 
@@ -150,6 +185,9 @@ def compute_portfolio_value(
     current_positions: Mapping[str, int],
     prices: pd.Series,
     market_values: Optional[Mapping[str, float]] = None,
+    *,
+    equity_symbols: Optional[Iterable[str]] = None,
+    allow_negative_stock: bool = False,
 ) -> float:
     """以最新价格重算组合总价值（现金 + Σ 数量 × 价格）。
 
@@ -157,21 +195,38 @@ def compute_portfolio_value(
     （``Position.execute_trade`` 不维护 ``market_value``），因此调仓估值
     一律用价格重算，``market_values`` 仅作为价格缺失时的兜底。
 
+    期货（``equity_symbols``）**必须**走 ``market_values`` 的权益口径
+    （= 保证金 + 盯市盈亏），禁止按 ``qty × price × multiplier`` 重算；
+    负数量股票仅在 ``allow_negative_stock`` 时计入（研究模式）。
+
     Args:
         cash: 现金余额。
         current_positions: 当前持仓 {股票: 股数}。
         prices: 最新价格；缺失或非正时回退到 market_values。
-        market_values: 可选，tracker 记录的市值（仅在价格缺失时使用）。
+        market_values: 可选，tracker 记录的市值（价格缺失或期货权益时使用）。
+        equity_symbols: 期货合约集合（权益口径）。
+        allow_negative_stock: 是否计入负数量股票。
 
     Returns:
         组合总价值；无有效估值信息的标的按 0 计入。
     """
     total = float(cash)
+    equity = {str(symbol) for symbol in (equity_symbols or ())}
 
     for stock_key, quantity in current_positions.items():
         stock = str(stock_key)
         qty = int(quantity)
-        if qty <= 0:
+        if qty == 0:
+            continue
+        if qty < 0 and not allow_negative_stock and stock not in equity:
+            continue
+
+        fallback = None if market_values is None else market_values.get(stock)
+        if stock in equity:
+            if fallback is not None and math.isfinite(float(fallback)):
+                total += float(fallback)
+            else:
+                logger.warning("%s 期货权益缺失（market_values），估值时跳过", stock)
             continue
 
         price = _resolve_price(prices, stock)
@@ -179,7 +234,6 @@ def compute_portfolio_value(
             total += qty * price
             continue
 
-        fallback = None if market_values is None else market_values.get(stock)
         if fallback is not None and math.isfinite(float(fallback)) and float(fallback) > 0:
             total += float(fallback)
         else:

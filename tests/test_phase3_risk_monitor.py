@@ -197,45 +197,28 @@ class TestMarginRiskCheck(unittest.TestCase):
         )
 
     def test_margin_call_triggered(self):
-        """保证金不足 → MARGIN_CALL"""
+        """保证金不足 → 仅诊断，不产生 MARGIN_CALL 动作（P-050 D10）"""
         from core.tracker import Position
-        from core.risk_manager import RiskAction
-
-        # 名义价值 100000，保证金 7000（7% < 8% 维持保证金）
-        pos = Position("IF2406", -2, 3500.0, 7000.0, 0.0, 0.0, margin_used=7000.0)
-        pos.update_market_value(3500.0)  # 名义价值 = 2*3500 = 7000
-        # 保证金比例 = 7000 / 7000 = 100%... wait that's not right
-
-        # Let me reconsider. 名义价值 = abs(quantity) * price = 2 * 3500 = 7000
-        # Actually for futures, 1 contract = 300 multiplier. Let me use simpler numbers.
-        # 名义价值 = 100000, margin_used = 7000, margin_ratio = 7000/100000 = 7% < 8% → MARGIN_CALL
-
-        # Actually, let me adjust: the market_value in Position is abs(quantity)*price
-        # But for futures, the notional_value = contract_multiplier * abs(quantity) * price
-        # Let me just use the market_value directly for now
-
-        # Actually, margin_ratio = margin_used / (abs(quantity) * price) = margin_used / market_value
-        # If margin_used = 7000 and market_value = 100000 → ratio = 7% < 8% → MARGIN_CALL
 
         pos = Position("IF2406", -2, 3500.0, 100000.0, 0.0, 0.0, margin_used=7000.0)
-        results = self.mtm.check_position(pos)
+        pos.notional_value = 100000.0
+        with self.assertLogs("core.risk_manager", level="INFO"):
+            results = self.mtm.check_position(pos)
 
-        self.assertGreaterEqual(len(results), 1)
-        action = results[0]
-        self.assertEqual(action.action, RiskAction.MARGIN_CALL)
+        self.assertEqual(results, [])
 
     def test_force_close_triggered(self):
-        """保证金严重不足 → FORCE_CLOSE"""
+        """保证金严重不足 → 仅诊断，不产生 FORCE_CLOSE 动作（P-050 D10）"""
         from core.tracker import Position
         from core.risk_manager import RiskAction
 
         # 名义价值 100000，保证金 4000（4% < 5% 强平线）
         pos = Position("IF2406", -2, 3500.0, 100000.0, 0.0, 0.0, margin_used=4000.0)
-        results = self.mtm.check_position(pos)
+        pos.notional_value = 100000.0
+        with self.assertLogs("core.risk_manager", level="WARNING"):
+            results = self.mtm.check_position(pos)
 
-        self.assertGreaterEqual(len(results), 1)
-        actions = [r.action for r in results]
-        self.assertIn(RiskAction.FORCE_CLOSE, actions)
+        self.assertNotIn(RiskAction.FORCE_CLOSE, [r.action for r in results])
 
     def test_margin_sufficient(self):
         """保证金充足 → 无风险动作"""
@@ -296,17 +279,18 @@ class TestPortfolioRiskCheck(unittest.TestCase):
             "000002.SZ": Position("000002.SZ", 500, 20.0, 11000.0, 1000.0, 0.0),  # 盈利 → 无风险
             "IF2406": Position(
                 "IF2406", -2, 3500.0, 100000.0, 0.0, 0.0, margin_used=4000.0
-            ),  # 保证金不足 → 强平
+            ),  # 保证金不足 → 仅诊断（P-050）
         }
+        positions["IF2406"].notional_value = 100000.0
 
         all_results = mtm.check_portfolio(positions)
 
-        # 应该有来自 000001 的止损 和 IF2406 的追保/强平
-        self.assertGreaterEqual(len(all_results), 2)
+        # 仅剩 000001 的止损动作；IF2406 的保证金不足降为诊断
+        self.assertEqual(len(all_results), 1)
 
         assets_with_actions = {r.asset for r in all_results}
         self.assertIn("000001.SZ", assets_with_actions)
-        self.assertIn("IF2406", assets_with_actions)
+        self.assertNotIn("IF2406", assets_with_actions)
         self.assertNotIn("000002.SZ", assets_with_actions)
 
     def test_empty_portfolio(self):

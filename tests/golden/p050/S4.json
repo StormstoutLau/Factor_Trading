@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "case_id": "P050_S4",
+  "engine": "v2",
+  "scenario": "futures_roll",
+  "description": "换月：IH2406 到期前 2 日触发，day3 开盘平旧开新（同价 3000，名义守恒）",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "final_value": 1003000.0,
+    "total_return": 0.003
+  },
+  "nav": {
+    "length": 4,
+    "first": 1000000.0,
+    "last": 1003000.0,
+    "min": 1000000.0,
+    "max": 1003000.0
+  },
+  "trades": {
+    "count": 3,
+    "total_amount": 2700000.0,
+    "total_cost": 0.0
+  },
+  "derivation": "开旧 + 平旧 + 开新 各 900,000；day3 settle IH2409 3010 → +3,000（闭式手算，非录制）",
+  "git_commit": "c6f172d",
+  "python_version": "3.12.11",
+  "dirty": true
+}

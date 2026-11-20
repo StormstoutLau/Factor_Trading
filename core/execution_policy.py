@@ -414,6 +414,7 @@ class SignalTranslator:
         prices: pd.Series,
         total_value: float,
         asset_type: str | AssetType = AssetType.STOCK,
+        allow_short: bool = False,
     ) -> list[OrderIntent]:
         """权重信号 → OrderIntent 列表
 
@@ -426,6 +427,7 @@ class SignalTranslator:
             prices: 当前价格 (asset → price)
             total_value: 组合总价值
             asset_type: 资产类型
+            allow_short: 研究模式（负权重 → 负目标数量；默认关闭）
 
         Returns:
             OrderIntent 列表
@@ -440,8 +442,11 @@ class SignalTranslator:
             target_w = float(target_weights.get(asset, 0.0))
             current_qty = float(current_positions.get(asset_str, 0.0))
 
+            if target_w < 0.0 and not allow_short:
+                target_w = 0.0
+
             # 计算目标数量
-            if target_w > 0 and asset_str in prices.index:
+            if target_w != 0.0 and asset_str in prices.index:
                 price = float(prices[asset_str])
                 if price > 0:
                     target_qty = target_w * total_value / price

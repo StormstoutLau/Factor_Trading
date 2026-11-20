@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "case_id": "P050_S2",
+  "engine": "v2",
+  "scenario": "futures_short_settle",
+  "description": "期货空头逐日结算：股票负持仓开关关闭，期货天然双向",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "final_value": 997000.0,
+    "total_return": -0.003
+  },
+  "nav": {
+    "length": 4,
+    "first": 1000000.0,
+    "last": 997000.0,
+    "min": 985000.0,
+    "max": 1000000.0
+  },
+  "trades": {
+    "count": 1,
+    "total_amount": 900000.0,
+    "total_cost": 0.0
+  },
+  "derivation": "空头 day2 settle 3050 → -15,000；day3 settle 3010 → +12,000（闭式手算，非录制）",
+  "git_commit": "c6f172d",
+  "python_version": "3.12.11",
+  "dirty": true
+}

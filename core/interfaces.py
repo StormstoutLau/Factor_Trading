@@ -347,6 +347,21 @@ class IPositionTracker(Protocol):
         """获取现金余额"""
         ...
 
+    def get_available_cash(self) -> float:
+        """获取可用资金（期货 = 已扣保证金；P-050）"""
+        ...
+
+    def settle(
+        self,
+        date: pd.Timestamp,
+        settlements: Any,
+        specs: Any = None,
+        fallback_prices: Any = None,
+        margin_model: Any = None,
+    ) -> Any:
+        """逐日结算（仅期货；股票实现可为 no-op，P-050）"""
+        ...
+
     def get_total_value(self) -> float:
         """获取总资产"""
         ...
@@ -547,3 +562,14 @@ class AbstractPositionTracker(ABC):
 
     @abstractmethod
     def get_total_value(self) -> float: ...
+
+    def settle(
+        self,
+        date: pd.Timestamp,
+        settlements: Any,
+        specs: Any = None,
+        fallback_prices: Any = None,
+        margin_model: Any = None,
+    ) -> Any:
+        """逐日结算（P-050）：默认 no-op，股票实现无需覆盖。"""
+        return None

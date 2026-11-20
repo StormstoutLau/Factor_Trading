@@ -280,40 +280,12 @@ class TestBuyNoImplicitCover(unittest.TestCase):
         self.assertEqual(pos.quantity, 1000)
         self.assertAlmostEqual(pos.avg_cost, 11.0)
 
-    def test_buy_does_not_cover_short(self):
-        """BUY 不再自动平空: 空头时 BUY 应加多而非平空"""
+    def test_buy_on_short_raises_overfill(self):
+        """BUY 不自动平空：空头持仓收到 BUY 视为越量（I-P050-9）"""
         pos = self.Position("IF2406", -2, 3500.0, 7000.0, 0.0, 0.0)
         trade = self._make_trade("IF2406", self.OrderSide.BUY, 1, 3600.0, 3600.0, 5.0)
-        pos.execute_trade(trade)
-
-        # 新的行为: BUY 在空头持仓时加多仓 (quantity 从 -2 变为 -1)
-        # 即: total = |-2|*3500 + 3600 = 7000+3600 = 10600
-        # total_quantity = 2 + 1 = 3, avg_cost = 10600/3 = 3533.33
-        # 但 quantity 仍然是负数（表示净空头 + 多头混合）...
-
-        # 实际上新逻辑应该: BUY 总是加多仓 side
-        # 如果 quantity < 0, BUY 减去空头 (平掉部分空头) → 不，这就是旧逻辑
-        # 新逻辑: BUY 只加多仓，即 quantity += trade.quantity
-        # 所以 -2 + 1 = -1, avg_cost 不变
-
-        # 等一等，让我重新想...
-        # 旧逻辑: quantity < 0 时 BUY = 平空
-        # 新逻辑: 移除旧逻辑的 else 分支，BUY 走的是 quantity >= 0 的路径
-        # 但 quantity = -2 < 0，所以也不会走 >= 0 的路径...
-
-        # 我需要重新设计: BUY 不管当前持仓方向，都按加多处理
-        # quantity += trade.quantity, avg_cost 按加权平均
-
-        # 负数 + 正数 = 更大（更接近0），即 net position 从 -2 到 -1
-        # avg_cost 应该不变 (因为多头加的量和空头原有量不同方向)
-
-        # 简化: 新的 BUY = 总是 quantity += trade.quantity
-        # 如果原来是 -2, 加 1: quantity = -1
-        # 这意味着我们持有一个"净-1"的头寸，一半被平了
-
-        # 实际上对于期货，这不合理。但测试验证: BUY 不再走隐式平空分支
-        # 新的行为就是 quantity += trade.quantity (简单累加)
-        self.assertEqual(pos.quantity, -1)  # -2 + 1 = -1
+        with self.assertRaises(ValueError):
+            pos.execute_trade(trade)
 
     def test_buy_to_cover_still_works(self):
         """BUY_TO_COVER 正常平空"""

@@ -11,4 +11,4 @@
 # 原便利导出 `from core import BacktestEngine` 已移除 (隐式导入反模式).
 #
 # P-012 D7 (T-11): 仅元数据版本号，不恢复重导出.
-__api_version__ = "3.1.0"
+__api_version__ = "3.2.0"

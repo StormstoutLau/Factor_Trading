@@ -135,8 +135,8 @@ class TestPositionLongShort(unittest.TestCase):
         self.short_pos.update_market_value(3400.0)
         # PnL = -2 * (3400 - 3500) = -2 * (-100) = 200 (盈利)
         self.assertEqual(self.short_pos.unrealized_pnl, 200.0)
-        # market_value 为绝对值
-        self.assertEqual(self.short_pos.market_value, 6800.0)
+        # market_value 为有符号名义价值（P-050 D1：空头为负）
+        self.assertEqual(self.short_pos.market_value, -6800.0)
 
     def test_update_market_value_short_loss(self):
         """空头亏损: 价格上涨"""

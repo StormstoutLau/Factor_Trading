@@ -25,6 +25,7 @@ Phase 3: 主动盯市策略
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -33,6 +34,8 @@ from core.config import MarginConfig
 
 if TYPE_CHECKING:
     from core.tracker import Position
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -158,33 +161,23 @@ class MarkToMarketPolicy:
                     stop_result.asset = position.stock
                     results.append(stop_result)
 
-        # 2. 保证金检查 (仅期货/杠杆品种)
-        if position.margin_used > 0 and position.market_value > 0:
-            margin_ratio = position.margin_used / position.market_value
-
+        # 2. 保证金诊断（P-050 D10 / N-1：分母改名义价值，动作降为仅诊断）
+        notional = float(getattr(position, "notional_value", 0.0) or 0.0)
+        if position.margin_used > 0 and notional > 0:
+            margin_ratio = position.margin_used / notional
             if margin_ratio < self.margin_config.force_liquidation_ratio:
-                results.append(
-                    RiskActionItem(
-                        action=RiskAction.FORCE_CLOSE,
-                        asset=position.stock,
-                        reason=(
-                            f"保证金比例 {margin_ratio:.1%} "
-                            f"低于强平线 {self.margin_config.force_liquidation_ratio:.1%}"
-                        ),
-                        severity=1.0,
-                    )
+                logger.warning(
+                    "%s 保证金比例 %.1f%% 低于强平线 %.1f%%（仅诊断，强平由引擎日终结算执行）",
+                    position.stock,
+                    margin_ratio * 100.0,
+                    self.margin_config.force_liquidation_ratio * 100.0,
                 )
             elif margin_ratio < self.margin_config.maintenance_margin_ratio:
-                results.append(
-                    RiskActionItem(
-                        action=RiskAction.MARGIN_CALL,
-                        asset=position.stock,
-                        reason=(
-                            f"保证金比例 {margin_ratio:.1%} "
-                            f"低于维持线 {self.margin_config.maintenance_margin_ratio:.1%}"
-                        ),
-                        severity=0.7,
-                    )
+                logger.info(
+                    "%s 保证金比例 %.1f%% 低于维持线 %.1f%%（仅诊断）",
+                    position.stock,
+                    margin_ratio * 100.0,
+                    self.margin_config.maintenance_margin_ratio * 100.0,
                 )
 
         return results

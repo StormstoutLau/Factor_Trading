@@ -18,7 +18,7 @@ import pandas as pd
 from core import __api_version__
 from core.analytics import generate_report
 from core.change_report import LayerDumper
-from core.config import BacktestConfig
+from core.config import AssetType, BacktestConfig
 from core.data import DataManager
 from core.event_log import EventLog, EventType, IEventBus
 from core.execution import ExecutionSimulator, is_valid_price
@@ -37,6 +37,12 @@ from core.target_positions import (
     compute_portfolio_value,
 )
 from core.factor import FactorCombiner, FactorPipeline
+from core.futures_accounting import (
+    ContractSpec,
+    liquidation_requests,
+    roll_orders,
+    split_reversal,
+)
 from core.interfaces import (
     IDataManager,
     IExecutionSimulator,
@@ -211,6 +217,12 @@ class BacktestEngineV2:
         # 组合级 NAV 序列（P-048 overlay）：常驻空 list，append 由 enabled 门控
         self._nav_history: list[float] = []
 
+        # 期货账目（P-050）：setup 构建；空字典 = 纯股票路径，全部短路
+        self._contract_specs: dict[str, ContractSpec] = {}
+        self._roll_signalled: set[str] = set()
+        self._settle_proxy_warned: bool = False
+        self._settlements_override: Optional[dict[pd.Timestamp, dict[str, float]]] = None
+
         # 信号模式（P-044 D5）：默认 scores 零行为；weights=策略直出目标权重
         self._signal_mode: Literal["scores", "weights"] = "scores"
 
@@ -294,19 +306,30 @@ class BacktestEngineV2:
         else:
             self.trigger = build_trigger(self.cfg.rebalance, self.dm.trade_dates)
 
+        # 6.5 期货合约规格（P-050）：必须先于执行模拟器与跟踪器构建
+        self._contract_specs = self._build_contract_specs()
+        futures_specs = self._contract_specs or None
+
         # 7. 交易执行模拟器
         if self._injected_executor is not None:
             self.executor = self._injected_executor
             logger.info("使用注入的执行模拟器")
         else:
-            self.executor = ExecutionSimulator(self.cfg.cost)
+            self.executor = ExecutionSimulator(self.cfg.cost, asset_specs=futures_specs)
 
         # 8. 持仓跟踪器
         if self._injected_tracker is not None:
             self.tracker = self._injected_tracker
             logger.info("使用注入的持仓跟踪器")
         else:
-            self.tracker = PositionTracker(self.dm.n_stocks, self.cfg.initial_capital)
+            self.tracker = PositionTracker(
+                self.dm.n_stocks,
+                self.cfg.initial_capital,
+                allow_negative_stock_positions=self.cfg.allow_negative_stock_positions,
+            )
+        specs_setter = getattr(self.tracker, "set_contract_specs", None)
+        if specs_setter is not None:
+            specs_setter(self._contract_specs)
 
         # 9. 待执行订单队列
         if self._injected_pending_queue is not None:
@@ -359,6 +382,182 @@ class BacktestEngineV2:
 
         elapsed = time.perf_counter() - t0
         logger.info(f"回测引擎V2设置完成，耗时: {elapsed:.2f}秒")
+
+    def _build_contract_specs(self) -> dict[str, ContractSpec]:
+        """按 ``futures_symbols`` 构建合约规格（P-050 A14）。
+
+        缺 ``multiplier`` / ``margin_ratio`` / ``expiry_date`` → raise；
+        到期日落在当月最后一天及以后（进入交割月）→ raise。
+        """
+        symbols = [str(symbol) for symbol in (self.cfg.futures_symbols or [])]
+        if not symbols:
+            return {}
+
+        dm = self.dm
+        getter = getattr(dm, "get_asset_info", None)
+        if getter is None:
+            raise RuntimeError("futures_symbols 已配置，但数据管理器缺少 get_asset_info()")
+
+        specs: dict[str, ContractSpec] = {}
+        for symbol in symbols:
+            info = getter(symbol)
+            if info is None:
+                raise ValueError(f"{symbol} 缺少资产元数据（AssetInfo）")
+            raw_multiplier = getattr(info, "multiplier", None)
+            multiplier = 1.0 if raw_multiplier is None else float(raw_multiplier)
+            if multiplier <= 0:
+                raise ValueError(f"{symbol} multiplier 必须为正，当前 {multiplier}")
+            ratio = getattr(info, "margin_ratio", None)
+            if ratio is None or float(ratio) <= 0:
+                raise ValueError(f"{symbol} 缺少有效 margin_ratio（期货必须 > 0）")
+            expiry_raw = getattr(info, "expiry_date", None)
+            if expiry_raw is None:
+                raise ValueError(f"{symbol} 缺少 expiry_date（期货必须显式给定）")
+            expiry = pd.Timestamp(expiry_raw)
+            last_holdable = expiry.to_period("M").to_timestamp("M").normalize()
+            if expiry.normalize() >= last_holdable:
+                raise ValueError(
+                    f"{symbol} 到期日 {expiry.date()} 落在交割月边界，"
+                    f"不允许持仓（last_holdable={last_holdable.date()}）"
+                )
+            specs[symbol] = ContractSpec(
+                symbol=symbol,
+                multiplier=multiplier,
+                margin_ratio=float(ratio),
+                expiry_date=expiry,
+                roll_days_before_expiry=getattr(info, "roll_days_before_expiry", None),
+                roll_target=getattr(info, "roll_target", None),
+            )
+        return specs
+
+    def _avail_cash(self) -> float:
+        """可用资金探测（期货 = 已扣保证金；股票与 get_cash 等价）。"""
+        tracker = self.tracker
+        assert tracker is not None
+        getter = getattr(tracker, "get_available_cash", None)
+        if getter is not None:
+            return float(getter())
+        return float(tracker.get_cash())
+
+    def _settlement_map(self, date: pd.Timestamp) -> dict[str, float]:
+        """当日结算价：``settlement_file`` 优先，其次 dm 可选 provider。"""
+        if self._settlements_override is None and self.cfg.settlement_file is not None:
+            self._settlements_override = self._load_settlement_file(self.cfg.settlement_file)
+        if self._settlements_override is not None:
+            return dict(self._settlements_override.get(pd.Timestamp(date), {}))
+
+        getter = getattr(self.dm, "get_settlement_prices", None)
+        if getter is None:
+            return {}
+        data = getter(date)
+        if not data:
+            return {}
+        return {
+            str(symbol): float(price)
+            for symbol, price in dict(data).items()
+            if pd.notna(price) and float(price) > 0
+        }
+
+    def _load_settlement_file(self, path) -> dict[pd.Timestamp, dict[str, float]]:
+        """读取长表 ``date,symbol,settlement``（csv/parquet）。"""
+        suffix = str(path).lower()
+        if suffix.endswith((".csv", ".txt")):
+            frame = pd.read_csv(path)
+        else:
+            frame = pd.read_parquet(path)
+        required = {"date", "symbol", "settlement"}
+        if not required.issubset(set(frame.columns)):
+            raise ValueError(
+                f"settlement_file 需包含列 {sorted(required)}，实际 {list(frame.columns)}"
+            )
+        result: dict[pd.Timestamp, dict[str, float]] = {}
+        for row in frame.itertuples(index=False):
+            day = pd.Timestamp(row.date)
+            result.setdefault(day, {})[str(row.symbol)] = float(row.settlement)
+        return result
+
+    def _queue_urgent_order(
+        self,
+        stock: str,
+        side: OrderSide,
+        quantity: int,
+        date: pd.Timestamp,
+        kind: str,
+    ) -> None:
+        """强平/换月订单入次日开盘队列（``_kind`` 豁免过期与再平衡撤销）。"""
+        if quantity <= 0:
+            return
+        order = create_pending_order(stock, side, quantity, date)
+        entries = getattr(self, "_next_day_orders", None)
+        if entries is None:
+            self._next_day_orders: list[dict[str, Any]] = []
+            entries = self._next_day_orders
+        entries.append({"order": order, "create_date": date, "deferred_days": 0, "_kind": kind})
+
+    def _settle_futures(self, date: pd.Timestamp) -> None:
+        """逐日结算 + 强平请求 + 换月指令（P-050 D2/D6；纯股票路径零开销）。"""
+        tracker = self.tracker
+        dm = self.dm
+        assert tracker is not None and dm is not None
+
+        settle = getattr(tracker, "settle", None)
+        if settle is None:
+            return
+
+        fallback: dict[str, float] = {}
+        try:
+            close_prices = self._exec_price(dm, "close").loc[date]
+            fallback = {
+                str(symbol): float(price)
+                for symbol, price in close_prices.items()
+                if is_valid_price(price)
+            }
+        except KeyError:
+            logger.warning(f"日期 {date} 缺少收盘价，结算回退价为空")
+
+        result = settle(
+            date,
+            self._settlement_map(date),
+            self._contract_specs,
+            fallback_prices=fallback,
+        )
+        if result is not None and result.proxy_used and not self._settle_proxy_warned:
+            logger.warning("期货结算价缺失，使用收盘价 proxy 结算：%s", date.date())
+            self._settle_proxy_warned = True
+
+        positions = tracker.get_all_positions()
+
+        for request in liquidation_requests(positions, self._avail_cash(), self._contract_specs):
+            position = positions.get(request.symbol)
+            if position is None:
+                continue
+            side = OrderSide.SELL if float(position.quantity) > 0 else OrderSide.BUY_TO_COVER
+            self._queue_urgent_order(
+                request.symbol, side, int(abs(position.quantity)), date, "liquidation"
+            )
+
+        for instruction in roll_orders(positions, self._contract_specs, date):
+            if instruction.close_symbol in self._roll_signalled:
+                continue
+            position = positions.get(instruction.close_symbol)
+            if position is None:
+                continue
+            self._roll_signalled.add(instruction.close_symbol)
+            is_long = float(position.quantity) > 0
+            self._queue_urgent_order(
+                instruction.close_symbol,
+                OrderSide.SELL if is_long else OrderSide.BUY_TO_COVER,
+                int(instruction.quantity),
+                date,
+                "roll",
+            )
+            self._queue_urgent_order(
+                instruction.open_symbol,
+                OrderSide.BUY if is_long else OrderSide.SELL_SHORT,
+                int(instruction.quantity),
+                date,
+                "roll",
+            )
 
     def _precompute_factors(self):
         """预计算因子数据"""
@@ -541,6 +740,10 @@ class BacktestEngineV2:
         if self.pending_queue:
             self._process_pending_orders(date, date_index)
 
+        # 逐日结算 + 强平 + 换月（P-050 D2）：pending queue 之后、trigger 之前
+        if self._contract_specs:
+            self._settle_futures(date)
+
         # 检查再平衡
         should_rebalance = trigger.should_trigger(
             date,
@@ -690,7 +893,7 @@ class BacktestEngineV2:
 
         liquidated_count = 0
         for stock, position in list(positions.items()):
-            if position.quantity <= 0:
+            if abs(position.quantity) < 1e-12:
                 continue
 
             if price_override is not None and stock in price_override:
@@ -703,8 +906,10 @@ class BacktestEngineV2:
             if pd.isna(price) or price <= 0:
                 continue
 
+            is_long = position.quantity > 0
+            side = OrderSide.SELL if is_long else OrderSide.BUY_TO_COVER
             success, trade = executor.execute_order(
-                stock, OrderSide.SELL, position.quantity, date, float(price)
+                stock, side, int(abs(position.quantity)), date, float(price)
             )
 
             if success and trade:
@@ -845,6 +1050,9 @@ class BacktestEngineV2:
         cancelled = 0
         for info in orders:
             order = info["order"]
+            if info.get("_kind") in ("liquidation", "roll"):
+                remaining.append(info)
+                continue
             if stocks is None or order.stock in stocks:
                 order.mark_cancelled(date)
                 cancelled += 1
@@ -875,6 +1083,9 @@ class BacktestEngineV2:
         expired = 0
         for info in orders:
             order = info["order"]
+            if info.get("_kind") in ("liquidation", "roll"):
+                active.append(info)
+                continue
             max_days = max_buy if order.side == OrderSide.BUY else max_sell
             if order.is_expired(date, max_days):
                 order.mark_expired(date)
@@ -920,7 +1131,7 @@ class BacktestEngineV2:
         skipped_price = []
 
         for order in pending_orders:
-            if order.side == OrderSide.BUY:
+            if order.side in (OrderSide.BUY, OrderSide.BUY_TO_COVER):
                 if not buyable_mask.get(order.stock, False):
                     skipped_suspended.append(order.stock)
                     continue
@@ -928,6 +1139,17 @@ class BacktestEngineV2:
                 if not sellable_mask.get(order.stock, False):
                     skipped_suspended.append(order.stock)
                     continue
+
+            # P-050：平空单按当前持仓夹紧；已无持仓 → 作废（避免重复平仓越量）
+            if order.side == OrderSide.BUY_TO_COVER:
+                held = tracker.get_position(order.stock)
+                available = abs(int(held.quantity)) if held is not None else 0
+                if available <= 0:
+                    self.pending_queue.cancel_order(order, date)
+                    logger.info(f"平空订单已无持仓，已作废: {order.stock}")
+                    continue
+                if order.quantity > available:
+                    order.quantity = available
 
             qty = self._clamp_sell_quantity(order)
             if qty <= 0:
@@ -960,10 +1182,10 @@ class BacktestEngineV2:
                     commission_min=self.cfg.cost.commission_min,
                     slippage_pct=self.cfg.cost.slippage_pct,
                 )
-                if tracker.get_cash() < required_cash:
+                if self._avail_cash() < required_cash:
                     logger.warning(
                         f"BUY 现金不足，整单跳过（保留队列）: {order.stock} "
-                        f"qty={qty} 需要={required_cash:.2f} 可用={tracker.get_cash():.2f}"
+                        f"qty={qty} 需要={required_cash:.2f} 可用={self._avail_cash():.2f}"
                     )
                     continue
 
@@ -1090,7 +1312,14 @@ class BacktestEngineV2:
         # 组合优化（P-044 D5）：weights 模式策略直出，跳过优化器（权重不得二次优化）
         cov_matrix = None  # P-046a：单一入口，optimizer 与 overlay 共用
         if self._signal_mode == "weights":
-            target_weights = daily_signal.clip(lower=0.0)
+            if self.cfg.allows_short(AssetType.STOCK):
+                target_weights = daily_signal
+            else:
+                # D7：期货天然双向；仅股票列受开关截断
+                target_weights = daily_signal.copy()
+                stock_cols = [c for c in target_weights.index if c not in self._contract_specs]
+                if stock_cols:
+                    target_weights.loc[stock_cols] = target_weights.loc[stock_cols].clip(lower=0.0)
             returns_data = None  # 统一定义（P-048 overlay 的 cov 来源判空）
         else:
             try:
@@ -1173,16 +1402,26 @@ class BacktestEngineV2:
             return
 
         positions = tracker.get_all_positions()
+        stock_short = self.cfg.allows_short(AssetType.STOCK)
+        allow_short = stock_short or bool(self._contract_specs)
+        if allow_short and not stock_short:
+            # D7：期货天然双向；股票负权重由开关截断为 0（不产生股票空头意图）
+            stock_cols = [c for c in target_weights.index if c not in self._contract_specs]
+            if stock_cols:
+                target_weights = target_weights.copy()
+                target_weights.loc[stock_cols] = target_weights.loc[stock_cols].clip(lower=0.0)
         current_positions = {
             stock: int(position.quantity)
             for stock, position in positions.items()
-            if int(position.quantity) > 0
+            if int(position.quantity) > 0 or (allow_short and int(position.quantity) != 0)
         }
         total_value = compute_portfolio_value(
-            tracker.get_cash(),
+            self._avail_cash(),
             current_positions,
             prices,
             {stock: position.market_value for stock, position in positions.items()},
+            equity_symbols=set(self._contract_specs),
+            allow_negative_stock=self.cfg.allow_negative_stock_positions,
         )
         targets = build_target_positions(
             target_weights,
@@ -1190,10 +1429,15 @@ class BacktestEngineV2:
             prices,
             total_value,
             round_lot=self.cfg.optimizer.round_lot,
+            allow_short=allow_short,
+            multipliers={symbol: spec.multiplier for symbol, spec in self._contract_specs.items()}
+            or None,
         )
         self._last_targets = targets
         self._last_target_stocks = {
-            stock for stock, target in targets.items() if target.target_quantity > 0
+            stock
+            for stock, target in targets.items()
+            if target.target_quantity > 0 or target.target_quantity < 0
         }
         self._emit(
             EventType.REBALANCE,
@@ -1254,6 +1498,7 @@ class BacktestEngineV2:
             prices=close_prices,
             total_value=total_value,
             asset_type="stock",
+            allow_short=self.cfg.allows_short(AssetType.STOCK),
         )
 
         # 2. OrderIntent → PendingOrder (通过 ExecutionPolicy)
@@ -1283,16 +1528,24 @@ class BacktestEngineV2:
         卖出先成交可在同一开盘把回款计入现金，避免不必要的负现金。
         """
         orders = []
+        exits: list[PendingOrder] = []
+        entries: list[PendingOrder] = []
 
         for target in targets.values():
-            trade_qty = target.target_quantity - target.current_quantity
-            if trade_qty < 0:
-                orders.append(create_pending_order(target.stock, OrderSide.SELL, -trade_qty, date))
+            current = int(target.current_quantity)
+            desired = int(target.target_quantity)
+            if desired == current:
+                continue
+            for side_name, qty in split_reversal(current, desired):
+                if qty <= 0:
+                    continue
+                order = create_pending_order(target.stock, OrderSide[side_name], int(qty), date)
+                if side_name in ("SELL", "BUY_TO_COVER"):
+                    exits.append(order)
+                else:
+                    entries.append(order)
 
-        for target in targets.values():
-            trade_qty = target.target_quantity - target.current_quantity
-            if trade_qty > 0:
-                orders.append(create_pending_order(target.stock, OrderSide.BUY, trade_qty, date))
+        orders = exits + entries
 
         for order in orders:
             if self.pending_queue:
@@ -1343,8 +1596,20 @@ class BacktestEngineV2:
 
         for order_info in self._next_day_orders:
             order = order_info["order"]
+            kind = order_info.get("_kind")
 
-            if order.side == OrderSide.BUY:
+            # 平仓侧（多→SELL 由 _clamp_sell_quantity 处理；空→BUY_TO_COVER）：
+            # 已无持仓时自然失效，避免重复平仓触发越量守卫（P-050）
+            if order.side == OrderSide.BUY_TO_COVER:
+                held = tracker.get_position(order.stock)
+                available = abs(int(held.quantity)) if held is not None else 0
+                if available <= 0:
+                    logger.info(f"{kind or 'close'} 订单已无持仓，自然失效: {order.stock}")
+                    continue
+                if order.quantity > available:
+                    order.quantity = available
+
+            if order.side in (OrderSide.BUY, OrderSide.BUY_TO_COVER):
                 if buyable_mask is not None and not buyable_mask.get(order.stock, True):
                     failed_orders.append(order_info)
                     continue
@@ -1372,7 +1637,7 @@ class BacktestEngineV2:
                     commission_min=self.cfg.cost.commission_min,
                     slippage_pct=self.cfg.cost.slippage_pct,
                 )
-                if tracker.get_cash() < required_cash:
+                if self._avail_cash() < required_cash:
                     failed_orders.append(order_info)
                     continue
 
@@ -1396,6 +1661,10 @@ class BacktestEngineV2:
                 failed_orders.append(order_info)
 
         self._next_day_orders = failed_orders
+
+        for info in failed_orders:
+            if info.get("_kind") == "liquidation":
+                info["deferred_days"] = int(info.get("deferred_days", 0)) + 1
 
         if executed_count > 0:
             logger.info(f"次日开盘订单执行完成: 成功{executed_count}个, 失败{len(failed_orders)}个")
@@ -1456,6 +1725,7 @@ class BacktestEngineV2:
                 executor.get_execution_stats(),
                 initial_capital=self.cfg.initial_capital,
                 mode=invariant_mode,
+                specs=self._contract_specs or None,
             )
             additional_info["invariant_report"] = invariant_report.to_dict()
             if invariant_mode == "raise" and not invariant_report.ok:

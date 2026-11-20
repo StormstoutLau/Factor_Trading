@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "case_id": "P050_S3",
+  "engine": "v2",
+  "scenario": "futures_liquidation",
+  "description": "空头 1 手@3000、保证金率 90%：day2 结算价 3400 → 可用资金 -38,000 → day3 开盘强平",
+  "tolerance": {
+    "rtol": 1e-09,
+    "atol": 1e-12,
+    "money_atol": 1e-06
+  },
+  "metrics": {
+    "final_value": 880000.0,
+    "total_return": -0.12
+  },
+  "nav": {
+    "length": 4,
+    "first": 1000000.0,
+    "last": 880000.0,
+    "min": 880000.0,
+    "max": 1000000.0
+  },
+  "trades": {
+    "count": 2,
+    "total_amount": 1920000.0,
+    "total_cost": 0.0
+  },
+  "derivation": "pnl=-120,000、margin 900,000→918,000、cash 100,000→-38,000；强平平仓 realized=0（闭式手算，非录制）",
+  "git_commit": "c6f172d",
+  "python_version": "3.12.11",
+  "dirty": true
+}

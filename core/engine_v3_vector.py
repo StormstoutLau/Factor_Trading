@@ -226,6 +226,20 @@ class VectorBacktestEngine:
             config: 配置字典
         """
         self.cfg = config or {}
+
+        # P-050：期货 / 股票负持仓为 V2 专属能力，V3 明确拒绝（I-P050-8）
+        unsupported = []
+        if self.cfg.get("futures_symbols"):
+            unsupported.append("futures_symbols")
+        if self.cfg.get("allow_negative_stock_positions"):
+            unsupported.append("allow_negative_stock_positions")
+        if unsupported:
+            raise ValueError(
+                "V3 向量引擎不支持 P-050 能力: "
+                + ", ".join(unsupported)
+                + "（请使用 V2 引擎或关闭这些配置）"
+            )
+
         self.dl: Optional[DataLoaderV3] = None
 
         # 预计算数据

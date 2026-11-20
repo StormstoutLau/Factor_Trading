@@ -168,6 +168,8 @@ class AssetInfo:
     tick_size: float = 0.01
     expiry_date: str | None = None
     exchange: str | None = None
+    roll_days_before_expiry: int | None = None  # 到期前 N 个交易日触发换月（P-050）
+    roll_target: str | None = None  # 换月目标合约（缺失则不换月，P-050）
 
 
 # ============================================================================
@@ -420,6 +422,18 @@ class BacktestConfig:
 
     # 风险 overlay（P-048）；None = 未配置（零行为变更，18 条 golden 不受影响）
     risk_overlay: "RiskOverlayConfig | None" = None
+
+    # 期货账目 / 股票负持仓（P-050）；全部默认关闭 → 零行为变更
+    allow_negative_stock_positions: bool = False  # 股票负持仓研究模式（仅 STOCK 生效）
+    settlement_file: Path | None = None  # 期货结算价文件；None = 用收盘价打标 proxy
+    futures_symbols: list[str] = field(default_factory=list)  # 期货合约枚举（空 = 纯股票路径）
+    liquidation_price_type: ExecutionPriceType = ExecutionPriceType.OPEN  # 强平成交价口径
+
+    def allows_short(self, asset_type: AssetType = AssetType.STOCK) -> bool:
+        """负持仓单一入口（D7）：STOCK 看开关，非 STOCK 恒允许。"""
+        if asset_type != AssetType.STOCK:
+            return True
+        return self.allow_negative_stock_positions
 
     def validate(self) -> list[str]:
         """验证配置参数的有效性"""
