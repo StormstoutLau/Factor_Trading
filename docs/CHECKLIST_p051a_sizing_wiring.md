@@ -3,7 +3,7 @@
 > **批次**: P-051a · **Step 7** · 日期 2026-11-20 · **判档 T1**
 > **上游**: [IMPL_p051a](IMPL_p051a_sizing_wiring.md)（§2 逐处代码 / §3 B1-B16 / §9 Step 6 pass：0 P1 / 0 P2 / 5 P3 F-I1..F-I5）；[DESIGN_p051a](DESIGN_p051a_sizing_wiring.md)（D1-D9 / I1-I13 / §10 Step 4：0 P1 / 1 P2 F-D1 已收敛）；[RESEARCH_p051a](RESEARCH_p051a_sizing_wiring.md)（§15 Step 2：0 P1 / 1 P2 F-R1 已收敛）
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；**禁止预填**
-> **状态**: **Step 9 完成**（2026-11-20）：A7 + B16 + C4 + I13 = **40/40 ✅**；实测 1040 / 22 / 113·0 / 157；待 Step 10（PROGRESS 回填 + 用户授权提交 + CI）
+> **状态**: **批次关闭（2026-11-21）**：A7+B16+C4+I13 = **40/40 ✅**；实测 **1040 passed / golden 22 零重录 / mypy 113 files 0 / black 157**；提交 **`ca459e6`** / CI run **`44770811527`** 四 job 全绿（lock-check + 3.10/3.11/3.12）
 > **基线读数（@`95a6f6c`）**: pytest **1024** / `-k golden` **22** / mypy **112 files 0** / black `core tests` **155** / `tests/*.py` **111** / `core/*.py` **44**
 > **目标读数**: pytest **1040** / golden **22（零重录）** / mypy **113 files 0** / black **157** / `tests/*.py` **112** / `core/*.py` **45**
 
