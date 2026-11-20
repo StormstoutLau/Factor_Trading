@@ -189,10 +189,21 @@
 | **P-059** | **数据校验与边界场景库（synthetic harness）** | 总纲 §5（关键路径 047 → 059 → 048）；**T1** | **done（2026-11-19，Step 1-10 全通过）**：17 场景 + 逐日 trace + 10 断言原语 + G4 修复（`4eed0fa` / 收口 `73f9807`）；**906 passed** / golden 18 / `-k p059` 63；CI run `44385648682`；详见 §3.53 | P2 |
 | **P-048** | **风险 overlay（vol targeting + 回撤防御四策略）** | 总纲 §5；**T1** | **done（2026-11-20，Step 1-10 全通过）**：`c12497c`（14 files +3147/−9 / 收口 `b5f69a7`）；**932 passed** / golden 18 零重录 / `-k p059` 63 / mypy 111 files 0；Qwen 异构终审 pass；CI run `44558140801` 四 job 全绿；详见 §3.54 | P2 |
 | **P-050** | **空头与期货账目（U-P031-1 承接）** | 总纲 L267：期货保证金 / 逐日无负债结算 / 强平 / 换月优先，股票负持仓降为研究模式；无代码前置，D3 已裁决；验收 = 期货账目 synthetic golden + 纯多头既有 golden 不受影响；**T1**（`core/tracker.py` / `core/execution.py`，波及 V2/V3/golden） | **done（2026-11-20，Step 1-10 全通过）**：RESEARCH/DESIGN/IMPL/CHECKLIST 四文档 + T0-T9 实现；提交 `1ee527d`（27 files，+4263/−161）+ 关闭回填；CI run `44725280832` 四 job 全绿；**1024 passed** / `-k golden` 22 / mypy 112 files 0 / black 155 unchanged；`tests/golden/p050/` 新增 4 例（闭式手算，既有 18 例零重录）；7 项偏差登记 §8 D-1..D-7；详见 [CHECKLIST_p050 §8](CHECKLIST_p050_futures_short_accounting.md) | **P1** |
-| U-P046-12 | HRP 分层风险平价缺一手方法学原文（仅二手转述） | [RESEARCH_p046 §4.3/§14](RESEARCH_p046_portfolio_optimization.md)：López de Prado 2016 原文未取得，聚类距离 / 连接法 / 递归二分三处细节无法逐字锚定；放任实现会重演 P-046a「无依据实现」风险 | **blocked（阻塞 P-046b Step 3；二选一：取一手原文 / HRP 降级不纳入 DoD）** | P2 |
+| U-P046-12 | HRP 分层风险平价缺一手方法学原文（仅二手转述） | [RESEARCH_p046 §4.3/§14](RESEARCH_p046_portfolio_optimization.md)：López de Prado 2016 原文未取得，聚类距离 / 连接法 / 递归二分三处细节无法逐字锚定；放任实现会重演 P-046a「无依据实现」风险 | **done（2026-11-20，用户裁决取一手原文）：SSRN preprint 2708678（May 23, 2016 版）全文经镜像取得，三细节逐字锚定（两级距离 / single linkage / 保序二分 α 拆分），见 [RESEARCH_p046 §14.8](RESEARCH_p046_portfolio_optimization.md)；P-046b 前置清零** | P2 |
 | F-S9-P046-2 | AST `except Exception` 基线 22 不可复现（core 外实测 26） | P-046a Step 9 门禁：基线读数与实际扫描口径不一致，批间计数无法对账（本批 core 外零 diff）；**P-046b 启动前须固化扫描口径**（目录集 / 是否含 `tests/`） | **pending（2026-11-20 建行）** | P3 |
 | F-S10-P046-1~3 | P-046a 终审 3 项 P3：`zero_vol` message 缺失 / `estimate_cov` 退化分支缺 warning / `codes` 静默取交集与文档不符 | [RESEARCH_p046 §21.3](RESEARCH_p046_portfolio_optimization.md)；均不阻塞，随 P-046b 同类约束面一并处置 | **pending（随 P-046b）** | P3 |
 | U-P047-2 | 非等风险预算求解（ERC 只解等预算） | [DESIGN_p047 §5](DESIGN_p047_position_sizing.md) D5：`RiskParityOptimizer.optimize` 无预算参数 | **pending（已转 P-046c 承接；本行保留单一跟踪指针）** | P3 |
+| **P-049** | **舆情接入（sentiment_feed）** | 总纲 L266：公告/新闻，开源数据优先；前置 P-042 已关闭 + Q5 已裁决；**不在关键路径**（关键路径 L277 链不含 049） | **pending（2026-11-20 建行，§3.57 断档第 7 次收口）** | P2 |
+| **P-051a** | **策略接线底座：vol/ATR 波动原语 + `apply_sizing` 引擎接线** | 总纲 L268 F5（P-051 四前置 P-044/045/047/050 全 done）+ §3.57 拆批裁决（用户 2026-11-20 确认 a/b/c 三批）；承接 DESIGN_p047 遗留 4 项（波动原语 / `zero_vol` warning / `insufficient_history` / `SizingState` 往返）+ U-P044-3；**波动原语归属接线批 vs DESIGN_p047 L319「P-051 数据层」口径 → 立项时裁决（F-S10-P051-1）** | **pending（2026-11-20 建行，关键路径下一项）** | **P1** |
+| **P-051b** | **策略模板库：`strategies/`（网格/趋势/时序动量/均值回归）+ registry** | 总纲 L268 F5 L205-206；硬依赖 P-051a（趋势/时序动量模板消费 vol-target + ATR） | **pending（2026-11-20 建行）** | P2 |
+| **P-051c** | **策略生命周期：晋级门（walk-forward→paper→灰度→全量）+ 监控/退役 + 多策略虚拟子账户** | 总纲 L268 F5 L207-209；依赖 P-051b | **pending（2026-11-20 建行）** | P2 |
+| **P-052** | **实盘安全闸门：kill switch/网关事前风控/账户熔断/合规报告/审计** | 总纲 L269（§3.0 S1-S7）；前置 P-043 done | **pending（2026-11-20 建行）** | P2 |
+| **P-053** | **交易通道网关：先过通道可行性门；qmt/broker_api/ctp 三桥 + ledger + reconcile** | 总纲 L270（F6）；前置 P-043/044/050/052；已裁决 D1/D4 | **pending（2026-11-20 建行）** | P2 |
+| **P-054** | **FastAPI+WS 服务层** | 总纲 L271（F7）；前置 P-053 + §7.9 | **pending（2026-11-20 建行）** | P3 |
+| **P-055** | **微服务拆分** | 总纲 L272；前置 P-054 | **pending（2026-11-20 建行）** | P3 |
+| **P-056** | **CTP 期货/月差** | 总纲 L273；前置 P-050/053 | **pending（2026-11-20 建行）** | P3 |
+| **P-057** | **regime 自适应深化（HMM + 参数集切换）** | 总纲 L274；前置 P-051 | **pending（2026-11-20 建行）** | P3 |
+| **P-058** | **截面多空/月差模板** | 总纲 L275；前置 P-050/051/056 | **pending（2026-11-20 建行）** | P3 |
 
 > 状态说明：上表仅有决策态 `pending`（未开工）。开工后执行态由工作记录派生，不在本表手写。
 
@@ -2824,3 +2835,23 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **状态更正 1 行**：U-P031-2 `pending → done`（P-047 承接：sizing 预算法 + 队列路径最小 BUY 现金检查，golden 15 零差异）；属 P-047 关闭动作漏项（D5 要求「批次关闭须检查 U-\* 建行与状态」）。
 - **门禁**: 纯文档批次（`docs/PROGRESS.md` + `CHANGELOG.md`），零代码 / 零测试变更，未重跑 pytest / mypy / black；上一门禁读数 @`c6f172d` 仍有效（987 passed / black 152·221 / mypy 111 files 0 / golden 18）。
 - **明示未处理**: §1.1 / §1.2 快照仍停在 2026-11-10 终态（HEAD `6ad7678` / 635 passed），与 §1.4 最新行相差 9 批；快照刷新涉及基线重录口径（golden 7→18 / tests 71→109），留待独立批次裁决，不在本批顺手改。
+
+### 3.57 下一步任务分析与独立复审（P-051 立项建议，2026-11-20）
+
+- **触发**: 用户「分析下一步任务」（P-050 关闭后）；随后用户指令「将分析落档 然后启动独立复审 排除建议幻觉」。
+- **分析结论（作者 DeepSeek-V4.1-Flash）**:
+  1. **关键路径下一项 = P-051**（总纲 §5 L268 / 关键路径 L277：042→043→044→045/046/047→059→048→050→**051**→052→053→054→055）；四前置 P-044/045/047/050 **全部 done**（§1.4 L183/184/188/191）。
+  2. **P-051 承接 6 项遗留**：`apply_sizing` 引擎/多策略接线 + 波动原语 `estimate_volatility`/`ATR`（`core/sizing.py` L53-55 `vol_lookback/atr_period/atr_k` 预留零消费，grep `estimate_volatility|def atr|insufficient_history` **0 命中**）+ `insufficient_history` 诊断（[DESIGN_p047 §R4 L319](DESIGN_p047_position_sizing.md)）+ `zero_vol` warning（F-S6-P047-2，[DESIGN_p047 L401](DESIGN_p047_position_sizing.md)）+ `SizingState` JSON round-trip（O-S8-P047-2，[DESIGN_p047 L439](DESIGN_p047_position_sizing.md)）+ `StrategyEngine` 内部重构（U-P044-3，[CHECKLIST_p044 L113/L195](CHECKLIST_p044_strategy_interface.md)）。
+  3. **台账断档同型第 7 次**：§1.4 待办表缺 **9 行**——P-049 / P-051 / P-052 / P-053 / P-054 / P-055 / P-056 / P-057 / P-058（E1 `Select-String '^\| \*{0,2}(P-049|P-05[1-8])\b'` **0 命中**）；计数链衔接 §3.56（同型第 6 次）→ 本次第 7 次。
+  4. **支线**：U-P046-12（HRP 一手原文二选一）阻塞 P-046b 立项（§1.4 L186/L192）；P-049 前置 P-042 已关闭 + Q5 已裁决（总纲 L266），**实际未阻塞**但不在关键路径。
+  5. **三项建议（留用户裁决）**：① P-051 拆 **a（接线底座）/ b（模板库）/ c（生命周期）** 三批，先做 P-051a（模板硬依赖 vol-target/ATR，总纲 F5 L206）；② P-051 开工前先修台账 9 行断档（T3 零代码）；③ U-P046-12 二选一（取一手原文 / HRP 降级出 DoD）。
+- **门禁**: 纯文档批次（仅本条目），零代码 / 零测试变更，未重跑 pytest / mypy / black；上一门禁读数 @`6fe5e08` 仍有效（1024 passed / golden 22 / mypy 112 files 0 / black 155 unchanged）。
+- **独立复审（RULE-5，2026-11-20）**: 复审基座 **GLM-5.3-Flash ≠ 作者 DeepSeek-V4.1-Flash，异构成立**；专项 = 排除建议幻觉。取证重放 **7/7 命中**（上列 1-5 全部锚点逐条重验：总纲 L266/268/277 + §1.4 L183-191 + `core/sizing.py` L53-55 零消费 + DESIGN_p047 L319/401/439/481 + CHECKLIST_p044 L113/195 + 断档 E1 0 命中 + 计数链 L81→L1420→L2821）。**结论：0 P1 / 0 P2 / 1 P3 当轮修正 + 2 观察——三项建议均有 E1/E3 证据锚定，无虚构批次 / 无虚构前置 / 无虚构遗留项，幻觉排查通过**：
+  - **F-S10-P051-1（P3，当轮修正）**: 原分析将波动原语归入「P-051a」；[DESIGN_p047 L319](DESIGN_p047_position_sizing.md) 原文口径为「随波动原语批次（**P-051 数据层**）落地」——两口径并存须在 P-051 RESEARCH 立项时裁决归属（接线批 vs 数据层批），本条目保留原文口径并登记差异。
+  - **O-S10-P051-1（观察）**: §1.1/§1.2 快照仍停 2026-11-10 终态，§3.56 已明示未处理，本次不重复建行。
+  - **O-S10-P051-2（观察）**: U-P046-12 锚点仅在 PROGRESS §1.4 L192（P-046a 产物），总纲内无此 ID；引用时须指向 PROGRESS 行（原分析引用无误）。
+- **裁决与执行（用户 2026-11-20 三项指令）**:
+  1. **P-051 拆批立项** → §1.4 新建 **P-051a / P-051b / P-051c** 三行（P-051a = P1 关键路径下一项，波动原语归属 F-S10-P051-1 留立项裁决）；
+  2. **先花一轮修台账** → §1.4 补建断档 9 行（P-049 / P-051a-c / P-052 / P-053 / P-054 / P-055 / P-056 / P-057 / P-058，共 11 行），依据列全部锚定总纲 L264-275 实际行号（E3 复核），**同型第 7 次断档收口**；
+  3. **U-P046-12 取一手原文** → 通道重试：paper-search 统一检索 0 命中 → semantic 按标题 0 → 按 `DOI:10.3905/jpm.2016.42.4.059` 触达 SSRN PDF 但 SSRN 直连超时（与 E13 一致）→ `download_with_fallback`（SSRN id 2708678 + Sci-Hub 兜底）失败（SSRN 登录墙）→ scholar-mirror 确认元数据（JPM 42(4) 59-69，OA=SSRN GREEN）→ WebSearch 定位完整镜像 `smallake.kr/wp-content/uploads/2020/04/SSRN-id2708678.pdf`（SSRN preprint **May 23, 2016 版**，摘要逐字一致）→ WebFetch 取全文（Stage 1-2 逐字命中）→ curl 落盘本地 PDF（1.8MB，31 页）+ PyMuPDF 解析 **Stage 3 公式逐字取得**（p.8-9：保序二分 `int[|L|/2]` / 簇方差 inverse-variance `diag[V]⁻¹/tr[diag[V]⁻¹]` / 拆分因子 `α=1−Ṽ⁽¹⁾/(Ṽ⁽¹⁾+Ṽ⁽²⁾)`）→ **解结完成**：[RESEARCH_p046 §14.8](RESEARCH_p046_portfolio_optimization.md) 逐字登记三细节 + §14.5/§14.6/§14.7 同步失效标注；U-P046-12 → done，**P-046b 前置清零**。
+- **执行门禁**: 纯文档批次（PROGRESS / RESEARCH_p046 两文件），零代码 / 零测试变更；HRP PDF 存档于工作区外（`%TRAE%\work\p046_papers\`），不入仓。**本条目含文档变更，未提交，待用户授权。**

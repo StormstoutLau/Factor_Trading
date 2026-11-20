@@ -494,7 +494,7 @@ DECISION-U-P046-3:
 | 主张 | 原因 |
 |---|---|
 | BL 1992 正文的逐字表述 | 全文为图片扫描件（无文本层），未 OCR（E12）；BL 公式一律引 E11（He-Litterman 1999） |
-| HRP（López de Prado 2016）的算法三步细节 | 仅摘要级（E13），全文付费墙；只能引开源实现并标注「实现参照」 |
+| HRP（López de Prado 2016）的算法三步细节 | ~~仅摘要级（E13），全文付费墙~~ → **已解结**：一手全文取得（SSRN preprint 2708678，§14.8 逐字锚定），P-046b 可逐字引原文实现 |
 | `max_sharpe` / `efficient_risk` 的**内部实现差异** | 仅读 docstring 与类头；E8 只实测了"不可行时的异常类型"，未逐行核对权重求解链路 |
 | 「Axioma / Barra 要求本仓必须留现金 / 必须放宽」 | E9/E10 描述的是**指数编制**流程（成分满仓），不能外推为本仓产品语义；只能引"有序 relax + 终态不调仓"这一形态 |
 | LW 2003 的 ρ̂ **通用公式** | E1 Lemma 2 的 ρ̂ 公式是**单指数目标专用**（`f_ij=s_i0s_j0/s_00`）；本文不把它当作任意目标的通用式（原文 p.613 亦明示需 case-by-case 调整） |
@@ -507,10 +507,10 @@ DECISION-U-P046-3:
 | **U-P046-9** | 本仓 `_ledoit_wolf_shrinkage` 是否中心化（对照 sklearn `assume_centered=False`） | Step 5 用已知均值序列构造对照 |
 | **U-P046-10** | 是否提供 `infeasible_policy` 开关 | 建议**不加**（最小复杂度）；若选 B1 则硬编码 |
 | **U-P046-11** | 外部文档抓取自主 `stable`/`master`，与锁版 sklearn 1.9.0 可能有差异 | 已用本地源码+运行时实测复核；Step 3 复跑 API 存在性即可 |
-| **U-P046-12** | L2 若落 HRP：缺少原文可引，实现口径（linkage / 距离度量 / 递归二分细节）无一手依据 | Step 3 前二选一：①用 `riskfolio-lib` 实现并在 DESIGN 标注「实现参照」；②降级 HRP 为可选（不纳入本批 DoD） |
+| **U-P046-12** | L2 若落 HRP：缺少原文可引，实现口径（linkage / 距离度量 / 递归二分细节）无一手依据 | ~~Step 3 前二选一~~ → **已解结（2026-11-20，用户裁决取一手原文）**：SSRN preprint 2708678 全文取得，三细节逐字锚定见 §14.8；P-046b 可逐字引原文实现，无需「实现参照」标注 |
 | **U-P046-13** | `np.var(df, ddof=1)` 语义随 pandas 版本漂移（<3.0 按列 → `Σs_ii²`；3.0.3 → 全 panel 标量，本仓实测） | 若选 C2（保留自研）必须显式 `axis=0` 并在 DESIGN 记录版本前提；选 C1（sklearn）则本项自动消解 |
 
-**处置状态（2026-11-20 裁决后）**：**U-P046-9 / U-P046-13 随 C1 消解**（自研 `_ledoit_wolf_shrinkage` 删除，改由 sklearn 口径决定）；**U-P046-10 不加开关**（B1 路径硬编码）；**U-P046-11 已复核**（锁版源码 + 运行时实测）；**U-P046-12 待定**——仅阻塞 P-046b。
+**处置状态（2026-11-20 裁决后）**：**U-P046-9 / U-P046-13 随 C1 消解**（自研 `_ledoit_wolf_shrinkage` 删除，改由 sklearn 口径决定）；**U-P046-10 不加开关**（B1 路径硬编码）；**U-P046-11 已复核**（锁版源码 + 运行时实测）；**U-P046-12 已解结（2026-11-20 晚间，一手原文取得，§14.8）**——P-046b 前置全部清零。
 
 ### 14.7 检索覆盖度自评
 
@@ -521,7 +521,41 @@ DECISION-U-P046-3:
 | vol targeting 依据 | ✅ **两篇全文**（E6 接受稿 / E7 NBER WP），效应量可引 |
 | 约束 relax 的行业规范 | ✅ **MSCI 官方方法论 2 篇**（E9/E10，含页码与逐字序列） |
 | BL 方法学 | ⚠️ 书目（E12）+ 一手白皮书公式锚（E11）；BL 1992 正文不可引 |
-| HRP 方法学 | ❌ 仅摘要（E13）→ U-P046-12 |
+| HRP 方法学 | ❌ 仅摘要（E13）→ U-P046-12；**→ ✅ 已解结（2026-11-20，一手全文取得，见 §14.8）** |
+
+---
+
+### 14.8 U-P046-12 解结记录（2026-11-20，一手原文取得）
+
+**来源登记**：López de Prado, M., *Building Diversified Portfolios that Outperform Out-of-Sample*, SSRN preprint id **2708678**（首页版权行：**First version: December 25, 2015; This version: May 23, 2016**，全文 31 页含附录 A.1-A.3）；JPM 正式版 DOI `10.3905/jpm.2016.42.4.059`（vol.42(4), pp.59-69，Semantic Scholar 引用 235）。**取证通道**（E1 可重放）：JPM 官网付费墙 + SSRN 直连超时（与 E13 一致）→ `smallake.kr/wp-content/uploads/2020/04/SSRN-id2708678.pdf` 完整镜像；本地存档 `C:\Users\Peng\.trae-cn\work\p046_papers\HRP_SSRN2708678.pdf`（1.8MB，页码提取经 PyMuPDF 实测）。
+
+**细节 1 —— 距离度量（两级，缺一不可）**（原文 §Stage 1，pp.5-6）：
+
+- 第一级：`d_{i,j} = sqrt(½(1 − ρ_{i,j}))`，定义于 X 列向量，∈[0,1]；原文证明其为 proper metric space（附录 A.1：非负 / 重合 / 对称 / 次可加）。
+- 第二级（**树聚类的实际输入**）：`d̃_{i,j} = sqrt(Σ_{n=1..N} (d_{n,i} − d_{n,j})²)`，即对距离矩阵 D 的**列向量取欧氏距离**（原文 "a distance of distances"），∈[0,√N]，每个 `d̃_{i,j}` 依赖整个相关矩阵。
+- 数值链（Example 1-2 逐字）：ρ = [1,.7,.2;.7,1,−.2;.2,−.2,1] → d = [.0,.3873,.6325;…] → d̃ = [0,.5659,.9747;.5659,0,1.1225;.9747,1.1225,0]。**此 3 资产手算链可作 P-046b HRP golden 的闭式锚**。
+
+**细节 2 —— 连接法 = single linkage（最近点法）**（原文 §Stage 1 第四步，p.6）：
+
+- 逐字："we can define the distance between an item i of d̃ and the new cluster u[1] as `ḋ_{i,u[1]} = min[{d̃_{i,j}}_{j∈u[1]}]` (**the nearest point algorithm**)"；Example 4 计算逐字用 min。
+- 原文脚注：scipy `pdist`/`linkage` 可替换其他 metric/linkage——为可扩展性表述，**正文默认与示例均为 nearest point（single）**；P-046b 实现以 single linkage 为默认口径，如提供开关须逐项对拍原文。
+
+**细节 3 —— 递归二分（Stage 3，pp.8-9）**：
+
+1. 初始化：`L = {L0}, L0 = {n}_{n=1..N}`；`w_n = 1 ∀n`。
+2. 终止：`|L_i| = 1 ∀L_i ∈ L`。
+3. 对每个 `|L_i| > 1`：
+   - a. 二分 `L_i = L_i^(1) ∪ L_i^(2)`，`|L_i^(1)| = int[|L_i|/2]`，**保序**；
+   - b. 簇方差（bottom-up）：`Ṽ_i^(j) ≡ w̃_i^(j)ᵀ V_i^(j) w̃_i^(j)`，其中 `w̃_i^(j) = diag[V_i^(j)]⁻¹ / tr[diag[V_i^(j)]⁻¹]`（inverse-variance）；
+   - c. 拆分因子（top-down）：`α_i = 1 − Ṽ_i^(1)/(Ṽ_i^(1) + Ṽ_i^(2))`，0 ≤ α ≤ 1；
+   - d. `w_n ×= α_i ∀n ∈ L_i^(1)`；e. `w_n ×= (1 − α_i) ∀n ∈ L_i^(2)`。
+4. 循环至步骤 2。保证 `0 ≤ w ≤ 1 ∧ Σw = 1`；复杂度 `T(n) = O(log₂ n)`（原文逐字）。
+
+**实现注意（取自原文 Code Snippet 2 逐字）**：示例代码为 Python 2（`xrange`、`len(i)/2` 整除）；数值例（10000×10 模拟）CLV 集中度 92.66% vs HRP 62.57%；Monte Carlo 结论 σ²CLA=0.1157 / σ²IVP=0.0928 / σ²HRP=0.0671（HRP 较 CLA 样本外方差 −72.47%）——这些数字**仅可作叙述引用，不得直接作 golden**（P-046b golden 须以附录 A.3 算法在本仓种子数据上闭式推导）。
+
+**版本风险声明**：SSRN May 23, 2016 preprint 与 JPM 排版版可能存在页码/图表差异（方法学公式部分两版一致的置信度高——preprint 即投稿定稿版）；引用时标注 SSRN 版本页码；如后续需要 JPM 原版逐字对照，走图书馆/馆际渠道，**不阻塞 P-046b Step 3**。
+
+**解结结论**：U-P046-12 → **done（2026-11-20）**；§14.5 L497 行与 §14.7 表同步失效并标注；P-046b 实现口径 = **两级距离 + single linkage + 保序二分/α 拆分**，三处细节均有逐字一手锚。
 
 ---
 
