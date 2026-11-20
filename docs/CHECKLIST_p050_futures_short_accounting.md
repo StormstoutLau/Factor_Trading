@@ -83,7 +83,7 @@
 | D7 | **改动面白名单**：新建 **3 源/测 + 1 目录（4 json）+ 4 文档**；改 **10 源**（config/**interfaces（SC-2 补登）**/tracker/execution/engine_v2/invariants/target_positions/execution_policy/risk_manager/engine_v3_vector）+ `core/__init__.py`；**零 diff**：`core/data.py`/`core/pending.py`/`core/sizing.py`/`core/guard_pipeline.py`/`core/risk_overlay.py`/`tests/_golden_cases.py`/既有 12 golden | 全量实现 | `git status --short` + `git diff --stat` | ✅ 新建 `core/futures_accounting.py` + 2 测试 + `tests/golden/p050/`；改 11 源（含 interfaces/`__init__`）；零 diff 清单全部为空 |
 | D8 | **文档回写**：IMPL §13 执行记录逐任务填实测；DESIGN 若有偏差回写；`docs/PROGRESS.md` 登记 P-050（按既有台账格式） | D1-D7 | 读回 diff | ✅ IMPL §13 执行记录 + 本清单实测列 + PROGRESS 登记（§8 汇总偏差） |
 | D9 | **CHANGELOG** 按 `[Unreleased]` 规范补 P-050 条目 | D8 | 读码 | ✅ `CHANGELOG.md` `[Unreleased]` 已补 |
-| D10 | **提交与 CI**：原子提交（3 新源/测 + 4 json + 4 文档 + 10 改）；四 job 全绿；**须用户明确授权后方可 commit/push** | D1-D9 | `git show --stat` + `gh run view` | [待 Step 10] |
+| D10 | **提交与 CI**：原子提交（3 新源/测 + 4 json + 4 文档 + 10 改）；四 job 全绿；**须用户明确授权后方可 commit/push** | D1-D9 | `git show --stat` + `gh run view` | ✅ 提交 `1ee527d`（27 files，+4263/−161）已推送；CI run [44725280832](https://github.com/StormstoutLau/Factor_Trading/actions/runs/44725280832) **四 job 全绿**（lock-check 8s + test 3.10 4m1s / 3.11 2m56s / 3.12 3m17s） |
 
 ---
 
@@ -153,3 +153,5 @@
 | D-7 | minor（健壮性） | 平仓单（`BUY_TO_COVER`）遇"已无持仓"由 raise 改为**自然作废**（强平与调仓同日重复平仓时防越量守卫误伤）；`BUY_TO_COVER` 改走 `buyable_mask`（原误用 `sellable_mask`） | `_execute_next_day_orders` / `_process_pending_orders` 两处；股票 `SELL` 行为不变 |
 
 **既有测试语义更新（3 文件，非本批新增）**：`test_p1_multi_asset_refine.py::test_buy_does_not_cover_short` → `::test_buy_on_short_raises_overfill`（越量改为 raise）；`test_phase2_multi_asset.py` 空头 `market_value` 断言 → 有符号 `-6800.0`；`test_phase3_risk_monitor.py` 3 例保证金动作 → 仅诊断（`assertLogs` + 无动作）。
+
+**Step 10 关闭记录（2026-11-20）**：提交前四门禁复核全绿（pytest **1024 passed** / `-k golden` **22** / mypy **112 files 0** / black **155 unchanged**）；原子提交 `1ee527d`（27 files，+4263/−161）推送 `c6f172d..1ee527d`；CI run `44725280832` **四 job 全绿**（lock-check + test 3.10/3.11/3.12）；D10 关闭回填，**54/54 ✅**。
