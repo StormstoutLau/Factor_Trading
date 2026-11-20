@@ -1040,7 +1040,7 @@ R1/R2/R3 与整体 revert **均未触发**（无需回退）；`_apply_constrain
 | 实现原子提交 | **`15f608a`** `feat(P-046a): 组合优化语义修复——约束投影 + 协方差单一入口`（14 files，+3263/−240） |
 | 白名单核对 | 4 源（portfolio/config/engine_v2/diagnostics）+ 3 新测试 + 2 既有测试（语义修正）+ 4 文档 + PROGRESS；零 diff 面全部不在提交内 ✅ |
 | 终审文档提交 | 本节 + CHECKLIST D10 回填 + PROGRESS §3.55.3 + dev log（第二步提交） |
-| CI 四 job | 提交为本地 master；**push 与 CI 触发未执行**（用户授权范围 = 终审 + 提交；push 须另行确认） |
+| CI 四 job | 已推送 `b5f69a7..0c183fe`；run **44692414846** 四 job 全绿（lock-check 5s / 3.11 2m43s / 3.12 3m5s / 3.10 3m5s；Node20 deprecation 警告为既有基建提示，非本批引入） |
 
 ### 21.5 终审结论
 
