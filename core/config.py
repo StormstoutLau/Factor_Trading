@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:  # 仅类型检查期导入，避免运行期循环（engine → config → risk_overlay）
     from core.risk_overlay import RiskOverlayConfig
+    from core.sizing import SizingConfig
 
 
 class ExecutionPriceType(str, Enum):
@@ -422,6 +423,9 @@ class BacktestConfig:
 
     # 风险 overlay（P-048）；None = 未配置（零行为变更，18 条 golden 不受影响）
     risk_overlay: "RiskOverlayConfig | None" = None
+
+    # 仓位管理（P-051a）；None = 零行为变更（22 条 golden 不受影响）
+    sizing: "SizingConfig | None" = None
 
     # 期货账目 / 股票负持仓（P-050）；全部默认关闭 → 零行为变更
     allow_negative_stock_positions: bool = False  # 股票负持仓研究模式（仅 STOCK 生效）

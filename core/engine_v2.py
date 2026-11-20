@@ -25,7 +25,7 @@ from core.execution import ExecutionSimulator, is_valid_price
 from core.invariants import InvariantViolationError, check_all
 from core.manifest import build_manifest, write_manifest
 from core.metrics import METRICS_METHOD
-from core.sizing import estimate_buy_cash
+from core.sizing import apply_sizing, estimate_buy_cash
 from core.execution_policy import (
     ExecutionPolicy,
     SignalTranslator,
@@ -36,6 +36,7 @@ from core.target_positions import (
     build_target_positions,
     compute_portfolio_value,
 )
+from core.volatility import TRADING_DAYS
 from core.factor import FactorCombiner, FactorPipeline
 from core.futures_accounting import (
     ContractSpec,
@@ -248,6 +249,25 @@ class BacktestEngineV2:
                 "factor_files 不能为空：BacktestEngineV2 需要至少一个因子文件；"
                 "请在 BacktestConfig.factor_files 中指定（至少 1 项）"
             )
+        if self.cfg.sizing is not None:
+            if self.cfg.sizing.method not in ("none", "vol_target"):
+                raise ValueError(
+                    "P-051a 引擎接线仅支持 sizing.method ∈ {none, vol_target}；"
+                    f"当前={self.cfg.sizing.method!r}（kelly/risk_parity 由策略层消费，P-051b）"
+                )
+            if self.cfg.sizing.method == "vol_target" and (
+                self.cfg.risk_overlay is not None and self.cfg.risk_overlay.target_vol is not None
+            ):
+                logger.warning(
+                    "sizing.vol_target 与 risk_overlay.target_vol 同时启用 → 两腿独立缩放，"
+                    "实际杠杆为乘积（F-R5）"
+                )
+            if self.cfg.sizing.min_weight > 0.0:
+                raise ValueError(
+                    "P-051a 引擎面禁止 sizing.min_weight > 0：apply_sizing 裁剪层把 0 权重"
+                    "抬升至 min_weight（sizing.py L322-324），weights 模式下等于全市场建仓"
+                    "（F-D1）；如需下限语义，归 P-051b 策略层显式白名单"
+                )
         t0 = time.perf_counter()
         logger.info("开始设置回测引擎V2...")
 
@@ -309,6 +329,10 @@ class BacktestEngineV2:
         # 6.5 期货合约规格（P-050）：必须先于执行模拟器与跟踪器构建
         self._contract_specs = self._build_contract_specs()
         futures_specs = self._contract_specs or None
+        if self.cfg.sizing is not None and (
+            self.cfg.allows_short(AssetType.STOCK) or self._contract_specs
+        ):
+            logger.warning("sizing 配置已忽略：短仓/期货路径不在 P-051a 范围（P-058）")
 
         # 7. 交易执行模拟器
         if self._injected_executor is not None:
@@ -1374,6 +1398,83 @@ class BacktestEngineV2:
                 logger.error(f"组合优化失败: {e}")
                 return
 
+        # 目标持仓依赖项（P-051a：上移以服务 sizing 的 min_size/max_size）
+        try:
+            prices = self._exec_price(dm, "close").loc[date]
+        except (KeyError, IndexError):
+            logger.warning(f"日期 {date} 缺少收盘价数据，跳过本次再平衡")
+            return
+
+        positions = tracker.get_all_positions()
+        stock_short = self.cfg.allows_short(AssetType.STOCK)
+        allow_short = stock_short or bool(self._contract_specs)
+        current_positions = {
+            stock: int(position.quantity)
+            for stock, position in positions.items()
+            if int(position.quantity) > 0 or (allow_short and int(position.quantity) != 0)
+        }
+        total_value = compute_portfolio_value(
+            self._avail_cash(),
+            current_positions,
+            prices,
+            {stock: position.market_value for stock, position in positions.items()},
+            equity_symbols=set(self._contract_specs),
+            allow_negative_stock=self.cfg.allow_negative_stock_positions,
+        )
+
+        # 仓位管理（P-051a，opt-in；D6：位于 overlay 之前、optimizer 之后）
+        sizing_cfg = self.cfg.sizing
+        if sizing_cfg is not None and not allow_short:
+            target_map = {str(code): float(weight) for code, weight in target_weights.items()}
+            finite_prices = {
+                str(code): float(price)
+                for code, price in prices.items()
+                if code in target_map
+                and price is not None
+                and np.isfinite(float(price))
+                and float(price) > 0.0
+            }
+            if len(finite_prices) < len(target_map):
+                logger.warning(
+                    "sizing 跳过：sizing_skipped_bad_price（%d/%d 无有限正价格）",
+                    len(target_map) - len(finite_prices),
+                    len(target_map),
+                )
+            else:
+                cov = None
+                codes = None
+                if sizing_cfg.method == "vol_target":
+                    window = sizing_cfg.vol_lookback
+                    if date_index < window:
+                        logger.warning(
+                            "sizing 跳过：insufficient_history（%d < %d）", date_index, window
+                        )
+                    else:
+                        assert returns_matrix is not None
+                        rets = pd.DataFrame(
+                            returns_matrix[date_index - window : date_index],
+                            index=dm.trade_dates[date_index - window : date_index],
+                            columns=dm.stock_codes,
+                        )
+                        cov_daily = estimate_cov(rets, method=self.cfg.optimizer.cov_method)
+                        # G5 / I4：Σ 与 target_vol 同口径（日频 → 年化）
+                        cov = cov_daily.to_numpy() * TRADING_DAYS
+                        codes = [str(code) for code in cov_daily.columns]
+                if sizing_cfg.method == "none" or cov is not None:
+                    sized = apply_sizing(
+                        target_map,
+                        config=sizing_cfg,
+                        cov=cov,
+                        codes=codes,
+                        total_value=float(total_value),
+                        prices=finite_prices,
+                    )
+                    if sized.diagnostics.reasons.get("portfolio") == "zero_vol":
+                        logger.warning("sizing zero_vol：Σ 退化，scale=1.0（P-047 F6）")
+                    target_weights = (
+                        pd.Series(sized.weights).reindex(target_weights.index).fillna(0.0)
+                    )
+
         # 风险 overlay（P-048，opt-in；D1 三层架构的 post-optimizer 层）
         overlay_cfg = self.cfg.risk_overlay
         if overlay_cfg is not None and overlay_cfg.enabled:
@@ -1394,35 +1495,12 @@ class BacktestEngineV2:
                 pd.Series(overlay_result.weights).reindex(target_weights.index).fillna(0.0)
             )
 
-        # 计算目标持仓（含调出标的的清仓项）
-        try:
-            prices = self._exec_price(dm, "close").loc[date]
-        except (KeyError, IndexError):
-            logger.warning(f"日期 {date} 缺少收盘价数据，跳过本次再平衡")
-            return
-
-        positions = tracker.get_all_positions()
-        stock_short = self.cfg.allows_short(AssetType.STOCK)
-        allow_short = stock_short or bool(self._contract_specs)
         if allow_short and not stock_short:
             # D7：期货天然双向；股票负权重由开关截断为 0（不产生股票空头意图）
             stock_cols = [c for c in target_weights.index if c not in self._contract_specs]
             if stock_cols:
                 target_weights = target_weights.copy()
                 target_weights.loc[stock_cols] = target_weights.loc[stock_cols].clip(lower=0.0)
-        current_positions = {
-            stock: int(position.quantity)
-            for stock, position in positions.items()
-            if int(position.quantity) > 0 or (allow_short and int(position.quantity) != 0)
-        }
-        total_value = compute_portfolio_value(
-            self._avail_cash(),
-            current_positions,
-            prices,
-            {stock: position.market_value for stock, position in positions.items()},
-            equity_symbols=set(self._contract_specs),
-            allow_negative_stock=self.cfg.allow_negative_stock_positions,
-        )
         targets = build_target_positions(
             target_weights,
             current_positions,
