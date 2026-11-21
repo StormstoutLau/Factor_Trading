@@ -49,6 +49,17 @@ class GuardContext:
     # 配置参数（guard 可能需要）
     config: dict[str, Any] = field(default_factory=dict)
 
+    # --- P-052 扩展（全部带默认，既有 6 Guard 行为不变） ---
+    industry: str = ""
+    industry_exposure: dict[str, float] = field(default_factory=dict)
+    industry_limits: dict[str, float] = field(default_factory=dict)
+    daily_order_count: int = 0
+    daily_cancel_count: int = 0
+    order_rate_config: dict[str, Any] = field(default_factory=dict)
+    limit_up: Optional[float] = None
+    limit_down: Optional[float] = None
+    counterparty_open_orders: list[dict[str, Any]] = field(default_factory=list)
+
 
 @dataclass
 class GuardResult:
@@ -278,6 +289,160 @@ class MinCashGuard(Guard):
         return GuardResult(passed=True, guard_name=self.name)
 
 
+class MaxOrderValueGuard(Guard):
+    """单笔金额上限（等于上限放行）。"""
+
+    def __init__(self, max_order_value: float = 1_000_000.0, enabled: bool = True):
+        super().__init__("MaxOrderValueGuard", enabled, {"max_order_value": max_order_value})
+        self.max_order_value = max_order_value
+
+    def check(self, ctx: GuardContext) -> GuardResult:
+        if self.max_order_value <= 0:
+            return GuardResult(passed=True, guard_name=self.name)
+        if ctx.order_value > self.max_order_value:
+            return GuardResult(
+                passed=False,
+                guard_name=self.name,
+                message=f"Order value {ctx.order_value:,.0f} exceeds {self.max_order_value:,.0f}",
+                severity="error",
+            )
+        return GuardResult(passed=True, guard_name=self.name)
+
+
+class PriceBandGuard(Guard):
+    """价格带（只读注入字段，不 import filter；D-G6 / F-D5）。"""
+
+    def __init__(self, enabled: bool = True):
+        super().__init__("PriceBandGuard", enabled)
+
+    def check(self, ctx: GuardContext) -> GuardResult:
+        if ctx.action == "BUY" and ctx.limit_up is not None and ctx.price > ctx.limit_up:
+            return GuardResult(
+                passed=False,
+                guard_name=self.name,
+                message=f"Buy price {ctx.price} above limit_up {ctx.limit_up}",
+                severity="error",
+            )
+        if ctx.action == "SELL" and ctx.limit_down is not None and ctx.price < ctx.limit_down:
+            return GuardResult(
+                passed=False,
+                guard_name=self.name,
+                message=f"Sell price {ctx.price} below limit_down {ctx.limit_down}",
+                severity="error",
+            )
+        if ctx.limit_up is None or ctx.limit_down is None:
+            return GuardResult(
+                passed=True,
+                guard_name=self.name,
+                message="Price band unavailable; passed with warning",
+                severity="warning",
+            )
+        return GuardResult(passed=True, guard_name=self.name)
+
+
+class IndustryExposureGuard(Guard):
+    """行业暴露上限（portfolio_value<=0 → 跳过）。"""
+
+    def __init__(self, default_industry_limit: float = 0.30, enabled: bool = True):
+        super().__init__(
+            "IndustryExposureGuard", enabled, {"default_industry_limit": default_industry_limit}
+        )
+        self.default_industry_limit = default_industry_limit
+
+    def check(self, ctx: GuardContext) -> GuardResult:
+        if ctx.action != "BUY" or not ctx.industry or ctx.portfolio_value <= 0:
+            return GuardResult(passed=True, guard_name=self.name)
+        limit = ctx.industry_limits.get(ctx.industry, self.default_industry_limit)
+        current = ctx.industry_exposure.get(ctx.industry, 0.0)
+        new_weight = current + ctx.order_value / ctx.portfolio_value
+        if new_weight > limit:
+            return GuardResult(
+                passed=False,
+                guard_name=self.name,
+                message=f"Industry {ctx.industry} exposure {new_weight:.1%} > {limit:.1%}",
+                severity="error",
+            )
+        return GuardResult(passed=True, guard_name=self.name)
+
+
+class OrderRateGuard(Guard):
+    """日笔数 + 撤单率（F-D6：分母 = daily_order_count，样本不足不判）。"""
+
+    def __init__(
+        self,
+        max_daily_orders: int = 1000,
+        max_cancel_ratio: Optional[float] = None,
+        min_cancel_samples: int = 20,
+        enabled: bool = True,
+    ):
+        super().__init__(
+            "OrderRateGuard",
+            enabled,
+            {
+                "max_daily_orders": max_daily_orders,
+                "max_cancel_ratio": max_cancel_ratio,
+                "min_cancel_samples": min_cancel_samples,
+            },
+        )
+        self.max_daily_orders = max_daily_orders
+        self.max_cancel_ratio = max_cancel_ratio
+        self.min_cancel_samples = min_cancel_samples
+
+    def check(self, ctx: GuardContext) -> GuardResult:
+        cfg = ctx.order_rate_config or {}
+        max_orders = int(cfg.get("max_daily_orders", self.max_daily_orders))
+        if max_orders > 0 and ctx.daily_order_count >= max_orders:
+            return GuardResult(
+                passed=False,
+                guard_name=self.name,
+                message=f"Daily order count {ctx.daily_order_count} >= {max_orders}",
+                severity="error",
+            )
+        ratio_limit = cfg.get("max_cancel_ratio", self.max_cancel_ratio)
+        if ratio_limit is not None:
+            min_samples = int(cfg.get("min_cancel_samples", self.min_cancel_samples))
+            if ctx.daily_order_count >= min_samples and ctx.daily_order_count > 0:
+                ratio = ctx.daily_cancel_count / ctx.daily_order_count
+                if ratio > float(ratio_limit):
+                    return GuardResult(
+                        passed=False,
+                        guard_name=self.name,
+                        message=f"Cancel ratio {ratio:.1%} > {float(ratio_limit):.1%}",
+                        severity="error",
+                    )
+        return GuardResult(passed=True, guard_name=self.name)
+
+
+class SelfTradeGuard(Guard):
+    """自成交（同价/穿价对手挂单；空列表放行）。"""
+
+    def __init__(self, enabled: bool = True):
+        super().__init__("SelfTradeGuard", enabled)
+
+    def check(self, ctx: GuardContext) -> GuardResult:
+        for order in ctx.counterparty_open_orders:
+            side = str(order.get("side", "")).upper()
+            raw_price = order.get("price")
+            if raw_price is None:
+                continue
+            price = float(raw_price)
+            if ctx.action == "BUY" and side == "SELL" and price <= ctx.price:
+                return GuardResult(
+                    passed=False,
+                    guard_name=self.name,
+                    message=f"Self-trade: counterparty sell {price} <= buy {ctx.price}",
+                    severity="error",
+                )
+            if ctx.action == "SELL" and side == "BUY" and price >= ctx.price:
+                return GuardResult(
+                    passed=False,
+                    guard_name=self.name,
+                    message=f"Self-trade: counterparty buy {price} >= sell {ctx.price}",
+                    severity="error",
+                )
+        return GuardResult(passed=True, guard_name=self.name)
+
+
 # ==================== Guard Pipeline ====================
 
 
@@ -358,6 +523,22 @@ class GuardPipeline:
                 DrawdownGuard(max_drawdown=0.25),
                 MinCashGuard(min_cash_ratio=0.02),
                 TurnoverGuard(max_daily_turnover=1.0),
+            ]
+        )
+
+    @classmethod
+    def live_safe(cls) -> GuardPipeline:
+        """实盘安全预设（不含 Cooldown/Whitelist，可由调用方叠加）。"""
+        return cls(
+            [
+                MaxPositionGuard(max_weight=0.10),
+                PriceBandGuard(),
+                MaxOrderValueGuard(max_order_value=1_000_000.0),
+                IndustryExposureGuard(default_industry_limit=0.30),
+                OrderRateGuard(max_daily_orders=1000),
+                SelfTradeGuard(),
+                MinCashGuard(min_cash_ratio=0.05),
+                DrawdownGuard(max_drawdown=0.10),
             ]
         )
 

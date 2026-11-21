@@ -56,6 +56,30 @@ class EventType:
     ERROR = "engine.error"
     RUN_FINISHED = "engine.run_finished"
 
+    # --- P-052 S6 审计（唯一来源；compliance 不重复定义） ---
+    AUDIT_INTENT = "audit.intent"
+    AUDIT_RISK_DECISION = "audit.risk_decision"
+    AUDIT_ORDER = "audit.order"
+    AUDIT_FILL = "audit.fill"
+    AUDIT_CANCEL = "audit.cancel"
+    AUDIT_RECONCILE = "audit.reconcile"
+    AUDIT_KILL = "audit.kill"
+    AUDIT_CIRCUIT = "audit.circuit"
+
+
+AUDIT_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        EventType.AUDIT_INTENT,
+        EventType.AUDIT_RISK_DECISION,
+        EventType.AUDIT_ORDER,
+        EventType.AUDIT_FILL,
+        EventType.AUDIT_CANCEL,
+        EventType.AUDIT_RECONCILE,
+        EventType.AUDIT_KILL,
+        EventType.AUDIT_CIRCUIT,
+    }
+)
+
 
 @runtime_checkable
 class IEventBus(Protocol):

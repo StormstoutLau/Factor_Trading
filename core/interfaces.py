@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 import numpy as np
@@ -573,3 +574,20 @@ class AbstractPositionTracker(ABC):
     ) -> Any:
         """逐日结算（P-050）：默认 no-op，股票实现无需覆盖。"""
         return None
+
+
+# =============================================================================
+# 安全契约（P-052 S5）
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class AuthConfig:
+    """S5 鉴权与传输安全契约（本批只定契约；中间件实现归 P-054）。"""
+
+    mode: str = "local"  # "local" | "api_key" | "jwt"
+    api_key_env: str = "FT_API_KEY"  # 密钥只经环境注入，不落配置文件
+    bind_host: str = "127.0.0.1"  # 仅本机/内网
+    require_tls: bool = False  # TLS 由 P-054 承载
+    allowed_origins: tuple[str, ...] = ()
+    enable_401_403: bool = True

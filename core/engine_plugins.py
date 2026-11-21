@@ -188,10 +188,12 @@ class GuardPlugin:
         engine: Any,
         pipeline: Optional[GuardPipeline] = None,
         mode: str = "block",  # 'block' | 'warn'
+        on_error: str = "open",  # 'open'（回测默认，P-026 D2.2）| 'closed'（实盘）
     ):
         self.engine = engine
         self.pipeline = pipeline or GuardPipeline.default()
         self.mode = mode
+        self.on_error = on_error
         self._enabled = False
         self._blocked_count = 0
         self._warning_count = 0
@@ -243,6 +245,9 @@ class GuardPlugin:
             return True, []
         except Exception as e:
             self._error_count += 1
+            if self.on_error == "closed":
+                logger.warning(f"Guard 检查异常（已阻断）: {e}")
+                return False, [f"guard_error: {e}"]
             logger.warning(f"Guard 检查异常（已放行）: {e}")
             return True, []  # 异常时允许执行，避免阻断正常交易
 
