@@ -4,7 +4,7 @@
 
 **[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)**
 **[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)**
-**[![Tests](https://img.shields.io/badge/Tests-748%20passed-brightgreen.svg)](tests/)**
+**[![Tests](https://img.shields.io/badge/Tests-1144%20passed-brightgreen.svg)](tests/)**
 **[![CI](https://github.com/StormstoutLau/Factor_Trading/actions/workflows/tests.yml/badge.svg)](https://github.com/StormstoutLau/Factor_Trading/actions)**
 
 **专业量化回测框架  ·  Multi-Agent 投研  ·  五维风控  ·  Walk-Forward 分析**
@@ -15,6 +15,7 @@
 
 ## 📰 News
 
+- **[2026-11]** **策略能力扩展** — P-051a 波动原语（ATR / vol-target）+ `apply_sizing` 引擎接线；P-051b `strategies/` 四模板（网格 / 趋势突破 / 时序动量 / 均值回归）+ registry 自动注册；P-051c 策略生命周期（`core/lifecycle.py` 晋级门 / 退役 / 重放、`core/oos.py` OOS 绩效产出器、`core/virtual_account.py` 多策略虚拟子账户）；测试基线 654 → **1144 passed**
 - **[2026-11]** **质量加固** — CI 门禁去假（移除 mypy `|| true`、CI 与本地同口径 + 越界声明）、依赖与锁维护、Factor_DB 实现缺陷修复、文档一致性收尾；测试基线 245 → **654 passed**
 - **[2026-06]** **v3.2** — 架构清理：根目录桥接文件全部移除，导入路径统一为 `from core.xxx`，245 测试全部通过
 - **[2026-05]** **v3.1** — 模块化升级：新增 EventLog、GuardPipeline、PluginRegistry、Agent风格化反思、蒸馏隔离审计
@@ -96,7 +97,7 @@ python cli.py dashboard
 
 # 5. Run all tests
 python cli.py test
-# Output: 748 passed ✓
+# Output: 1144 passed ✓
 ```
 
 ```python
@@ -182,6 +183,16 @@ Raw Factor → [Winsorize] → [Fill Missing] → [Neutralize] → [Standardize]
 | **Guard Pipeline** | Pre-trade checks: position limit / drawdown / cooldown / turnover |
 | **EventLog** | JSONL persistence + ring buffer + subscription/query |
 | **Plugin System** | Registry + Factory + auto-registration decorators |
+
+### ♻️ Strategy Lifecycle（P-051c）
+
+| Module | Function |
+|--------|----------|
+| `core/lifecycle.py` | 阶段状态机（draft → backtest → paper → gray → live → retired）+ 晋级门（Go / Kill / Hold / Recycle）+ 归档快照 + 迁移重放 |
+| `core/oos.py` | OOS 绩效产出器：Walk-Forward 切窗 → 复用 `BacktestEngineV2` 跑段 → 聚合指标 / IC 衰减 → `StageEvidence` |
+| `core/virtual_account.py` | 多策略虚拟子账户纯账本：`cash + reserved + Σpositions == total` 守恒 + 资金占用校验 |
+
+**策略模板（P-051b）**：`strategies/` 提供 `grid_atr` / `trend_breakout` / `ts_momentum` / `mean_reversion` 四模板，经 `core/registry.py` 自动注册，可经 CLI / 配置按名调用。
 
 ### 🩺 Run Diagnostics（P-025）
 
@@ -275,7 +286,7 @@ MPLBACKEND=Agg python -m pytest
 ```
 
 `python -m pytest` reads `testpaths = ["tests"]` from `pyproject.toml`, so no path argument
-is needed. Current baseline: **748 passed** (Python 3.12.10, `MPLBACKEND=Agg`).
+is needed. Current baseline: **1144 passed** (Python 3.12, `MPLBACKEND=Agg`).
 
 > `python cli.py test` wraps whatever `pytest` is on PATH. If `python` is not the
 > interpreter you installed into (see above), prefix the commands accordingly,
@@ -375,7 +386,7 @@ streamlit run web/streamlit_app/main.py
 
 ```
 Factor_Trading_v3.0/
-├── core/                          # 核心引擎 (36 files)
+├── core/                          # 核心引擎 (48 files)
 │   ├── engine_v2.py               # 回测引擎 (V2 with DI)
 │   ├── engine_v3_vector.py        # 向量化引擎 (high-performance)
 │   ├── config.py / config_v2.py   # 配置系统 (dataclass / Pydantic)
@@ -388,6 +399,12 @@ Factor_Trading_v3.0/
 │   ├── analytics.py               # 绩效分析 (Sharpe / Sortino / Calmar)
 │   ├── attribution.py             # Brinson 归因
 │   ├── walk_forward.py            # Walk-Forward 框架
+│   ├── lifecycle.py               # 策略生命周期状态机 (晋级门 / 退役 / 重放)
+│   ├── oos.py                     # OOS 绩效产出器 (切窗 → 回测 → 证据)
+│   ├── virtual_account.py         # 多策略虚拟子账户 (纯账本)
+│   ├── sizing.py / stops.py       # 仓位管理 + 止损状态机
+│   ├── volatility.py              # 波动原语 (ATR / vol-target)
+│   ├── metrics.py                 # 统一指标口径 (Sharpe / 回撤 / 年化)
 │   ├── risk_monitor.py            # 五维风控引擎
 │   ├── global_contagion.py        # 全球市场传染分析
 │   ├── event_log.py               # 事件日志 (JSONL + Ring Buffer)
@@ -407,6 +424,11 @@ Factor_Trading_v3.0/
 │   ├── style_reflection_engine.py # 风格化反思引擎
 │   ├── assumption_monitor.py      # 假设监控
 │   └── sentiment_framework.py     # 情感分析框架
+│
+├── strategies/                    # 策略模板 (6 files)
+│   ├── grid.py / trend.py         # 网格 / 趋势突破
+│   ├── ts_momentum.py / mean_reversion.py  # 时序动量 / 均值回归
+│   └── base.py                    # 公共历史 / 权重工具
 │
 ├── filter/                        # 股票池过滤器 (10 files)
 │   ├── universe_filter_clean.py   # 主过滤器
@@ -428,7 +450,7 @@ Factor_Trading_v3.0/
 │   └── cli.html                   # CLI-style interface
 ├── assets/                        # 静态资源 (架构图等)
 ├── examples/                      # 示例脚本 (7 files)
-├── tests/                         # 测试套件 (748 tests, 83 files)
+├── tests/                         # 测试套件 (1144 tests, 124 files)
 ├── docs/                          # 文档（架构 / 批次台账 / 规范）
 ├── tools/                         # 工具脚本 (benchmark / audit / ui)
 ├── data/                          # 事件日志存储
@@ -448,7 +470,7 @@ Factor_Trading_v3.0/
 ## 📚 Documentation
 
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) — **架构权威文档**（替代所有旧版架构分析文件）
-- [PROGRESS.md](docs/PROGRESS.md) — 批次台账与进度（P-001 ~ P-024）
+- [PROGRESS.md](docs/PROGRESS.md) — 批次台账与进度（P-001 ~ P-051c）
 - [CODE_WIKI.md](docs/CODE_WIKI.md) — 模块级代码细节参考（部分内容基于 V1 架构，已标注需更新）
 - [WALK_FORWARD_PLAN.md](docs/WALK_FORWARD_PLAN.md) — Walk-Forward 设计
 - [INTEGRATION_PROPOSAL.md](docs/INTEGRATION_PROPOSAL.md) — Factor_DB 集成方案
