@@ -117,6 +117,12 @@ class MarketView:
     tradable: pd.Series
     prices: pd.Series
     returns: Optional[pd.DataFrame]
+    history: Optional[dict[str, pd.DataFrame]] = None
+    """截至前一日的 OHLC 历史窗口（P-051b）。
+
+    键为 ``"close"`` / ``"high"`` / ``"low"``；行为 ``[t-W, t-1]``（不含当日），
+    列为全量 ``dm.stock_codes``；``history_window<=0`` 时为 ``None``。
+    """
 
 
 @runtime_checkable
@@ -275,6 +281,7 @@ class BacktestAdapter:
         signal: pd.DataFrame,
         tradable: Optional[pd.DataFrame] = None,
         returns_window: int = 0,
+        history_window: int = 0,
     ) -> list[MarketView]:
         """组装逐日 ``MarketView``（§4 数据流）。
 
@@ -282,12 +289,22 @@ class BacktestAdapter:
         - ``tradable`` 缺省为当日 ``signal.notna()``；
         - ``prices`` 取 ``dm.get_adj_price("close", "raw")``（与引擎成交口径一致）；
         - ``returns_window > 0`` 时给「截至前一日」窗口；历史不足记 ``None``
-          （镜像引擎 ``date_index >= cov_lookback`` 的逐日语义）。
+          （镜像引擎 ``date_index >= cov_lookback`` 的逐日语义）；
+        - ``history_window > 0`` 时给 ``close/high/low`` 三面板历史窗口（同窗
+          ``iloc[i-W:i]``）；历史不足记 ``None``（P-051b）。
         """
         dates = dm.trade_dates
         aligned = signal.reindex(index=dates, columns=dm.stock_codes)
         prices = dm.get_adj_price("close", "raw")
         returns_matrix = dm.returns
+
+        panels: dict[str, pd.DataFrame] = {}
+        if history_window > 0:
+            panels = {
+                key: dm.get_adj_price(key, "raw").reindex(index=dates, columns=dm.stock_codes)
+                for key in ("close", "high", "low")
+            }
+
         views: list[MarketView] = []
         for i, date in enumerate(dates):
             row = aligned.iloc[i]
@@ -298,6 +315,9 @@ class BacktestAdapter:
             window: Optional[pd.DataFrame] = None
             if returns_window > 0 and i >= returns_window:
                 window = returns_matrix.iloc[i - returns_window : i]
+            history: Optional[dict[str, pd.DataFrame]] = None
+            if history_window > 0 and i >= history_window:
+                history = {key: panel.iloc[i - history_window : i] for key, panel in panels.items()}
             views.append(
                 MarketView(
                     date=date,
@@ -305,6 +325,7 @@ class BacktestAdapter:
                     tradable=mask,
                     prices=prices.loc[date],
                     returns=window,
+                    history=history,
                 )
             )
         return views
