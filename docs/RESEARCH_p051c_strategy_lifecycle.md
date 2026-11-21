@@ -261,7 +261,7 @@ class VirtualAccount:
 | 7 | CHECKLIST | ✅ 完成（2026-11-21）：[CHECKLIST_p051c](CHECKLIST_p051c_strategy_lifecycle.md)——**M10 + T7 + C6 + I11 + D12 = 46 项**，全部 `[待 Step 9]`（RULE-1 禁预填）；基线 @`53db4f7` pytest 1091 / golden 22 / mypy 119·0 / black 240；目标 1144 / 122 files / 247 |
 | 8 | 一致性检查 | ✅ 通过（2026-11-21，GLM）：**20 项裁决 §0 齐全（L14-L33）/ §7 O11·≈53·≈1144 / 组数 L14+G10+R5+O11+A10+E3=53 四文档一致 / StageEvidence 三字段 D§3↔IMPL C-5↔CHECKLIST M1 一致 / run_engine+evaluate_strategy 签名一致 / D6.2 段公式与 IMPL _segment 等价 / CHECKLIST M-T-C-I-D 与 DESIGN D/I 组对齐 / mypy 122·black 247 口径一致**；4 项 P3 修正：R-1 E② 定死循环断言（1 收集项，保 53/1144，禁 @parametrize 漂移至 1147）/ R-2 删 lifecycle 侧死常量 EPS_SHARPE（oos 侧消费，lifecycle 不用）/ R-3 DESIGN 头部状态链更新 + D10 补注 draft red→HOLD（IMPL §3.1 定案回写）/ R-4 RESEARCH Step 5 行滞后清理。四文档状态同步完成，待 Step 9 |
 | 9 | TDD + 门禁 | ✅ 完成（2026-11-21）：三新模块 `core/{lifecycle,oos,virtual_account}.py` + 四测试文件落盘，**53 用例全绿**（lifecycle 29 / oos 11 / virtual_account 10 / end_to_end 3）；门禁实测 **pytest 1144 / `-k golden` 22 零重录 / mypy 122 files 0 / black 247 unchanged / tests 124 / core 48**；[CHECKLIST](CHECKLIST_p051c_strategy_lifecycle.md) 46 项全部 ✅（`[待 Step 9]` 清零）；M10 零改动清单 `git diff --stat` 空。**未提交，待 Step 10 授权** |
-| 10 | 提交 + CI | 四 job 全绿 |
+| 10 | 提交 + CI | ✅ 完成（2026-11-21）：提交 `45e133b`（feat(P-051c)：15 files +4184/−1，`53db4f7..45e133b` 已推送）→ CI run `44895295314` **四 job 全绿**（lock-check + test 3.10/3.11/3.12）。**批次关闭** |
 
 ---
 
