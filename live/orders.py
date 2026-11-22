@@ -130,6 +130,7 @@ class OrderRecord:
     updated_ts: float
     reject_code: str = ""
     reject_reason: str = ""
+    event_version: int = 0  # 每次真实迁移 +1；同态回报不变（P-054 D6/D-19）
 
     @property
     def remaining_quantity(self) -> float:
@@ -193,6 +194,7 @@ def transition(
         avg_price=record.avg_price if avg_price is None else avg_price,
         reject_code=reject_code or record.reject_code,
         reject_reason=reject_reason or record.reject_reason,
+        event_version=record.event_version + 1,
     )
 
 

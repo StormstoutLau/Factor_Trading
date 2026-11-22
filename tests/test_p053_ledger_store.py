@@ -71,7 +71,9 @@ def test_t4_outbox_rollback_same_transaction(tmp_path):
                 ("e1", "fill", 1.0, "AAA", 10.0, 10.0, 100.0, 0.0, "co1"),
             )
             store._conn.execute(
-                "INSERT INTO outbox VALUES (?,?,?,?,0)", ("ev1", "audit.order", "co1", 1.0)
+                "INSERT INTO outbox(event_id,aggregate_type,aggregate_id,event_type,payload,created_ts) "
+                "VALUES (?,?,?,?,?,?)",
+                ("ev1", "order", "co1", "audit.order", "co1", 1.0),
             )
             raise RuntimeError("boom")
     assert store.entries() == []

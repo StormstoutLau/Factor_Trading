@@ -41,6 +41,10 @@ class ChannelCapability:
     max_cancel_per_sec: float
     max_query_per_sec: float
     notes: str = ""
+    # P-054 D9：CTP 共享 FTD 预算（默认 6/s，1 个保留给撤单；启动恢复预扣 2）
+    max_ftd_per_sec: float = 6.0
+    ftd_reserve: int = 1
+    startup_ftd_instructions: int = 2
 
 
 class CapabilityError(RuntimeError):

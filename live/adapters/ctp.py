@@ -55,9 +55,9 @@ class CtpChannelAdapter(ChannelAdapter):
             supports_query_positions=True,
             autonomous=True,
             report_registered=True,
-            max_submit_per_sec=10.0,
+            max_submit_per_sec=10.0,  # 受 FTD 6/s 共享约束（P-054 D9）
             max_submit_per_day=20000,
-            max_cancel_per_sec=10.0,
+            max_cancel_per_sec=10.0,  # 受 FTD 6/s 共享约束（P-054 D9）
             max_query_per_sec=1.0,  # 查询 1 笔/秒
         )
         self._refs: dict[str, tuple[str, str, str]] = {}

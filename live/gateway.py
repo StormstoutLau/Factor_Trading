@@ -1,4 +1,4 @@
-"""TradingGateway：submit 八步固定序 + 回报/对账编排（P-053 D10）。"""
+"""TradingGateway：submit 八步固定序 + 回报/对账编排（P-053 D10 / P-054 D8-D11）。"""
 
 from __future__ import annotations
 
@@ -30,6 +30,8 @@ from live.channel import (
     resolve_limits,
 )
 from live.corporate_actions import CorporateAction, attribute_break
+from live.events import OutboxEventType, fill_event, order_event
+from live.flow_control import CancelResult, FtdBudget, OrderFlowBudget
 from live.ledger import Ledger, LedgerEntry
 from live.ledger_store import LedgerStore
 from live.orders import (
@@ -42,6 +44,7 @@ from live.orders import (
     make_client_order_id,
     transition,
 )
+from live.query_scheduler import QueryScheduler
 from live.reconcile import (
     BreakLevel,
     ParityConfig,
@@ -64,6 +67,16 @@ class SubmitResult:
     reasons: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class CancelAllReport:
+    """D-1：落 gateway（依赖 CancelResult）；flow_control 不 import gateway。"""
+
+    requested: int
+    submitted: int
+    deferred: tuple[str, ...]
+    rejected: tuple[tuple[str, str], ...]
+
+
 class TradingGateway:
     def __init__(
         self,
@@ -82,6 +95,9 @@ class TradingGateway:
         operator: str = "system",
         clock: Callable[[], float] = time.time,
         cost_buffer: float = 0.005,  # IMPL D-1：§5 表要求可配
+        ftd_budget: FtdBudget | None = None,
+        order_flow_budget: OrderFlowBudget | None = None,
+        scheduler: QueryScheduler | None = None,
     ) -> None:
         self._adapter = adapter
         self._gate = gate
@@ -97,6 +113,10 @@ class TradingGateway:
         self._operator = operator
         self._clock = clock
         self._cost_buffer = cost_buffer
+        self._ftd = ftd_budget
+        self._order_flow = order_flow_budget
+        self._scheduler = scheduler
+        self._recovery_state = "incomplete"
         self._orders: dict[str, OrderRecord] = {}
         self._limits: ChannelLimits | None = None
         self._submit_ledger = RateLedger()
@@ -135,6 +155,11 @@ class TradingGateway:
         if cap.autonomous:  # F-I6：半自动通道无查询能力，跳过远程恢复
             require_capability(cap, need=frozenset({"query_trades", "query_orders"}))
         self._ledger.attach_store(self._store)  # F-I10：接线（否则分录不落库）
+        setter = getattr(
+            self._store, "set_meta", None
+        )  # reader 基准：快照 cash = initial − Σ（F-A1）
+        if setter is not None:
+            setter("initial_cash", repr(self._ledger.initial_cash))
         persisted = self._store.entries()
         if persisted and not self._ledger.entries():  # 崩溃恢复：重建运行账本（F-I10）
             self._ledger = Ledger.resume(persisted, initial_cash=self._ledger.initial_cash)
@@ -143,14 +168,19 @@ class TradingGateway:
         )
         for rec in self._store.load_orders():  # F-R5-2：先装载本地订单，远程回报方可回放
             self._orders.setdefault(rec.client_order_id, rec)
-        if cap.autonomous:  # 恢复序（SSE）：先成交报告 → 再订单状态
-            self._throttle_query(self._clock())
-            for report in self._adapter.query_trades(day=day):
-                self._ledger.apply_fill(FillRecord(**asdict(report)))
-            self._throttle_query(self._clock())
-            for order_report in self._adapter.query_orders(day=day):
-                self._apply_order_report(order_report, ts=self._clock(), from_query=True)
-        self.reconcile(ts=self._clock())  # F-I15：不留死赋值
+        if cap.autonomous:  # 恢复序（SSE）：先成交报告 → 再订单状态；失败 fail-closed
+            try:
+                self._run_query(lambda: self._adapter.query_trades(day=day), replay="trades")
+                self._run_query(lambda: self._adapter.query_orders(day=day), replay="orders")
+            except ChannelUnavailable:
+                self._set_recovery("failed")
+                raise
+        try:
+            self.reconcile(ts=self._clock())  # F-I15：不留死赋值
+        except ChannelUnavailable:  # Q6：positions 失败 → 降级可用
+            self._set_recovery("degraded_positions")
+        else:
+            self._set_recovery("complete")
 
     def shutdown(self) -> None:
         try:
@@ -233,12 +263,35 @@ class TradingGateway:
                 amount=base_price * request.quantity * (1.0 + self._cost_buffer),
                 ts=ts,
             )
+
+        # ⑦ P-054 D9/D18：预算在 pre_trade_check 之后、adapter 之前（本地拒绝不耗槽）
+        budget = self._reserve_flow(ts, cancel=False)
+        if not budget.allowed:
+            self._ledger.release(ref=coid, ts=ts)
+            self._audit(
+                EventType.AUDIT_ORDER,
+                coid,
+                "rate_denied",
+                reason=budget.reason,
+                retry_after_ms=budget.retry_after_ms,
+                ts=ts,
+            )
+            return SubmitResult(
+                False, coid, OrderState.REJECTED, reasons=(f"rate_{budget.reason}",)
+            )
+
         rec = from_request(request, ts=ts)
-        try:  # ⑦
+        try:  # ⑧
             ack = self._adapter.submit(request)
         except ChannelRejected as exc:
+            # D9「发送即计」：请求已送达柜台，拒单不退还预算槽位
             self._ledger.release(ref=coid, ts=ts)
             self._gate.on_order_result(rejected=True, ts=ts)
+            rejected = transition(rec, state=OrderState.REJECTED, ts=ts, reject_code=exc.code)
+            self._orders[coid] = rejected
+            self._store.upsert_order_with_events(
+                rejected, [order_event(rejected, OutboxEventType.ORDER_REJECTED, ts=ts)]
+            )
             self._audit(
                 EventType.AUDIT_ORDER,
                 coid,
@@ -249,6 +302,7 @@ class TradingGateway:
             )
             return SubmitResult(False, coid, OrderState.REJECTED, reasons=(exc.code,))
         except ChannelUnavailable as exc:  # F-I7：请求级未受理不计拒单
+            self._release_flow(ts, cancel=False)
             self._ledger.release(ref=coid, ts=ts)
             self._audit(EventType.AUDIT_ORDER, coid, "unavailable", reason=str(exc), ts=ts)
             return SubmitResult(
@@ -264,14 +318,10 @@ class TradingGateway:
         )  # ⑧（F-I5：同态回填 broker id）
         self._gate.on_order_result(rejected=False, ts=ts)  # F-I9：成功 ack 重置拒单计数
         self._orders[coid] = rec
-        self._store.upsert_order(rec)
-        self._audit(EventType.AUDIT_ORDER, coid, "accepted", state=rec.state.value, ts=ts)
-        self._store.append_outbox(
-            event_id=uuid.uuid4().hex,
-            event_type=EventType.AUDIT_ORDER,
-            payload=coid,
-            ts=ts,
+        self._store.upsert_order_with_events(
+            rec, [order_event(rec, OutboxEventType.ORDER_ACCEPTED, version=1, ts=ts)]
         )
+        self._audit(EventType.AUDIT_ORDER, coid, "accepted", state=rec.state.value, ts=ts)
         return SubmitResult(True, coid, rec.state, decision=decision)
 
     # ---------- 回报 ----------
@@ -283,7 +333,7 @@ class TradingGateway:
         for report in self._adapter.drain_reports():
             if isinstance(report, FillReport):
                 mark = len(self._ledger.entries())
-                if self._ledger.apply_fill(FillRecord(**asdict(report)), ts=report.ts):
+                if self._apply_fill(report):
                     self._audit(
                         EventType.AUDIT_FILL,
                         report.client_order_id,
@@ -335,8 +385,16 @@ class TradingGateway:
                 ts=ts,
             )
             return
+        if updated is rec:  # O-I2：同态不写库、不发事件
+            return
         self._orders[report.client_order_id] = updated
-        self._store.upsert_order(updated)
+        if updated.state is OrderState.CANCELED:
+            event_type = OutboxEventType.ORDER_CANCELED
+        elif updated.state is OrderState.REJECTED:
+            event_type = OutboxEventType.ORDER_REJECTED
+        else:
+            event_type = OutboxEventType.ORDER_STATUS
+        self._store.upsert_order_with_events(updated, [order_event(updated, event_type, ts=ts)])
         self._audit(
             EventType.AUDIT_ORDER,
             report.client_order_id,
@@ -352,6 +410,29 @@ class TradingGateway:
             if updated.state is OrderState.CANCELED:
                 self._ledger.release(ref=report.client_order_id, ts=ts)
 
+    def _apply_fill(self, report: FillReport) -> bool:
+        """fill 只发 ``fill.applied``（F-I3①）；事件与两分录同事务（I3/I17）。"""
+        fill = FillRecord(**asdict(report))
+        entry_ids = [f"fill:{fill.fill_key}"]
+        if fill.fee:
+            entry_ids.append(f"fee:{fill.fill_key}")
+        event = fill_event(fill, ts=report.ts, entry_ids=entry_ids)
+        return self._ledger.apply_fill(fill, ts=report.ts, outbox_events=[event])
+
+    def _run_query(self, fn, *, replay: str) -> None:
+        """启动恢复：查询走 scheduler（D8）；回放 fill 带事件（O-I3）。"""
+        if self._scheduler is not None:
+            result = self._scheduler.run(fn)
+        else:
+            self._throttle_query(self._clock())
+            result = fn()
+        if replay == "trades":
+            for report in result:
+                self._apply_fill(report)
+        else:
+            for order_report in result:
+                self._apply_order_report(order_report, ts=self._clock(), from_query=True)
+
     def _throttle_query(self, ts: float) -> None:
         """查询桶独立限流：先 check 后 record（F-I8；daily_orders = 当日查询数）。"""
         cfg = self._query_config or self._rate_config
@@ -365,7 +446,7 @@ class TradingGateway:
         applied: list[LedgerEntry] = []
         for report in reports:
             mark = len(self._ledger.entries())
-            if self._ledger.apply_fill(FillRecord(**asdict(report)), ts=report.ts):
+            if self._apply_fill(report):
                 self._audit(
                     EventType.AUDIT_FILL,
                     report.client_order_id,
@@ -378,36 +459,96 @@ class TradingGateway:
 
     # ---------- 撤单 ----------
 
-    def cancel(self, client_order_id: str, *, ts: float) -> bool:
+    def cancel_ex(self, client_order_id: str, *, ts: float) -> CancelResult:
+        """显式撤单（D11/G15）：not_found/terminal → 限流 → FTD → order-flow → adapter。"""
         rec = self._orders.get(client_order_id)
-        if rec is None or rec.is_terminal:
-            return False
+        if rec is None:
+            return CancelResult(False, "not_found")
+        if rec.is_terminal:
+            return CancelResult(False, "terminal")
         allowed, reason = check_rate(
             self._cancel_ledger, ts, self._cancel_config or self._rate_config
         )
         if not allowed:
-            return False
+            return self._cancel_rejected(rec, ts, f"rate_{reason}")
+        if self._ftd is not None:
+            ftd = self._ftd.try_reserve(ts, cancel=True)
+            if not ftd.allowed:
+                return self._cancel_rejected(rec, ts, "rate_ftd", ftd.retry_after_ms)
+        if self._order_flow is not None:
+            flow = self._order_flow.try_reserve(ts, kind="cancel")
+            if not flow.allowed:
+                if self._ftd is not None:
+                    self._ftd.release(cancel=True)
+                return self._cancel_rejected(rec, ts, "rate_order_flow", flow.retry_after_ms)
         try:
             self._adapter.cancel(client_order_id)
-        except ChannelRejected:
-            return False
-        except ChannelUnavailable:  # F-I7：流控未受理，不迁移状态
-            return False
+        except ChannelRejected as exc:
+            self._release_flow(ts, cancel=True)
+            return self._cancel_rejected(rec, ts, "rejected", code=exc.code)
+        except ChannelUnavailable:
+            self._release_flow(ts, cancel=True)
+            return self._cancel_rejected(rec, ts, "unsupported")
         self._cancel_ledger = record(self._cancel_ledger, ts, True)
-        self._orders[client_order_id] = transition(rec, state=OrderState.PENDING_CANCEL, ts=ts)
-        self._store.upsert_order(self._orders[client_order_id])
+        updated = transition(rec, state=OrderState.PENDING_CANCEL, ts=ts)
+        self._orders[client_order_id] = updated
+        self._store.upsert_order_with_events(
+            updated, [order_event(updated, OutboxEventType.ORDER_STATUS, ts=ts)]
+        )
         self._audit(EventType.AUDIT_CANCEL, client_order_id, "requested", ts=ts)
-        return True
+        return CancelResult(True)
+
+    def _cancel_rejected(
+        self, rec: OrderRecord, ts: float, reason: str, retry_after_ms: int = 0, **fields
+    ) -> CancelResult:
+        """撤单拒绝：显式事件 + AUDIT_CANCEL（I9）；版本 +1 保证 event_id 唯一（I5）。"""
+        bumped = replace(rec, event_version=rec.event_version + 1, updated_ts=ts)
+        self._orders[rec.client_order_id] = bumped
+        event = order_event(
+            bumped,
+            OutboxEventType.ORDER_CANCEL_REJECTED,
+            ts=ts,
+            reason=reason,
+        )
+        self._store.upsert_order_with_events(bumped, [event])
+        self._audit(
+            EventType.AUDIT_CANCEL,
+            rec.client_order_id,
+            "rejected",
+            reason=reason,
+            retry_after_ms=retry_after_ms,
+            **fields,
+        )
+        return CancelResult(False, reason, retry_after_ms)
+
+    def cancel(self, client_order_id: str, *, ts: float) -> bool:
+        return self.cancel_ex(client_order_id, ts=ts).accepted
 
     def cancel_all(self, *, ts: float) -> int:
         bridge = getattr(self._adapter, "bridge", None)
         if bridge is not None:
             return self._gate.cancel_all(bridge, ts=ts)
-        count = 0
-        for coid, rec in list(self._orders.items()):
-            if not rec.is_terminal and self.cancel(coid, ts=ts):
-                count += 1
-        return count
+        return self.cancel_all_ex(ts=ts).submitted
+
+    def cancel_all_ex(self, *, ts: float) -> CancelAllReport:
+        open_ids = [coid for coid, rec in self._orders.items() if not rec.is_terminal]
+        submitted = 0
+        deferred: list[str] = []
+        rejected: list[tuple[str, str]] = []
+        for coid in open_ids:
+            result = self.cancel_ex(coid, ts=ts)
+            if result.accepted:
+                submitted += 1
+            elif result.reason in ("rate_ftd", "rate_order_flow"):
+                deferred.append(coid)
+            else:
+                rejected.append((coid, result.reason))
+        return CancelAllReport(
+            requested=len(open_ids),
+            submitted=submitted,
+            deferred=tuple(deferred),
+            rejected=tuple(rejected),
+        )
 
     # ---------- 对账与人工确认 ----------
 
@@ -415,10 +556,16 @@ class TradingGateway:
         if not self._adapter.capability.autonomous:  # F-I6：半自动通道人工对账不入网关
             self._audit(EventType.AUDIT_RECONCILE, "-", "manual_channel", ts=ts)
             return ReconcileReport(ts, (), BreakLevel.OK, 0)
-        self._throttle_query(ts)  # F-I8/F-I14：query_positions 受查询桶
         snapshot = self._ledger.snapshot()
         local = {p.asset: p.quantity for p in snapshot.positions}
-        remote = {r.asset: r.quantity for r in self._adapter.query_positions()}
+        if self._scheduler is not None:  # Q7：巡检与启动恢复共用同一调度器（D8）
+            remote = {
+                r.asset: r.quantity
+                for r in self._scheduler.run(lambda: self._adapter.query_positions())
+            }
+        else:
+            self._throttle_query(ts)  # F-I8/F-I14：query_positions 受查询桶
+            remote = {r.asset: r.quantity for r in self._adapter.query_positions()}
         explained: frozenset[str] = frozenset()  # F-I13：精确归因交给 attribute_break
         report = reconcile_positions(
             local, remote, config=self._reconcile_config, nav=nav, explained=explained
@@ -450,13 +597,45 @@ class TradingGateway:
         rec = self._orders[client_order_id]
         updated = transition(rec, state=state, ts=ts)
         self._orders[client_order_id] = updated
-        self._store.upsert_order(updated)
+        self._store.upsert_order_with_events(
+            updated, [order_event(updated, OutboxEventType.ORDER_STATUS, ts=ts)]
+        )
         self._audit(
             EventType.AUDIT_ORDER, client_order_id, "confirmed", state=updated.state.value, ts=ts
         )
         return updated
 
     # ---------- 内部 ----------
+
+    def _reserve_flow(self, ts: float, *, cancel: bool):
+        """FTD → order-flow 顺序 reserve（D9）；本地失败由调用方退还。"""
+        decision = None
+        if self._ftd is not None:
+            decision = self._ftd.try_reserve(ts, cancel=cancel)
+            if not decision.allowed:
+                return decision
+        if self._order_flow is not None:
+            flow = self._order_flow.try_reserve(ts, kind="cancel" if cancel else "submit")
+            if not flow.allowed:
+                if self._ftd is not None:
+                    self._ftd.release(cancel=cancel)
+                return flow
+        from live.flow_control import Decision
+
+        return decision or Decision(True)
+
+    def _release_flow(self, ts: float, *, cancel: bool) -> None:
+        if self._ftd is not None:
+            self._ftd.release(cancel=cancel)
+        if self._order_flow is not None:
+            self._order_flow.release(kind="cancel" if cancel else "submit")
+
+    def _set_recovery(self, state: str) -> None:
+        self._recovery_state = state
+        setter = getattr(self._store, "set_meta", None)
+        if setter is not None:
+            setter("recovery_state", state)
+            setter("recovery_ts", str(self._clock()))
 
     def _audit(self, event_type: str, ref: str, action: str, **fields) -> None:
         payload = build_audit_payload(

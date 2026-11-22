@@ -1,12 +1,15 @@
-"""双分录账本：加权成本 + `entry_id` 幂等 + 预留结算（P-053 D5）。"""
+"""双分录账本：加权成本 + canonical 幂等 + store-first 写入（P-053 D5 / P-054 D4/I17）。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 from live.corporate_actions import CorporateAction, adjust_position
 from live.orders import FillRecord
+
+if TYPE_CHECKING:  # 仅类型：保持 live.events 运行期零反向依赖
+    from live.events import OutboxEvent
 
 _EPS = 1e-9
 
@@ -91,44 +94,57 @@ class Ledger:
     def reserved(self) -> float:
         return sum(self._reserves.values())
 
-    # ---------- 入账 ----------
+    # ---------- 入账（store-first，I17） ----------
 
-    def apply_fill(self, fill: FillRecord, *, ts: float | None = None) -> bool:
-        if fill.fill_key in self._seen:
+    def apply_fill(
+        self,
+        fill: FillRecord,
+        *,
+        ts: float | None = None,
+        outbox_events: Sequence["OutboxEvent"] = (),
+    ) -> bool:
+        """成交入账：先预检重复 → 计算 → store 单事务 → 成功后才改内存。
+
+        ``_seen`` 统一 canonical ``fill:{fill_key}``（F-I1/D-20，与 resume 的 entry_id 对齐）。
+        """
+        key = f"fill:{fill.fill_key}"
+        if key in self._seen:
             return False
-        t = fill.ts if ts is None else ts
-        signed = fill.quantity if fill.side == "BUY" else -fill.quantity
         if fill.side not in ("BUY", "SELL"):
             raise ValueError(f"unsupported side for cash ledger: {fill.side}")  # D15
+        t = fill.ts if ts is None else ts
+        signed = fill.quantity if fill.side == "BUY" else -fill.quantity
         amount = signed * fill.price
+
+        reserve_pop = False
+        cash = self._cash
         if fill.side == "BUY":
             actual = fill.quantity * fill.price + fill.fee
             if fill.client_order_id in self._reserves:
-                self.settle_reserve(ref=fill.client_order_id, actual=actual, ts=t)
+                cash += self._reserves[fill.client_order_id] - actual
+                reserve_pop = True
             else:
                 if actual > self._cash + _EPS:
                     raise LedgerError(f"insufficient cash for fill {fill.fill_key}")
-                self._cash -= actual
+                cash -= actual
         else:
-            self._cash += fill.quantity * fill.price  # 现金变动 = −amount（卖出 amount<0，F-I3）
-            self._cash -= fill.fee  # fee 单列 entry，replay 逐项对应
+            cash += fill.quantity * fill.price  # 现金变动 = −amount（卖出 amount<0，F-I3）
+            cash -= fill.fee
 
-        self._seen.add(fill.fill_key)
-        self._append(
-            LedgerEntry(
-                entry_id=f"fill:{fill.fill_key}",
-                kind="fill",
-                ts=t,
-                asset=fill.asset,
-                quantity=signed,
-                price=fill.price,
-                amount=amount,
-                fee=0.0,
-                ref=fill.client_order_id,
-            )
+        entry = LedgerEntry(
+            entry_id=key,
+            kind="fill",
+            ts=t,
+            asset=fill.asset,
+            quantity=signed,
+            price=fill.price,
+            amount=amount,
+            fee=0.0,
+            ref=fill.client_order_id,
         )
+        entries = [entry]
         if fill.fee:
-            self._append(
+            entries.append(
                 LedgerEntry(
                     entry_id=f"fee:{fill.fill_key}",
                     kind="fee",
@@ -141,33 +157,48 @@ class Ledger:
                     ref=fill.client_order_id,
                 )
             )
-        self._update_position(fill.asset, signed, fill.price)
+
+        if self._store is not None:
+            inserted = self._store.append_entries_with_events(entries, list(outbox_events))
+            if inserted != len(entries):  # 库内已存在（重复回放）→ 内存不动
+                return False
+
+        self._cash = cash
+        if reserve_pop:
+            self._reserves.pop(fill.client_order_id, None)
+        self._positions[fill.asset] = _apply_lot(
+            self._positions.get(fill.asset, PositionLot(fill.asset, 0.0, 0.0)),
+            signed,
+            fill.price,
+            None,
+        )
+        self._entries.extend(entries)
+        self._seen.add(key)
         return True
 
     def apply_corporate_action(self, action: CorporateAction, *, ts: float) -> list[LedgerEntry]:
         lot = self._positions.get(action.asset, PositionLot(action.asset, 0.0, 0.0))
-        new_lot, cash_delta = adjust_position(lot, action)
         key = f"ca:{action.action_id}:{action.asset}"
         if key in self._seen:
             return []
-        entries = [
-            LedgerEntry(
-                entry_id=key,
-                kind="corporate_action",
-                ts=ts,
-                asset=action.asset,
-                quantity=new_lot.quantity - lot.quantity,
-                price=0.0,
-                amount=-cash_delta,  # 统一口径：现金变动 = −amount（F-I3；分红流入 → amount<0）
-                fee=0.0,
-                ref=action.action_id,
-            )
-        ]
+        new_lot, cash_delta = adjust_position(lot, action)
+        entry = LedgerEntry(
+            entry_id=key,
+            kind="corporate_action",
+            ts=ts,
+            asset=action.asset,
+            quantity=new_lot.quantity - lot.quantity,
+            price=0.0,
+            amount=-cash_delta,  # 统一口径：现金变动 = −amount（F-I3；分红流入 → amount<0）
+            fee=0.0,
+            ref=action.action_id,
+        )
+        if self._store is not None and self._store.append_entries([entry]) != 1:
+            return []
         self._cash += cash_delta
         self._positions[action.asset] = new_lot
-        for entry in entries:
-            self._append(entry)
-        return entries
+        self._append_local(entry)
+        return [entry]
 
     def cash_adjust(self, *, asset: str, delta: float, ref: str, ts: float) -> LedgerEntry:
         """显式现金调整（入金/费退/配股缴款）：``delta`` = 现金变动；entry.amount = −delta（F-I3）。"""
@@ -185,8 +216,10 @@ class Ledger:
             fee=0.0,
             ref=ref,
         )
+        if self._store is not None and self._store.append_entries([entry]) != 1:
+            raise LedgerError(f"duplicate cash_adjust in store: {ref}")
         self._cash += delta
-        self._append(entry)
+        self._append_local(entry)
         return entry
 
     # ---------- 读 ----------
@@ -217,7 +250,7 @@ class Ledger:
         ledger._cash = snap.cash
         ledger._positions = {p.asset: p for p in snap.positions}
         ledger._entries = list(entries)
-        ledger._seen = {e.entry_id for e in entries}
+        ledger._seen = {e.entry_id for e in entries}  # 与 canonical fill:{fill_key} 对齐（F-I1）
         return ledger
 
     @staticmethod
@@ -257,14 +290,9 @@ class Ledger:
 
     # ---------- 内部 ----------
 
-    def _append(self, entry: LedgerEntry) -> None:
-        if self._store is not None:
-            self._store.append_entry(entry)
+    def _append_local(self, entry: LedgerEntry) -> None:
         self._entries.append(entry)
-
-    def _update_position(self, asset: str, signed_qty: float, price: float) -> None:
-        lot = self._positions.get(asset, PositionLot(asset, 0.0, 0.0))
-        self._positions[asset] = _apply_lot(lot, signed_qty, price, None)
+        self._seen.add(entry.entry_id)
 
 
 def _apply_lot(lot: PositionLot, signed_qty: float, price: float, _unused) -> PositionLot:
