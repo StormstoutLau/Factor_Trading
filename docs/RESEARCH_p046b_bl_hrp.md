@@ -600,4 +600,4 @@ pytest **1440 passed / 1 skipped** / golden **22** / `-k p054` **120** / mypy **
 - **2026-11-23**：**Step 8 一致性复审 PASS**（[CHECKLIST_p046b §12](CHECKLIST_p046b_bl_hrp.md)，GLM-5.3-Flash ≠ Step 7 作者）——**机械校验器 78/78**（初跑 76/78，2 项校验器正则误报修正后全过）；规范九项全过；D1-D20→T1-T12→CHECKLIST 70 项无悬空；I1-I12↔E1-E12 双射、U1-U17=17/17、F 链 0 missing、A20-A26+版本号双登记一致；H1 回填 ✅。
 - **2026-11-23**：**Step 9 TDD PASS**——红态 2 收集错误（`ImportError: BLConfig/HRPConfig`）→ 绿态全量 **1463 passed + 1 skipped**（collect **1464**）/ `-k p046` **78** / golden **22** / `-k p054` **120** / mypy **160·0** / black **322** / AST **22·30** / `lint-imports` **3 kept** / `uv lock` **0**；外部锚 A20-A26 的对拍边界按 F-5-3 执行（pypfopt 仅手工对拍、未进 CI）；**F-S9-P046b-1** 实现细化（HRP 部分零方差先过滤子域）见 DESIGN D11/§6.4 与 IMPL §3.7。
 - **2026-11-23**：**Step 10 ADD 审计 + RULE-5 异构终审 PASS**（[CHECKLIST_p046b §14](CHECKLIST_p046b_bl_hrp.md)，审计基座 GLM-5.3-Flash ≠ 作者）——Phase 0-4 全过；门禁独立重放全绿；A20-A26 对拍边界（F-5-3）执行无越界；数值探针 6/6；**0 P0-P2 + 1 观察 O-R5-P046b-1**。
-- **下一步**：H5 提交与 CI（须用户明确授权；CI 四 job 全绿后批次关闭）。
+- **H5 已执行并批次关闭（2026-11-23）**：提交 `f272638` + CI run `45163412591` 四 job 全绿；CHECKLIST 70/70。**P-046b 批次关闭（Step 1-10 全通过）**。

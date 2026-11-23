@@ -2,8 +2,8 @@
 
 > **批次**: P-046b · **T1**（`core/portfolio.py` / `core/config.py` / `core/engine_v2.py` 诊断分流 + 2 个新测试文件 + 3 个既有测试增例 + 1 个基准脚本；BL/HRP 均 opt-in，golden 22 预期零漂移）
 > **上游**: [DESIGN_p046b](DESIGN_p046b_bl_hrp.md)（D1-D20 / I1-I12 / §10 测试 / §12 门禁）+ [REVIEW_p046b_step3_design](REVIEW_p046b_step3_design.md)（F-4-1..F-4-8）+ [IMPL_p046b](IMPL_p046b_bl_hrp.md)（T1-T12 / §2 签名回退 / §4 A20-A26 / §5 低效排除 / §6 红→绿 / §9 F-5-1..F-5-4）+ [REVIEW_p046b_step5_impl](REVIEW_p046b_step5_impl.md)（F-6-1..F-6-4）
-> **状态**: Step 7 产出（2026-11-23，DeepSeek-V4.1-Flash）；Step 8 一致性复审 **PASS**（§12）；Step 9 TDD **PASS**（§13）；**Step 10 ADD 审计 + RULE-5 异构终审 PASS（§14，审计基座 GLM-5.3-Flash ≠ 作者）**；H5 提交与 CI 待用户明确授权
-> **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 8]` / `[待 Step 9]` / `[待 Step 10]`；**禁止预填**；Step 9 回填后为 **69 × ✅ + 1 × `[待 Step 10]`（H5）**
+> **状态**: **P-046b 批次已关闭（2026-11-23，Step 1-10 全通过）**——Step 8 一致性复审 PASS（§12）／Step 9 TDD PASS（§13）／Step 10 ADD 审计 + RULE-5 异构终审 PASS（§14，审计基座 GLM-5.3-Flash ≠ 作者）；提交 `f272638` + CI run `45163412591` 四 job 全绿；实测列 **70/70 ✅**
+> **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 8]` / `[待 Step 9]` / `[待 Step 10]`；**禁止预填**；Step 10 回填后为 **70 × ✅**
 > **行号口径**: 本文件锚 `8f8b912`；Step 9 落码后行号失效，实测证据改用「文件 + 符号名 + 用例名」
 > **基线读数（@`8f8b912`，P-055 关闭）**: pytest collect **1441**（1440 passed + 1 skipped）/ `-k p046` **55** / `-k golden` **22** / `-k p054` **120** / mypy **159 files · 0** / black `--check .` **319** / `tests/*.py` **156** / `core/*.py` **51** / `live/**/*.py` **19** / `services/*.py` **13** / AST `except Exception` core 外 **22**、core **30** / `lint-imports` **3 kept** / `uv lock --check` exit **0**
 > **目标读数（Step 7 冻结）**: pytest collect **1464**（**1463 passed + 1 skipped**）/ `-k p046` **78** / `-k golden` **22（零重录）** / `-k p054` **120** / mypy **160 files · 0**（+bench 脚本，CI 路径含 `scripts`）/ black **322**（+2 测试 +1 脚本）/ `tests/*.py` **158** / `core/*.py` **51**（不新增 core 模块）/ `live/**/*.py` **19** / `services/*.py` **13** / AST **22 · 30**（不新增裸 except）/ `lint-imports` **3 kept** / `uv lock --check` exit **0**
@@ -118,7 +118,7 @@
 | H2 | **改动面白名单**：改 3 源（`portfolio.py` / `config.py` / `engine_v2.py`）+ 新建 1 脚本 + 新建 2 测试 + 改 2 测试；**零 diff 面**：`config_v2.py` / `interfaces.py` / `diagnostics.py` / `risk_overlay.py` / `target_positions.py` / `tests/golden/` / `pyproject.toml` / `uv.lock` | G 组通过 | `git diff --stat` + `git status` | ✅ git status：3 源 + 2 测试 + 2 台账改动；1 脚本 + 2 测试 + 7 文档新增；零 diff 面实测空 |
 | H3 | **台账回写**：PROGRESS 主行 + 新增 `§3.9x`；RESEARCH §15 / DESIGN §14 / IMPL §9 状态链；CHECKLIST 实测列回填（RULE-1） | G 组通过 | 读回 diff | ✅ PROGRESS 主行 + §3.95；RESEARCH §15 / DESIGN §14 / IMPL §9；CHECKLIST 70 项实测列回填 |
 | H4 | **基准脚本**：`scripts/p046b_bench_optimizers.py` 存在、可运行（N=50/200/500，无断言、不写文件、不进 CI）；mypy/black 合规（F-4-7） | T11 落码 | 实跑 + 命令 | ✅ 脚本可直跑（补 sys.path 引导）；N=50/200/500 实跑（N=500 hrp 0.056-0.064s、bl 0.0014-0.0019s）；无断言/不写文件/不进 CI；mypy/black 合规 |
-| H5 | **提交与 CI**：提交原子（3 源 + 1 脚本 + 2 新测试 + 2 测试改 + 7 新文档：DESIGN/RESEARCH/IMPL/CHECKLIST + 3 REVIEW + 2 台账修改：PROGRESS / CHECKLIST_p055）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12）；**须用户明确授权后方可 commit/push** | H1-H4 通过 | `git show --stat` + `gh run view` | [待 Step 10] |
+| H5 | **提交与 CI**：提交原子（3 源 + 1 脚本 + 2 新测试 + 2 测试改 + 7 新文档：DESIGN/RESEARCH/IMPL/CHECKLIST + 3 REVIEW + 2 台账修改：PROGRESS / CHECKLIST_p055）；CI 四 job 全绿（lock-check / 3.10 / 3.11 / 3.12）；**须用户明确授权后方可 commit/push** | H1-H4 通过 | `git show --stat` + `gh run view` | ✅ `f272638`（17 files +3698/−52，用户 2026-11-23 明确授权）已推送；CI run `45163412591` 四 job 全绿（lock-check 8s / test 3.11 4m47s / test 3.12 3m48s / arch-check） |
 
 ---
 
@@ -130,6 +130,7 @@
 | 实测列初始状态（Step 7） | `[待 Step 9]` **68**（A1-A8 / B1-B10 / C1-C11 / D1-D9 / E1-E12 / F1-F6 / G1-G9 / H2-H4）+ `[待 Step 8]` **1**（H1）+ `[待 Step 10]` **1**（H5）；**✅ 出现即为违规** |
 | 实测列终态（Step 10） | 目标 **70 × ✅**；`[待 ...]` **0** |
 | 实测列状态（Step 9 后） | **69 × ✅ + 1 × `[待 Step 10]`（H5）**；`[待 Step 9]` **0** |
+| 实测列状态（Step 10 后） | **70 × ✅**（H5 回填 commit `f272638` + CI run `45163412591`）；`[待 ...]` **0** |
 | 新用例数（计划） | **23 收集** = BL 11 + HRP 9 + 既有 3 |
 | 新用例数（实测） | **23** = BL 11 + HRP 9 + 既有 3（`--collect-only` 实读）；collect **1464** 精确，**无偏移** |
 | pytest collect 计划 | 1441 + 23 = **1464**（1463 passed + 1 skipped） |
@@ -164,7 +165,8 @@
 - **2026-11-23**：**Step 8 一致性复审 PASS（§12，reviewer GLM-5.3-Flash ≠ Step 7 作者）**——机械校验器 **78/78**（初跑 76/78，2 项为校验器自身正则过严的非文档误报，修正后全过，诚实披露）；H1 回填 ✅。
 - **2026-11-23**：**Step 9 TDD PASS（§13）**——红态 2 收集错误（`ImportError: BLConfig/HRPConfig`）→ 绿态全量 **1463 passed + 1 skipped**（collect 1464）；`-k p046` 78 / golden 22 / p054 120 / mypy 160·0 / black 322 / AST 22·30 / lint 3 kept / uv lock 0 / 文件计数 158·51·19·13；bench N=50/200/500 通过；**F-S9-P046b-1**（HRP 部分零方差先过滤子域）回写 DESIGN/IMPL；实测列 **69 ✅ + H5 `[待 Step 10]`**。
 - **2026-11-23**：**Step 10 ADD 审计 + RULE-5 异构终审 PASS（§14，审计基座 GLM-5.3-Flash ≠ 四文档作者 DeepSeek-V4.1-Flash）**——Phase 0-4 全过；门禁独立复跑全绿（1463+1 / 78 / 22 / 120 / 160·0 / 322 / 22·30 / 3 kept / 0 / 158·51·19·13）；数值探针 6/6；**0 P0 / 0 P1 / 0 P2 代码缺陷 + 1 观察 O-R5-P046b-1**；H5 提交待授权。
-- **下一步**：H5 提交与 CI（须用户明确授权后 commit/push；CI 四 job 全绿后批次关闭）。
+- **2026-11-23**：**H5 执行并批次关闭**——用户明确授权后原子提交 `f272638`（17 files +3698/−52）推送；CI run `45163412591` 四 job 全绿（lock-check 8s / test 3.11 4m47s / test 3.12 3m48s / arch-check）；H5 回填 ✅ → **实测列 70/70**，**P-046b 批次关闭**。
+- **批次状态**：**已关闭（Step 1-10 全通过）**。
 
 ## 12. Step 8 一致性复审（2026-11-23，reviewer GLM-5.3-Flash ≠ Step 7 作者 DeepSeek-V4.1-Flash）
 
@@ -317,4 +319,4 @@
 ### 14.6 终审结论
 
 - **ADD 审计 PASS + RULE-5 异构终审 PASS**：Phase 0-4 全过；门禁 10 项独立重放全绿且与冻结目标逐项一致；探针 6/6；盲区干净；范围守卫 10/10。
-- **H5 剩余两项**（原子提交 + CI 四 job 全绿）依规**须用户明确授权**后方可执行；授权并回收 CI 后回填 H5 → **P-046b 批次关闭**。
+- **H5 已执行**：用户明确授权后原子提交 `f272638`（17 files +3698/−52）推送；CI run `45163412591` **四 job 全绿**（lock-check 8s / test 3.11 4m47s / test 3.12 3m48s / arch-check）；H5 回填 ✅ → 实测列 **70/70**，**P-046b 批次关闭**。

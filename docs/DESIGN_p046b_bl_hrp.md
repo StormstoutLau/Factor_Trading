@@ -664,4 +664,4 @@ $py -c "import ast,pathlib;r=pathlib.Path('.');s=[p for d in ['agents','filter',
 - **2026-11-23**：**Step 8 一致性复审 PASS**（[CHECKLIST_p046b §12](CHECKLIST_p046b_bl_hrp.md)，GLM-5.3-Flash ≠ 作者）——机械校验器 78/78；D1-D20→T1-T12→CHECKLIST 无悬空；H1 回填 ✅。
 - **2026-11-23**：**Step 9 TDD PASS**——红态 2 收集错误（`ImportError: BLConfig/HRPConfig`）→ 绿态全量 **1463 passed + 1 skipped**（collect 1464）/ `-k p046` **78** / golden **22** / `-k p054` **120** / mypy **160·0** / black **322** / AST **22·30** / `lint-imports` **3 kept** / `uv lock` **0** / 文件计数 **158·51·19·13**。**F-S9-P046b-1（P3）**：HRP 部分零方差改为「先过滤子域 → 有效子域 HRP → 回填 0」，实测 `[0,0.64,0.36]`（旧 α 链 `[0.64,0,0.36]` 会让零方差资产得满权重）；已回写 D11/§6.4 与 IMPL §3.7；门禁零漂移。
 - **2026-11-23**：**Step 10 ADD 审计 + RULE-5 异构终审 PASS**（[CHECKLIST_p046b §14](CHECKLIST_p046b_bl_hrp.md)，审计基座 GLM-5.3-Flash ≠ 作者）——Phase 0-4 全过；门禁独立重放全绿；数值探针 6/6（BL Woodbury ≡ 显式逆矩阵 2.78e-17）；**0 P0-P2 + 1 观察 O-R5-P046b-1**（upper+全零组合语义差异，与 F-6-4/upper 早退设计一致，不改码）。
-- **下一步**：H5 提交与 CI（须用户明确授权；CI 四 job 全绿后批次关闭）。
+- **H5 已执行并批次关闭（2026-11-23）**：提交 `f272638` + CI run `45163412591` 四 job 全绿；CHECKLIST 70/70。**P-046b 批次关闭（Step 1-10 全通过）**。
