@@ -62,7 +62,13 @@ from core.pending import (
     create_pending_order,
     select_fallback_stocks,
 )
-from core.portfolio import OptimizationResult, build_optimizer, estimate_cov
+from core.portfolio import (
+    InfeasibleConstraintError,
+    OptimizationResult,
+    build_optimizer,
+    estimate_cov,
+    project_industry_cap,
+)
 from core.diagnostics import DayErrorCollector
 from core.rebalance import build_trigger
 from core.risk_manager import MarkToMarketPolicy
@@ -98,6 +104,10 @@ def _optimize_with_diagnostics(
         min_weight=float(getattr(cfg, "min_weight", 0.0)),
         cash_residual=max(0.0, 1.0 - float(weights.sum())),
     )
+
+
+# P-046c D5：warning_kind → 诊断 error_type（zero_vol 行为逐字保留）
+_WARNING_ERROR_TYPES = {"zero_vol": "ZeroVariance", "erc_fallback": "RiskParityFallback"}
 
 
 class BacktestEngineV2:
@@ -190,6 +200,8 @@ class BacktestEngineV2:
         self._last_targets: dict[str, TargetPosition] = {}
         self._last_target_stocks: set[str] = set()
         self._unclosed_positions: dict[str, int] = {}
+        # P-046c：行业上限一次性告警标记
+        self._industry_cap_warned: bool = False
 
         # 退市结算（P-012 D5 / T-9）
         self._delist_return_source: dict[str, str] = {}
@@ -1372,10 +1384,8 @@ class BacktestEngineV2:
                         date,
                         "rebalance",
                         category="config" if result.infeasible_kind == "lower" else "optimizer",
-                        error_type=(
-                            "ZeroVariance"
-                            if result.warning_kind == "zero_vol"
-                            else "InfeasibleConstraints"
+                        error_type=_WARNING_ERROR_TYPES.get(
+                            result.warning_kind or "", "InfeasibleConstraints"
                         ),
                         message=result.message or str(result.infeasible_kind),
                         retryable=False,
@@ -1505,6 +1515,43 @@ class BacktestEngineV2:
             if stock_cols:
                 target_weights = target_weights.copy()
                 target_weights.loc[stock_cols] = target_weights.loc[stock_cols].clip(lower=0.0)
+
+        # P-046c B4d：行业上限（引擎级严格投影；期货/现金不受影响）
+        industry_cap = self.cfg.optimizer.industry_max_weight
+        if industry_cap is not None:
+            industry_tags = self._industry_tags(date)
+            if industry_tags is not None:
+                try:
+                    projection = project_industry_cap(
+                        target_weights,
+                        industry_tags,
+                        cap=industry_cap,
+                        max_weight=self.cfg.optimizer.max_weight,
+                    )
+                except InfeasibleConstraintError as exc:
+                    self._diagnostics.record(date, "rebalance", exc)
+                    self._emit(
+                        EventType.ERROR,
+                        {
+                            "date": date.strftime("%Y-%m-%d"),
+                            "stage": "rebalance",
+                            "error_type": type(exc).__name__,
+                            "message": str(exc)[: self._diagnostics.MAX_MESSAGE],
+                        },
+                    )
+                    logger.error("行业上限投影不可行: %s", exc)
+                    return
+                target_weights = projection.weights
+                if projection.applied:
+                    logger.info(
+                        "行业上限投影: groups=%d unclassified=%d max_group %.4f→%.4f L1=%.4f",
+                        projection.n_groups,
+                        projection.n_unclassified,
+                        projection.max_group_before,
+                        projection.max_group_after,
+                        projection.l1_deviation,
+                    )
+
         targets = build_target_positions(
             target_weights,
             current_positions,
@@ -1536,6 +1583,20 @@ class BacktestEngineV2:
             self._generate_orders_via_policy(date, target_weights, date_index)
         else:
             self._generate_rebalance_orders(date, targets, date_index)
+
+    def _industry_tags(self, date: pd.Timestamp) -> Optional[pd.Series]:
+        """行业标签（P-046c）；整体缺失/日期缺失 → 一次性 warning 并返回 None。"""
+        dm = self.dm
+        table = getattr(dm, "industry", None) if dm is not None else None
+        if table is None or date not in table.index:
+            if not self._industry_cap_warned:
+                logger.warning(
+                    "industry_max_weight 已配置但行业数据不可用（date=%s），跳过行业上限",
+                    date,
+                )
+                self._industry_cap_warned = True
+            return None
+        return table.loc[date]
 
     def _generate_orders_via_policy(
         self, date: pd.Timestamp, target_weights: pd.Series, date_index: int

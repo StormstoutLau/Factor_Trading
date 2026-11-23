@@ -38,6 +38,11 @@ _SCALE_ASSERT_TOL = 1e-9
 
 EWMA_LAMBDA = 0.94
 
+# P-046c：风险预算 / 行业上限容差
+_BUDGET_TOL = 1e-12
+_ERC_RC_TOL = 1e-3
+_INDUSTRY_CAP_TOL = 1e-9
+
 
 class InfeasibleConstraintError(ValueError):
     """权重约束不可行（U1-B 下限型 / U1-D 配置矛盾）。
@@ -547,8 +552,9 @@ def _solve_mean_variance(
     method: str,
     *,
     feas: Optional[_Feasibility] = None,
+    risk_aversion: Optional[float] = None,
 ) -> OptimizationResult:
-    """可行域判定 + cvxpy MVO（MVO / BL 共用；DESIGN §4.5）。"""
+    """可行域判定 + cvxpy MVO（MVO / BL / Kelly 共用；DESIGN §4.5）。"""
     n = len(selected)
     if feas is None:
         feas = _precheck(n, cfg, method)
@@ -567,9 +573,12 @@ def _solve_mean_variance(
         return _upper_result(cfg, selected, method)
 
     w = cp.Variable(n)
+    lam = cfg.risk_aversion if risk_aversion is None else float(risk_aversion)
+    if not math.isfinite(lam) or lam <= 0.0:
+        raise ValueError(f"risk_aversion 必须为正有限数: {lam}")
     portfolio_return = expected_returns.values @ w
     portfolio_variance = cp.quad_form(w, cov.values)
-    objective = cp.Maximize(portfolio_return - cfg.risk_aversion * portfolio_variance)
+    objective = cp.Maximize(portfolio_return - lam * portfolio_variance)
     constraints = [cp.sum(w) == 1, w >= cfg.min_weight, w <= cfg.max_weight]
     problem = cp.Problem(objective, constraints)
     problem.solve()
@@ -584,6 +593,63 @@ def _solve_mean_variance(
         cfg.min_weight,
         cash_residual=max(0.0, 1.0 - float(weights.sum())),
     )
+
+
+def _risk_budget_vector(selected: pd.Index, raw: Optional[Mapping[str, float]]) -> np.ndarray:
+    """风险预算归一（DESIGN D7）：缺失补剩余均分、多余丢弃、无交集等风险。"""
+    n = len(selected)
+    if not raw:
+        return np.full(n, 1.0 / n)
+    extra = sorted(set(raw) - set(selected))
+    if extra:
+        logger.warning("risk_budget 含未入选资产，已丢弃: %s", extra)
+    hit = {k: float(v) for k, v in raw.items() if k in selected}
+    if not hit:
+        logger.warning("risk_budget 与选中集无交集，回退等风险预算")
+        return np.full(n, 1.0 / n)
+    total = sum(hit.values())
+    if total > 1.0 + _BUDGET_TOL:
+        raise ValueError(f"risk_budget 已指定部分之和 {total:.6f} > 1")
+    missing = [c for c in selected if c not in hit]
+    budget = np.zeros(n, dtype=float)
+    for i, code in enumerate(selected):
+        budget[i] = hit.get(code, 0.0)
+    if missing:
+        remain = 1.0 - total
+        if remain <= 0.0:
+            raise ValueError("risk_budget 未覆盖全部资产且无剩余额度")
+        share = remain / len(missing)
+        for i, code in enumerate(selected):
+            if code not in hit:
+                budget[i] = share
+    elif abs(total - 1.0) > _BUDGET_TOL:
+        raise ValueError(f"risk_budget 覆盖全部资产时必须合计为 1: {total:.6f}")
+    if np.any(~np.isfinite(budget)) or np.any(budget <= 0.0):
+        raise ValueError("risk_budget 归一后存在非正/非有限分量")
+    return budget / float(budget.sum())
+
+
+def _solve_risk_budget_convex(cov: np.ndarray, budget: np.ndarray) -> np.ndarray:
+    """风险预算凸解（DESIGN D4）。
+
+    ``min 0.5·wᵀΣw s.t. w≥0, bᵀlog w≥0`` —— **不得加 Σw=1**：
+    n≥2 时与 ``bᵀlog w≥0`` 互斥（加权几何平均 ≤ 算术平均 = 1，
+    等号仅全 1，而 Σw=n≠1）；Step 5 探针 status=infeasible 实证。
+    解后归一；归一不改变 RC 比例。
+    """
+    n = len(budget)
+    w = cp.Variable(n)
+    constraints = [w >= 0, cp.sum(cp.multiply(budget, cp.log(w))) >= 0]
+    problem = cp.Problem(cp.Minimize(0.5 * cp.quad_form(w, cp.psd_wrap(cov))), constraints)
+    problem.solve()
+    if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE) or w.value is None:
+        raise RuntimeError(f"风险预算凸求解失败: solver status={problem.status}")
+    values = np.clip(np.asarray(w.value, dtype=float).ravel(), 0.0, None)
+    total = float(values.sum())
+    if not np.isfinite(total) or total <= 0.0:
+        raise RuntimeError("风险预算凸求解产生非正/非有限权重和")
+    normalized: np.ndarray = values / total
+    return normalized
 
 
 class MinVarianceOptimizer(BaseOptimizer):
@@ -714,6 +780,104 @@ class BlackLittermanOptimizer(BaseOptimizer):
         )
 
 
+class KellyOptimizer(BaseOptimizer):
+    """矩阵式凯利（opt-in；组合层，非 sizing 层对角近似）。
+
+    目标 ``max μᵀw − (1/fraction)·wᵀΣw``，复用 ``_solve_mean_variance`` 的
+    长多/箱体/upper/empty 语义。与 ``SizingConfig.method="kelly"``
+    （P-047 逐标的 μ/σ² 缩放）**层次不同**，两者可独立启用。
+    """
+
+    def optimize_with_diagnostics(
+        self,
+        factor_scores: pd.Series,
+        returns: Optional[pd.DataFrame] = None,
+        cov_matrix: Optional[pd.DataFrame] = None,
+    ) -> OptimizationResult:
+        if returns is None:
+            raise ValueError("凯利优化需要收益率数据（μ）")
+        selected = self._select(factor_scores)
+        n = len(selected)
+        feas = _precheck(n, self.cfg, "kelly")
+        if feas.kind == "empty":
+            return self._empty_result("kelly")
+        if feas.is_upper:
+            return _upper_result(self.cfg, selected, "kelly")
+        expected = returns[selected].mean()
+        cov = self._cov_for(selected, returns, cov_matrix)
+        return _solve_mean_variance(
+            expected,
+            cov,
+            self.cfg,
+            selected,
+            "kelly",
+            feas=feas,
+            risk_aversion=1.0 / self.cfg.kelly.fraction,
+        )
+
+
+class MaxSharpeOptimizer(BaseOptimizer):
+    """最大夏普（Charnes-Cooper 变换；对齐 pypfopt 1.5.5，A30）。
+
+    变换：``y = k·w, k = 1/((μ−rf)ᵀw)``；求解
+    ``min yᵀΣy s.t. (μ−rf)ᵀy=1, Σy=k≥0, y∈[min·k, max·k]``，再 ``w=y/k``。
+    """
+
+    def optimize_with_diagnostics(
+        self,
+        factor_scores: pd.Series,
+        returns: Optional[pd.DataFrame] = None,
+        cov_matrix: Optional[pd.DataFrame] = None,
+    ) -> OptimizationResult:
+        if returns is None:
+            raise ValueError("max_sharpe 需要收益率数据（μ）")
+        selected = self._select(factor_scores)
+        n = len(selected)
+        feas = _precheck(n, self.cfg, "max_sharpe")
+        if feas.kind == "empty":
+            return self._empty_result("max_sharpe")
+        if feas.is_upper:
+            return _upper_result(self.cfg, selected, "max_sharpe")
+        expected = returns[selected].mean()
+        rf = float(self.cfg.max_sharpe.risk_free_rate)
+        if float(expected.max()) <= rf:
+            raise ValueError(
+                "max_sharpe 要求至少一个资产期望收益高于无风险利率: "
+                f"max(mu)={float(expected.max()):.6f} <= rf={rf:.6f}"
+            )
+        cov = self._cov_for(selected, returns, cov_matrix)
+        excess = expected.to_numpy(dtype=float) - rf
+        y = cp.Variable(n)
+        k = cp.Variable()
+        constraints = [
+            excess @ y == 1,
+            cp.sum(y) == k,
+            k >= 0,
+            y >= self.cfg.min_weight * k,
+            y <= self.cfg.max_weight * k,
+        ]
+        problem = cp.Problem(
+            cp.Minimize(cp.quad_form(y, cp.psd_wrap(cov.to_numpy(dtype=float)))),
+            constraints,
+        )
+        problem.solve()
+        if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE) or k.value is None:
+            raise RuntimeError(f"max_sharpe 求解失败: solver status={problem.status}")
+        k_val = float(k.value)
+        if not np.isfinite(k_val) or k_val <= 0.0:
+            raise RuntimeError(f"max_sharpe 反变换分母非法: k={k_val}")
+        values = np.round(np.asarray(y.value, dtype=float).ravel() / k_val, 16) + 0.0
+        weights = pd.Series(values, index=selected)
+        return OptimizationResult(
+            weights,
+            "max_sharpe",
+            n,
+            self.cfg.max_weight,
+            self.cfg.min_weight,
+            cash_residual=max(0.0, 1.0 - float(weights.sum())),
+        )
+
+
 class RiskParityOptimizer(BaseOptimizer):
     """风险平价优化器"""
 
@@ -735,25 +899,53 @@ class RiskParityOptimizer(BaseOptimizer):
 
         cov = self._cov_for(selected_stocks, returns, cov_matrix)
 
+        cov_values = cov.to_numpy(dtype=float)
+        diag = np.diag(cov_values)
         zero_vol = False
-        weights = np.ones(n) / n  # 初始等权重
-        for _ in range(self.cfg.risk_parity_max_iter):
-            portfolio_variance = float(weights @ cov.values @ weights)
-            if not np.isfinite(portfolio_variance) or portfolio_variance <= 0.0:
-                # 零方差退化：保持等权，避免除零产生 NaN（I3）
-                zero_vol = True
-                break
-            portfolio_vol = np.sqrt(portfolio_variance)
-            marginal_contrib = cov.values @ weights / portfolio_vol
-            risk_contrib = weights * marginal_contrib
-            if np.any(risk_contrib <= 0.0):
-                break
-            target_risk_contrib = risk_contrib.mean()
-            weights_new = weights * target_risk_contrib / risk_contrib
-            if np.max(np.abs(weights_new - weights)) < self.cfg.risk_parity_tol:
+        fallback_reason: Optional[str] = None
+
+        if np.any(~np.isfinite(diag)) or np.any(diag <= 0.0):
+            # D3 diag 预判：部分/全零方差走等权（与现状权重一致），不进凸回退
+            zero_vol = True
+            weights = np.ones(n) / n
+        elif self.cfg.risk_budget is not None:
+            budget = _risk_budget_vector(selected_stocks, self.cfg.risk_budget)
+            weights = _solve_risk_budget_convex(cov_values, budget)
+            fallback_reason = "risk_budget"
+        else:
+            weights = np.ones(n) / n  # 初始等权重
+            converged = False
+            for _ in range(self.cfg.risk_parity_max_iter):
+                portfolio_variance = float(weights @ cov_values @ weights)
+                if not np.isfinite(portfolio_variance) or portfolio_variance <= 0.0:
+                    # 零方差退化：保持末次权重（现状语义）
+                    zero_vol = True
+                    break
+                portfolio_vol = np.sqrt(portfolio_variance)
+                marginal_contrib = cov_values @ weights / portfolio_vol
+                risk_contrib = weights * marginal_contrib
+                if np.any(risk_contrib <= 0.0):
+                    fallback_reason = "negative_rc"
+                    break
+                target_risk_contrib = risk_contrib.mean()
+                weights_new = weights * target_risk_contrib / risk_contrib
+                if np.max(np.abs(weights_new - weights)) < self.cfg.risk_parity_tol:
+                    weights = weights_new
+                    converged = True
+                    break
                 weights = weights_new
-                break
-            weights = weights_new
+            if not zero_vol and fallback_reason is None and not converged:
+                fallback_reason = "max_iter"  # F-4-2：zero_vol break 不误判 max_iter
+            if not zero_vol and fallback_reason is None:
+                pvar = float(weights @ cov_values @ weights)
+                if not np.isfinite(pvar) or pvar <= 0.0:
+                    fallback_reason = "rc_mismatch"
+                else:
+                    pct = weights * (cov_values @ weights) / pvar
+                    if np.max(np.abs(pct - 1.0 / n)) > _ERC_RC_TOL:
+                        fallback_reason = "rc_mismatch"
+            if fallback_reason is not None:
+                weights = _solve_risk_budget_convex(cov_values, np.full(n, 1.0 / n))
 
         total = float(weights.sum())
         if np.isfinite(total) and total > 0.0:
@@ -761,8 +953,13 @@ class RiskParityOptimizer(BaseOptimizer):
 
         weights_series = pd.Series(weights, index=selected_stocks)
         applied = self._apply_constraints(weights_series, feas)
-        message = "zero_vol" if zero_vol else ""
-        warning_kind = "zero_vol" if zero_vol else None
+        if zero_vol:
+            message, warning_kind = "zero_vol", "zero_vol"
+        elif fallback_reason is not None:
+            message = f"erc_fallback:{fallback_reason}"
+            warning_kind = "erc_fallback"
+        else:
+            message, warning_kind = "", None
 
         if feas.is_upper:
             residual = 1.0 - float(applied.sum())
@@ -846,6 +1043,112 @@ class HRPOptimizer(BaseOptimizer):
         )
 
 
+@dataclass(frozen=True)
+class IndustryCapResult:
+    """行业上限严格投影结果（P-046c B4d）。"""
+
+    weights: pd.Series
+    applied: bool
+    n_groups: int
+    n_unclassified: int
+    max_group_before: float
+    max_group_after: float
+    l1_deviation: float
+
+
+def project_industry_cap(
+    weights: pd.Series,
+    industry: pd.Series,
+    *,
+    cap: float,
+    max_weight: float,
+) -> IndustryCapResult:
+    """行业上限严格投影（引擎级；期货列固定不动）。
+
+    ``min ‖w−w0‖² s.t. Σw=budget, 0≤w≤max_weight, Σ_{i∈g}w_i≤cap``。
+    行业标签 NaN 或 0（``data.py`` 缺失填充）→ 未分类（参与调整但不计入组，
+    仍受 max_weight）；不在 ``industry`` 索引的代码（期货）→ 原值保留。
+
+    语义声明：本函数为**后投影**（与 P-046b HRP 箱体后投影同构），
+    不宣称 in-solver 最优；期货 sleeve 与现金残差不受影响。
+    """
+    cap = float(cap)
+    max_weight = float(max_weight)
+    if not (0.0 < cap <= 1.0):
+        raise ValueError(f"cap 必须在 (0,1]: {cap}")
+    if not (0.0 < max_weight <= 1.0):
+        raise ValueError(f"max_weight 必须在 (0,1]: {max_weight}")
+
+    stocks = [code for code in weights.index if code in industry.index]
+    if not stocks:
+        return IndustryCapResult(weights, False, 0, 0, 0.0, 0.0, 0.0)
+    raw = weights.loc[stocks].astype(float)
+    values = raw.to_numpy(dtype=float)
+    if not np.all(np.isfinite(values)):
+        logger.warning("行业上限投影：权重含非有限值，跳过")
+        return IndustryCapResult(weights, False, 0, 0, 0.0, 0.0, 0.0)
+    budget = float(values.sum())
+    if budget <= 0.0:
+        logger.warning("行业上限投影：股票权重和非正（%.12f），跳过", budget)
+        return IndustryCapResult(weights, False, 0, 0, 0.0, 0.0, 0.0)
+
+    labels = industry.reindex(stocks)
+    unclassified = labels.isna() | labels.eq(0)
+    n_unclassified = int(unclassified.sum())
+    classified = labels[~unclassified]
+    try:
+        groups = sorted(pd.unique(classified))
+    except TypeError:  # 混合类型标签：保持出现顺序
+        groups = list(pd.unique(classified))
+
+    masks = {g: (labels == g).to_numpy() for g in groups}
+    before = {g: float(values[mask].sum()) for g, mask in masks.items()}
+    max_before = max(before.values()) if before else 0.0
+    if max_before <= cap + _INDUSTRY_CAP_TOL:
+        # D16：未触发 → 原 Series 逐位不变（不做个股 max_weight 修复）
+        return IndustryCapResult(
+            weights, False, len(groups), n_unclassified, max_before, max_before, 0.0
+        )
+
+    capacity = len(groups) * cap + n_unclassified * max_weight
+    if budget > capacity + _INDUSTRY_CAP_TOL or (
+        budget > len(stocks) * max_weight + _INDUSTRY_CAP_TOL
+    ):
+        raise InfeasibleConstraintError(
+            f"行业上限投影不可行: budget={budget:.12f}, capacity={capacity:.12f}, "
+            f"cap={cap}, n_groups={len(groups)}, n_unclassified={n_unclassified}, "
+            f"n_stocks={len(stocks)}, max_weight={max_weight}"
+        )
+
+    w = cp.Variable(len(stocks))
+    constraints = [cp.sum(w) == budget, w >= 0.0, w <= max_weight]
+    for mask in masks.values():
+        constraints.append(cp.sum(w[mask]) <= cap)
+    problem = cp.Problem(cp.Minimize(cp.sum_squares(w - values)), constraints)
+    problem.solve()
+    if problem.status in (cp.INFEASIBLE, cp.INFEASIBLE_INACCURATE):
+        raise InfeasibleConstraintError(
+            f"行业上限投影不可行（solver={problem.status}）: budget={budget:.12f}, "
+            f"cap={cap}, n_groups={len(groups)}, n_unclassified={n_unclassified}"
+        )
+    if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE) or w.value is None:
+        raise RuntimeError(f"行业上限投影失败: solver status={problem.status}")
+
+    solution = np.clip(np.asarray(w.value, dtype=float).ravel(), 0.0, max_weight)
+    out = weights.copy()
+    if not pd.api.types.is_float_dtype(out.dtype):
+        out = out.astype(float)
+    out.loc[stocks] = solution
+    after = {g: float(solution[mask].sum()) for g, mask in masks.items()}
+    max_after = max(after.values()) if after else 0.0
+    deviation = float(np.abs(solution - values).sum())
+    if n_unclassified > 0:
+        logger.warning("行业上限投影：%d 只未分类股票（NaN/0）不计入组约束", n_unclassified)
+    return IndustryCapResult(
+        out, True, len(groups), n_unclassified, max_before, max_after, deviation
+    )
+
+
 def round_lot_optimize(
     weights: pd.Series, prices: pd.Series, total_value: float, lot_size: int = 100
 ) -> pd.Series:
@@ -896,6 +1199,8 @@ def build_optimizer(config: OptimizerConfig) -> BaseOptimizer:
         "black_litterman": BlackLittermanOptimizer,
         "bl": BlackLittermanOptimizer,
         "hrp": HRPOptimizer,
+        "kelly": KellyOptimizer,
+        "max_sharpe": MaxSharpeOptimizer,
     }
 
     if config.method not in optimizer_map:

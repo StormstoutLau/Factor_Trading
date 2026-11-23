@@ -309,6 +309,34 @@ class HRPConfig:
 
 
 @dataclass
+class KellyConfig:
+    """凯利方法级配置（仅 method='kelly' 时读取）。
+
+    ``fraction`` 是风险厌恶的单调旋钮：求解 ``max μᵀw − (1/fraction)·wᵀΣw``；
+    在 ``Σw=1`` 约束下尺度不改变方向，故 ``fraction`` **不是字面仓位倍数**。
+    与 pypfopt ``max_quadratic_utility`` 的 δ 关系为 ``δ = 2/fraction``
+    （其目标含 δ/2 因子，IMPL A31）。
+    """
+
+    fraction: float = 0.5
+
+    def __post_init__(self) -> None:
+        if not (0.0 < self.fraction <= 1.0):
+            raise ValueError(f"KellyConfig.fraction 必须在 (0,1]: {self.fraction}")
+
+
+@dataclass
+class MaxSharpeConfig:
+    """max_sharpe 方法级配置（仅 method='max_sharpe' 时读取）。"""
+
+    risk_free_rate: float = 0.0  # 与 μ 同频；须为有限数
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.risk_free_rate):
+            raise ValueError(f"MaxSharpeConfig.risk_free_rate 必须为有限数: {self.risk_free_rate}")
+
+
+@dataclass
 class OptimizerConfig:
     """组合优化器配置
 
@@ -333,6 +361,7 @@ class OptimizerConfig:
     # 风险平价参数
     risk_parity_tol: float = 1e-6  # 风险平价收敛容差
     risk_parity_max_iter: int = 500  # 风险平价最大迭代次数
+    risk_budget: dict[str, float] | None = None  # 风险预算（RC 占比目标，仅 risk_parity）
 
     # 协方差估计参数
     cov_method: str = "ledoit_wolf"  # 协方差估计方法
@@ -342,6 +371,10 @@ class OptimizerConfig:
     # BL / HRP 方法级配置（P-046b）
     bl: BLConfig = field(default_factory=BLConfig)
     hrp: HRPConfig = field(default_factory=HRPConfig)
+
+    # Kelly / MaxSharpe 方法级配置（P-046c）
+    kelly: KellyConfig = field(default_factory=KellyConfig)
+    max_sharpe: MaxSharpeConfig = field(default_factory=MaxSharpeConfig)
 
     def __post_init__(self) -> None:
         """静态配置校验（U1-D）；运行时不可行由 ``_precheck`` 负责（U1-B）。"""
@@ -356,6 +389,21 @@ class OptimizerConfig:
             )
         if self.target_count < 1:
             raise ValueError(f"target_count 必须 >= 1: {self.target_count}")
+        cap = self.industry_max_weight
+        if cap is not None and not (0.0 < float(cap) <= 1.0):
+            raise ValueError(f"industry_max_weight 必须在 (0,1]: {cap}")
+        if self.risk_budget is not None:
+            if not isinstance(self.risk_budget, dict) or not self.risk_budget:
+                raise ValueError("risk_budget 必须为非空 dict[str, float]")
+            if not all(isinstance(k, str) for k in self.risk_budget):
+                raise ValueError("risk_budget 的键必须为资产代码字符串")
+            vals = [float(v) for v in self.risk_budget.values()]
+            if not all(math.isfinite(v) and v >= 0.0 for v in vals):
+                raise ValueError("risk_budget 的值必须为非负有限数")
+            if sum(vals) <= 0.0:
+                raise ValueError("risk_budget 之和必须大于 0")
+            if self.method != "risk_parity":
+                raise ValueError("risk_budget 仅适用于 method='risk_parity'")
 
 
 @dataclass
