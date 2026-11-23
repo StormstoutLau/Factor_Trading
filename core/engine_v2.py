@@ -1494,7 +1494,8 @@ class BacktestEngineV2:
         if overlay_cfg is not None and overlay_cfg.enabled:
             if cov_matrix is not None:
                 # P-046a：复用 optimizer 同一份 Σ（单一入口，消除裸 np.cov 旁路）
-                cov = cov_matrix.to_numpy()
+                # O-P051a-2：Σ 与 target_vol 同口径（日频 → 年化，与 sizing 路径同构）
+                cov = cov_matrix.to_numpy() * TRADING_DAYS
                 cov_codes = [str(code) for code in cov_matrix.columns]
             else:
                 cov, cov_codes = None, []

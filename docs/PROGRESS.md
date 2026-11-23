@@ -193,8 +193,13 @@
 | U-P046-12 | HRP 分层风险平价缺一手方法学原文（仅二手转述） | [RESEARCH_p046 §4.3/§14](RESEARCH_p046_portfolio_optimization.md)：López de Prado 2016 原文未取得，聚类距离 / 连接法 / 递归二分三处细节无法逐字锚定；放任实现会重演 P-046a「无依据实现」风险 | **done（2026-11-20，用户裁决取一手原文）：SSRN preprint 2708678（May 23, 2016 版）全文经镜像取得，三细节逐字锚定（两级距离 / single linkage / 保序二分 α 拆分），见 [RESEARCH_p046 §14.8](RESEARCH_p046_portfolio_optimization.md)；P-046b 前置清零** | P2 |
 | F-S9-P046-2 | AST `except Exception` 基线 22 不可复现（core 外实测 26） | P-046a Step 9 门禁：基线读数与实际扫描口径不一致，批间计数无法对账（本批 core 外零 diff）；**P-046b 启动前须固化扫描口径**（目录集 / 是否含 `tests/`） | **done（2026-11-23，随 P-046b 关闭，§3.95）：口径固化为 P-029 五目录 + `cli.py`（不含 `tests/`），实测 core 外 **22** / core **30**（CHECKLIST D7/G8）** | P3 |
 | F-S10-P046-1~3 | P-046a 终审 3 项 P3：`zero_vol` message 缺失 / `estimate_cov` 退化分支缺 warning / `codes` 静默取交集与文档不符 | [RESEARCH_p046 §21.3](RESEARCH_p046_portfolio_optimization.md)；均不阻塞，随 P-046b 同类约束面一并处置 | **done（2026-11-23，随 P-046b 关闭，§3.95）：D4 `zero_vol` message/warning_kind 双置、D5 `estimate_cov` 有效行<2 warning、D6 `codes` 缺失列 warning+交集（CHECKLIST D4-D6，新增 3 例 caplog/引擎用例）** | P3 |
-| U-P047-2 | 非等风险预算求解（ERC 只解等预算） | [DESIGN_p047 §5](DESIGN_p047_position_sizing.md) D5：`RiskParityOptimizer.optimize` 无预算参数 | **pending（已转 P-046c 承接；本行保留单一跟踪指针）** | P3 |
-| O-P051a-2 | P-048 overlay vol 腿单位口径：`risk_overlay.py` L270-276 传**日频** Σ + 年化 `target_vol` → 显式配置时 `scale≡1`（vol 腿失效） | [RESEARCH_p051a §3.3](RESEARCH_p051a_sizing_wiring.md)；Step 2 复审 §15.1 #14 独立复算成立；`RiskOverlayConfig.target_vol` 默认 `None`（L52）→ 默认零触发，属 latent | **pending（2026-11-20 建行；P-051a 批次零 diff 边界复核仍未修（I12），修复归后续批次）** | P3 |
+| U-P047-2 | 非等风险预算求解（ERC 只解等预算） | [DESIGN_p047 §5](DESIGN_p047_position_sizing.md) D5：`RiskParityOptimizer.optimize` 无预算参数 | **done（2026-11-23，随 P-046c 关闭，§3.107）：`OptimizerConfig.risk_budget: dict[str,float]` + `_risk_budget_vector` 归一（缺失补剩余均分/多余丢弃/无交集等风险）+ `_solve_risk_budget_convex` 凸解（`w≥0, bᵀlog w≥0`，无 `Σw=1`）；RC 与预算误差 **5.67e-05**（CHECKLIST C6/A8）；默认 `None` → 原 ERC 行为零漂移** | P3 |
+| U-P051b-8 | trial 登记（`n_trials`）归属 | [RESEARCH_p051b §8](RESEARCH_p051b_strategy_templates.md)：`core/validation.py` L17 自报 `MULTIPLE_TESTING_SUPPORTED=False`，P-051b 未改（本批零代码冻结契约） | **pending（2026-11-23 建行，§3.109；裁决 = 独立批次）** | P3 |
+| U-P051b-11 | 选择偏差机制（§14 M1-M8）落地批次 | [RESEARCH_p051b §8](RESEARCH_p051b_strategy_templates.md)：需 trial ledger + 负对照，属「生成」而非「模板」范围 | **pending（2026-11-23 建行，§3.109；裁决 = 独立批次）** | P3 |
+| U-P051b-12 | Fin_Agent Guru JSON 接入归属 | [RESEARCH_p051b §15](RESEARCH_p051b_strategy_templates.md)：A 路径零代码但需契约测试，与模板库无关 | **pending（2026-11-23 建行，§3.109；裁决 = `agents/` 独立批次）** | P3 |
+| U-P051b-13 | 研报/KOL → 策略是否立项 | [RESEARCH_p051b §15](RESEARCH_p051b_strategy_templates.md)：评级变动/目标价调整可 PIT、可复现；文本风格因子先不做 | **pending（2026-11-23 建行，§3.109；裁决 = 仅事件因子）** | P3 |
+| U-P051b-14 | 预测市场赔率是否纳入事件表 | [RESEARCH_p051b §16](RESEARCH_p051b_strategy_templates.md)：PIT 快照 + 域内校准 + 不用于筛选策略 | **pending（2026-11-23 建行，§3.109；裁决 = 仅外生输入）** | P3 |
+| O-P051a-2 | P-048 overlay vol 腿单位口径：`risk_overlay.py` L270-276 传**日频** Σ + 年化 `target_vol` → 显式配置时 `scale≡1`（vol 腿失效） | [RESEARCH_p051a §3.3](RESEARCH_p051a_sizing_wiring.md)；Step 2 复审 §15.1 #14 独立复算成立；`RiskOverlayConfig.target_vol` 默认 `None`（L52）→ 默认零触发，属 latent | **done（2026-11-23，T2 两件套 + 提交，§3.110）：`core/engine_v2.py` L1498 overlay 分支 `cov = cov_matrix.to_numpy() * TRADING_DAYS`（与 sizing L1475 同构）；`test_enabled_scales_weights` 期望值改年化口径 + `<0.1` 非 clip 断言；函数层 `core/sizing.py` / `core/risk_overlay.py`（仅 L52 注释）零实现改动；默认 `target_vol=None` 零影响 → golden 22 零重录；门禁 1502 passed + 1 skipped / `-k p048` 23 / mypy 160·0 / black 325** | P3 |
 | O-P051a-3 | 窗口口径差：`estimate_volatility` 窗口**含当日** `[t-lookback+1, t]`，引擎内部 Σ 窗口**不含当日**（防前视 `[t-lookback, t-1]`） | [DESIGN_p051a D2 注记](DESIGN_p051a_sizing_wiring.md) + `core/volatility.py` 模块 docstring；Step 4 复审 F-D4 发现 | **done（2026-11-21，随 P-051b 关闭，§3.59）：策略层只消费 `history`（截断 t−1）+ 禁负 shift 三条硬规则（[RESEARCH_p051b §18.5](RESEARCH_p051b_strategy_templates.md)），I12 由 M7/V7 前视实证闭合；`estimate_volatility` 策略层零直接消费（grid 仅用 `atr`）** | P3 |
 | **P-049** | **舆情接入（sentiment_feed）** | 总纲 L266：公告/新闻，开源数据优先；前置 P-042 已关闭 + Q5 已裁决；**不在关键路径**（关键路径 L277 链不含 049） | **pending（2026-11-20 建行，§3.57 断档第 7 次收口）** | P2 |
 | **P-051a** | **策略接线底座：vol/ATR 波动原语 + `apply_sizing` 引擎接线** | 总纲 L268 F5（P-051 四前置 P-044/045/047/050 全 done）+ §3.57 拆批裁决（用户 2026-11-20 确认 a/b/c 三批）；承接 DESIGN_p047 遗留 4 项（波动原语 / `zero_vol` warning / `insufficient_history` / `SizingState` 往返）+ U-P044-3；**波动原语归属接线批 vs DESIGN_p047 L319「P-051 数据层」口径 → 立项时裁决（F-S10-P051-1）** | **✅ 已关闭（2026-11-21，§3.58）：F-S10-P051-1 解结（波动原语归接线批，新模块 `core/volatility.py`）；十步全通过 + 三轮 RULE-5 异构复审（0 P1，2 P2 全收敛）+ Step 8 一致性通过；实测 1040 / golden 22 零重录 / mypy 113·0 / black 157；U-P044-3 触发条件未满足 → 随 P-051b；O-P051a-3 建行** | **P1** |
@@ -3436,4 +3441,29 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **Phase 3 探针独立重放（8/8 PASS）**：R1a 两资产负相关逐位复现 RESEARCH E1 原值（w=[0.599999,0.400001]、rc=[0.499987,0.500013]）；R1b 5A SPD rc_dev=1.23e-05；R2a 缺失补剩余 [0.5,0.125×4]；R2b 部分和>1 ValueError；R3 外部权重 0.4→0.3 压回；R4 未触发逐位不变（含 int dtype）；R4b 触发时期货列原值保留 + dtype 提升；R5 不可行 ICE 全参数。
 - **Phase 4 结论**：**PASS**；**0 P0 / 0 P1 / 0 P2**；1 观察 **O-R5-P046c-1**（`project_industry_cap` 未触发路径保留原 dtype，触发路径提升 float64 而期货列保留原值——与 D16「逐位不变」一致，登记不修）。
 - **CHECKLIST**：实测列 **79 ✅ + J6 × 1 `[待 Step 10]`**；§16 审计报告落盘；状态链 §13 同步。
-- **待办**：用户授权 → 原子提交（3 源 + 3 新测试 + 7 新文档 + 1 台账）→ CI 四 job 全绿 → J6 回填（80/80 ✅）→ P-046c 批次关闭。
+- **收口（2026-11-23）**：用户授权后提交 `6ac07eb`（16 files +4011/−27）+ CI run `45187900624` 四 job 全绿；收口提交 `79cb661`（J6 回填 + 批次关闭）+ CI run `45188994101` 四 job 全绿；CHECKLIST **80/80 ✅**，P-046c 批次关闭。
+
+### 3.109 T3 台账卫生：U-P047-2 关闭 + U-P051b-8/11/12/13/14 建行（2026-11-23）
+
+> **档位**：**T3 轻批**（Layer-0 纯文档：仅 `docs/PROGRESS.md`；零代码 / 零门禁 / 零真值源变更）。裁剪理由：断档项定义均已存在于 [RESEARCH_p051b §8/§15/§16](RESEARCH_p051b_strategy_templates.md)，本次仅补建跟踪行 + 修正过时状态，无设计决策。
+
+- **① 触发**：「分析下一步任务」核出两处台账不一致：U-P047-2 仍标 pending（实际 P-046c 已交付非等风险预算）；U-P051b-8/11/12/13/14 只在 §3.59 正文出现、**未在 §1.4 待办表建行**（同型断档第 8 次）。
+- **② 取证**：`risk_budget` 交付证据见 §3.107 / CHECKLIST C6-A8（RC 误差 5.67e-05）；5 项定义逐字取自 RESEARCH_p051b L145/L148/L149/L150/L151（U-P051b-8/11/12/13/14），裁决列已在该表冻结（独立批次 / 独立批次 / `agents/` 独立批次 / 仅事件因子 / 仅外生输入）。
+- **③ 裁决**：U-P047-2 → **done**（随 P-046c）；5 项 → **pending 建行**（P3，沿用 RESEARCH 已冻结的批次归属，不新开裁决）。
+- **④ 落账**：§1.4 表 +1 done 行 +5 新行；本 session §3.109。
+- **⑤ 回退点**：`git revert` 本条文档提交即可（零代码、零门禁影响）。
+- **验证**：`grep -c "^| U-P051b-" docs/PROGRESS.md` = **5**（建行数）；U-P047-2 行状态词为 `done`。
+
+### 3.110 O-P051a-2 关闭：overlay vol 腿单位口径修复（T2 小流程，2026-11-23）
+
+> **档位**：**T2 小流程**（Layer-1 可逆小补，先例 P-016：DESIGN + CHECKLIST 两件套，裁剪理由登记于 [DESIGN §头部](DESIGN_o_p051a2_overlay_vol_units.md)）。改动面 3 文件（引擎 1 行 + 注释 1 行 + 既有用例期望值），零新增用例。
+
+- **① 缺陷**：`apply_overlay` 的 vol 腿 `scale = min(target_vol / σ_p, 1.0)`（`core/sizing.vol_target_scale`）要求 Σ 与 `target_vol` **同频**；`RiskOverlayConfig.target_vol` 为**年化**，而引擎 overlay 分支传**日频 Σ** → `min(0.15/0.02, 1)=1.0`，vol 腿**静默失效**（默认 `target_vol=None` → latent，P-048/P-051a 门禁全绿未暴露）。
+- **② E1 取证**（`%TEMP%\o_p051a2_probe.py` 可重放）：日频 Σ=[[0.0004]] + target=0.15 → scale **1.000000**；Σ×252 → **0.472456**；解析式 `0.15/(0.02·√252)` = **0.472456** 逐位一致。
+- **③ 决策 D1-D5**：D1 引擎叠加前年化 Σ（`* TRADING_DAYS`，sizing L1475 同构先例）；D2 函数层契约为准（`vol_target_scale` / `apply_overlay` 零改动，I5 纯函数用例必须保持）；D3 既有引擎用例期望值改年化口径 + 非 clip 断言；D4 `RiskOverlayConfig.target_vol` 注释补「年化」；D5 默认 `None` 零影响。
+- **④ 行为变更登记**：显式配置 `target_vol` 时，`scale_vol` 由「恒 1（clip）」变为真实值 `min(target_vol / σ_annual, 1)`——这是缺陷修复的预期语义变化；默认 `None` 路径逐位不变（golden 22 零重录）。
+- **⑤ 落码**：[engine_v2.py L1498](../core/engine_v2.py)（`cov = cov_matrix.to_numpy() * TRADING_DAYS` + O-P051a-2 注释）/ [risk_overlay.py L52](../core/risk_overlay.py)（注释「年化目标波动」）/ [test_p048_overlay_engine.py](../tests/test_p048_overlay_engine.py)（`sigma_annual = sigma_daily * sqrt(TRADING_DAYS)`；`expected = min(1.0, 0.01/sigma_annual)`；新增 `< 0.1` 非 clip 断言）。
+- **⑥ 门禁实测**：全量 **1502 passed + 1 skipped**（132.76s，collect 1503）/ `-k p048` **23** / `-k golden` **22** + 目录空 / `-k p046` **117** / `-k p051` **120** / mypy **160 files · 0** / black **325 unchanged**（本会话复核）/ AST **22 · core 30** / `lint-imports` **3 contracts kept** / `uv lock --check` exit **0** / `tests/*.py` **161**。
+- **⑦ 范围守卫**：`core/sizing.py` / `core/config.py` / `core/config_v2.py` / `tests/golden/` 零 diff（N1-N4）；未新增测试文件与用例数（collect 1503 不变）。
+- **⑧ 回退点**：`git revert` 单提交（3 文件，无数据迁移 / 无锁变更 / 无 golden 重录）；回退后果 = 显式 `target_vol` 回到静默失效，须在台账注明。
+- **⑨ 台账**：[CHECKLIST_o_p051a2](CHECKLIST_o_p051a2_overlay_vol_units.md) **15/15 ✅**（A4 + B4 + C7，`[待 Step 9]` 清零）；§1.4 O-P051a-2 行 → **done**。**未提交，待用户授权。**

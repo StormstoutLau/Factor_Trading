@@ -149,16 +149,22 @@ def test_enabled_scales_weights(tmp_path):
     )
     assert disabled["last_target_weight"] == pytest.approx(1.0)
     assert enabled["last_target_weight"] < 1.0
+    # O-P051a-2：vol 腿若被 clip 到 1 则等于 disabled → 必须显著小于 1
+    assert enabled["last_target_weight"] < 0.1
 
     # vol 腿闭式：σ_A 由最近两日收益（close[2]/close[1]、close[3]/close[2]）经
     # LedoitWolf 估计（P-046a 起 overlay 复用引擎单一 Σ 入口，单资产时 LW 退化为
     # sklearn 的有偏样本协方差，即 ddof=0）
     from sklearn.covariance import LedoitWolf
 
+    from core.volatility import TRADING_DAYS
+
     returns = np.array([10.6 / 10.5 - 1.0, 11.2 / 10.6 - 1.0]).reshape(-1, 1)
-    sigma = float(np.sqrt(LedoitWolf().fit(returns).covariance_[0, 0]))
-    assert sigma > 0.01  # 保证 scale < 1（非零波动）
-    expected = min(1.0, 0.01 / sigma)
+    sigma_daily = float(np.sqrt(LedoitWolf().fit(returns).covariance_[0, 0]))
+    assert sigma_daily > 0.01  # 保证 scale < 1（非零波动）
+    # O-P051a-2：引擎 overlay 侧 Σ 已年化 → target_vol（年化）除以 σ_annual
+    sigma_annual = sigma_daily * np.sqrt(TRADING_DAYS)
+    expected = min(1.0, 0.01 / sigma_annual)
     assert enabled["last_target_weight"] == pytest.approx(expected, rel=1e-6)
 
 

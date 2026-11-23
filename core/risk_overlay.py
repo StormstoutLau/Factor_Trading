@@ -49,7 +49,7 @@ class RiskOverlayConfig:
     """overlay 配置。``enabled`` 是唯一门控；``defensive_policy`` 是策略层语义。"""
 
     enabled: bool = False
-    target_vol: Optional[float] = None  # None = 不做 vol 缩放
+    target_vol: Optional[float] = None  # 年化目标波动；None = 不做 vol 缩放
     defensive_policy: str = "none"
     dd_soft: float = 0.08
     dd_hard: float = 0.12
