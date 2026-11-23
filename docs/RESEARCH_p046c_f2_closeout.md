@@ -383,7 +383,8 @@
 - **2026-11-23**：**Step 8 一致性复审 PASS**——机械校验器 v3 124/124（初跑 117/124：4 校验器正则/切分误报 + 2 文档 P3 当轮修 + 1 跟随；复跑 122/124：再修 1 连写正则误报 + 1 用例引用缺口当轮修）；J1/J5 回填 ✅；reviewer GLM-5.3-Flash ≠ CHECKLIST 作者 DeepSeek-V4.1-Flash；详见 [CHECKLIST_p046c_f2_closeout §14](CHECKLIST_p046c_f2_closeout.md)。
 - **2026-11-23**：**Step 9 TDD PASS**——39 例红→绿（红态 2 收集错误）；门禁全命中 1503（1502+1）/ 117 / 22 / 120 / 160·0 / 325 / 161·51·19·13 / 22·30 / 3 kept / 0；派生 **F-S9-P046c-1**（A6 构型改等相关）；O-4-1 探针：sizing/overlay 腿实测不放大（clip≤1）、外部权重 0.4→0.3 压回；详见 [CHECKLIST_p046c_f2_closeout §15](CHECKLIST_p046c_f2_closeout.md)。
 - **2026-11-23**：**Step 10 ADD 审计 + RULE-5 异构终审 PASS**（[CHECKLIST_p046c_f2_closeout §16](CHECKLIST_p046c_f2_closeout.md)）——门禁独立重放 10/10 全绿；探针独立重写重放 8/8（R1a 逐位复现本文 §15 E1 原值）；**0 P0-P2 + 1 观察 O-R5-P046c-1**；E1 P1 修复经终审确认闭合。
-- **下一步**：用户授权提交（J6）→ 批次关闭。
+- **2026-11-23**：**用户授权提交 + 批次关闭**——`6ac07eb`（16 files +4011/−27）+ CI run `45187900624` 四 job 全绿；CHECKLIST **80/80 ✅**；本文 G-P046c-1..10 全部闭环（G-P046c-1 P1 随批修复，G-P046c-8 由 P-046d 承接）。
+- **P-046c 批次关闭（Step 1-10 全通过）**。
 
 ---
 

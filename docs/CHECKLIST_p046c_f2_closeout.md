@@ -2,7 +2,7 @@
 
 > **批次**: P-046c · **T1**（`core/config.py` / `core/portfolio.py` / `core/engine_v2.py` + 3 个新测试文件；全部新增能力 opt-in，golden 22 预期零漂移）
 > **上游**: [DESIGN_p046c_f2_closeout](DESIGN_p046c_f2_closeout.md)（D1-D22 / I1-I12 / §8 测试 / §9 门禁）+ [REVIEW_p046c_step3_design](REVIEW_p046c_step3_design.md)（F-4-1..F-4-3 / O-4-1..O-4-3）+ [IMPL_p046c_f2_closeout](IMPL_p046c_f2_closeout.md)（T1-T9 / §2 签名回退 / §4 A27-A36 + B9-B15 / §5 低效排除 / §6 红→绿 / §9 F-5-1..F-5-3）+ [REVIEW_p046c_step5_impl](REVIEW_p046c_step5_impl.md)（F-6-1..F-6-3 / O-6-1..O-6-2）
-> **状态**: **Step 10 ADD 审计 + RULE-5 异构终审 PASS（2026-11-23，§16）**——门禁独立重放 **10/10 全绿** / 探针独立重写重放 **8/8** / 代码 vs DESIGN 对齐 D1-D22 分组核验全过 / **0 P0-P2 + 1 观察 O-R5-P046c-1**；实测列 **79 × ✅ + J6 × 1 `[待 Step 10]`**（待用户授权提交 + CI 后回填 80/80）；零提交
+> **状态**: **P-046c 批次已关闭（2026-11-23，Step 1-10 全通过）**——Step 9 TDD PASS（§15）／Step 10 ADD 审计 + RULE-5 异构终审 PASS（§16，审计者 GLM-5.3-Flash ≠ 实施者 DeepSeek-V4.1-Flash）；用户授权后提交 `6ac07eb`（16 files +4011/−27）+ CI run `45187900624` 四 job 全绿；实测列 **80/80 ✅**
 > **实测列规则（RULE-1）**: 仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 8]` / `[待 Step 9]` / `[待 Step 10]`；**禁止预填**
 > **行号口径**: 落码后行号失效；实测证据统一使用「文件 + 符号名 + 用例名 + 命令读数」
 > **基线读数（@`3495683`）**: pytest collect **1464**（1463 passed + 1 skipped）/ `-k p046` **78** / `-k golden` **22** / `-k p054` **120** / mypy **160 files · 0** / black `--check .` **322** / `tests/*.py` **158** / `core/*.py` **51** / `live/**/*.py` **19** / `services/*.py` **13** / AST `except Exception` core 外 **22**、core **30** / `lint-imports` **3 kept** / `uv lock --check` exit **0**
@@ -138,7 +138,7 @@
 | J3 | **台账回写**：PROGRESS 主行 + 下一可用序号分节；DESIGN §14 / RESEARCH §14 / IMPL §10 状态链；CHECKLIST 实测列回填（RULE-1） | I 组通过 | 读回 diff | ✅ 本文件实测列 79 ✅ + J6 待 Step 10；PROGRESS §3.107；四文档状态链已同步 |
 | J4 | **O-4-1 联测探针**：`sizing.vol_target` 放大权重 + cap 绑定 → 投影把超 `max_weight` 权重压回且组和 ≤cap；读数记入 Step 9 报告；**不新增 pytest 用例**（保 39 冻结） | F/G 落码 | Step 9 报告 | ✅ §15.4 探针：sizing/overlay 腿 clip≤1 实测不放大（scale=1.0）；外部权重 0.4→0.3 压回、组和 0.4、Σ=1；39 例不变 |
 | J5 | **F 链完整性**：F-4-1/F-4-2/F-4-3、F-5-1/F-5-2/F-5-3、F-6-1/F-6-2/F-6-3 全部有落点（DESIGN/IMPL/代码/用例）；O-4-1/O-4-2/O-4-3/O-6-1/O-6-2 登记在案 | 四文档完稿 | 读四文档 + 交叉检索 | ✅ [Step 8 PASS（§14）：F-4-1..3 / F-5-1..3 / F-6-1..3 全落点 + O-4-1..3 / O-6-1..2 在案（校验器域 5 全 PASS）；Step 9 派生 F-S9-P046c-1 已登记 §15] |
-| J6 | **提交与 CI**：提交原子（3 源 + 3 新测试 + 7 新文档 + 1 台账）；CI 四 job 全绿；**须用户明确授权后方可 commit/push**；CHECKLIST 实测列 80/80 | J1-J5 通过 | `git show --stat` + `gh run view` | [待 Step 10] |
+| J6 | **提交与 CI**：提交原子（3 源 + 3 新测试 + 9 新文档 + 1 台账）；CI 四 job 全绿；**须用户明确授权后方可 commit/push**；CHECKLIST 实测列 80/80 | J1-J5 通过 | `git show --stat` + `gh run view` | ✅ [用户授权后提交 `6ac07eb`（16 files +4011/−27）+ CI run `45187900624` 四 job 全绿：lock-check / test 3.12 / arch-check / test 3.11；实测列 **80/80 ✅**] |
 
 ---
 
@@ -149,7 +149,7 @@
 | 验收项总数 | **80**（A 8 + B 9 + C 7 + D 7 + E 7 + F 9 + G 8 + H 10 + I 9 + J 6 = 80，逐表行数机械计数） |
 | 实测列初始状态（Step 7） | `[待 Step 9]` **77** + `[待 Step 8]` **2**（J1/J5）+ `[待 Step 10]` **1**（J6）；`✅` 0（预填=违规） |
 | 实测列现状（Step 9） | `✅` **79** + `[待 Step 10]` **1**（J6）；`[待 Step 8]` / `[待 Step 9]` 均 **0** |
-| 实测列终态（Step 10） | 目标 **80 × ✅** |
+| 实测列终态（Step 10） | **80 × ✅**（`[待 ...]` **0**，已达终态） |
 | 新用例数（实测） | **39 收集** = ERC/预算 14 + Kelly/Sharpe 15 + 投影/引擎 10 |
 | pytest collect（实测） | **1503**（1502 passed + 1 skipped） |
 | Step 9 门禁（实测） | **1502 passed / 1 skipped**、`-k p046` **117**、`-k golden` **22**、`-k p054` **120**、mypy **160·0**、black **325**、`tests/*.py` **161**、`core` **51**、`live` **19**、`services` **13**、AST **22·30**、`lint-imports` **3 kept**、`uv lock` **0** |
@@ -182,7 +182,7 @@
 - **2026-11-23**：**Step 8 一致性复审 PASS（§14）**——机械校验器 v3 **124/124**（初跑 v1 117/124：4 校验器正则/切分误报 + 2 文档 P3 当轮修 + 1 跟随；复跑 v2 122/124：1 连写正则误报 + 1 用例引用缺口当轮修）；J1/J5 回填 ✅；reviewer **GLM-5.3-Flash** ≠ CHECKLIST 作者 DeepSeek-V4.1-Flash（RULE-5 异构成立）。
 - **2026-11-23**：**Step 9 TDD PASS（§15）**——红态 2 收集错误（`ImportError: KellyConfig / project_industry_cap`）→ 绿态 **39 passed**；门禁全命中（1502+1 / 117 / 22 / 120 / 160·0 / 325 / 161·51·19·13 / 22·30 / 3 kept / 0）；派生 **F-S9-P046c-1**（A6 构型：S5 等权起点负 RC 先于 max_iter 触发）；实测列 **79 ✅ + 1 `[待 Step 10]`**；零提交。
 - **2026-11-23**：**Step 10 ADD 审计 + RULE-5 异构终审 PASS（§16）**——审计者 GLM-5.3-Flash ≠ 实施者 DeepSeek-V4.1-Flash；门禁独立重放 **10/10 全绿**（全量 1502+1 / 117 / 22 / 120 / 160·0 / 325 / 22·30 / 3 kept / 0 / 161·51·19·13）；代码 vs DESIGN 对齐 D1-D22 分组核验全过（快速路径逐字 / 凸模型无 Σw=1 / 投影 D13-D17 / 引擎 D20 / 零改动面 / N1·N7·N10 grep 0 命中）；探针独立重写重放 **8/8**（R1a 逐位复现 RESEARCH E1 原值）；**0 P0-P2 + 1 观察 O-R5-P046c-1**（未触发路径保留原 dtype，与 D16 一致）；J6 待用户授权提交。
-- **下一步**：用户授权 → commit（原子：3 源 + 3 新测试 + 7 新文档 + 1 台账）→ CI 四 job 全绿 → J6 回填（80/80 ✅）→ 批次关闭。
+- **2026-11-23**：**用户授权提交**——`6ac07eb`（16 files +4011/−27：3 源 + 3 新测试 + 9 新文档 + 1 台账）+ push `3495683..6ac07eb`；CI run **`45187900624` 四 job 全绿**（lock-check 7s / test 3.12 3m45s / arch-check 56s / test 3.11 5m7s；annotations 仅既有 Node.js 20 弃用提示）；**J6 回填 ✅，实测列 80/80 ✅**；**P-046c 批次关闭**。
 
 ---
 

@@ -519,4 +519,5 @@ E3 50A：rng=default_rng(7)；S50=m@m.T/50+1e-4 I；μ50~N(0.05,0.02)^50
 - **2026-11-23**：**Step 8 一致性复审 PASS**——机械校验器 v3 **124/124**（[CHECKLIST_p046c_f2_closeout §14](CHECKLIST_p046c_f2_closeout.md)）；初跑 v1 117/124 定性为 4 校验器正则/切分误报 + 2 文档 P3 当轮修（IMPL §3.3 F-4-2 标签注释 / CK N7 措辞）+ 1 跟随；复跑 v2 122/124 再修 1 用例引用缺口（CK A1/A3/A4 补用例 B4/A14）；J1/J5 回填 ✅；reviewer **GLM-5.3-Flash** ≠ CHECKLIST 作者 DeepSeek-V4.1-Flash。
 - **2026-11-23**：**Step 9 TDD PASS**——红态 2 收集错误 → 绿态 **39 passed**（14/15/10）；门禁全命中 **1503（1502+1）/ 117 / 22 / 120 / 160·0 / 325 / 161·51·19·13 / 22·30 / 3 kept / 0**；派生 **F-S9-P046c-1**（§8.1 A6 构型改等相关，S5 等权起点负 RC 使②先于③触发）；O-4-1 探针：sizing/overlay 腿 clip≤1 实测不放大、外部权重 0.4→0.3 压回；实测列 79 ✅ + J6；详见 [CHECKLIST_p046c_f2_closeout §15](CHECKLIST_p046c_f2_closeout.md)。
 - **2026-11-23**：**Step 10 ADD 审计 + RULE-5 异构终审 PASS**（[CHECKLIST_p046c_f2_closeout §16](CHECKLIST_p046c_f2_closeout.md)，GLM-5.3-Flash ≠ 实施者）——门禁独立重放 **10/10 全绿**；代码 vs DESIGN 对齐 D1-D22 分组核验全过；探针独立重写重放 **8/8**（R1a 逐位复现 RESEARCH E1 原值）；**0 P0-P2 + 1 观察 O-R5-P046c-1**。
-- **下一步**：用户授权提交（J6）→ 批次关闭。
+- **2026-11-23**：**用户授权提交 + 批次关闭**——`6ac07eb`（16 files +4011/−27）+ CI run `45187900624` 四 job 全绿；CHECKLIST **80/80 ✅**；本文 D1-D22 全部落地并经 Step 10 对齐核验。
+- **P-046c 批次关闭（Step 1-10 全通过）**。
