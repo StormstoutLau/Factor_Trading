@@ -68,6 +68,7 @@ dev = [
     "mypy~=2.4.1",
     "isort>=5.12.0",
     "httpx>=0.27.0",
+    "import-linter>=2.0,<3",
 ]
 web = [
     "streamlit>=1.28.0",
@@ -99,6 +100,36 @@ packages = [
 [tool.black]
 line-length = 100
 target-version = ["py311", "py312"]
+
+[tool.importlinter]
+root_packages = ["core", "live", "strategies", "services"]
+include_external_packages = false
+
+[[tool.importlinter.contracts]]
+name = "C1 分层：services > live > strategies > core"
+type = "layers"
+layers = ["services", "live", "strategies", "core"]
+
+[[tool.importlinter.contracts]]
+name = "C2 core 不得依赖上层"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = ["live", "services", "strategies"]
+
+[[tool.importlinter.contracts]]
+name = "C3 API/WS 不得含交易逻辑"
+type = "forbidden"
+# 仅约束直接导入：读路径允许 services.api -> live.ledger_store（其内部依赖 live.ledger 属数据层，
+# 不是「API 含交易逻辑」）。间接依赖的判定见 DESIGN §5.5 盲区说明。
+allow_indirect_imports = true
+source_modules = [
+    "services.api",
+    "services.api_worker",
+    "services.ws_routes",
+    "services.ws_hub",
+    "services.market_gateway",
+]
+forbidden_modules = ["live.gateway", "live.orders", "live.channel", "live.ledger"]
 
 [tool.isort]
 profile = "black"

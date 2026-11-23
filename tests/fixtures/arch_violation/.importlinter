@@ -1,0 +1,11 @@
+[importlinter]
+root_packages =
+    violation_app
+include_external_packages = False
+
+[importlinter:contract:layers]
+name = layers: upper > core
+type = layers
+layers =
+    violation_app.upper
+    violation_app.core

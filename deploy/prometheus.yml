@@ -1,0 +1,8 @@
+# P-055 最小观测栈（可选 profile：docker compose -f deploy/compose.services.yaml --profile obs up -d）
+scrape_configs:
+  - job_name: p055-api
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+      - targets: ["api:8054"]

@@ -1,0 +1,1 @@
+# 证书占位：真实 cert.pem/key.pem 由 runbook 的 openssl 命令生成，不入库。

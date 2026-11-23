@@ -34,6 +34,7 @@ class RelayLoop:
         self._metrics = metrics
         self._backoff = backoff
         self._failures = 0
+        self.last_unsent = 0  # 最近一轮未发送条数（0..batch），供心跳 `<ts>:<int>`（F-D5）
         self.stop = False
 
     def run_once(self) -> int:
@@ -56,6 +57,7 @@ class RelayLoop:
             self._store.mark_sent(row.seq, self._clock())
             sent += 1
         self._failures = 0
+        self.last_unsent = len(rows)
         if self._metrics is not None:
             self._metrics.outbox_pending.set(len(self._store.pending_outbox(1)))
         return sent
@@ -64,11 +66,12 @@ class RelayLoop:
         cutoff = self._clock() - retention_days * 86_400
         return int(self._store.purge_outbox(cutoff))
 
-    def run(self) -> None:
-        while not self.stop:
+    def run(self, stop_event=None) -> None:
+        while not (stop_event.is_set() if stop_event is not None else self.stop):
             try:
                 sent = self.run_once()
-            except PublisherFailure:
+            except PublisherFailure as exc:
+                _log("relay_publisher_failure", error=str(exc))  # Step 10 实跑修正：不再静默
                 continue
             if sent == 0:
                 self._sleep(self._poll_interval)
@@ -95,6 +98,7 @@ class ConsumerLoop:
         self._stream = stream
         self._metrics = metrics
         self._clock = clock
+        self.stop = False
 
     def run_once(self, *, count: int = 10, autoclaim: bool = False) -> int:
         if autoclaim:
@@ -119,3 +123,40 @@ class ConsumerLoop:
             pending = getattr(self._bus, "stream_pending", lambda _c: 0)
             self._metrics.consumer_pending.set(pending(self._consumer))
         return published
+
+    def run(
+        self,
+        stop_event=None,
+        *,
+        count: int = 100,
+        autoclaim_every: float = 30.0,
+        heartbeat_key: str = "p054:consumer:heartbeat",
+        heartbeat_ttl: int = 10,
+        poll_interval: float = 0.2,
+        sleep=time.sleep,
+    ) -> None:
+        """常驻消费：存活即扇出（G1）；异常不退出（消费者死掉 = 永久不扇出）。"""
+        last_autoclaim = time.monotonic()
+        while not (stop_event.is_set() if stop_event is not None else self.stop):
+            due = (time.monotonic() - last_autoclaim) >= autoclaim_every
+            try:
+                published = self.run_once(count=count, autoclaim=due)
+            except Exception as exc:  # 不退出：记录后短暂退避重试
+                _log("consumer_loop_error", error=repr(exc))
+                sleep(1.0)
+                continue
+            if due:
+                last_autoclaim = time.monotonic()
+            if self._bus is not None:
+                pending = self._bus.stream_pending(self._consumer)
+                self._bus.set_key(heartbeat_key, f"{int(time.time())}:{pending}", heartbeat_ttl)
+            if published == 0:
+                (stop_event.wait(poll_interval) if stop_event is not None else sleep(poll_interval))
+
+
+def _log(event: str, **fields) -> None:
+    import sys
+
+    print(
+        json.dumps({"event": event, **fields}, ensure_ascii=False, sort_keys=True), file=sys.stderr
+    )

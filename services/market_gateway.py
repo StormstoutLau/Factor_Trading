@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 from dataclasses import dataclass
 from typing import Protocol
@@ -68,10 +69,28 @@ class MarketGateway:
         return len(ticks)
 
 
-def main() -> None:  # pragma: no cover - 进程入口
-    """行情网关独立入口：直读 env（不走 ServiceSettings——无 API key 依赖，F-A3）。"""
-    import os
+def serve(
+    stop_event,
+    *,
+    gateway: MarketGateway,
+    hz: float,
+    bus=None,
+    heartbeat_key: str = "p054:market:heartbeat",
+    heartbeat_ttl: int = 10,
+) -> None:
+    """hz 循环 + 每帧心跳（G3/D12）；``stop_event.wait`` 可被信号立即唤醒。"""
+    import time
 
+    interval = 1.0 / hz if hz > 0 else 1.0
+    while not stop_event.is_set():
+        gateway.run_once()
+        if bus is not None:
+            bus.set_key(heartbeat_key, f"{time.time():.3f}", heartbeat_ttl)
+        stop_event.wait(interval)
+
+
+def _build_from_env(channel: str | None = None):
+    """从 env 构造（gateway, hz, bus）；CLI 覆盖由 main 处理。"""
     from services.bus import SyncRedisBus
 
     redis_url = os.environ.get("P054_REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -81,11 +100,82 @@ def main() -> None:  # pragma: no cover - 进程入口
         if s.strip()
     )
     hz = float(os.environ.get("P054_MARKET_TICK_HZ", "2.0"))
-    channel = os.environ.get("P054_MARKET_CHANNEL", "p054:market")
+    resolved_channel = channel or os.environ.get("P054_MARKET_CHANNEL", "p054:market")
     bus = SyncRedisBus(redis_url)
-    gateway = MarketGateway(SyntheticSource(symbols, hz=hz), bus, channel=channel)
-    gateway.run_once()
+    gateway = MarketGateway(SyntheticSource(symbols, hz=hz), bus, channel=resolved_channel)
+    return gateway, hz, bus
 
 
-def run_embedded(stop_event=None) -> None:  # pragma: no cover - 单机内嵌
+def _parse_args(argv=None):
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="market_gateway")
+    parser.add_argument("--once", action="store_true")
+    parser.add_argument("--embedded", action="store_true")
+    parser.add_argument("--hz", type=float, default=None)
+    parser.add_argument("--symbols", default=None)
+    parser.add_argument("--redis-url", default=None, dest="redis_url")
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> None:  # pragma: no cover - 进程入口
+    """独立进程默认 = 信号 + serve；``--once`` 单帧；``--embedded`` 交给 run_embedded。"""
+    import threading
+
+    args = _parse_args(argv)
+    if args.redis_url:
+        os.environ["P054_REDIS_URL"] = args.redis_url
+    if args.symbols:
+        os.environ["P054_MARKET_SYMBOLS"] = args.symbols
+    if args.hz is not None:
+        os.environ["P054_MARKET_TICK_HZ"] = str(args.hz)
+    if args.embedded:
+        run_embedded(None)
+        return
+    gateway, hz, bus = _build_from_env()
+    if args.once:
+        gateway.run_once()
+        return
+    from services.trading_worker import install_stop_handlers
+
+    stop_event = threading.Event()
+    install_stop_handlers(stop_event)
+    serve(
+        stop_event,
+        gateway=gateway,
+        hz=hz,
+        bus=bus,
+        heartbeat_ttl=int(os.environ.get("P054_MARKET_HEARTBEAT_TTL_SECONDS", "10")),
+    )
+
+
+def run_embedded(stop_event=None) -> None:  # pragma: no cover - 单机内嵌（trading --with-market）
+    """外部给 event 则直接 serve；否则自建 event + 安装信号（改写自 P-054 stub）。"""
+    import threading
+
+    if stop_event is not None:
+        gateway, hz, bus = _build_from_env()
+        serve(
+            stop_event,
+            gateway=gateway,
+            hz=hz,
+            bus=bus,
+            heartbeat_ttl=int(os.environ.get("P054_MARKET_HEARTBEAT_TTL_SECONDS", "10")),
+        )
+        return
+    from services.trading_worker import install_stop_handlers
+
+    event = threading.Event()
+    install_stop_handlers(event)
+    gateway, hz, bus = _build_from_env()
+    serve(
+        event,
+        gateway=gateway,
+        hz=hz,
+        bus=bus,
+        heartbeat_ttl=int(os.environ.get("P054_MARKET_HEARTBEAT_TTL_SECONDS", "10")),
+    )
+
+
+if __name__ == "__main__":  # pragma: no cover
     main()

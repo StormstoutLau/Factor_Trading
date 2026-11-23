@@ -34,6 +34,7 @@ def test_u1_gates_table_has_required_entries(adapter):
         "unit-tests",
         "black-check",
         "mypy-check",
+        "arch-check",
     }
 
 

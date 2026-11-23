@@ -1,0 +1,91 @@
+# P-055 Mode S（synthetic/CI）：全容器部署；SQLite 落 named volume（禁止 bind mount，A8/G9）。
+# 用法：cp .env.services.example .env.services && docker compose -f deploy/compose.services.yaml up -d
+x-runtime: &runtime
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    target: services
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 10s
+  env_file:
+    - ../.env.services
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  trading:
+    <<: *runtime
+    command: ["python", "-m", "services.trading_worker"]
+    volumes:
+      - p055-data:/app/run
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,redis; r=redis.Redis.from_url(os.environ['P054_REDIS_URL']); raise SystemExit(0 if r.get('p054:trading:heartbeat') else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  market:
+    <<: *runtime
+    command: ["python", "-m", "services.market_gateway"]
+
+  api:
+    <<: *runtime
+    command: ["python", "-m", "services.api_worker"]
+    volumes:
+      - p055-data:/app/run
+      - ../deploy/certs:/certs:ro
+    ports:
+      - "127.0.0.1:8054:8054"
+    environment:
+      P054_TLS_CERTFILE: /certs/cert.pem
+      P054_TLS_KEYFILE: /certs/key.pem
+      P054_METRICS_REQUIRE_AUTH: "0"
+    depends_on:
+      redis:
+        condition: service_healthy
+      trading:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import ssl,urllib.request; ctx=ssl._create_unverified_context(); urllib.request.urlopen('https://127.0.0.1:8054/health/live', context=ctx, timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["obs"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+
+volumes:
+  p055-data:
+  redis-data:

@@ -65,6 +65,7 @@ GATES = {
     "unit-tests": f"set MPLBACKEND=Agg&& {_PY312} -m pytest tests -q",
     "black-check": f"{_PY312} -m black --check . 2>&1",
     "mypy-check": f"{_PY312} -m mypy --explicit-package-bases --check-untyped-defs core agents filter scripts batch_backtest strategy_evaluation strategies cli.py order_strategy web factor_library tools examples live services",
+    "arch-check": "lint-imports",
 }
 
 # LLM 臂（可选）：run 子命令需要。可留空并靠环境变量 SR_* 注入

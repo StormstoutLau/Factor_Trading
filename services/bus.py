@@ -103,6 +103,23 @@ class SyncRedisBus:
         import redis
 
         self._client = redis.Redis.from_url(redis_url, decode_responses=True)
+        self._group_ready = False
+
+    def _ensure_group(self) -> None:
+        """幂等创建消费组 ``p054-relay``：XREADGROUP/XAUTOCLAIM 前置条件（Step 10 实跑修正）。
+
+        懒触发（仅 stream 路径调用）：publish-only 使用方（market/api）不产生连接副作用。
+        """
+        import redis
+
+        if self._group_ready:
+            return
+        try:
+            self._client.xgroup_create("p054:orders", "p054-relay", id="0", mkstream=True)
+        except redis.exceptions.ResponseError as exc:  # 并发重建/已存在
+            if "BUSYGROUP" not in str(exc):
+                raise
+        self._group_ready = True
 
     def publish(self, channel: str, message: dict) -> None:
         self._client.publish(channel, json.dumps(message, ensure_ascii=False))
@@ -113,11 +130,13 @@ class SyncRedisBus:
         return pubsub
 
     def stream_add(self, stream: str, fields: dict) -> str:
+        self._ensure_group()
         return str(self._client.xadd(stream, fields, maxlen=200_000, approximate=True))
 
     def stream_read(
         self, stream: str, *, consumer: str, count: int = 10, block_ms: int = 1000
     ) -> list[StreamMessage]:
+        self._ensure_group()
         rows = self._client.xreadgroup(
             "p054-relay", consumer, {stream: ">"}, count=count, block=block_ms
         )
@@ -128,13 +147,48 @@ class SyncRedisBus:
         self._client.xack("p054:orders", "p054-relay", message_id)
 
     def stream_autoclaim(self, consumer: str, *, idle_ms: int, count: int) -> list[StreamMessage]:
-        _next, rows = self._client.xautoclaim(
+        self._ensure_group()
+        result = self._client.xautoclaim(
             "p054:orders", "p054-relay", consumer, min_idle_time=idle_ms, count=count
         )
+        # Redis 7+ XAUTOCLAIM 返回 [cursor, entries, deleted] 三元素（Step 10 实跑修正：
+        # 两元素解包 → ValueError → consumer 循环重试死锁，30s 后永久冻结）
+        rows = result[1]
         return [_to_stream_message(mid, fields) for mid, fields in rows]
+
+    # ---------- adapter 形状（relay/consumer 依赖 add/read/ack/autoclaim；与 InMemoryBusAdapter 同构） ----------
+
+    def add(self, message: StreamMessage) -> str:
+        return self.stream_add(
+            "p054:orders",
+            {
+                "seq": message.seq,
+                "event_id": message.event_id,
+                "event_type": message.event_type,
+                "payload": message.payload,
+            },
+        )
+
+    def read(self, *, consumer: str, count: int = 10, block_ms: int = 1000) -> list[StreamMessage]:
+        return self.stream_read("p054:orders", consumer=consumer, count=count, block_ms=block_ms)
+
+    def ack(self, message_id: str) -> None:
+        self.stream_ack("consumer", message_id)
+
+    def autoclaim(self, *, consumer: str, idle_ms: int, count: int) -> list[StreamMessage]:
+        return self.stream_autoclaim(consumer, idle_ms=idle_ms, count=count)
+
+    def stream_pending(self, consumer: str) -> int:
+        rows = self._client.xpending_range(
+            "p054:orders", "p054-relay", min="-", max="+", count=10_000, consumername=consumer
+        )
+        return len(rows)
 
     def set_key(self, key: str, value: str, ttl: int) -> None:
         self._client.set(key, value, ex=ttl)
+
+    def delete_key(self, key: str) -> None:
+        self._client.delete(key)
 
     def get_key(self, key: str) -> str | None:
         value = self._client.get(key)

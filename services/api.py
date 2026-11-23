@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import secrets
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -73,13 +75,39 @@ def create_app(
     ticket_store=None,
     metrics: Metrics | None = None,
     publisher=None,
+    orders_hub=None,
+    market_hub=None,
+    bus=None,
+    heartbeat_reader=None,
 ) -> FastAPI:
-    app = FastAPI(title="P-054 service layer")
+    if bus is not None:
+
+        @asynccontextmanager
+        async def _lifespan(app: FastAPI):
+            from services.ws_routes import start_subscribers
+
+            tasks = start_subscribers(app)
+            try:
+                yield
+            finally:
+                for task in tasks:
+                    task.cancel()
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                await bus.close()  # AsyncRedisBus.close() 已实装（bus.py#L163-164）
+
+        app = FastAPI(title="P-054 service layer", lifespan=_lifespan)
+    else:
+        app = FastAPI(title="P-054 service layer")
     app.state.settings = settings
     app.state.store = store or _load_store(settings)
     app.state.tickets = ticket_store or InMemoryTicketStore()
     app.state.metrics = metrics or get_metrics()
     app.state.publisher = publisher
+    app.state.orders_hub = orders_hub
+    app.state.market_hub = market_hub
+    app.state.bus = bus
+    app.state.heartbeat_reader = heartbeat_reader
     app.state.limiter = AuthRateLimiter()
     keys = KeySet(
         reader_key=(
@@ -166,7 +194,10 @@ def create_app(
     def health_ready() -> Any:
         from fastapi.responses import JSONResponse
 
-        status, body = evaluate_readiness(app.state.store)
+        reader = app.state.heartbeat_reader
+        status, body = evaluate_readiness(
+            app.state.store, heartbeats=reader() if reader is not None else None
+        )
         return JSONResponse(status_code=status, content=body)
 
     @app.get("/api/snapshot", dependencies=[Depends(reader_dep)])
@@ -254,4 +285,8 @@ def create_app(
         return Response(content=app.state.metrics.render(), media_type="text/plain")
 
     app.state.paused = False
+    if orders_hub is not None and market_hub is not None and bus is not None:
+        from services.ws_routes import mount_ws
+
+        mount_ws(app)
     return app

@@ -110,3 +110,10 @@ _redundant/
 /archive/
 temp/
 tmp/
+
+# P-055 部署资产（证书/环境/基准报告）
+deploy/certs/*.pem
+.bench/
+.env.services
+.pytest_tmp/
+.import_linter_cache/
