@@ -61,4 +61,4 @@
 
 - **2026-11-23**：O-P051a-2 立项（T2，DESIGN + CHECKLIST）；E1 探针确认失效（scale=1.000000）与修复值（0.472456）；零代码变更。
 - **2026-11-23 Step 9**：3 文件落码（engine_v2 L1498 年化 Σ + risk_overlay L52 注释 + `test_enabled_scales_weights` 年化期望 / 非 clip 断言）；门禁 C1-C7 全命中；`core/sizing.py` / `core/config.py` / `config_v2.py` / golden 零 diff（N1-N4 全绿）；实测列 15/15 ✅。
-- **下一步**：PROGRESS §3.110 落账 + 提交授权（当前未提交）。
+- **2026-11-23 收口**：提交 `076551d`（6 files +198/−8，`79cb661..076551d` 已推送）+ CI run `45191907252` 四 job 全绿（lock-check 8s / arch-check 53s / test 3.11 3m20s / test 3.12 5m16s）；**批次关闭**。
