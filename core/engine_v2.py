@@ -1372,7 +1372,11 @@ class BacktestEngineV2:
                         date,
                         "rebalance",
                         category="config" if result.infeasible_kind == "lower" else "optimizer",
-                        error_type="InfeasibleConstraints",
+                        error_type=(
+                            "ZeroVariance"
+                            if result.warning_kind == "zero_vol"
+                            else "InfeasibleConstraints"
+                        ),
                         message=result.message or str(result.infeasible_kind),
                         retryable=False,
                         infeasible_kind=result.infeasible_kind,

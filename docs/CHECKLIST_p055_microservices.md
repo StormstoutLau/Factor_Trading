@@ -149,6 +149,7 @@
 - **Step 9 判据**：**83/84 ✅ + 1 项环境待验（M13 基准实跑）**；10 项门禁全部命中（1439/22/120/159·0/319/156·13·51·19/3 kept/lock/compose/结构）。
 - **Step 10 判据**：M13 实跑出四段 p50/p95/p99 + `dropped=0`/`pending_after=0`/`unsent_after=0`；DESIGN §11 读数 8-12 实机；异构复审 0 P1；提交需用户授权。
 - **Step 10 结论（2026-11-23）：84/84 ✅ 全绿**——M13 双轮实跑三零达成；读数 10/11 + O3 实机通过；实跑暴露 5 P1 全修（F-B1/B2/B3/B9 + F-B5）；门禁 **1440 passed / 0 failed / 1 skipped**（详见 [REVIEW_p055_step10_acceptance](REVIEW_p055_step10_acceptance.md)）。
+- **提交与 CI（2026-11-23）**：`8f8b912`（39 files +5832/−34）已推送；CI run `45132788783` 四 job 全绿（lock-check / test 3.11 / test 3.12 / arch-check）。
 
 ## 9. 实测读数（已回填）
 

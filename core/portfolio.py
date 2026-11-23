@@ -13,13 +13,16 @@ P-046a：约束语义修复（投影替代 clip→归一）+ 协方差单一入�
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import Mapping, Optional, Sequence
 
 import cvxpy as cp
 import numpy as np
 import pandas as pd
 from scipy import linalg, stats
+from scipy.cluster.hierarchy import leaves_list, linkage
+from scipy.spatial.distance import pdist
 from sklearn.covariance import LedoitWolf
 
 from core.config import OptimizerConfig
@@ -60,6 +63,7 @@ class OptimizationResult:
     infeasible_kind: Optional[str] = None  # None | "upper" | "empty" | "lower"
     cash_residual: float = 0.0
     message: str = ""
+    warning_kind: Optional[str] = None  # None | "zero_vol"（P-046b D15）
 
 
 @dataclass(frozen=True)
@@ -204,14 +208,17 @@ def estimate_cov(
 ) -> pd.DataFrame:
     """协方差**唯一入口**（DESIGN §5.1 选项 i）。
 
-    - ``codes`` 非空时先按列截取；
-    - NaN 行 listwise 删除；有效行 < 2 时以 0 填充（退化输入，无 NaN 输出）；
+    - ``codes`` 非空时取交集（缺失列 warning 后丢弃）；
+    - NaN 行 listwise 删除；有效行 < 2 时 warning 并以 0 填充（退化输入，无 NaN 输出）；
     - 输出对称 + PSD（``psd_fix=True``）；
     - 未知 ``method`` 抛 ``ValueError``（含合法值集）。
     """
     if method not in COV_ESTIMATORS:
         raise ValueError(f"未知协方差估计方法: {method!r}；合法值: {sorted(COV_ESTIMATORS)}")
     if codes is not None:
+        missing = [c for c in codes if c not in returns.columns]
+        if missing:
+            logger.warning("estimate_cov: codes 缺失列已丢弃: %s", missing)
         returns = returns.loc[:, [c for c in codes if c in returns.columns]]
 
     x = returns.to_numpy(dtype=float)
@@ -219,13 +226,156 @@ def estimate_cov(
         return pd.DataFrame(np.zeros((0, 0)), index=returns.columns, columns=returns.columns)
 
     valid = ~np.isnan(x).any(axis=1)
-    x_use = x[valid] if int(valid.sum()) >= 2 else np.nan_to_num(x, nan=0.0)
+    n_valid = int(valid.sum())
+    if n_valid < 2:
+        logger.warning(
+            "estimate_cov: 有效行 < 2（%d），以零填充并沿用 method=%s；结果为退化协方差",
+            n_valid,
+            method,
+        )
+        x_use = np.nan_to_num(x, nan=0.0)
+    else:
+        x_use = x[valid]
 
     cov = np.atleast_2d(COV_ESTIMATORS[method](x_use))
     cov = 0.5 * (cov + cov.T)
     if psd_fix:
         cov = _psd_project(cov)
     return pd.DataFrame(cov, index=returns.columns, columns=returns.columns)
+
+
+# ---------------------------------------------------------------------------
+# P-046b：BL / HRP 公开纯函数（DESIGN §4.3 / §5.3 / §6）
+# ---------------------------------------------------------------------------
+def _bl_prior(cov: pd.DataFrame, cfg: OptimizerConfig) -> pd.Series:
+    """BL 先验：equal（δΣw_eq）/ zero / explicit。"""
+    n = len(cov)
+    if cfg.bl.prior == "zero":
+        return pd.Series(0.0, index=cov.index)
+    if cfg.bl.prior == "explicit":
+        raw = cfg.bl.prior_returns or {}
+        extra = sorted(set(raw) - set(cov.index))
+        if extra:
+            logger.warning("BL 显式先验含未入选资产，已丢弃: %s", extra)
+        prior = pd.Series(raw, dtype=float).reindex(cov.index)
+        if prior.isna().any():
+            missing = list(prior.index[prior.isna()])
+            raise ValueError(f"BL 显式先验缺少资产: {missing}")
+        return prior
+    delta = float(cfg.risk_aversion)
+    if not math.isfinite(delta) or delta <= 0.0:
+        raise ValueError(f"BL 先验需要 risk_aversion > 0: {delta}")
+    w_eq = np.full(n, 1.0 / n)
+    return pd.Series(delta * cov.to_numpy(dtype=float) @ w_eq, index=cov.index)
+
+
+def black_litterman_posterior(
+    cov: pd.DataFrame,
+    prior: pd.Series,
+    views: Mapping[str, float],
+    *,
+    tau: float = 0.05,
+    omega: Optional[Sequence[float]] = None,
+) -> pd.Series:
+    """绝对观点 BL 后验收益（Woodbury，纯函数；DESIGN §5.3）。"""
+    if not (0.0 < tau <= 1.0):
+        raise ValueError(f"BL tau 必须在 (0,1]: {tau}")
+    sigma = cov.to_numpy(dtype=float)
+    n = len(cov)
+    if sigma.shape != (n, n):
+        raise ValueError(f"BL cov 必须为方阵: {sigma.shape}")
+    pi = prior.reindex(cov.index).to_numpy(dtype=float)
+    if not np.all(np.isfinite(pi)):
+        raise ValueError("BL prior 缺少 cov 资产或含非有限值")
+    if not views:  # K=0：不进入矩阵求解（D8）
+        return pd.Series(pi, index=cov.index)
+    unknown = sorted(set(views) - set(cov.index))
+    if unknown:
+        raise ValueError(f"BL 观点含未知资产: {unknown}")
+    positions = {a: i for i, a in enumerate(cov.index)}
+    k = len(views)
+    p = np.zeros((k, n))
+    q = np.empty(k)
+    for i, (asset, value) in enumerate(views.items()):
+        p[i, positions[asset]] = 1.0
+        q[i] = float(value)
+    if omega is None:
+        var = np.diag(p @ sigma @ p.T)
+        if np.any(~np.isfinite(var)) or np.any(var <= 0.0):
+            raise ValueError("BL 观点组合方差为零/非有限，无法构造 Ω")
+        omega_vec = tau * var
+    else:
+        omega_vec = np.asarray(omega, dtype=float)
+        if omega_vec.shape != (k,) or np.any(~np.isfinite(omega_vec)) or np.any(omega_vec <= 0.0):
+            raise ValueError("BL omega 必须为 K 个正有限数")
+    a = tau * p @ sigma @ p.T + np.diag(omega_vec)
+    post = pi + tau * sigma @ p.T @ np.linalg.solve(a, q - p @ pi)
+    if not np.all(np.isfinite(post)):
+        raise ValueError("BL 后验产生非有限值")
+    return pd.Series(post, index=cov.index)
+
+
+def correlation_distance(cov: pd.DataFrame) -> pd.DataFrame:
+    """第一级距离 d_ij = sqrt(0.5*(1-ρ_ij))（López de Prado 2016）。"""
+    sigma = cov.to_numpy(dtype=float)
+    n = len(cov)
+    if sigma.shape != (n, n):
+        raise ValueError(f"correlation_distance 需要方阵: {sigma.shape}")
+    vol = np.sqrt(np.clip(np.diag(sigma), 0.0, None))
+    denom = np.outer(vol, vol)
+    corr = np.divide(sigma, denom, out=np.zeros_like(sigma), where=denom > 0.0)
+    np.fill_diagonal(corr, 1.0)
+    corr = np.clip(corr, -1.0, 1.0)
+    dist = np.sqrt(0.5 * (1.0 - corr))
+    return pd.DataFrame(dist, index=cov.index, columns=cov.columns)
+
+
+def quasi_diagonal_order(dist: pd.DataFrame) -> list[int]:
+    """pdist(d) → linkage(single) → leaves_list；N<2 不调用 scipy（F-4-6）。"""
+    n = len(dist)
+    if n < 2:
+        return list(range(n))
+    condensed = pdist(dist.to_numpy(dtype=float), metric="euclidean")
+    z = linkage(condensed, method="single")
+    return [int(i) for i in leaves_list(z)]
+
+
+def recursive_bisection(cov: pd.DataFrame, order: Sequence[int]) -> pd.Series:
+    """保序递归二分（逆方差簇权重 + α=1−V₁/(V₁+V₂)）。"""
+    sigma = cov.to_numpy(dtype=float)
+    n = len(cov)
+    if n != len(order):
+        raise ValueError(f"order 长度 {len(order)} 与资产数 {n} 不一致")
+    ordered = sigma[np.ix_(list(order), list(order))]
+    w = np.ones(n)
+
+    def _cluster_var(idx: list[int]) -> float:
+        sub = ordered[np.ix_(idx, idx)]
+        diag = np.diag(sub)
+        inv = np.divide(1.0, diag, out=np.zeros_like(diag), where=diag > 0.0)
+        if inv.sum() <= 0.0:
+            inner = np.full(len(idx), 1.0 / len(idx))
+        else:
+            inner = inv / inv.sum()
+        v = float(inner @ sub @ inner)
+        return 0.0 if (not np.isfinite(v) or v <= 0.0) else v
+
+    def _split(lo: int, hi: int) -> None:
+        if hi - lo <= 1:
+            return
+        mid = lo + (hi - lo) // 2
+        v1 = _cluster_var(list(range(lo, mid)))
+        v2 = _cluster_var(list(range(mid, hi)))
+        alpha = 0.5 if (v1 + v2) <= 0.0 else 1.0 - v1 / (v1 + v2)
+        w[lo:mid] *= alpha
+        w[mid:hi] *= 1.0 - alpha
+        _split(lo, mid)
+        _split(mid, hi)
+
+    _split(0, n)
+    out = np.empty(n)
+    out[list(order)] = w
+    return pd.Series(out, index=cov.index)
 
 
 class BaseOptimizer:
@@ -367,6 +517,75 @@ class EqualWeightOptimizer(BaseOptimizer):
         )
 
 
+def _upper_result(cfg: OptimizerConfig, selected: pd.Index, method: str) -> OptimizationResult:
+    """U1-A 上限型唯一解：各 m + 留现金（与既有优化器消息逐字一致）。"""
+    n = len(selected)
+    weights = pd.Series(cfg.max_weight, index=selected)
+    residual = 1.0 - float(weights.sum())
+    return OptimizationResult(
+        weights,
+        method,
+        n,
+        cfg.max_weight,
+        cfg.min_weight,
+        infeasible_kind="upper",
+        cash_residual=residual,
+        message=(
+            f"约束不可行(U1-A): method={method}, n={n}, "
+            f"max_weight={cfg.max_weight}, min_weight={cfg.min_weight}, "
+            f"sum_max={n * cfg.max_weight:.12f} < 1, "
+            f"required_max_weight>=1/n={1.0 / n:.12f}, cash_residual={residual:.12f}"
+        ),
+    )
+
+
+def _solve_mean_variance(
+    expected_returns: pd.Series,
+    cov: pd.DataFrame,
+    cfg: OptimizerConfig,
+    selected: pd.Index,
+    method: str,
+    *,
+    feas: Optional[_Feasibility] = None,
+) -> OptimizationResult:
+    """可行域判定 + cvxpy MVO（MVO / BL 共用；DESIGN §4.5）。"""
+    n = len(selected)
+    if feas is None:
+        feas = _precheck(n, cfg, method)
+    if feas.kind == "empty":
+        return OptimizationResult(
+            pd.Series(dtype=float),
+            method,
+            0,
+            cfg.max_weight,
+            cfg.min_weight,
+            infeasible_kind="empty",
+            cash_residual=1.0,
+            message=f"约束不可行(U1-C): method={method}, n=0（空集）",
+        )
+    if feas.is_upper:
+        return _upper_result(cfg, selected, method)
+
+    w = cp.Variable(n)
+    portfolio_return = expected_returns.values @ w
+    portfolio_variance = cp.quad_form(w, cov.values)
+    objective = cp.Maximize(portfolio_return - cfg.risk_aversion * portfolio_variance)
+    constraints = [cp.sum(w) == 1, w >= cfg.min_weight, w <= cfg.max_weight]
+    problem = cp.Problem(objective, constraints)
+    problem.solve()
+    if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE) or w.value is None:
+        raise RuntimeError(f"均值方差优化失败: solver status={problem.status}")
+    weights = pd.Series(w.value, index=selected)
+    return OptimizationResult(
+        weights,
+        method,
+        n,
+        cfg.max_weight,
+        cfg.min_weight,
+        cash_residual=max(0.0, 1.0 - float(weights.sum())),
+    )
+
+
 class MinVarianceOptimizer(BaseOptimizer):
     """最小方差优化器"""
 
@@ -450,24 +669,7 @@ class MeanVarianceOptimizer(BaseOptimizer):
         if feas.kind == "empty":
             return self._empty_result("mean_variance")
         if feas.is_upper:
-            # 同上：单点解各 m（AC-B2-08）
-            weights = pd.Series(self.cfg.max_weight, index=selected_stocks)
-            residual = 1.0 - float(weights.sum())
-            return OptimizationResult(
-                weights,
-                "mean_variance",
-                n,
-                self.cfg.max_weight,
-                self.cfg.min_weight,
-                infeasible_kind="upper",
-                cash_residual=residual,
-                message=(
-                    f"约束不可行(U1-A): method=mean_variance, n={n}, "
-                    f"max_weight={self.cfg.max_weight}, min_weight={self.cfg.min_weight}, "
-                    f"sum_max={n * self.cfg.max_weight:.12f} < 1, "
-                    f"required_max_weight>=1/n={1.0 / n:.12f}, cash_residual={residual:.12f}"
-                ),
-            )
+            return _upper_result(self.cfg, selected_stocks, "mean_variance")
 
         # F-D-8：注入协方差优先，**不得**被 returns 重估覆盖
         if returns is not None:
@@ -475,30 +677,40 @@ class MeanVarianceOptimizer(BaseOptimizer):
         else:
             expected_returns = pd.Series(0.0, index=selected_stocks)
         cov = self._cov_for(selected_stocks, returns, cov_matrix)
+        return _solve_mean_variance(
+            expected_returns, cov, self.cfg, selected_stocks, "mean_variance", feas=feas
+        )
 
-        w = cp.Variable(n)
-        portfolio_return = expected_returns.values @ w
-        portfolio_variance = cp.quad_form(w, cov.values)
-        objective = cp.Maximize(portfolio_return - self.cfg.risk_aversion * portfolio_variance)
-        constraints = [
-            cp.sum(w) == 1,
-            w >= self.cfg.min_weight,
-            w <= self.cfg.max_weight,
-        ]
-        problem = cp.Problem(objective, constraints)
-        problem.solve()
 
-        if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE) or w.value is None:
-            raise RuntimeError(f"均值方差优化失败: solver status={problem.status}")
+class BlackLittermanOptimizer(BaseOptimizer):
+    """BL 后验 + 共享 MVO 求解（组合，不继承 MeanVarianceOptimizer）。"""
 
-        weights = pd.Series(w.value, index=selected_stocks)
-        return OptimizationResult(
-            weights,
-            "mean_variance",
-            n,
-            self.cfg.max_weight,
-            self.cfg.min_weight,
-            cash_residual=max(0.0, 1.0 - float(weights.sum())),
+    def optimize_with_diagnostics(
+        self,
+        factor_scores: pd.Series,
+        returns: Optional[pd.DataFrame] = None,
+        cov_matrix: Optional[pd.DataFrame] = None,
+    ) -> OptimizationResult:
+        if returns is None and cov_matrix is None:
+            raise ValueError("Black-Litterman 优化需要收益率数据或协方差矩阵")
+        selected = self._select(factor_scores)
+        n = len(selected)
+        feas = _precheck(n, self.cfg, "black_litterman")
+        if feas.kind == "empty":
+            return self._empty_result("black_litterman")
+        if feas.is_upper:  # upper 早退：不计算 Σ/后验（保持 lazy 语义）
+            return _upper_result(self.cfg, selected, "black_litterman")
+
+        cov = self._cov_for(selected, returns, cov_matrix)
+        prior = _bl_prior(cov, self.cfg)
+        raw = self.cfg.bl.views or {}
+        views = {k: float(v) for k, v in raw.items() if k in selected}
+        dropped = sorted(set(raw) - set(views))
+        if dropped:
+            logger.warning("BL 观点资产未入选，已丢弃: %s", dropped)
+        posterior = black_litterman_posterior(cov, prior, views, tau=self.cfg.bl.tau)
+        return _solve_mean_variance(
+            posterior, cov, self.cfg, selected, "black_litterman", feas=feas
         )
 
 
@@ -523,11 +735,13 @@ class RiskParityOptimizer(BaseOptimizer):
 
         cov = self._cov_for(selected_stocks, returns, cov_matrix)
 
+        zero_vol = False
         weights = np.ones(n) / n  # 初始等权重
         for _ in range(self.cfg.risk_parity_max_iter):
             portfolio_variance = float(weights @ cov.values @ weights)
             if not np.isfinite(portfolio_variance) or portfolio_variance <= 0.0:
                 # 零方差退化：保持等权，避免除零产生 NaN（I3）
+                zero_vol = True
                 break
             portfolio_vol = np.sqrt(portfolio_variance)
             marginal_contrib = cov.values @ weights / portfolio_vol
@@ -547,6 +761,8 @@ class RiskParityOptimizer(BaseOptimizer):
 
         weights_series = pd.Series(weights, index=selected_stocks)
         applied = self._apply_constraints(weights_series, feas)
+        message = "zero_vol" if zero_vol else ""
+        warning_kind = "zero_vol" if zero_vol else None
 
         if feas.is_upper:
             residual = 1.0 - float(applied.sum())
@@ -564,6 +780,7 @@ class RiskParityOptimizer(BaseOptimizer):
                     f"sum_max={n * self.cfg.max_weight:.12f} < 1, "
                     f"required_max_weight>=1/n={1.0 / n:.12f}, cash_residual={residual:.12f}"
                 ),
+                warning_kind=warning_kind,
             )
         return OptimizationResult(
             applied,
@@ -572,6 +789,60 @@ class RiskParityOptimizer(BaseOptimizer):
             self.cfg.max_weight,
             self.cfg.min_weight,
             cash_residual=max(0.0, 1.0 - float(applied.sum())),
+            message=message,
+            warning_kind=warning_kind,
+        )
+
+
+class HRPOptimizer(BaseOptimizer):
+    """HRP：距离 → 叶序 → 递归二分 → 既有箱体投影（后投影近似，DESIGN D12）。"""
+
+    def optimize_with_diagnostics(
+        self,
+        factor_scores: pd.Series,
+        returns: Optional[pd.DataFrame] = None,
+        cov_matrix: Optional[pd.DataFrame] = None,
+    ) -> OptimizationResult:
+        if returns is None and cov_matrix is None:
+            raise ValueError("HRP 优化需要收益率数据或协方差矩阵")
+        selected = self._select(factor_scores)
+        n = len(selected)
+        feas = _precheck(n, self.cfg, "hrp")
+        if feas.kind == "empty":
+            return self._empty_result("hrp")
+        if feas.is_upper:
+            return _upper_result(self.cfg, selected, "hrp")
+        if n > self.cfg.hrp.max_assets:
+            # 配置期守卫：ValueError 子类 → 引擎归类 config
+            raise InfeasibleConstraintError(
+                f"HRP 资产数 {n} 超过 max_assets={self.cfg.hrp.max_assets}"
+            )
+
+        cov = self._cov_for(selected, returns, cov_matrix)
+        diag = np.diag(cov.to_numpy(dtype=float))
+        valid = np.isfinite(diag) & (diag > 0.0)
+        if not valid.any():
+            # F-4-1：全零/非有限 diag → 等权特判（α 链非均权）
+            raw = pd.Series(1.0 / n, index=selected)
+            zero_vol = True
+        else:
+            sub_cov = cov.loc[selected[valid], selected[valid]]
+            dist = correlation_distance(sub_cov)
+            order = quasi_diagonal_order(dist)
+            sub_w = recursive_bisection(sub_cov, order)
+            raw = pd.Series(0.0, index=selected)
+            raw.loc[sub_w.index] = sub_w.to_numpy()
+            zero_vol = False
+        applied = self._apply_constraints(raw, feas)
+        return OptimizationResult(
+            applied,
+            "hrp",
+            n,
+            self.cfg.max_weight,
+            self.cfg.min_weight,
+            cash_residual=max(0.0, 1.0 - float(applied.sum())),
+            message="zero_vol" if zero_vol else "",
+            warning_kind="zero_vol" if zero_vol else None,
         )
 
 
@@ -622,6 +893,9 @@ def build_optimizer(config: OptimizerConfig) -> BaseOptimizer:
         "mean_variance": MeanVarianceOptimizer,  # 与 CLI / config_v2 词表对齐（P-025 D6）
         "mvo": MeanVarianceOptimizer,
         "risk_parity": RiskParityOptimizer,
+        "black_litterman": BlackLittermanOptimizer,
+        "bl": BlackLittermanOptimizer,
+        "hrp": HRPOptimizer,
     }
 
     if config.method not in optimizer_map:

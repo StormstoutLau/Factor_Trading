@@ -20,7 +20,7 @@ from core.config import (
 )
 from core.diagnostics import DayErrorCollector
 from core.engine_v2 import BacktestEngineV2
-from core.portfolio import InfeasibleConstraintError, build_optimizer
+from core.portfolio import InfeasibleConstraintError, OptimizationResult, build_optimizer
 
 DATES = pd.bdate_range("2024-01-02", periods=5)
 CODES = ["000001", "000002"]
@@ -33,7 +33,13 @@ def _fixture(root, prices: np.ndarray = RISING) -> None:
 
 
 def _make_engine(
-    root, *, optimizer: OptimizerConfig, risk_overlay=None, day_error_mode="record", event_bus=None
+    root,
+    *,
+    optimizer: OptimizerConfig,
+    risk_overlay=None,
+    day_error_mode="record",
+    event_bus=None,
+    optimizer_instance=None,
 ):
     cfg = BacktestConfig(
         data_dir=root,
@@ -62,7 +68,7 @@ def _make_engine(
         day_error_mode=day_error_mode,
         risk_overlay=risk_overlay,
     )
-    engine = BacktestEngineV2(cfg, event_bus=event_bus)
+    engine = BacktestEngineV2(cfg, optimizer=optimizer_instance, event_bus=event_bus)
     engine.setup()
     return engine
 
@@ -202,3 +208,31 @@ def test_p026_record_compat():
     assert sample["detail"] is None
     for key in ("date", "stage", "category", "error_type", "message", "retryable"):
         assert key in sample
+
+
+def test_zero_vol_records_zero_variance(tmp_path):
+    """P-046b F-S10-P046-1：warning_kind="zero_vol" → 诊断 error_type="ZeroVariance"。"""
+    root = tmp_path / "zerovol"
+    root.mkdir()
+    _fixture(root)
+
+    class _FakeZeroVol:
+        cfg = OptimizerConfig(method="equal_weight", target_count=2, max_weight=1.0)
+
+        def optimize_with_diagnostics(self, factor_scores, returns=None, cov_matrix=None):
+            weights = pd.Series(0.5, index=factor_scores.index[:2])
+            return OptimizationResult(
+                weights, "fake", 2, 1.0, 0.0, message="zero_vol", warning_kind="zero_vol"
+            )
+
+    engine = _make_engine(
+        root,
+        optimizer=OptimizerConfig(method="equal_weight", target_count=2, max_weight=1.0),
+        optimizer_instance=_FakeZeroVol(),
+    )
+    engine.run()
+    summary = engine._diagnostics.summary()
+    samples = [s for s in summary["samples"] if s["stage"] == "rebalance"]
+    assert samples
+    assert all(s["error_type"] == "ZeroVariance" for s in samples)
+    assert all(s["category"] == "optimizer" for s in samples)

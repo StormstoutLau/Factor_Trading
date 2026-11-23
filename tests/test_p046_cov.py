@@ -6,6 +6,8 @@ RESEARCH §14 E1b/E2（LW 2004 Eq.(5)/(14)）与 §12 Step 6 版本核验表。
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -98,3 +100,26 @@ def test_near_singular_cov_solver_bounds():
     assert np.isfinite(values).all()
     assert float(values.sum()) == pytest.approx(1.0, abs=1e-9)
     assert float(values.max()) <= 0.9 + 1e-9
+
+
+# ---------------------------------------------------------------------------
+# P-046b：estimate_cov 诊断语义（F-S10-P046-2/3）
+# ---------------------------------------------------------------------------
+def test_estimate_cov_degenerate_warns(caplog):
+    """有效行 < 2 → warning；输出仍无 NaN（数值语义不变）。"""
+    rets = _returns(n_obs=4, n=3, seed=31)
+    rets.iloc[[0, 1, 2], 0] = np.nan  # 仅剩 1 个有效行 → 退化
+    with caplog.at_level(logging.WARNING):
+        got = estimate_cov(rets, method="sample")
+    assert "有效行 < 2" in caplog.text
+    assert not np.isnan(got.to_numpy()).any()
+
+
+def test_estimate_cov_codes_missing_warns(caplog):
+    """codes 缺失列 warning 后丢弃（交集），不再静默。"""
+    rets = _returns(seed=37)
+    with caplog.at_level(logging.WARNING):
+        got = estimate_cov(rets, method="sample", codes=["S0", "NOPE"])
+    assert "缺失列已丢弃" in caplog.text
+    assert list(got.columns) == ["S0"]
+    assert list(got.index) == ["S0"]

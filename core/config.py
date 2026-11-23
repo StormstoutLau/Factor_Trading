@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -269,6 +270,45 @@ class FactorConfig:
 
 
 @dataclass
+class BLConfig:
+    """Black-Litterman 方法级配置（仅 method 为 BL 时读取）。"""
+
+    prior: str = "equal"  # "equal" | "zero" | "explicit"
+    prior_returns: dict[str, float] | None = None  # prior="explicit" 时必填
+    views: dict[str, float] | None = None  # 绝对观点 {asset: 期望收益}
+    tau: float = 0.05  # (0, 1]
+
+    def __post_init__(self) -> None:
+        if self.prior not in {"equal", "zero", "explicit"}:
+            raise ValueError(f"BLConfig.prior 非法: {self.prior!r}")
+        if not (0.0 < self.tau <= 1.0):
+            raise ValueError(f"BLConfig.tau 必须在 (0,1]: {self.tau}")
+        if self.prior == "explicit" and not self.prior_returns:
+            raise ValueError("BLConfig.prior='explicit' 时必须提供 prior_returns")
+        for name, mapping in (("prior_returns", self.prior_returns), ("views", self.views)):
+            if mapping is None:
+                continue
+            if not all(isinstance(k, str) for k in mapping):
+                raise ValueError(f"BLConfig.{name} 的键必须为资产代码字符串")
+            if not all(math.isfinite(float(v)) for v in mapping.values()):
+                raise ValueError(f"BLConfig.{name} 的值必须为有限数")
+
+
+@dataclass
+class HRPConfig:
+    """HRP 方法级配置（仅 method 为 hrp 时读取）。"""
+
+    linkage: str = "single"  # P-046b 仅支持 single
+    max_assets: int = 2000  # 距离矩阵守卫
+
+    def __post_init__(self) -> None:
+        if self.linkage != "single":
+            raise ValueError(f"HRPConfig.linkage P-046b 仅支持 'single': {self.linkage!r}")
+        if self.max_assets < 1:
+            raise ValueError(f"HRPConfig.max_assets 必须 >= 1: {self.max_assets}")
+
+
+@dataclass
 class OptimizerConfig:
     """组合优化器配置
 
@@ -298,6 +338,10 @@ class OptimizerConfig:
     cov_method: str = "ledoit_wolf"  # 协方差估计方法
     cov_lookback: int = 60  # 协方差估计回看期
     cov_shrinkage: float = 0.1  # 已废弃（P-046a：LW 由 sklearn 内部估计，零消费）
+
+    # BL / HRP 方法级配置（P-046b）
+    bl: BLConfig = field(default_factory=BLConfig)
+    hrp: HRPConfig = field(default_factory=HRPConfig)
 
     def __post_init__(self) -> None:
         """静态配置校验（U1-D）；运行时不可行由 ``_precheck`` 负责（U1-B）。"""
