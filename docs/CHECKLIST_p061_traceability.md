@@ -3,7 +3,7 @@
 > **批次**：**P-061**（B1 报告 / B2 采集 / B3 视图，三批同属本批次）
 > **上游**：[DESIGN_p061](DESIGN_p061_observability_traceability.md)（§15 DoD / §12 G1-G14 / §13 I1-I12 / §11 37 例 / §18-§19 修订）· [IMPL_p061](IMPL_p061_traceability.md)（§4 卡片 / §5 S5-1..S5-5 / §9 修订）· [REVIEW_p061_step2](REVIEW_p061_step2.md) · [REVIEW_p061_step4](REVIEW_p061_step4.md) · [REVIEW_p061_step6](REVIEW_p061_step6.md) · [RESEARCH_p061](RESEARCH_p061_observability_traceability.md)
 > **作者**：DeepSeek-V4.1-Flash（Step 6/8/9/10 由非作者执行，异构成立，RULE-5）
-> **状态**：**批次关闭（2026-11-24，F3 回填）**；**64/64 ✅**（F2 push 分支待用户指示，CI run id 未回填）；F1 三批 commit `7bf6b38`（B2）/ `64552d6`（B1）/ `cc36422`（B3）+ docs 关闭；Step 10 验收 PASS-WITH-COMMENTS（§12）
+> **状态**：**批次关闭并推送（2026-11-24，CI run 45412361688 四 job 全绿）**；**64/64 ✅**；F1 三批 commit `7bf6b38`（B2）/ `64552d6`（B1）/ `cc36422`（B3）+ docs 关闭 `05f627b`；Step 10 验收 PASS-WITH-COMMENTS（§12）
 > **实测列规则（RULE-1）**：仅允许 `✅ + 证据` / `❌ + 证据` / `[待 Step 9]` / `[待 Step 10]`；**禁止预填**
 > **行号口径**：本文件引用行号 @`4367775`（P-060a 关闭基线，工作区干净）
 
@@ -106,7 +106,7 @@
 | ID | 验收项 | DoR | 证据出口 | 实测 |
 |----|--------|-----|----------|------|
 | F1 | 提交原子：**6 新增 + 8 修改** = `core/trace.py`、`scripts/trace_report.py`、4 测试文件（新增）+ `core/config.py`、`core/engine_v2.py`、`cli.py`（B2 修改）+ `web/streamlit_app/pages/01..05` 五处标注（B3 修改，F-S8-P061-2）；**须用户明确授权后才可 commit**；B1/B2/B3 各自独立 commit | E1-E14 + 用户授权 | `git show --stat` | ✅ 用户授权（2026-11-24）后按依赖序三批独立 commit：`7bf6b38`（B2 采集+seam）/ `64552d6`（B1 报告）/ `cc36422`（B3 视图+e2e）；每批前 black + 子集验证（25 / 8 / 4 passed） |
-| F2 | CI：本批**不改 workflows**；若用户指示 push，CI 四 job 全绿后回填 run id | F1 | `gh run view` | ✅ 本批未改 workflows（git diff 零命中）；push 分支待用户指示，CI run id 未回填（沿 P-060a 先例，push 后另起 docs commit 回填） |
+| F2 | CI：本批**不改 workflows**；若用户指示 push，CI 四 job 全绿后回填 run id | F1 | `gh run view` | ✅ push `4367775..05f627b`；CI run **45412361688** 四 job 全绿（arch-check 51s / test 3.11 4m7s / lock-check 8s / test 3.12 5m7s） |
 | F3 | 文档回填：本文件 **64** 项实测列；PROGRESS §3.112 Step 7-10 条目；IMPL §5 门禁表；CHANGELOG 按仓库惯例判定 | F2 | 读回 | ✅ 本文件 64/64；PROGRESS §3.112 Step 7-10 + F1/F3 已登记；CHANGELOG [Unreleased] ### Added 增 P-061 条目；IMPL §5 门禁表与 §11 记录同源（Step 9 读数已落） |
 
 ---
@@ -204,4 +204,4 @@
 **DoD §15 六条**：全部 ✅（G1-G14 读数留档 / 37 例计数一致 / T-B01 sha256 / T-D01 residual 0 + 五问 / trace.py 94.53% + 四包不低 0.5pp / diff 面仅三文件 + web 5×+1）。
 **发现**：**F-S10-P061-1（P3）**——T-B14 注释声称 run 末终扫，实际走日末差分；终扫 PENDING→dropped 分支无直接断言 → T-A04 追加终扫断言 + T-B14 docstring 修正，复跑 37 绿、black 336。
 **判定**：**PASS-WITH-COMMENTS（1×P3 当轮闭合）**；技术工作完成。
-**F 组状态（F3 回填后，2026-11-24）**：F1 ✅ 用户已授权，三批 commit `7bf6b38` / `64552d6` / `cc36422` + docs 关闭；F2 ✅ 未改 workflows，push 分支待用户指示；F3 ✅ 本文件 64/64。
+**F 组状态（F3 回填后，2026-11-24）**：F1 ✅ 用户已授权，三批 commit `7bf6b38` / `64552d6` / `cc36422` + docs 关闭 `05f627b`；F2 ✅ push + CI run **45412361688** 四 job 全绿；F3 ✅ 本文件 64/64。
