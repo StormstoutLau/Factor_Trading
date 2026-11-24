@@ -12,6 +12,7 @@ import numpy as np
 
 
 def render() -> None:
+    st.caption("演示数据（demo），真实追溯请用 trace.html")
     st.markdown('<div class="section-header">🛡️ Risk Monitor</div>', unsafe_allow_html=True)
 
     # ── Overall Risk Score ────────────────────────────────────────────────────

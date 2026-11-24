@@ -13,6 +13,7 @@ from datetime import datetime
 
 
 def render() -> None:
+    st.caption("演示数据（demo），真实追溯请用 trace.html")
     st.markdown('<div class="section-header">📋 System Overview</div>', unsafe_allow_html=True)
 
     # ── Top Metrics Row ──────────────────────────────────────────────────────

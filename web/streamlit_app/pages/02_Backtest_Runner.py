@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 def render() -> None:
+    st.caption("演示数据（demo），真实追溯请用 trace.html")
     st.markdown('<div class="section-header">🚀 Backtest Runner</div>', unsafe_allow_html=True)
 
     # ── Configuration Form ────────────────────────────────────────────────────
