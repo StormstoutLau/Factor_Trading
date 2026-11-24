@@ -108,7 +108,7 @@
 | ID | 验收项（DoD） | DoR | 证据出口 | 实测 |
 |----|---------------|-----|----------|------|
 | F1 | 提交原子：**12 文件** = 测试 **5**（`tests/test_p060a_*.py`）+ 新增文档 **6**（RESEARCH / DESIGN / REVIEW_step2 / REVIEW_step4 / IMPL / 本文件）+ 已跟踪文档 **1**（PROGRESS）；**须用户明确授权后才可 commit**（DD8 本批无缺陷 commit） | E1-E12 通过 + 用户授权 | `git show --stat` | ✅ commit **`4bb9eaa`**：**12 files changed, +2645**（11 create + 1 modify），清单与 DoD 逐项一致；用户明确授权（2026-11-24「执行 Step 10 终审与提交」） |
-| F2 | CI：DD7 **本批不改 workflows**；若 push，则四 job（lock-check / 3.10 / 3.11 / 3.12）全绿后回填 run id | F1 | `gh run view` | ✅ `.github/workflows/tests.yml` **零 diff**（DD7 达成）；本批仅本地 commit 未 push，CI 触发与 run 回填随 push 指令顺延 |
+| F2 | CI：DD7 **本批不改 workflows**；若 push，则 CI job 全绿后回填 run id | F1 | `gh run view` | ✅ push `b1afe29..fdd3adf` → run **45325309685** 四 job 全绿：lock-check **13s** / test 3.11 **4m17s** / test 3.12 **4m54s** / arch-check **49s**；workflows **零 diff**（DD7 达成）。注：本表预写 job 清单（3.10/3.11/3.12/lock-check）沿自 P-059 时代，实际 workflows 为 **3.11/3.12/arch-check/lock-check**（F-S10-P060a-1 登记，P3 笔误） |
 | F3 | 文档回填：本文件 **62** 项实测列；PROGRESS Step 7-10 条目；IMPL §5 S5-6 读数在位；CHANGELOG 是否需条目按仓库惯例判定 | F2 | 读回 | ✅ 读回：62 项实测列全 ✅（本步回填）；PROGRESS §3.111 Step 5-10 条目在位；IMPL §5 S5-6 门禁表在位；CHANGELOG 按 P-059 惯例需 P-060a Added 条目，随 P-060b/c 收口时统一补（三批一个 release note） |
 
 ---
@@ -199,6 +199,8 @@
 > 终审者与作者异构成立（RULE-5）；**U-P060 终审异构于此闭合**。
 
 **D8 提交**（用户明确授权「执行 Step 10 终审与提交」后执行）：commit **`4bb9eaa`** `feat(P-060a): 模块级单元验证第一批（core 54 例 + G1-G10 门禁全绿 + covA 四包 88.07%）`，**12 files changed, +2645**（11 create mode + 1 modify：PROGRESS），清单与 F1 DoD 逐项一致（提交前 `git status --porcelain` 核对 1 M + 11 ??）；HEAD 基线 `b1afe29` 未漂移。
+
+**Push 与 CI**（用户指示「推送触发 CI」后执行）：push **`b1afe29..fdd3adf`** → run **45325309685** 四 job 全绿（lock-check 13s / test 3.11 4m17s / test 3.12 4m54s / arch-check 49s）。发现 **F-S10-P060a-1（P3 笔误）**：F2 预写 job 清单沿自 P-059 时代（含 3.10），与实际 workflows（3.11/3.12/arch-check/lock-check）不符，已在 F2 实测列订正。
 
 **D9 关闭回填**：本文件 F1/F2/F3 ✅ + §10/§11 + §8 预填检查表；PROGRESS Step 10 条目；关闭提交 `docs(P-060a)`。
 
