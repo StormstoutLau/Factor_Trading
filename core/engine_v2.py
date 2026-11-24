@@ -26,6 +26,7 @@ from core.invariants import InvariantViolationError, check_all
 from core.manifest import build_manifest, write_manifest
 from core.metrics import METRICS_METHOD
 from core.sizing import apply_sizing, estimate_buy_cash
+from core.trace import TraceCollector, TraceConfig, classify_reject
 from core.execution_policy import (
     ExecutionPolicy,
     SignalTranslator,
@@ -160,6 +161,7 @@ class BacktestEngineV2:
         execution_policy: Optional[ExecutionPolicy] = None,
         risk_manager: Optional[MarkToMarketPolicy] = None,
         event_bus: Optional[IEventBus] = None,
+        trace_collector: Optional[TraceCollector] = None,
     ):
         """初始化回测引擎
 
@@ -177,6 +179,7 @@ class BacktestEngineV2:
             execution_policy: 执行策略（可选，默认None使用旧路径）
             risk_manager: 风险管理器（可选，默认None不启用）
             event_bus: 事件总线（可选，默认None=关闭；优先于 cfg.event_log_path）
+            trace_collector: 追溯采集器（可选，默认None=按 cfg.audit_trace_dir 决定）
         """
         self.cfg = config
 
@@ -191,6 +194,7 @@ class BacktestEngineV2:
         self._injected_tracker = tracker
         self._injected_pending_queue = pending_queue
         self._injected_event_bus = event_bus
+        self._injected_trace = trace_collector
 
         # 新增抽象层 (P0 集成)
         self._execution_policy: Optional[ExecutionPolicy] = execution_policy
@@ -222,6 +226,9 @@ class BacktestEngineV2:
         self.pending_queue: Optional[IPendingOrderQueue] = None
         self._event_bus: Optional[IEventBus] = None
         self._event_bus_errors: int = 0
+
+        # 全周期追溯（P-061）：默认关闭零 I/O；注入优先于 cfg.audit_trace_dir
+        self._trace: Optional[TraceCollector] = None
 
         # 预计算数据
         self._composite_signal: Optional[pd.DataFrame] = None
@@ -416,6 +423,21 @@ class BacktestEngineV2:
         else:
             self._event_bus = None
 
+        # 15. 全周期追溯（P-061）：注入优先；否则按 cfg.audit_trace_dir 决定（None=关闭）
+        if self._injected_trace is not None:
+            self._trace = self._injected_trace
+            if self.cfg.audit_trace_dir is not None:
+                logger.info(
+                    "已注入追溯采集器，忽略 cfg.audit_trace_dir=%s", self.cfg.audit_trace_dir
+                )
+        elif self.cfg.audit_trace_dir is not None:
+            self._trace = TraceCollector(
+                TraceConfig(self.cfg.audit_trace_dir, self.cfg.audit_trace_full)
+            )
+            logger.info("全周期追溯已启用: %s", self.cfg.audit_trace_dir)
+        else:
+            self._trace = None
+
         elapsed = time.perf_counter() - t0
         logger.info(f"回测引擎V2设置完成，耗时: {elapsed:.2f}秒")
 
@@ -465,6 +487,38 @@ class BacktestEngineV2:
                 roll_target=getattr(info, "roll_target", None),
             )
         return specs
+
+    def _trace_suspended(self, date: pd.Timestamp, stock: str) -> bool:
+        """读取停牌标记（只读；数据缺失视为非停牌）。"""
+        suspend = getattr(self.dm, "suspend", None)
+        if suspend is None or date not in suspend.index or stock not in suspend.columns:
+            return False
+        value = suspend.loc[date, stock]
+        return bool(pd.notna(value) and int(value) == 1)
+
+    def _trace_is_st(self, date: pd.Timestamp, stock: str) -> bool:
+        """读取 ST 标记（只读；数据缺失视为非 ST）。"""
+        st_table = getattr(self.dm, "st", None)
+        if st_table is None or date not in st_table.index or stock not in st_table.columns:
+            return False
+        value = st_table.loc[date, stock]
+        return bool(pd.notna(value) and int(value) == 1)
+
+    def _trace_reject(self, order: Any, date: pd.Timestamp, **checks: bool) -> str:
+        """构造 ``classify_reject`` 入参（只读；词表由 core.trace 单点维护）。"""
+        params: dict[str, bool | str] = {
+            "side": order.side.name,
+            "buyable": True,
+            "sellable": True,
+            "suspended": self._trace_suspended(date, str(order.stock)),
+            "is_st": self._trace_is_st(date, str(order.stock)),
+            "exclude_st": bool(self.cfg.universe.exclude_st),
+            "has_price": True,
+            "cash_short": False,
+            "has_position": True,
+        }
+        params.update(checks)
+        return classify_reject(**params)  # type: ignore[arg-type]
 
     def _avail_cash(self) -> float:
         """可用资金探测（期货 = 已扣保证金；股票与 get_cash 等价）。"""
@@ -524,6 +578,8 @@ class BacktestEngineV2:
         if quantity <= 0:
             return
         order = create_pending_order(stock, side, quantity, date)
+        if self._trace is not None:
+            self._trace.on_order_created(order)
         entries = getattr(self, "_next_day_orders", None)
         if entries is None:
             self._next_day_orders: list[dict[str, Any]] = []
@@ -728,6 +784,21 @@ class BacktestEngineV2:
             )
             self._layer_dumper.finalize(trades_df)
 
+        # 全周期追溯落盘（关闭时零 I/O；终扫含 run 末已过期订单，F-10）
+        if self._trace is not None:
+            trace_trades = (
+                self.executor.trade_log.get_trades_df() if self.executor is not None else None
+            )
+            remaining: list[Any] = []
+            if self.pending_queue is not None:
+                remaining.extend(self.pending_queue.get_pending_orders())
+            for item in getattr(self, "_next_day_orders", None) or []:
+                remaining.append(item["order"] if isinstance(item, dict) else item)
+            try:
+                self._trace.finalize(trace_trades, remaining)
+            except OSError as exc:
+                logger.warning("trace 写入失败（不影响回测结果）: %s", exc)
+
         elapsed = time.perf_counter() - t0
         self._emit(
             EventType.RUN_FINISHED,
@@ -787,6 +858,10 @@ class BacktestEngineV2:
             portfolio_value=tracker.get_total_value(),
         )
 
+        # S1：每日触发判定（非触发日也记录，F-14；只读追加）
+        if self._trace is not None:
+            self._trace.on_trigger(date, trigger, should_rebalance)
+
         if should_rebalance:
             logger.info(f"触发再平衡: {date}")
             self._execute_rebalance(date, date_index)
@@ -806,6 +881,25 @@ class BacktestEngineV2:
                 "total_value": float(tracker.get_total_value()),
             },
         )
+
+        # S7：日末快照 + 活跃订单差分（只读追加；DD11）
+        if self._trace is not None:
+            active: list[Any] = []
+            if self.pending_queue is not None:
+                active.extend(self.pending_queue.get_pending_orders())
+            for item in getattr(self, "_next_day_orders", None) or []:
+                active.append(item["order"] if isinstance(item, dict) else item)
+            trace_positions = {
+                str(stock): (int(position.quantity), float(position.market_value))
+                for stock, position in tracker.get_all_positions().items()
+            }
+            self._trace.on_day_end(
+                date,
+                active,
+                trace_positions,
+                float(tracker.get_cash()),
+                float(tracker.get_total_value()),
+            )
 
         # 主动盯市 (risk_manager)
         if self._risk_manager is not None:
@@ -858,8 +952,20 @@ class BacktestEngineV2:
 
     def _refresh_last_nav(self, date: pd.Timestamp) -> None:
         """末日期强平后刷新 L6 终值（默认关闭 → 零 I/O）。"""
-        dumper = self._layer_dumper
         tracker = self.tracker
+        # S8：末日 trace_day 末行覆写（须在 dumper 早退之前，默认 dump 关闭时仍生效）
+        if self._trace is not None and tracker is not None:
+            trace_positions = {
+                str(stock): (int(position.quantity), float(position.market_value))
+                for stock, position in tracker.get_all_positions().items()
+            }
+            self._trace.overwrite_last_day(
+                date,
+                trace_positions,
+                float(tracker.get_cash()),
+                float(tracker.get_total_value()),
+            )
+        dumper = self._layer_dumper
         if not dumper.enabled or tracker is None:
             return
         cash = float(tracker.get_cash())
@@ -951,6 +1057,14 @@ class BacktestEngineV2:
             if success and trade:
                 tracker.execute_trade(trade)
                 liquidated_count += 1
+                if self._trace is not None:
+                    reason = (
+                        "final_liquidation"
+                        if stocks is None
+                        else stocks.get(stock, "final_liquidation")
+                    )
+                    self._trace.on_close(date, stock, reason)
+                    self._trace.on_fill(trade, None, direct=True)
                 logger.info(f"强制平仓: {stock} {position.quantity}股 @ {float(price):.2f}")
 
         if update_market_values and close_prices is not None:
@@ -1169,10 +1283,18 @@ class BacktestEngineV2:
         for order in pending_orders:
             if order.side in (OrderSide.BUY, OrderSide.BUY_TO_COVER):
                 if not buyable_mask.get(order.stock, False):
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, buyable=False)
+                        )
                     skipped_suspended.append(order.stock)
                     continue
             else:
                 if not sellable_mask.get(order.stock, False):
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, sellable=False)
+                        )
                     skipped_suspended.append(order.stock)
                     continue
 
@@ -1181,6 +1303,10 @@ class BacktestEngineV2:
                 held = tracker.get_position(order.stock)
                 available = abs(int(held.quantity)) if held is not None else 0
                 if available <= 0:
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, has_position=False)
+                        )
                     self.pending_queue.cancel_order(order, date)
                     logger.info(f"平空订单已无持仓，已作废: {order.stock}")
                     continue
@@ -1190,11 +1316,19 @@ class BacktestEngineV2:
             qty = self._clamp_sell_quantity(order)
             if qty <= 0:
                 # 无可卖持仓：作废订单，避免负持仓（P-014 D2/D6）
+                if self._trace is not None:
+                    self._trace.on_order_rejected(
+                        order, self._trace_reject(order, date, has_position=False)
+                    )
                 self.pending_queue.cancel_order(order, date)
                 logger.warning(f"卖出订单无可卖持仓，已作废: {order.stock} {order.quantity}股")
                 continue
 
             if order.stock not in open_prices:
+                if self._trace is not None:
+                    self._trace.on_order_rejected(
+                        order, self._trace_reject(order, date, has_price=False)
+                    )
                 skipped_price.append(order.stock)
                 continue
 
@@ -1207,6 +1341,10 @@ class BacktestEngineV2:
 
             # P-033 D2：开盘价有效性过滤（与 next-day 路径同口径）
             if not is_valid_price(open_price):
+                if self._trace is not None:
+                    self._trace.on_order_rejected(
+                        order, self._trace_reject(order, date, has_price=False)
+                    )
                 skipped_price.append(order.stock)
                 continue
 
@@ -1219,6 +1357,10 @@ class BacktestEngineV2:
                     slippage_pct=self.cfg.cost.slippage_pct,
                 )
                 if self._avail_cash() < required_cash:
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, cash_short=True)
+                        )
                     logger.warning(
                         f"BUY 现金不足，整单跳过（保留队列）: {order.stock} "
                         f"qty={qty} 需要={required_cash:.2f} 可用={self._avail_cash():.2f}"
@@ -1237,6 +1379,8 @@ class BacktestEngineV2:
             if success and trade:
                 tracker.execute_trade(trade)
                 self.pending_queue.mark_executed(order, date, trade.price)
+                if self._trace is not None:
+                    self._trace.on_fill(trade, order)
                 executed_orders.append(order)
                 logger.debug(f"待执行订单执行成功: {order.stock} {order.side.name}")
             else:
@@ -1298,6 +1442,8 @@ class BacktestEngineV2:
                 fallback_stock, OrderSide.BUY, original_order.quantity, date
             )
             fallback_order.fallback_stock = original_order.stock
+            if self._trace is not None:
+                self._trace.on_order_created(fallback_order)
 
             success, trade = executor.execute_pending_order(fallback_order, date, open_price)
 
@@ -1305,6 +1451,12 @@ class BacktestEngineV2:
                 tracker.execute_trade(trade)
                 self.pending_queue.mark_executed(original_order, date, trade.price)
                 original_order.fallback_stock = fallback_stock
+                if self._trace is not None:
+                    self._trace.on_fill(
+                        trade,
+                        fallback_order,
+                        replaces_order_ref=self._trace.order_ref(original_order),
+                    )
 
                 logger.info(f"备选订单执行成功: {fallback_stock} 替代 {original_order.stock}")
                 return True
@@ -1569,6 +1721,51 @@ class BacktestEngineV2:
             for stock, target in targets.items()
             if target.target_quantity > 0 or target.target_quantity < 0
         }
+        # S2：目标持仓行（full=True 追加全 universe 的 signal/掩码行）
+        if self._trace is not None:
+            tradable_mask = universe.tradable.loc[date]
+            buyable_mask = universe.buyable.loc[date]
+            sellable_mask = universe.sellable.loc[date]
+            trace_rows: list[dict[str, Any]] = []
+
+            def _signal_of(stock: str) -> Any:
+                value = daily_signal.get(stock)
+                if value is None or pd.isna(value):
+                    return None
+                return float(value)
+
+            for stock, target in targets.items():
+                trace_rows.append(
+                    {
+                        "stock": stock,
+                        "signal": _signal_of(stock),
+                        "target_weight": float(target.weight),
+                        "target_qty": int(target.target_quantity),
+                        "current_qty": int(target.current_quantity),
+                        "is_exit": bool(target.is_exit),
+                        "tradable": bool(tradable_mask.get(stock, False)),
+                        "buyable": bool(buyable_mask.get(stock, False)),
+                        "sellable": bool(sellable_mask.get(stock, False)),
+                    }
+                )
+            if self._trace.config.full:
+                for stock in daily_signal.index:
+                    if stock in targets:
+                        continue
+                    trace_rows.append(
+                        {
+                            "stock": str(stock),
+                            "signal": _signal_of(str(stock)),
+                            "target_weight": 0.0,
+                            "target_qty": 0,
+                            "current_qty": int(current_positions.get(str(stock), 0)),
+                            "is_exit": False,
+                            "tradable": bool(tradable_mask.get(stock, False)),
+                            "buyable": bool(buyable_mask.get(stock, False)),
+                            "sellable": bool(sellable_mask.get(stock, False)),
+                        }
+                    )
+            self._trace.on_targets(date, trace_rows)
         self._emit(
             EventType.REBALANCE,
             {
@@ -1653,6 +1850,8 @@ class BacktestEngineV2:
 
         # 3. 订单入队/执行
         for order in all_orders:
+            if self._trace is not None:
+                self._trace.on_order_created(order)
             if self.pending_queue:
                 self.pending_queue.add_order(order)
             else:
@@ -1684,6 +1883,8 @@ class BacktestEngineV2:
                 if qty <= 0:
                     continue
                 order = create_pending_order(target.stock, OrderSide[side_name], int(qty), date)
+                if self._trace is not None:
+                    self._trace.on_order_created(order)
                 if side_name in ("SELL", "BUY_TO_COVER"):
                     exits.append(order)
                 else:
@@ -1748,6 +1949,10 @@ class BacktestEngineV2:
                 held = tracker.get_position(order.stock)
                 available = abs(int(held.quantity)) if held is not None else 0
                 if available <= 0:
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, has_position=False)
+                        )
                     logger.info(f"{kind or 'close'} 订单已无持仓，自然失效: {order.stock}")
                     continue
                 if order.quantity > available:
@@ -1755,20 +1960,36 @@ class BacktestEngineV2:
 
             if order.side in (OrderSide.BUY, OrderSide.BUY_TO_COVER):
                 if buyable_mask is not None and not buyable_mask.get(order.stock, True):
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, buyable=False)
+                        )
                     failed_orders.append(order_info)
                     continue
             else:
                 if sellable_mask is not None and not sellable_mask.get(order.stock, True):
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, sellable=False)
+                        )
                     failed_orders.append(order_info)
                     continue
 
             if order.stock not in open_prices:
+                if self._trace is not None:
+                    self._trace.on_order_rejected(
+                        order, self._trace_reject(order, date, has_price=False)
+                    )
                 failed_orders.append(order_info)
                 continue
 
             open_price = open_prices[order.stock]
 
             if open_price is None or pd.isna(open_price) or open_price <= 0:
+                if self._trace is not None:
+                    self._trace.on_order_rejected(
+                        order, self._trace_reject(order, date, has_price=False)
+                    )
                 failed_orders.append(order_info)
                 continue
 
@@ -1782,12 +2003,20 @@ class BacktestEngineV2:
                     slippage_pct=self.cfg.cost.slippage_pct,
                 )
                 if self._avail_cash() < required_cash:
+                    if self._trace is not None:
+                        self._trace.on_order_rejected(
+                            order, self._trace_reject(order, date, cash_short=True)
+                        )
                     failed_orders.append(order_info)
                     continue
 
             qty = self._clamp_sell_quantity(order)
             if qty <= 0:
                 # 无可卖持仓：丢弃该订单，避免负持仓（P-014 D2/D6）
+                if self._trace is not None:
+                    self._trace.on_order_rejected(
+                        order, self._trace_reject(order, date, has_position=False)
+                    )
                 logger.warning(f"卖出订单无可卖持仓，已丢弃: {order.stock} {order.quantity}股")
                 continue
 
@@ -1801,6 +2030,8 @@ class BacktestEngineV2:
             if success and trade:
                 tracker.execute_trade(trade)
                 executed_count += 1
+                if self._trace is not None:
+                    self._trace.on_fill(trade, order)
             else:
                 failed_orders.append(order_info)
 

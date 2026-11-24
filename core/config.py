@@ -453,6 +453,8 @@ class BacktestConfig:
     data_dir: Path = field(default_factory=lambda: Path("./data"))
     output_dir: Path = field(default_factory=lambda: Path("./output"))
     dump_layers_dir: Path | None = None  # 六层归因 dump 目录；None=关闭（零 I/O）
+    audit_trace_dir: Path | None = None  # 全周期审计追溯目录（P-061）；None=关闭（零 I/O）
+    audit_trace_full: bool = False  # True=全 universe 行（研究用；默认仅「有动作」行）
     event_log_path: Path | None = None  # 事件总线输出路径（P-043）；None=关闭（零 I/O）
     invariant_mode: Literal["off", "report", "raise"] = "report"  # 不变量校验（P-011 D2）
     day_error_mode: Literal["off", "report", "raise"] = "report"  # 日级异常策略（P-025 D1）

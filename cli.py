@@ -69,6 +69,8 @@ def cmd_run(args: argparse.Namespace) -> None:
             start_date=args.start_date,
             end_date=args.end_date,
             dump_layers_dir=Path(args.trace_dir) if args.trace_dir else None,
+            audit_trace_dir=Path(args.audit_trace_dir) if args.audit_trace_dir else None,
+            audit_trace_full=bool(args.audit_trace_full),
         )
 
         print(f"\n  Data Dir:    {data_dir}")
@@ -316,6 +318,12 @@ Examples:
     run_parser.add_argument("--output", help="Save results to CSV")
     run_parser.add_argument(
         "--trace-dir", help="输出六层逐日快照目录（默认关闭；含 manifest.json）"
+    )
+    run_parser.add_argument(
+        "--audit-trace-dir", help="输出全周期审计追溯目录（P-061；trace_*.csv + alignment.json）"
+    )
+    run_parser.add_argument(
+        "--audit-trace-full", action="store_true", help="审计追溯写全 universe 行（研究用）"
     )
 
     # ── `test` command ────────────────────────────────────────────────────────
