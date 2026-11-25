@@ -3543,5 +3543,6 @@ L2 两项 + L4 全部落地 → P-011 golden 全局基线 → P-011 统计规范
 - **缺口 2（P2，状态失真）**：**U-P031-1** 题干写「实现完整做空需改 `core/tracker.py` / `core/execution.py`」，但 **P-050 已改毕**（期货保证金 / 逐日结算 / 强平 / 换月 + 股票负持仓研究模式 + `BUY_TO_COVER` 双路径）→ 原 `pending` 会让后续把已完成项当未开工。**处置**：改 **partial** 并列出真实剩余——① **借券**成本模型未做；② `agents/multi_strategy_engine.py` 中性腿仍显式禁用（L118-122 warning / L313-315 `_record_failure("neutral_short_leg_skipped")` / 结果标 `neutral_short_leg=unsupported`），触发条件不变。
 - **P3 缺陷修复（U-P060-10，已由 P-060a Step 6 登记、本次确证并修复）**：`execution_price_type` 传入非枚举（如 `"unknown"`）时，`_get_execution_price` L236-278 分支正确走 `else` 回退开盘价，但**日志读 `.value` 抛 `AttributeError`** → `execute_order` 被 except 捕获 → **订单失败**（本应正常成交）。两处硬读均修：构造日志（L201-205）+ 成功日志（L368-373）改 `getattr(..., "value", ...)`；`tests/test_p060a_execution_cost.py` T-A03b 由「仅解析层断言」扩展为**实走 `execute_order` 成功路径**（原注释「已登记 P3 候选」同步删除）。
 - **门禁**：`-k p060a` **54 passed** / 全量 **1593 passed + 1 skipped**（collect 1594，零新增例）/ mypy CI 同款十四目录 **162 files 0 error** / black **336 unchanged** / golden **22 零重录**；零新增依赖，正常路径零行为变更（仅非法配置分支消除崩溃）。
-- **状态**：**未 commit**（待用户授权）；本批不新增批次号，作为 P-061 关闭后的台账维护批。
+- **提交与 CI**：`bd041c1`（fix U-P060-10，2 文件 +12/−4）+ `82db741`（docs 台账收口，2 文件 +31/−1）已推送（`03222e3..82db741`）；CI run **45579001763** 四 job 全绿（arch-check 53s / test 3.11 5m2s / test 3.12 5m18s / lock-check 14s）。
+- **状态**：**批次关闭（2026-11-25）**；本批作为 P-061 关闭后的台账维护批，不新增批次号。
 
