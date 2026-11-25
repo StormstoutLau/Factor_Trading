@@ -198,7 +198,11 @@ class ExecutionSimulator:
         # （IMPL F-S6-P025-1）；调用侧忽略返回值。
         self._error_sink: Optional[Callable[[pd.Timestamp, str, BaseException], object]] = None
 
-        logger.info(f"交易执行模拟器初始化完成，执行价格类型: {execution_price_type.value}")
+        # U-P060-10：非枚举入参（如字符串）时无 .value，日志不得抛错
+        logger.info(
+            f"交易执行模拟器初始化完成，执行价格类型: "
+            f"{getattr(execution_price_type, 'value', execution_price_type)}"
+        )
 
     def set_error_sink(
         self, sink: Optional[Callable[[pd.Timestamp, str, BaseException], object]]
@@ -363,7 +367,9 @@ class ExecutionSimulator:
 
             logger.info(
                 f"交易执行成功: {stock} {side.name} {quantity}股 "
-                f"@ {execution_price:.2f} ({self.execution_price_type.value}), 成本: {cost:.2f}"
+                f"@ {execution_price:.2f} "
+                f"({getattr(self.execution_price_type, 'value', self.execution_price_type)}), "
+                f"成本: {cost:.2f}"
             )
 
             return True, trade

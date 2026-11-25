@@ -121,13 +121,15 @@ def test_p060a_a03b_price_fallbacks_and_pending_delegate():
     ok2, trade2 = sim_raise.execute_order("600000.SH", OrderSide.BUY, 100, _DATE, 10.0)
     assert ok2 and trade2 is not None and trade2.price == pytest.approx(10.0)
 
-    # 未知执行价格类型 → 回退开盘价（L277-278）；仅在解析层断言，
-    # 不经 execute_order 成功路径（该路径日志读 .value 会抛错——已登记 P3 候选）
+    # 未知执行价格类型 → 回退开盘价（L277-278），**并实走成功路径**
+    # （U-P060-10 已修：此前成功日志读 .value 抛 AttributeError 致订单失败）
     sim_unknown = make_simulator()
     sim_unknown.execution_price_type = "unknown"  # type: ignore[assignment]
     assert sim_unknown._get_execution_price(
         _DATE, "600000.SH", OrderSide.BUY, 10.0, None
     ) == pytest.approx(10.0)
+    ok3, trade3 = sim_unknown.execute_order("600000.SH", OrderSide.BUY, 100, _DATE, 10.0)
+    assert ok3 and trade3 is not None and trade3.price == pytest.approx(10.0)
 
     # 待执行单委托（L443）
     order = PendingOrder("600000.SH", OrderSide.BUY, 100, _DATE)
